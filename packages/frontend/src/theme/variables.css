@@ -1,0 +1,56 @@
+/* =========================================================================
+   siSuite — tema: i TOKEN del design system (docs/mockup/base.css) portati
+   nelle variabili Ionic. Regola del brief: design token, mai colori cablati,
+   così tema chiaro/scuro è banale dopo. color_token di lookup_value mappa qui.
+   ========================================================================= */
+:root {
+  /* superfici */
+  --ink: #1B1D24; --ink-2: #2A2D37; --ink-soft: #5C616E; --ink-faint: #8A8F9B;
+  --paper: #F3F5F8; --card: #FFFFFF; --line: #E5E8EE; --line-2: #EEF0F4;
+
+  /* brand + flow (la firma) */
+  --brand: #5B4DF0; --brand-press: #4A3DD6; --brand-wash: #ECEAFE; --brand-ink: #3B2EC0;
+  --flow: #1FC8C2; --flow-wash: #DEF7F5;
+  --flow-grad: linear-gradient(135deg, #5B4DF0 0%, #1FC8C2 100%);
+
+  /* color token di stato (= lookup_value.color_token) */
+  --success: #13A06B; --success-wash: #E0F4EC;
+  --warning: #D9912A; --warning-wash: #FBF0DA;
+  --danger: #E04550;  --danger-wash: #FBE7E8;
+  --info: #3B82F6;    --info-wash: #E6EFFE;
+  --neutral: #8A8F9B; --neutral-wash: #EDEFF3;
+
+  /* forma */
+  --r-xs: 7px; --r-sm: 10px; --r: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(27,29,36,.05), 0 2px 6px rgba(27,29,36,.04);
+  --shadow-2: 0 2px 6px rgba(27,29,36,.06), 0 14px 34px rgba(27,29,36,.09);
+  --shadow-pop: 0 10px 30px rgba(91,77,240,.20);
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── mappatura → Ionic ──────────────────────────────────────────── */
+  --ion-font-family: var(--font-body);
+  --ion-background-color: var(--paper);
+  --ion-background-color-rgb: 243, 245, 248;
+  --ion-text-color: var(--ink);
+  --ion-text-color-rgb: 27, 29, 36;
+  --ion-border-color: var(--line);
+  --ion-card-background: var(--card);
+
+  --ion-color-primary: var(--brand);
+  --ion-color-primary-rgb: 91, 77, 240;
+  --ion-color-primary-shade: var(--brand-press);
+  --ion-color-primary-tint: #6c5ff2;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+
+  --ion-color-secondary: var(--flow);
+  --ion-color-secondary-rgb: 31, 200, 194;
+  --ion-color-secondary-contrast: #ffffff;
+
+  --ion-color-success: var(--success);
+  --ion-color-warning: var(--warning);
+  --ion-color-danger: var(--danger);
+  --ion-color-medium: var(--neutral);
+}

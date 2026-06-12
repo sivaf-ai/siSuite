@@ -1,0 +1,95 @@
+/**
+ * index.ts — bootstrap del server Fastify.
+ *  - CORS per il frontend Vite
+ *  - app.authenticate (verifica JWT + contesto)
+ *  - route: /health (pubblica), /me, /engagements
+ *  - error handler: ZodError -> 400; resto -> 500 (senza leak interni)
+ */
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
+import { ZodError } from 'zod';
+import { config } from './config.js';
+import { startQueue } from './queue.js';
+import { registerAuthenticate } from './context/authenticate.js';
+import { healthRoutes } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
+import { engagementRoutes } from './routes/engagements.js';
+import { companyRoutes } from './routes/companies.js';
+import { assetRoutes } from './routes/assets.js';
+import { resourceRoutes } from './routes/resources.js';
+import { materialRoutes } from './routes/materials.js';
+import { lookupRoutes } from './routes/lookups.js';
+import { phaseRoutes } from './routes/phases.js';
+import { activityRoutes } from './routes/activities.js';
+import { timeEntryRoutes } from './routes/timeEntries.js';
+import { consumptionRoutes } from './routes/consumptions.js';
+import { scheduleRoutes } from './routes/schedule.js';
+import { dashboardRoutes } from './routes/dashboard.js';
+import { captureRoutes } from './routes/captures.js';
+import { fieldDefinitionRoutes } from './routes/fieldDefinitions.js';
+
+async function build() {
+  const app = Fastify({
+    logger: {
+      level: config.nodeEnv === 'production' ? 'info' : 'debug',
+      transport: config.nodeEnv === 'production' ? undefined : { target: 'pino-pretty' },
+    },
+  });
+
+  await app.register(cors, {
+    origin: config.cors.origin === '*' ? true : config.cors.origin.split(','),
+    credentials: true,
+  });
+  await app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024 } }); // audio capture ≤ 25MB
+
+  app.setErrorHandler((err, request, reply) => {
+    if (err instanceof ZodError) {
+      return reply.code(400).send({
+        error: 'bad_request',
+        message: 'Dati non validi',
+        statusCode: 400,
+        issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+    request.log.error(err);
+    const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+    return reply.code(statusCode).send({
+      error: statusCode >= 500 ? 'internal_error' : 'error',
+      message: statusCode >= 500 ? 'Errore interno' : (err as Error).message,
+      statusCode,
+    });
+  });
+
+  registerAuthenticate(app);
+  await app.register(healthRoutes);
+  await app.register(meRoutes);
+  await app.register(lookupRoutes);
+  await app.register(engagementRoutes);
+  await app.register(companyRoutes);
+  await app.register(assetRoutes);
+  await app.register(resourceRoutes);
+  await app.register(materialRoutes);
+  await app.register(phaseRoutes);
+  await app.register(activityRoutes);
+  await app.register(timeEntryRoutes);
+  await app.register(consumptionRoutes);
+  await app.register(scheduleRoutes);
+  await app.register(dashboardRoutes);
+  await app.register(captureRoutes);
+  await app.register(fieldDefinitionRoutes);
+
+  return app;
+}
+
+build()
+  .then((app) =>
+    app.listen({ host: '0.0.0.0', port: config.port }).then(() => {
+      app.log.info(`siSuite backend in ascolto su :${config.port}`);
+      void startQueue(); // coda asincrona per le capture vocali (tollerante)
+    }),
+  )
+  .catch((err) => {
+    console.error('Avvio backend fallito:', err);
+    process.exit(1);
+  });

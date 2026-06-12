@@ -1,0 +1,5 @@
+# Normalizza i fine-riga a LF nel repo (cross-platform; gli script girano in container Linux).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webm binary

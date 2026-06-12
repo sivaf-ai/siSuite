@@ -1,0 +1,32 @@
+# =====================================================================
+#  siSuite — override PRODUZIONE/BUILD.
+#  Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#  Differenze dal dev: build target `prod`, niente bind-mount del codice,
+#  niente hot-reload, NODE_ENV=production, frontend servito statico.
+# =====================================================================
+
+services:
+  auth:
+    environment:
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+
+  migrate:
+    build:
+      target: prod
+    volumes: []
+    command: ["pnpm", "--filter", "@sisuite/backend", "migrate"]
+
+  backend:
+    build:
+      target: prod
+    environment:
+      NODE_ENV: production
+    volumes: []
+    command: ["pnpm", "--filter", "@sisuite/backend", "start"]
+
+  frontend:
+    build:
+      target: prod
+    volumes: []
+    # in prod il frontend è servito come statico da nginx (vedi Dockerfile prod)
+    command: ["nginx", "-g", "daemon off;"]

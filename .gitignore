@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# env / secrets (mai segreti nel repo)
+.env
+.env.local
+.env.*.local
+secrets/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# docker volumes locali (se montati nel repo)
+.volumes/
+
+# test
+coverage/
+
+# frontend
+packages/frontend/.vite/
+packages/frontend/dist/

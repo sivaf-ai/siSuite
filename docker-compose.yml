@@ -1,0 +1,192 @@
+# =====================================================================
+#  siSuite — Docker Compose (SVILUPPO)
+#  Tutto gira in Docker: dev, test, run. `docker compose up` e vive tutto.
+#  Ordine: db (healthy) -> auth (GoTrue) + migrate (schema+RLS+bootstrap)
+#          -> backend -> frontend.
+# =====================================================================
+
+services:
+  # ── PostgreSQL 16 + pgvector (container DEDICATO, isolato) ──────────
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sisuite_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # init eseguito SOLO su volume vuoto: crea lo schema `auth` per GoTrue
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ── Auth: Supabase GoTrue (solo authN; authZ resta su RBAC+RLS) ────
+  auth:
+    image: supabase/gotrue:v2.151.0
+    container_name: sisuite_auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: 9999
+      API_EXTERNAL_URL: http://localhost:${AUTH_HOST_PORT:-9999}
+      GOTRUE_API_EXTERNAL_URL: http://localhost:${AUTH_HOST_PORT:-9999}
+      GOTRUE_DB_DRIVER: postgres
+      # GoTrue crea e gestisce il proprio schema `auth` nello stesso Postgres
+      # search_path=public,auth: il runner di migrazione risolve schema_migrations
+      # in public (già completo → niente re-run del bug uuid=text), mentre le
+      # query runtime non qualificate (users, identities) cadono su auth.*.
+      DATABASE_URL: ${DATABASE_ADMIN_URL}?sslmode=disable&search_path=public,auth
+      GOTRUE_DB_DATABASE_URL: ${DATABASE_ADMIN_URL}?sslmode=disable&search_path=public,auth
+      GOTRUE_SITE_URL: http://localhost:${FRONTEND_HOST_PORT:-5173}
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_AUD: ${JWT_AUD:-authenticated}
+      # dev: niente conferma email, login immediato
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMTP_ADMIN_EMAIL: admin@sisuite.local
+      GOTRUE_LOG_LEVEL: info
+    ports:
+      - "${AUTH_HOST_PORT:-9999}:9999"
+
+  # ── Migrate one-shot: applica migrazioni SQL + bootstrap TS ────────
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+      target: dev
+    container_name: sisuite_migrate
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL}
+      SISUITE_APP_PASSWORD: ${SISUITE_APP_PASSWORD}
+      GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET}
+      AUTH_INTERNAL_URL: http://auth:9999
+      JWT_AUD: ${JWT_AUD:-authenticated}
+      TENANT_NAME: ${TENANT_NAME}
+      TENANT_VERTICAL: ${TENANT_VERTICAL}
+      TENANT_LOCALE: ${TENANT_LOCALE:-it-IT}
+      TENANT_TIMEZONE: ${TENANT_TIMEZONE:-Europe/Rome}
+      OWNER_EMAIL: ${OWNER_EMAIL}
+      OWNER_PASSWORD: ${OWNER_PASSWORD}
+      OWNER_NAME: ${OWNER_NAME}
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./db:/app/db:ro
+    command: ["pnpm", "--filter", "@sisuite/backend", "migrate"]
+    restart: "no"
+
+  # ── Backend: Fastify (connesso come ruolo sisuite_app, soggetto a RLS) ──
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+      target: dev
+    container_name: sisuite_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      minio:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      BACKEND_PORT: ${BACKEND_PORT:-3010}
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-}
+      JWT_AUD: ${JWT_AUD:-authenticated}
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:9999}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      EXTRACTION_MODEL: ${EXTRACTION_MODEL:-claude-opus-4-8}
+      AI_AUTOAPPLY_THRESHOLD: ${AI_AUTOAPPLY_THRESHOLD:-0.85}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: captures
+    ports:
+      - "${BACKEND_HOST_PORT:-3010}:${BACKEND_PORT:-3010}"
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./db:/app/db:ro
+    command: ["pnpm", "--filter", "@sisuite/backend", "dev"]
+
+  # ── Frontend: Ionic + React + Vite (dev server) ────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+      target: dev
+    container_name: sisuite_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3010}
+      VITE_AUTH_URL: ${VITE_AUTH_URL:-http://localhost:9999}
+    ports:
+      - "${FRONTEND_HOST_PORT:-5173}:5173"
+    volumes:
+      - ./packages/frontend/src:/app/packages/frontend/src
+      - ./packages/frontend/index.html:/app/packages/frontend/index.html
+      - ./packages/shared/src:/app/packages/shared/src
+
+  # ── Adminer: ispezione DB (profilo "tools", non parte al default) ──
+  adminer:
+    image: adminer:4
+    container_name: sisuite_adminer
+    restart: unless-stopped
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "${ADMINER_HOST_PORT:-8082}:8080"
+
+  # ── MinIO: object storage S3 (media delle capture vocali, Fase 3) ──
+  minio:
+    image: minio/minio
+    container_name: sisuite_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  db_data:
+  minio_data:
