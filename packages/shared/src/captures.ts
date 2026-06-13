@@ -64,7 +64,7 @@ export interface CaptureDto {
   id: string;
   status: CaptureStatus;
   channel: CaptureChannel;
-  rawText: string;
+  rawText: string | null; // nullable: per le catture voce/foto il testo può non esserci
   engagementId: string | null;
   createdAt: string;
   processedAt: string | null;

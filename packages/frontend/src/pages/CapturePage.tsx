@@ -118,7 +118,7 @@ export function CaptureContent() {
 
   async function openCapture(id: string) {
     const cap = await apiFetch<CaptureDto>(`/captures/${id}`);
-    setRawText(cap.rawText);
+    setRawText(cap.rawText ?? '');
     loadProposal(cap);
   }
 
@@ -174,7 +174,7 @@ export function CaptureContent() {
           </IonSelect>
         </IonItem>
         <div style={{ display: 'flex', gap: 8 }}>
-          <IonButton style={{ flex: 1 }} disabled={busy || processing || !rawText.trim() || voice.recording} onClick={submit}>
+          <IonButton style={{ flex: 1 }} disabled={busy || processing || !(rawText ?? '').trim() || voice.recording} onClick={submit}>
             {busy ? <IonSpinner name="crescent" /> : <><Sparkles size={17} style={{ marginRight: 6 }} />Estrai</>}
           </IonButton>
           {voice.audioSupported && (
