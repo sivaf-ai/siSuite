@@ -65,6 +65,38 @@ function deterministicSummary(d: EngData): string {
   return parts.join(' ');
 }
 
+/** Racconto della GIORNATA del tecnico (vista mobile). Sotto RLS: con scope 'own'
+ *  vede solo le proprie attività. Deterministico senza chiave, LLM con chiave. */
+export async function narrateToday(db: PoolClient, ctx: UserContext): Promise<NarrativeResult> {
+  const acts = await db.query(
+    `SELECT a.title, s.canonical AS status_canonical, a.estimated_minutes, a.scheduled_start
+     FROM activity a LEFT JOIN lookup_value s ON s.id = a.status_id
+     WHERE (a.scheduled_start::date = current_date)
+        OR (a.scheduled_start IS NULL AND (s.canonical IS NULL OR s.canonical NOT IN ('done','cancelled')))
+     ORDER BY a.scheduled_start NULLS LAST, a.created_at LIMIT 50`,
+  );
+  const rows = acts.rows.map((r) => ({ title: r.title as string, status: (r.status_canonical as string) ?? null, minutes: (r.estimated_minutes as number) ?? null, fixed: r.scheduled_start != null }));
+  const fixed = rows.filter((a) => a.fixed).length;
+  const minutes = rows.reduce((s, a) => s + (a.minutes ?? 0), 0);
+  const h = Math.floor(minutes / 60), mm = minutes % 60;
+  const inProg = rows.filter((a) => a.status === 'in_progress').map((a) => a.title);
+  const fallback = rows.length === 0
+    ? 'Oggi non hai attività in agenda.'
+    : `Oggi hai ${rows.length} attività (${fixed} a orario fisso), circa ${h}h${mm ? ` ${mm}m` : ''}.` +
+      (inProg.length ? ` In corso: ${inProg.join(', ')}.` : '');
+  if (!aiEnabled()) return { available: false, text: fallback };
+  const lang = LOCALE_NAME[ctx.locale] ?? 'italiano';
+  try {
+    const msg = await anthropic().messages.create({
+      model: config.ai.extractionModel, max_tokens: 250,
+      system: `Sei l'assistente di un tecnico sul campo. Riassumi la sua GIORNATA in ${lang}, 1-2 frasi, tono diretto e incoraggiante. Solo testo. Usa solo i dati forniti.`,
+      messages: [{ role: 'user', content: `Attività di oggi (JSON):\n${JSON.stringify(rows)}` }],
+    });
+    const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim();
+    return { available: true, text: text || fallback };
+  } catch { return { available: false, text: fallback }; }
+}
+
 export async function narrateEngagement(db: PoolClient, ctx: UserContext, engagementId: string): Promise<NarrativeResult | null> {
   const d = await gather(db, engagementId);
   if (!d) return null;

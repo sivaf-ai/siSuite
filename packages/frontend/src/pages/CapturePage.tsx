@@ -65,7 +65,12 @@ function OperationRow({ op, index, checked, onToggle }:
   );
 }
 
+/** Pagina desktop (con header). Sul mobile si usa <CaptureContent/> nudo nella cornice. */
 export function CapturePage() {
+  return <Page title="Catture"><CaptureContent /></Page>;
+}
+
+export function CaptureContent() {
   const { user } = useAuth();
   const canApply = !!user?.permissions.includes('capture:apply');
   const engagements = useApi<{ items: EngagementDto[] }>('/engagements');
@@ -153,7 +158,7 @@ export function CapturePage() {
   const proposable = current?.operations.filter((o) => o.valid && o.type !== 'clarify').length ?? 0;
 
   return (
-    <Page title="Catture">
+    <>
       <IonNote>Racconta in linguaggio naturale: l'AI propone le operazioni, tu confermi.</IonNote>
 
       <div className="card" style={{ padding: 14, borderRadius: 'var(--r-lg)', marginTop: 10 }}>
@@ -231,6 +236,6 @@ export function CapturePage() {
           })}
         </IonList>
       ) : <Empty text="Nessuna cattura ancora." />)}
-    </Page>
+    </>
   );
 }

@@ -252,6 +252,62 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 .trow .ticon { width: 27px; height: 27px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; }
 .trow .tdep { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-faint); font-family: var(--font-mono); }
 
+/* =========================================================================
+   VISTA TECNICO MOBILE — cornice "telefono" per il demo su PC (mock 01/02/21/22).
+   Regole copiate da docs/mockup/base.css, SCOPATE sotto .phone per non collidere
+   con il resto dell'app (es. .avatar della sidebar, .flow/.act/.node desktop).
+   ========================================================================= */
+.phone-stage { min-height: 100vh; display: flex; flex-wrap: wrap; gap: 46px; align-items: flex-start; justify-content: center; padding: 48px 24px; background: radial-gradient(1200px 700px at 50% -10%, #fff 0, var(--paper) 60%); }
+.phone { width: 390px; height: 830px; background: var(--card); border-radius: 46px; position: relative; box-shadow: 0 0 0 11px #14151b, 0 0 0 13px #23252e, var(--shadow-2); overflow: hidden; display: flex; flex-direction: column; }
+.phone .status { height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px 0 30px; font-size: 13px; font-weight: 600; flex: 0 0 auto; }
+.phone .status .sigs { display: flex; gap: 5px; align-items: center; }
+.phone .notch { position: absolute; top: 13px; left: 50%; transform: translateX(-50%); width: 118px; height: 30px; background: #14151b; border-radius: var(--r-pill); z-index: 20; }
+.phone .screen { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.phone .scroll { flex: 1; overflow: auto; padding: 6px 18px 110px; }
+.phone .scroll::-webkit-scrollbar { width: 0; }
+.phone-caption { width: 100%; max-width: 390px; text-align: center; margin-top: 18px; }
+.phone-caption .t { font-family: var(--font-display); font-weight: 700; font-size: 17px; }
+.phone-caption .d { font-size: 13.5px; color: var(--ink-soft); margin-top: 3px; }
+/* header mobile */
+.phone .m-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px 14px; }
+.phone .m-head .hi { font-family: var(--font-display); font-size: 23px; font-weight: 800; letter-spacing: -.03em; }
+.phone .m-head .day { font-size: 13.5px; color: var(--ink-soft); margin-top: 1px; }
+.phone .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--flow-grad); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px; flex: 0 0 auto; }
+/* barra di cattura (hero AI) */
+.phone .capture-bar { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 18px; border-radius: var(--r-lg); background: var(--card); border: 1.5px solid transparent; background-image: linear-gradient(var(--card), var(--card)), var(--flow-grad); background-origin: border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow-1); width: 100%; text-align: left; cursor: pointer; }
+.phone .capture-bar .txt { flex: 1; }
+.phone .capture-bar .txt b { display: block; font-size: 15px; font-weight: 600; }
+.phone .capture-bar .txt span { font-size: 12.5px; color: var(--ink-soft); }
+.phone .mic { width: 46px; height: 46px; border-radius: 14px; background: var(--flow-grad); color: #fff; display: grid; place-items: center; flex: 0 0 auto; box-shadow: var(--shadow-pop); }
+/* riepilogo AI (racconto giornata) */
+.phone .ai-day { display: flex; gap: 10px; padding: 13px 14px; border-radius: var(--r-lg); background: var(--brand-wash); color: var(--brand-ink); font-size: 13.5px; line-height: 1.5; margin-top: 12px; }
+.phone .ai-day .spark { color: var(--brand); flex: 0 0 auto; margin-top: 1px; }
+/* flow rail + card attività */
+.phone .section-label { display: flex; align-items: baseline; justify-content: space-between; margin: 24px 2px 12px; }
+.phone .section-label .n { font-family: var(--font-mono); font-size: 13px; color: var(--ink-faint); }
+.phone .flow { position: relative; padding-left: 30px; }
+.phone .flow::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--flow-grad); opacity: .85; }
+.phone .node { position: absolute; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--card); border: 3px solid var(--brand); margin-top: 20px; }
+.phone .node.now { border-color: var(--flow); box-shadow: 0 0 0 5px var(--flow-wash); }
+.phone .node.now::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--flow); animation: ping 1.8s ease-out infinite; }
+@keyframes ping { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.1); opacity: 0; } }
+.phone .act { position: relative; margin-bottom: 12px; }
+.phone .act .top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.phone .act .time { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.phone .act .dur { font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint); }
+.phone .act h3 { font-size: 16px; font-weight: 600; font-family: var(--font-body); letter-spacing: -.01em; margin-bottom: 6px; }
+.phone .act .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.phone .act .who { font-size: 13px; color: var(--ink-soft); }
+.phone .progress { display: flex; align-items: center; gap: 9px; margin-top: 4px; }
+.phone .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.phone .bar i { display: block; height: 100%; border-radius: 3px; background: var(--flow-grad); }
+.phone .progress .lbl { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+/* tab bar */
+.phone .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: rgba(255, 255, 255, .86); backdrop-filter: blur(14px); border-top: 1px solid var(--line); display: flex; align-items: flex-start; justify-content: space-around; padding-top: 12px; z-index: 10; }
+.phone .tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--ink-faint); width: 64px; background: none; border: 0; cursor: pointer; }
+.phone .tab.active { color: var(--brand); }
+.phone .fab { width: 60px; height: 60px; border-radius: 20px; background: var(--flow-grad); color: #fff; display: grid; place-items: center; margin-top: -22px; box-shadow: var(--shadow-pop); border: 4px solid var(--card); cursor: pointer; }
+
 /* ---- piano / billing ---- */
 .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 .plan-card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 20px; box-shadow: var(--shadow-1); position: relative; }

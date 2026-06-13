@@ -1,10 +1,12 @@
 import { IonApp, IonSpinner } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
+import { Route, Switch } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { LookupsProvider } from './context/Lookups';
 import { ToastProvider } from './ui/Toast';
 import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
+import { MobileShell } from './mobile/MobileShell';
 
 function Gate() {
   const { user, loading } = useAuth();
@@ -20,7 +22,10 @@ function Gate() {
     <LookupsProvider>
       <ToastProvider>
         <IonReactRouter>
-          <AppShell />
+          <Switch>
+            <Route path="/m"><MobileShell /></Route>
+            <Route><AppShell /></Route>
+          </Switch>
         </IonReactRouter>
       </ToastProvider>
     </LookupsProvider>

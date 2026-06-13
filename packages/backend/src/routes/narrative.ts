@@ -3,7 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
-import { narrateEngagement } from '../ai/narrator.js';
+import { narrateEngagement, narrateToday } from '../ai/narrator.js';
 
 export async function narrativeRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string } }>('/engagements/:id/narrative',
@@ -13,4 +13,9 @@ export async function narrativeRoutes(app: FastifyInstance): Promise<void> {
       if (!out) return reply.code(404).send({ error: 'not_found', message: 'Commessa non trovata', statusCode: 404 });
       return out;
     });
+
+  // racconto della giornata del tecnico (vista mobile)
+  app.get('/me/today-narrative',
+    { preHandler: [app.authenticate, requirePermission('activity:read')] },
+    async (request) => withRls(request.ctx, (db) => narrateToday(db, request.ctx)));
 }
