@@ -111,6 +111,18 @@ export interface UserAdminDto {
   createdAt: string;
 }
 
+/* ── Orari di lavoro (tenant e risorsa) ─────────────────────────────────── */
+// per giorno (mon..sun): lista di intervalli [inizio,fine] in "HH:MM" (ora locale del tenant)
+const timeStr = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Ora in formato HH:MM');
+export const workingHoursSchema = z.record(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']), z.array(z.tuple([timeStr, timeStr])));
+export type WorkingHoursInput = z.infer<typeof workingHoursSchema>;
+export const updateWorkingHoursSchema = z.object({ workingHours: workingHoursSchema });
+
+export interface TenantSettingsDto {
+  name: string; vertical: string; defaultLocale: string; timezone: string;
+  workingHours: Record<string, [string, string][]>;
+}
+
 /* ── Billing: piano + abbonamento del tenant (sola lettura) ─────────────── */
 export interface PlanDto {
   id: string;

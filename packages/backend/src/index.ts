@@ -34,6 +34,7 @@ import { userRoutes } from './routes/users.js';
 import { billingRoutes } from './routes/billing.js';
 import { narrativeRoutes } from './routes/narrative.js';
 import { platformRoutes } from './routes/platform.js';
+import { settingsRoutes } from './routes/settings.js';
 
 async function build() {
   const app = Fastify({
@@ -90,6 +91,7 @@ async function build() {
   await app.register(billingRoutes);
   await app.register(narrativeRoutes);
   await app.register(platformRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }
