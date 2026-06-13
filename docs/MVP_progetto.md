@@ -232,7 +232,7 @@ Si paga: **API LLM** (l'unico costo che scala col successo — tenuto basso da c
 - Riprogrammazione proattiva (meteo, scorte).
 - Mezzi pesanti e dimensioni di verticali diversi dal nostro.
 - Foto/OCR, fatturazione, integrazioni esterne, on-prem.
-- Portale cliente esterno (agganci dati già predisposti: `app_user.customer_id`, ruolo "Cliente esterno").
+- Portale cliente esterno (agganci dati già predisposti: `app_user.company_id`, ruolo "Cliente esterno").
 
 > Il catalogo completo di tutto ciò che è rimandato — con agganci e costo di retrofit — è in **`BACKLOG_futuro.md`**, che è la fonte di verità da aggiornare a ogni rinvio.
 

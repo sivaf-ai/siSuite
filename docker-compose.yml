@@ -134,6 +134,7 @@ services:
       - "${BACKEND_HOST_PORT:-3010}:${BACKEND_PORT:-3010}"
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/backend/test:/app/packages/backend/test
       - ./packages/shared/src:/app/packages/shared/src
       - ./db:/app/db:ro
     command: ["pnpm", "--filter", "@sisuite/backend", "dev"]
