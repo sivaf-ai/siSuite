@@ -1,9 +1,9 @@
 /** Piano e fatturazione (sola lettura). Mostra l'abbonamento corrente del
  *  tenant, la quota AI consumata nel mese e il catalogo piani. L'upgrade reale
  *  passa dal provider di pagamento (fuori da qui): pagina informativa. */
-import { CreditCard, Check, Sparkles, Users } from 'lucide-react';
+import { Check, Sparkles, Users } from 'lucide-react';
 import type { BillingInfoDto } from '@sisuite/shared';
-import { Page, Loading, ErrorBox } from '../../components/Page';
+import { Loading, ErrorBox } from '../../components/Page';
 import { StatusPill } from '../../components/StatusPill';
 import { useApi } from '../../api/hooks';
 
@@ -19,7 +19,8 @@ const STATUS: Record<string, { label: string; token: string }> = {
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('it-IT') : '—');
 
-export function BillingPage() {
+/** Contenuto della sezione "Piano & fatturazione" (dentro SettingsLayout, senza Page). */
+export function BillingContent() {
   const { data, loading, error } = useApi<BillingInfoDto>('/billing');
   const sub = data?.subscription;
   const ent = (sub?.entitlements ?? {}) as Record<string, unknown>;
@@ -28,13 +29,7 @@ export function BillingPage() {
   const aiPct = aiLimit ? Math.min(100, Math.round((aiUsed / aiLimit) * 100)) : 0;
 
   return (
-    <Page title="Piano">
-      <div className="page-head">
-        <div>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CreditCard size={24} /> Piano e fatturazione</h1>
-          <div className="sub">Abbonamento del tenant, consumo AI del mese e piani disponibili.</div>
-        </div>
-      </div>
+    <>
 
       {loading && <Loading />}
       {error && <ErrorBox message={error} />}
@@ -91,6 +86,6 @@ export function BillingPage() {
           </p>
         </>
       )}
-    </Page>
+    </>
   );
 }

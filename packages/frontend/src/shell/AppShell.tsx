@@ -29,9 +29,11 @@ import { PianificazionePage } from '../pages/PianificazionePage';
 import { CapturePage } from '../pages/CapturePage';
 import { UsersPage } from '../pages/admin/UsersPage';
 import { RolesPage } from '../pages/admin/RolesPage';
-import { LookupsPage } from '../pages/admin/LookupsPage';
-import { NumberSeriesPage } from '../pages/admin/NumberSeriesPage';
-import { BillingPage } from '../pages/admin/BillingPage';
+import { SettingsLayout } from '../pages/admin/SettingsLayout';
+import { GeneralSettings } from '../pages/admin/GeneralSettings';
+import { LabelsSettings } from '../pages/admin/LabelsSettings';
+import { NumbersSettings } from '../pages/admin/NumbersSettings';
+import { BillingContent } from '../pages/admin/BillingPage';
 import { SuperAdminPage } from '../pages/admin/SuperAdminPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
 
@@ -59,9 +61,11 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/captures', render: () => <CapturePage /> },
   { path: '/admin/users', render: () => <UsersPage /> },
   { path: '/admin/roles', render: () => <RolesPage /> },
-  { path: '/admin/settings', render: () => <LookupsPage /> },
-  { path: '/admin/number-series', render: () => <NumberSeriesPage /> },
-  { path: '/admin/billing', render: () => <BillingPage /> },
+  { path: '/admin/settings', render: () => <Redirect to="/admin/settings/general" /> },
+  { path: '/admin/settings/general', render: () => <SettingsLayout active="general"><GeneralSettings /></SettingsLayout> },
+  { path: '/admin/settings/labels', render: () => <SettingsLayout active="labels"><LabelsSettings /></SettingsLayout> },
+  { path: '/admin/settings/numbers', render: () => <SettingsLayout active="numbers"><NumbersSettings /></SettingsLayout> },
+  { path: '/admin/settings/billing', render: () => <SettingsLayout active="billing"><BillingContent /></SettingsLayout> },
   { path: '/admin/platform', render: () => <SuperAdminPage /> },
 ];
 

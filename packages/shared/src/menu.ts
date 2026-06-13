@@ -49,9 +49,7 @@ export const MENU: MenuItem[] = [
 
   { id: 'users',       label: 'Utenti',        route: '/admin/users',    icon: 'person-circle-outline', permission: 'user:read',     shells: ['desktop'], group: 'amministrazione' },
   { id: 'roles',       label: 'Ruoli',         route: '/admin/roles',    icon: 'shield-outline',        permission: 'role:read',     shells: ['desktop'], group: 'amministrazione' },
-  { id: 'settings',    label: 'Etichette e stati', route: '/admin/settings', icon: 'settings-outline',  permission: 'settings:read', shells: ['desktop'], group: 'amministrazione' },
-  { id: 'numberseries', label: 'Numeratori',   route: '/admin/number-series', icon: 'pricetag-outline', permission: 'settings:read', shells: ['desktop'], group: 'amministrazione' },
-  { id: 'billing',     label: 'Piano',         route: '/admin/billing',  icon: 'card-outline',          permission: 'billing:read',  shells: ['desktop'], group: 'amministrazione' },
+  { id: 'settings',    label: 'Impostazioni',  route: '/admin/settings', icon: 'settings-outline',      permission: 'settings:read', shells: ['desktop'], group: 'amministrazione' },
 ];
 
 /** Le voci visibili per un dato insieme di permessi e una shell. */
