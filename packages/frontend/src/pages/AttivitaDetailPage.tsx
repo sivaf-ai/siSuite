@@ -4,10 +4,11 @@ import {
   IonList, IonItem, IonLabel, IonCheckbox, IonButton, IonSelect, IonSelectOption, IonInput,
   IonChip, IonNote, IonSpinner, IonText,
 } from '@ionic/react';
-import type { ActivityDto, ActivityResourceDto, TimeEntryDto, ConsumptionDto, MaterialDto } from '@sisuite/shared';
+import type { ActivityDto, ActivityResourceDto, TimeEntryDto, ConsumptionDto, MaterialDto, ResourceDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { useApi, mutate } from '../api/hooks';
+import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 
@@ -71,21 +72,80 @@ export function AttivitaDetailPage() {
             </IonList>
           )}
 
-          {/* Risorse assegnate */}
-          {act.data.resources.length > 0 && (
-            <>
-              <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 18 }}>Risorse</h3>
-              <IonList>{act.data.resources.map((r) => (
-                <IonItem key={r.id}><IonLabel>{r.resourceLabel}</IonLabel></IonItem>
-              ))}</IonList>
-            </>
-          )}
+          <RisorseAssegnate activityId={id} resources={act.data.resources} onChange={() => act.reload()} />
 
           <RendicontazioneOre activityId={id} engagementId={act.data.engagementId} />
           <RendicontazioneMateriali activityId={id} />
         </>
       )}
     </Page>
+  );
+}
+
+function RisorseAssegnate({ activityId, resources, onChange }:
+  { activityId: string; resources: ActivityResourceDto[]; onChange: () => void }) {
+  const { user } = useAuth();
+  const can = !!user?.permissions.includes('activity:assign');
+  const all = useApi<{ items: ResourceDto[] }>('/resources');
+  const [resourceId, setResourceId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function add() {
+    const rid = resourceId || all.data?.items[0]?.id;
+    if (!rid) { setErr('Nessuna risorsa a catalogo'); return; }
+    setBusy(true); setErr(null);
+    try {
+      const body: Record<string, unknown> = { resourceId: rid };
+      if (from) body.plannedFrom = new Date(from).toISOString();
+      if (to) body.plannedTo = new Date(to).toISOString();
+      await mutate('POST', `/activities/${activityId}/resources`, body);
+      setFrom(''); setTo('');
+      onChange();
+    } catch (e) {
+      // 409 = doppia prenotazione: il backend rileva il blocco dal vincolo EXCLUDE
+      const msg = e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message;
+      setErr(msg);
+    } finally { setBusy(false); }
+  }
+  async function remove(arId: string) {
+    setBusy(true); setErr(null);
+    try { await mutate('DELETE', `/activities/${activityId}/resources/${arId}`); onChange(); }
+    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 18 }}>Risorse assegnate</h3>
+      {resources.length === 0 ? <Empty text="Nessuna risorsa assegnata." /> : (
+        <IonList>{resources.map((r) => (
+          <IonItem key={r.id}>
+            <IonLabel>
+              {r.resourceLabel}
+              {r.plannedFrom && <IonNote style={{ display: 'block', fontSize: 12 }}>
+                {new Date(r.plannedFrom).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                {r.plannedTo && ` → ${new Date(r.plannedTo).toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' })}`}
+              </IonNote>}
+            </IonLabel>
+            {can && <IonButton fill="clear" color="danger" size="small" onClick={() => remove(r.id)} disabled={busy}>Rimuovi</IonButton>}
+          </IonItem>
+        ))}</IonList>
+      )}
+      {can && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginTop: 8, flexWrap: 'wrap' }}>
+          <IonSelect style={{ minWidth: 160 }} label="Risorsa" labelPlacement="stacked" value={resourceId || all.data?.items[0]?.id} onIonChange={(e) => setResourceId(e.detail.value)}>
+            {(all.data?.items ?? []).map((r) => <IonSelectOption key={r.id} value={r.id}>{r.label}</IonSelectOption>)}
+          </IonSelect>
+          <IonInput style={{ minWidth: 170 }} type="datetime-local" label="Da (opz.)" labelPlacement="stacked" value={from} onIonInput={(e) => setFrom(e.detail.value ?? '')} />
+          <IonInput style={{ minWidth: 170 }} type="datetime-local" label="A (opz.)" labelPlacement="stacked" value={to} onIonInput={(e) => setTo(e.detail.value ?? '')} />
+          <IonButton size="default" disabled={busy} onClick={add}>{busy ? <IonSpinner name="crescent" /> : 'Assegna'}</IonButton>
+        </div>
+      )}
+      <IonNote style={{ display: 'block', marginTop: 6, fontSize: 12 }}>Con orario Da/A il sistema blocca la doppia prenotazione della stessa risorsa.</IonNote>
+      {err && <IonText color="danger"><p>{err}</p></IonText>}
+    </>
   );
 }
 
