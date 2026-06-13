@@ -11,7 +11,7 @@ import {
 import type { CSSProperties } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useHistory, useLocation } from 'react-router';
-import { LogOut, Mic, Circle } from 'lucide-react';
+import { LogOut, Mic, Circle, ShieldAlert } from 'lucide-react';
 import { MENU_ICON } from '../ui/icons';
 import { visibleMenu, type MenuItem, type PermissionKey } from '@sisuite/shared';
 import { useAuth } from '../auth/AuthContext';
@@ -32,6 +32,7 @@ import { RolesPage } from '../pages/admin/RolesPage';
 import { LookupsPage } from '../pages/admin/LookupsPage';
 import { NumberSeriesPage } from '../pages/admin/NumberSeriesPage';
 import { BillingPage } from '../pages/admin/BillingPage';
+import { SuperAdminPage } from '../pages/admin/SuperAdminPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
 
 const GROUP_LABEL: Record<NonNullable<MenuItem['group']>, string> = {
@@ -61,6 +62,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/admin/settings', render: () => <LookupsPage /> },
   { path: '/admin/number-series', render: () => <NumberSeriesPage /> },
   { path: '/admin/billing', render: () => <BillingPage /> },
+  { path: '/admin/platform', render: () => <SuperAdminPage /> },
 ];
 
 export function AppShell() {
@@ -114,6 +116,16 @@ export function AppShell() {
                   </div>
                 );
               })}
+
+              {user?.isPlatformAdmin && (
+                <div>
+                  <div className="ds-navgroup">Piattaforma</div>
+                  <div className={`ds-navitem${isActive('/admin/platform') ? ' active' : ''}`} onClick={() => go('/admin/platform')}>
+                    <ShieldAlert size={18} />
+                    <span>Demo / Super admin</span>
+                  </div>
+                </div>
+              )}
 
               <div className="ds-side-user">
                 <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{initials}</div>

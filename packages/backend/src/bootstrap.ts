@@ -175,5 +175,14 @@ export async function bootstrap(client: pg.Client): Promise<void> {
   );
   log(`app_user Owner = ${ownerUserId} (ruolo Owner assegnato)`);
 
+  // ── 8. SUPER ADMIN di piattaforma (opzionale) ─────────────────────
+  // Solo se PLATFORM_ADMIN_EMAIL è impostato: quell'utente ottiene is_platform_admin.
+  // In produzione resta vuoto (nessun tenant admin diventa platform admin).
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL;
+  if (platformEmail) {
+    const r = await client.query(`UPDATE app_user SET is_platform_admin = true WHERE email = $1 RETURNING id`, [platformEmail]);
+    log(r.rows.length ? `platform admin abilitato per ${platformEmail}` : `PLATFORM_ADMIN_EMAIL=${platformEmail} non corrisponde a nessun utente (ancora)`);
+  }
+
   log('completato.');
 }

@@ -45,3 +45,10 @@ export function requirePermission(required: PermissionKey) {
     }
   };
 }
+
+/** Guardia PIATTAFORMA: solo is_platform_admin (noi, il fornitore). Non è RBAC del tenant. */
+export async function requirePlatformAdmin(request: FastifyRequest, reply: FastifyReply) {
+  if (!request.ctx?.isPlatformAdmin) {
+    return reply.code(403).send({ error: 'forbidden', message: 'Riservato all\'amministratore di piattaforma', statusCode: 403 });
+  }
+}
