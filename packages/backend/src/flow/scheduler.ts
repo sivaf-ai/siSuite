@@ -154,3 +154,116 @@ export function schedule(activities: FlowActivity[], wh: WorkingHours, now: Date
     return x.start.localeCompare(y.start);
   });
 }
+
+// =====================================================================
+//  MOTORE PER-RISORSA (FASE 2) — sostituisce la timeline unica con un piano
+//  PER OGNI risorsa. Calendario effettivo di una risorsa:
+//    (resource.working_hours ?? tenant.working_hours)  −  resource_availability
+//  Le FISSE assegnate diventano occupazioni; le DINAMICHE si versano nei buchi
+//  COMUNI a TUTTE le risorse assegnate (intersezione: persona + mezzo insieme),
+//  in ordine priorità poi created_at, rispettando earliest_start/due_by.
+//  La schedule() classica resta intatta (test di regressione verdi).
+//  NB: è un forward-pass greedy "best-in-class"; il solver ottimizzante
+//  (Timefold/OR-Tools) è il tier successivo (BACKLOG).
+// =====================================================================
+export interface FlowResource { id: string; label: string; resourceKind: string; workingHours: WorkingHours | null; unavailable: { start: string; end: string }[] }
+export interface FlowAssignedActivity {
+  id: string; title: string; estimatedMinutes: number | null; scheduledStart: string | null;
+  earliestStart: string | null; dueBy: string | null; prioritySeq: number; createdAt: string; resourceIds: string[];
+}
+export interface ResourceBlock { activityId: string; title: string; kind: 'fixed' | 'flowing'; start: string; end: string; atRisk: boolean }
+export interface ResourcePlan { resourceId: string; label: string; resourceKind: string; blocks: ResourceBlock[] }
+export interface WeekConflict { activityId: string; title: string; reason: 'due_by_missed' | 'unplaceable' }
+export interface WeekSchedule { resources: ResourcePlan[]; conflicts: WeekConflict[] }
+
+type Iv = { start: number; end: number };
+function ivSubtract(frags: Iv[], s: number, e: number): Iv[] {
+  const out: Iv[] = [];
+  for (const f of frags) {
+    if (e <= f.start || s >= f.end) { out.push(f); continue; }
+    if (s > f.start) out.push({ start: f.start, end: s });
+    if (e < f.end) out.push({ start: e, end: f.end });
+  }
+  return out;
+}
+function ivIntersect(a: Iv[], b: Iv[]): Iv[] {
+  const out: Iv[] = []; let i = 0, j = 0;
+  while (i < a.length && j < b.length) {
+    const s = Math.max(a[i]!.start, b[j]!.start), e = Math.min(a[i]!.end, b[j]!.end);
+    if (s < e) out.push({ start: s, end: e });
+    if (a[i]!.end < b[j]!.end) i++; else j++;
+  }
+  return out;
+}
+/** colloca `need` ms a partire da `earliest`, scorrendo i frammenti (può spaziare su più finestre/giorni). */
+function fillAcross(frags: Iv[], need: number, earliest: number): Iv | null {
+  let start: number | null = null, end = 0, remaining = need;
+  for (const f of frags) {
+    const cursor = Math.max(f.start, earliest);
+    if (cursor >= f.end) continue;
+    if (start === null) start = cursor;
+    const take = Math.min(f.end - cursor, remaining);
+    end = cursor + take; remaining -= take;
+    if (remaining <= 0) return { start, end };
+  }
+  return null;
+}
+
+export function scheduleResources(resources: FlowResource[], activities: FlowAssignedActivity[], tenantWH: WorkingHours, now: Date, horizonDays = 21): WeekSchedule {
+  const fromMs = now.getTime();
+  const day0 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const free = new Map<string, Iv[]>();
+  const blocks = new Map<string, ResourceBlock[]>();
+
+  for (const r of resources) {
+    const wh = r.workingHours ?? tenantWH;
+    let frags: Iv[] = [];
+    for (let d = 0; d < horizonDays; d++) {
+      const day = new Date(day0.getTime() + d * DAY_MS);
+      for (const win of dayWindows(day, wh)) {
+        const clipped = { start: Math.max(win.start, fromMs), end: win.end };
+        if (clipped.start < clipped.end) frags.push(clipped);
+      }
+    }
+    for (const u of r.unavailable) frags = ivSubtract(frags, new Date(u.start).getTime(), new Date(u.end).getTime());
+    free.set(r.id, frags.sort((a, b) => a.start - b.start));
+    blocks.set(r.id, []);
+  }
+
+  // 1) fisse assegnate → occupazioni
+  for (const a of activities.filter((x) => x.scheduledStart)) {
+    const s = new Date(a.scheduledStart!).getTime();
+    const dur = (a.estimatedMinutes ?? 60) * 60_000;
+    for (const rid of a.resourceIds) {
+      if (!free.has(rid)) continue;
+      free.set(rid, ivSubtract(free.get(rid)!, s, s + dur));
+      blocks.get(rid)!.push({ activityId: a.id, title: a.title, kind: 'fixed', start: new Date(s).toISOString(), end: new Date(s + dur).toISOString(), atRisk: false });
+    }
+  }
+
+  // 2) dinamiche assegnate → buchi COMUNI alle risorse assegnate
+  const conflicts: WeekConflict[] = [];
+  const dynamics = activities.filter((a) => !a.scheduledStart && a.resourceIds.some((r) => free.has(r)))
+    .sort((a, b) => a.prioritySeq - b.prioritySeq || a.createdAt.localeCompare(b.createdAt));
+  for (const a of dynamics) {
+    const rids = a.resourceIds.filter((r) => free.has(r));
+    const need = (a.estimatedMinutes ?? 60) * 60_000;
+    const earliest = a.earliestStart ? new Date(a.earliestStart).getTime() : fromMs;
+    let common = free.get(rids[0]!)!;
+    for (let i = 1; i < rids.length; i++) common = ivIntersect(common, free.get(rids[i]!)!);
+    const slot = fillAcross(common, need, earliest);
+    if (!slot) { conflicts.push({ activityId: a.id, title: a.title, reason: 'unplaceable' }); continue; }
+    const atRisk = a.dueBy ? slot.end > new Date(a.dueBy).getTime() : false;
+    if (atRisk) conflicts.push({ activityId: a.id, title: a.title, reason: 'due_by_missed' });
+    for (const rid of rids) {
+      free.set(rid, ivSubtract(free.get(rid)!, slot.start, slot.end));
+      blocks.get(rid)!.push({ activityId: a.id, title: a.title, kind: 'flowing', start: new Date(slot.start).toISOString(), end: new Date(slot.end).toISOString(), atRisk });
+    }
+  }
+
+  const plans: ResourcePlan[] = resources.map((r) => ({
+    resourceId: r.id, label: r.label, resourceKind: r.resourceKind,
+    blocks: blocks.get(r.id)!.sort((x, y) => x.start.localeCompare(y.start)),
+  }));
+  return { resources: plans, conflicts };
+}

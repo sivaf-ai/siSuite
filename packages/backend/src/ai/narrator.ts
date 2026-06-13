@@ -97,6 +97,39 @@ export async function narrateToday(db: PoolClient, ctx: UserContext): Promise<Na
   } catch { return { available: false, text: fallback }; }
 }
 
+/** Narrazione + PROPOSTE della settimana di pianificazione (rail mock 03).
+ *  Principio "proponi, non forzare": sui conflitti genera spostamenti proposti,
+ *  pronti da confermare. Deterministico senza chiave, LLM con chiave. */
+export interface WeekNarrative { available: boolean; summary: string; proposals: string[] }
+export async function narrateWeek(
+  ctx: UserContext,
+  data: { resources: { label: string; blocks: { title: string; atRisk: boolean }[] }[]; conflicts: { title: string; reason: string }[] },
+): Promise<WeekNarrative> {
+  const totalBlocks = data.resources.reduce((s, r) => s + r.blocks.length, 0);
+  const nConf = data.conflicts.length;
+  const summaryDet = `${data.resources.length} risorse, ${totalBlocks} attività collocate questa settimana` +
+    (nConf ? `, ${nConf} a rischio.` : '. Nessun conflitto.');
+  const proposalsDet = data.conflicts.map((c) =>
+    c.reason === 'due_by_missed'
+      ? `«${c.title}» non rientra entro la scadenza: valuta di anticiparla o affiancare una seconda risorsa.`
+      : `«${c.title}» non è collocabile nella settimana: sposta la finestra o libera capacità.`);
+  if (!aiEnabled() || nConf === 0) return { available: false, summary: summaryDet, proposals: proposalsDet };
+
+  const lang = LOCALE_NAME[ctx.locale] ?? 'italiano';
+  try {
+    const msg = await anthropic().messages.create({
+      model: config.ai.extractionModel, max_tokens: 400,
+      system: `Sei il pianificatore AI di un'azienda tecnica. In ${lang}, scrivi (1) un breve riassunto della settimana (1-2 frasi) e ` +
+        `(2) per OGNI conflitto una PROPOSTA concreta di riprogrammazione (sposta/affianca/anticipa), pronta da confermare. ` +
+        `Non forzare nulla: proponi. Rispondi SOLO JSON: {"summary": "...", "proposals": ["...","..."]}. Usa solo i dati forniti.`,
+      messages: [{ role: 'user', content: JSON.stringify(data) }],
+    });
+    const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim();
+    const parsed = JSON.parse(text) as { summary?: string; proposals?: string[] };
+    return { available: true, summary: parsed.summary || summaryDet, proposals: parsed.proposals?.length ? parsed.proposals : proposalsDet };
+  } catch { return { available: false, summary: summaryDet, proposals: proposalsDet }; }
+}
+
 export async function narrateEngagement(db: PoolClient, ctx: UserContext, engagementId: string): Promise<NarrativeResult | null> {
   const d = await gather(db, engagementId);
   if (!d) return null;

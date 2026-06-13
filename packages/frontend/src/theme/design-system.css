@@ -377,6 +377,47 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 .lv-row .lv-acts { display: flex; gap: 2px; opacity: 0; transition: .12s; }
 .lv-row:hover .lv-acts { opacity: 1; }
 
+/* ---- Pianificazione: griglia risorse × giorni + rail (mock 03) ---- */
+.plan-layout { display: grid; grid-template-columns: 1fr 300px; gap: 22px; align-items: start; }
+@media (max-width: 1000px) { .plan-layout { grid-template-columns: 1fr; } }
+.week-switch { display: flex; align-items: center; gap: 4px; }
+.week-switch .nav { width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; color: var(--ink-soft); cursor: pointer; }
+.week-switch .lbl { font-weight: 600; font-size: 14px; padding: 0 10px; }
+.alert { display: flex; align-items: center; gap: 11px; padding: 12px 15px; border-radius: var(--r); background: var(--warning-wash); border: 1px solid #F0DDB4; color: #8A5A12; font-size: 13.5px; margin-bottom: 16px; }
+.alert b { font-weight: 700; }
+.alert .spark { margin-left: auto; color: var(--warning); }
+.agenda { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-1); }
+.ag-grid { display: grid; grid-template-columns: 128px repeat(5, 1fr); }
+.ag-h { padding: 12px 12px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); border-bottom: 1px solid var(--line); text-align: center; }
+.ag-h.today { color: var(--brand); background: var(--brand-wash); }
+.ag-h .dn { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); display: block; font-weight: 500; }
+.ag-res { padding: 14px 12px; border-bottom: 1px solid var(--line-2); display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 600; }
+.ag-res .rk { width: 8px; height: 8px; border-radius: 3px; background: var(--neutral); flex: 0 0 auto; }
+.ag-res .rk.veh { background: var(--info); border-radius: 2px; }
+.ag-cell { border-bottom: 1px solid var(--line-2); border-left: 1px solid var(--line-2); padding: 7px; min-height: 74px; display: flex; flex-direction: column; gap: 6px; }
+.ag-cell.today { background: linear-gradient(var(--brand-wash), transparent 80%); }
+.block { border-radius: var(--r-xs); padding: 7px 9px; font-size: 12px; line-height: 1.3; position: relative; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow-1); transition: transform .1s; }
+.block:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.block .bt { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-faint); font-weight: 600; }
+.block .bn { font-weight: 600; color: var(--ink); margin-top: 1px; }
+.block.fixed { border-left: 3px solid var(--brand); }
+.block.flowing { border-left: 3px solid transparent; border-image: var(--flow-grad) 1; background: linear-gradient(90deg, var(--flow-wash), var(--card) 60%); }
+.block.at-risk { border-left: 3px solid var(--danger); background: linear-gradient(90deg, var(--danger-wash), var(--card) 60%); }
+.block .pin { position: absolute; top: 6px; right: 7px; color: var(--brand); }
+.rail { display: flex; flex-direction: column; gap: 16px; }
+.narr { background: var(--ink); color: #E7E9EF; border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); }
+.narr .h { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 15.5px; color: #fff; margin-bottom: 12px; }
+.narr .h .spark { color: var(--flow); }
+.narr p { font-size: 13.5px; line-height: 1.6; color: #C4C8D2; margin: 0 0 12px; }
+.narr p b { color: #fff; font-weight: 600; }
+.narr .ln { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #C4C8D2; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, .08); }
+.narr .ln .d { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; }
+.mini { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; box-shadow: var(--shadow-1); }
+.mini .h { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
+.stat { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13.5px; }
+.stat:not(:last-child) { border-bottom: 1px solid var(--line-2); }
+.stat .v { font-family: var(--font-mono); font-weight: 600; }
+
 /* ---- piano / billing ---- */
 .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 .plan-card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 20px; box-shadow: var(--shadow-1); position: relative; }

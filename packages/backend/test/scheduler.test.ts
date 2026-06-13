@@ -11,7 +11,10 @@
  * `now` e gli istanti sono in UTC.
  */
 import { describe, expect, it } from 'vitest';
-import { schedule, type FlowActivity, type WorkingHours } from '../src/flow/scheduler.js';
+import {
+  schedule, scheduleResources,
+  type FlowActivity, type WorkingHours, type FlowResource, type FlowAssignedActivity,
+} from '../src/flow/scheduler.js';
 
 const WH: WorkingHours = {
   mon: [['08:00', '18:00']], tue: [['08:00', '18:00']], wed: [['08:00', '18:00']],
@@ -99,5 +102,76 @@ describe('scheduler — comportamento attuale (rete di sicurezza)', () => {
       act({ id: 'vecchia', prioritySeq: 2, estimatedMinutes: 60, createdAt: '2026-06-01T00:00:00.000Z' }),
     ], WH, NOW));
     expect(new Date(out.vecchia.start!).getTime()).toBeLessThan(new Date(out.nuova.start!).getTime());
+  });
+});
+
+/* ── Motore PER-RISORSA (FASE 2) ─────────────────────────────────────── */
+function res(p: Partial<FlowResource> & { id: string }): FlowResource {
+  return { id: p.id, label: p.label ?? p.id, resourceKind: p.resourceKind ?? 'person', workingHours: p.workingHours ?? null, unavailable: p.unavailable ?? [] };
+}
+function aact(p: Partial<FlowAssignedActivity> & { id: string; resourceIds: string[] }): FlowAssignedActivity {
+  return {
+    id: p.id, title: p.title ?? p.id, estimatedMinutes: p.estimatedMinutes ?? 60,
+    scheduledStart: p.scheduledStart ?? null, earliestStart: p.earliestStart ?? null, dueBy: p.dueBy ?? null,
+    prioritySeq: p.prioritySeq ?? 3, createdAt: p.createdAt ?? '2026-06-01T00:00:00.000Z', resourceIds: p.resourceIds,
+  };
+}
+const planOf = (w: ReturnType<typeof scheduleResources>, rid: string) => w.resources.find((r) => r.resourceId === rid)!;
+
+describe('scheduleResources — motore per-risorsa', () => {
+  it('fallback all\'orario AZIENDA quando la risorsa non ha working_hours', () => {
+    const w = scheduleResources([res({ id: 'r1' })], [aact({ id: 'd1', estimatedMinutes: 120, resourceIds: ['r1'] })], WH, NOW);
+    const b = planOf(w, 'r1').blocks;
+    expect(b).toHaveLength(1);
+    expect(b[0]!.start).toBe('2026-06-15T08:00:00.000Z');
+    expect(b[0]!.end).toBe('2026-06-15T10:00:00.000Z');
+    expect(b[0]!.kind).toBe('flowing');
+  });
+
+  it('usa l\'orario della RISORSA quando valorizzato (override)', () => {
+    const afternoon: WorkingHours = { mon: [['14:00', '18:00']], tue: [['14:00', '18:00']], wed: [['14:00', '18:00']], thu: [['14:00', '18:00']], fri: [['14:00', '18:00']], sat: [['14:00', '18:00']], sun: [['14:00', '18:00']] };
+    const w = scheduleResources([res({ id: 'r1', workingHours: afternoon })], [aact({ id: 'd1', estimatedMinutes: 60, resourceIds: ['r1'] })], WH, NOW);
+    expect(planOf(w, 'r1').blocks[0]!.start).toBe('2026-06-15T14:00:00.000Z');
+  });
+
+  it('sottrae resource_availability (ferie/indisponibilità)', () => {
+    const w = scheduleResources(
+      [res({ id: 'r1', unavailable: [{ start: '2026-06-15T08:00:00.000Z', end: '2026-06-15T12:00:00.000Z' }] })],
+      [aact({ id: 'd1', estimatedMinutes: 60, resourceIds: ['r1'] })], WH, NOW);
+    expect(planOf(w, 'r1').blocks[0]!.start).toBe('2026-06-15T12:00:00.000Z');
+  });
+
+  it('attività multi-risorsa: collocata nel buco COMUNE (intersezione) e presente in ENTRAMBE le righe', () => {
+    const mornR1: WorkingHours = { mon: [['08:00', '12:00']], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+    const lateR2: WorkingHours = { mon: [['10:00', '18:00']], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+    const w = scheduleResources(
+      [res({ id: 'r1', workingHours: mornR1 }), res({ id: 'r2', workingHours: lateR2 })],
+      [aact({ id: 'd1', estimatedMinutes: 60, resourceIds: ['r1', 'r2'] })], WH, NOW);
+    expect(planOf(w, 'r1').blocks[0]!.start).toBe('2026-06-15T10:00:00.000Z'); // intersezione 10–12
+    expect(planOf(w, 'r2').blocks[0]!.start).toBe('2026-06-15T10:00:00.000Z');
+  });
+
+  it('due risorse in parallelo: ognuna pianifica la propria dinamica indipendentemente', () => {
+    const w = scheduleResources(
+      [res({ id: 'r1' }), res({ id: 'r2' })],
+      [aact({ id: 'a', estimatedMinutes: 60, resourceIds: ['r1'] }), aact({ id: 'b', estimatedMinutes: 60, resourceIds: ['r2'] })], WH, NOW);
+    expect(planOf(w, 'r1').blocks[0]!.start).toBe('2026-06-15T08:00:00.000Z');
+    expect(planOf(w, 'r2').blocks[0]!.start).toBe('2026-06-15T08:00:00.000Z');
+  });
+
+  it('due_by non raggiungibile → blocco at_risk + conflitto', () => {
+    const w = scheduleResources([res({ id: 'r1' })], [aact({ id: 'late', estimatedMinutes: 120, dueBy: '2026-06-15T09:00:00.000Z', resourceIds: ['r1'] })], WH, NOW);
+    expect(planOf(w, 'r1').blocks[0]!.atRisk).toBe(true);
+    expect(w.conflicts.some((c) => c.activityId === 'late' && c.reason === 'due_by_missed')).toBe(true);
+  });
+
+  it('niente doppia prenotazione: la 2ª dinamica della stessa risorsa parte DOPO la 1ª', () => {
+    const w = scheduleResources([res({ id: 'r1' })], [
+      aact({ id: 'a', estimatedMinutes: 60, prioritySeq: 1, resourceIds: ['r1'] }),
+      aact({ id: 'b', estimatedMinutes: 60, prioritySeq: 2, resourceIds: ['r1'] }),
+    ], WH, NOW);
+    const b = planOf(w, 'r1').blocks;
+    expect(b.find((x) => x.activityId === 'a')!.start).toBe('2026-06-15T08:00:00.000Z');
+    expect(b.find((x) => x.activityId === 'b')!.start).toBe('2026-06-15T09:00:00.000Z');
   });
 });
