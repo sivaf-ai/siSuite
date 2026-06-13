@@ -19,7 +19,9 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
-  headers.set('content-type', 'application/json');
+  // content-type JSON solo se c'è un body: Fastify rifiuta una richiesta con
+  // content-type application/json e body vuoto (es. DELETE senza payload) con un 400.
+  if (init.body != null) headers.set('content-type', 'application/json');
   if (token) headers.set('authorization', `Bearer ${token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });

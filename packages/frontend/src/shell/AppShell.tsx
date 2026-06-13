@@ -27,6 +27,11 @@ import { MaterialiPage } from '../pages/MaterialiPage';
 import { AssetPage } from '../pages/AssetPage';
 import { PianificazionePage } from '../pages/PianificazionePage';
 import { CapturePage } from '../pages/CapturePage';
+import { UsersPage } from '../pages/admin/UsersPage';
+import { RolesPage } from '../pages/admin/RolesPage';
+import { LookupsPage } from '../pages/admin/LookupsPage';
+import { NumberSeriesPage } from '../pages/admin/NumberSeriesPage';
+import { BillingPage } from '../pages/admin/BillingPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
 
 const GROUP_LABEL: Record<NonNullable<MenuItem['group']>, string> = {
@@ -51,10 +56,11 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/materials', render: () => <MaterialiPage /> },
   { path: '/agenda', render: () => <PlaceholderPage title="Agenda" /> },
   { path: '/captures', render: () => <CapturePage /> },
-  { path: '/admin/users', render: () => <PlaceholderPage title="Utenti" /> },
-  { path: '/admin/roles', render: () => <PlaceholderPage title="Ruoli" /> },
-  { path: '/admin/settings', render: () => <PlaceholderPage title="Impostazioni" /> },
-  { path: '/admin/billing', render: () => <PlaceholderPage title="Piano" /> },
+  { path: '/admin/users', render: () => <UsersPage /> },
+  { path: '/admin/roles', render: () => <RolesPage /> },
+  { path: '/admin/settings', render: () => <LookupsPage /> },
+  { path: '/admin/number-series', render: () => <NumberSeriesPage /> },
+  { path: '/admin/billing', render: () => <BillingPage /> },
 ];
 
 export function AppShell() {

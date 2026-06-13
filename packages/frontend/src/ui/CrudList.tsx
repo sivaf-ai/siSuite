@@ -28,13 +28,18 @@ export interface CrudListProps<T extends { id: string }> {
   defaultSort?: string;
   createLabel?: string;
   fkSources?: Record<string, FkSource>;
-  buildForm: (fk: FkData) => TypedGroup[];
+  buildForm: (fk: FkData, isEdit: boolean) => TypedGroup[];
   toFormInitial?: (row: T) => Record<string, unknown>;
   /** trasforma i valori del form nel payload API (es. roles string[] → oggetti). */
   toBody?: (values: Record<string, unknown>, isEdit: boolean) => unknown;
   detailPath?: (row: T) => string;
   /** etichetta singolare per i messaggi (es. "cliente"). */
   noun?: string;
+  /** mappa azione→PermissionKey. Default `${resource}:${action}`. Le entità
+   *  admin usano `${resource}:manage` per create/update/delete e `:read` per read. */
+  permFor?: (action: 'create' | 'read' | 'update' | 'delete') => string;
+  /** disabilita le azioni modifica/elimina su righe specifiche (es. di sistema). */
+  rowLocked?: (row: T) => boolean;
 }
 
 interface ListResp<T> { items: T[]; total: number; limit: number; offset: number }
@@ -43,7 +48,8 @@ export function CrudList<T extends { id: string }>(p: CrudListProps<T>) {
   const { user } = useAuth();
   const toast = useToast();
   const history = useHistory();
-  const can = (a: string) => !!user?.permissions.includes(`${p.resource}:${a}` as never);
+  const can = (a: 'create' | 'read' | 'update' | 'delete') =>
+    !!user?.permissions.includes((p.permFor ? p.permFor(a) : `${p.resource}:${a}`) as never);
 
   const [q, setQ] = useState('');
   const [sortBy, setSortBy] = useState(p.defaultSort ?? '');
@@ -107,10 +113,11 @@ export function CrudList<T extends { id: string }>(p: CrudListProps<T>) {
     } finally { setBusy(false); }
   }
 
+  const locked = (r: T) => !!p.rowLocked?.(r);
   const actions = [
-    ...(can('update') ? [{ icon: Pencil, label: 'Modifica', onClick: (r: T) => setEditing(r) }] : []),
+    ...(can('update') ? [{ icon: Pencil, label: 'Modifica', onClick: (r: T) => setEditing(r), hidden: locked }] : []),
     ...(p.detailPath ? [{ icon: ChevronRight, label: 'Apri', onClick: (r: T) => history.push(p.detailPath!(r)) }] : []),
-    ...(can('delete') ? [{ icon: Trash2, label: 'Elimina', danger: true, onClick: (r: T) => setConfirming(r) }] : []),
+    ...(can('delete') ? [{ icon: Trash2, label: 'Elimina', danger: true, onClick: (r: T) => setConfirming(r), hidden: locked }] : []),
   ];
 
   return (
@@ -141,7 +148,7 @@ export function CrudList<T extends { id: string }>(p: CrudListProps<T>) {
         {editing !== undefined && (
           <EntityForm
             entityKey={p.entityKey}
-            typedGroups={p.buildForm(fk)}
+            typedGroups={p.buildForm(fk, !!editing)}
             initial={editing ? (p.toFormInitial ? p.toFormInitial(editing) : (editing as Record<string, unknown>)) : undefined}
             busy={busy}
             submitLabel={editing ? 'Salva modifiche' : 'Crea'}

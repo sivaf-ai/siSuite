@@ -3,7 +3,7 @@ import {
   Search, Plus, SlidersHorizontal, ArrowUpDown, Download, ChevronDown, ChevronRight,
   Pencil, Trash2, Copy, MoreHorizontal, Check, Mic, AlertTriangle,
   Briefcase, Building2, Users, Package, Box, Calendar, Settings, Layers, LayoutGrid,
-  CalendarCheck, UserCircle, ShieldCheck, CreditCard, X, type LucideIcon,
+  CalendarCheck, UserCircle, ShieldCheck, CreditCard, Hash, X, type LucideIcon,
 } from 'lucide-react';
 
 export {
@@ -29,5 +29,6 @@ export const MENU_ICON: Record<string, LucideIcon> = {
   users: UserCircle,
   roles: ShieldCheck,
   settings: Settings,
+  numberseries: Hash,
   billing: CreditCard,
 };

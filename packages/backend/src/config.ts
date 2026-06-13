@@ -18,6 +18,8 @@ export const config = {
   cors: {
     origin: opt('CORS_ORIGIN', 'http://localhost:5173'),
   },
+  /** URL interno di GoTrue (provisioning utenti dal pannello admin). */
+  authInternalUrl: opt('AUTH_INTERNAL_URL', 'http://auth:9999'),
   jwt: {
     /** se valorizzato → verifica asimmetrica via JWKS (RS256/ES256), offline-capable. */
     jwksUrl: opt('AUTH_JWKS_URL'),

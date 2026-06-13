@@ -28,6 +28,10 @@ import { scheduleRoutes } from './routes/schedule.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { captureRoutes } from './routes/captures.js';
 import { fieldDefinitionRoutes } from './routes/fieldDefinitions.js';
+import { numberSeriesRoutes } from './routes/numberSeries.js';
+import { roleRoutes } from './routes/roles.js';
+import { userRoutes } from './routes/users.js';
+import { billingRoutes } from './routes/billing.js';
 
 async function build() {
   const app = Fastify({
@@ -78,6 +82,10 @@ async function build() {
   await app.register(dashboardRoutes);
   await app.register(captureRoutes);
   await app.register(fieldDefinitionRoutes);
+  await app.register(numberSeriesRoutes);
+  await app.register(roleRoutes);
+  await app.register(userRoutes);
+  await app.register(billingRoutes);
 
   return app;
 }

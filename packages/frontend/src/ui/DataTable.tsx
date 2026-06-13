@@ -13,6 +13,8 @@ export interface RowAction<T> {
   label: string;
   onClick: (row: T) => void;
   danger?: boolean;
+  /** nascondi l'azione per righe specifiche (es. di sistema, non modificabili). */
+  hidden?: (row: T) => boolean;
 }
 
 interface Props<T> {
@@ -80,7 +82,7 @@ export function DataTable<T extends { id: string }>({
                     {actions && (
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="row-actions">
-                          {actions.map((a) => (
+                          {actions.filter((a) => !a.hidden?.(row)).map((a) => (
                             <div key={a.label} className={`act-icon${a.danger ? ' danger' : ''}`} title={a.label} onClick={() => a.onClick(row)}>
                               <a.icon size={16} />
                             </div>

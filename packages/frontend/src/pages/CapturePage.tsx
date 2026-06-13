@@ -1,12 +1,11 @@
 import { useState, type CSSProperties } from 'react';
 import {
   IonButton, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonTextarea,
-  IonSpinner, IonText, IonNote, IonCheckbox, IonChip, IonIcon,
+  IonSpinner, IonText, IonNote, IonCheckbox,
 } from '@ionic/react';
 import {
-  sparklesOutline, micOutline, stopCircleOutline, timeOutline, cubeOutline,
-  flagOutline, checkboxOutline, helpCircleOutline,
-} from 'ionicons/icons';
+  Sparkles, Mic, StopCircle, Clock, Package, Flag, CheckSquare, HelpCircle, type LucideIcon,
+} from 'lucide-react';
 import { OPERATION_LABEL, type CaptureDto, type ProposedOperation, type OperationType, type EngagementDto } from '@sisuite/shared';
 import { Page, Loading, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -33,24 +32,25 @@ function opDetail(op: ProposedOperation): string {
   }
 }
 
-const OP_ICON: Record<OperationType, string> = {
-  log_time: timeOutline,
-  log_material: cubeOutline,
-  set_activity_status: flagOutline,
-  check_checklist_item: checkboxOutline,
-  clarify: helpCircleOutline,
+const OP_ICON: Record<OperationType, LucideIcon> = {
+  log_time: Clock,
+  log_material: Package,
+  set_activity_status: Flag,
+  check_checklist_item: CheckSquare,
+  clarify: HelpCircle,
 };
 
 function OperationRow({ op, index, checked, onToggle }:
   { op: ProposedOperation; index: number; checked: boolean; onToggle: (i: number) => void }) {
   const selectable = op.valid && op.type !== 'clarify';
+  const OpIcon = OP_ICON[op.type];
   return (
     <div className="prop-row">
       {selectable
         ? <IonCheckbox checked={checked} onIonChange={() => onToggle(index)} />
         : <div style={{ width: 22 }} />}
       <div className="prop-ico" style={op.type === 'clarify' ? { background: 'var(--warning-wash)', color: 'var(--warning)' } : undefined}>
-        <IonIcon icon={OP_ICON[op.type]} />
+        <OpIcon size={17} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="k">{OPERATION_LABEL[op.type]}{op.activityTitle ? ` · ${op.activityTitle}` : ''}</div>
@@ -170,17 +170,18 @@ export function CapturePage() {
         </IonItem>
         <div style={{ display: 'flex', gap: 8 }}>
           <IonButton style={{ flex: 1 }} disabled={busy || processing || !rawText.trim() || voice.recording} onClick={submit}>
-            {busy ? <IonSpinner name="crescent" /> : <><IonIcon slot="start" icon={sparklesOutline} />Estrai</>}
+            {busy ? <IonSpinner name="crescent" /> : <><Sparkles size={17} style={{ marginRight: 6 }} />Estrai</>}
           </IonButton>
           {voice.audioSupported && (
             <IonButton color={voice.recording ? 'danger' : 'secondary'} disabled={busy || processing} onClick={handleVoice}>
-              <IonIcon slot="icon-only" icon={voice.recording ? stopCircleOutline : micOutline} />
+              {voice.recording ? <StopCircle size={20} /> : <Mic size={20} />}
             </IonButton>
           )}
         </div>
         {voice.recording && (
-          <IonNote style={{ display: 'block', marginTop: 8 }}>
-            🔴 Registrazione… {voice.sttSupported ? (voice.transcript || 'parla pure') : '(trascrizione non supportata dal browser; salvo l\'audio)'}
+          <IonNote style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} />
+            Registrazione… {voice.sttSupported ? (voice.transcript || 'parla pure') : '(trascrizione non supportata dal browser; salvo l\'audio)'}
           </IonNote>
         )}
         {processing && <IonNote style={{ display: 'block', marginTop: 8 }}><IonSpinner name="dots" style={{ height: 14, verticalAlign: 'middle' }} /> elaborazione della voce in corso…</IonNote>}
@@ -194,7 +195,7 @@ export function CapturePage() {
             <>
               <div className="prop-card">
                 <div className="prop-head">
-                  <div className="spark"><IonIcon icon={sparklesOutline} /></div>
+                  <div className="spark"><Sparkles size={16} /></div>
                   <b>Proposta AI</b>
                 </div>
                 {current.operations.map((op, i) => (

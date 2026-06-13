@@ -1,6 +1,5 @@
 import { useHistory } from 'react-router';
-import { IonIcon } from '@ionic/react';
-import { sparklesOutline, chevronForwardOutline } from 'ionicons/icons';
+import { Sparkles, ChevronRight, Mic } from 'lucide-react';
 import type { ActivityDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -30,12 +29,12 @@ export function TodayPage() {
       </div>
 
       <div className="capture-bar" style={{ marginBottom: 18, cursor: 'pointer' }} onClick={() => history.push('/captures')}>
-        <div style={{ width: 26, height: 26, display: 'grid', placeItems: 'center' }}><IonIcon icon={sparklesOutline} style={{ color: 'var(--brand)', fontSize: 20 }} /></div>
+        <div style={{ width: 26, height: 26, display: 'grid', placeItems: 'center', color: 'var(--brand)' }}><Sparkles size={20} /></div>
         <div className="txt">
           <b>Racconta cosa hai fatto</b>
           <span>Voce o testo — l'AI registra ore, materiali e checklist</span>
         </div>
-        <div className="mic">🎤</div>
+        <div className="mic"><Mic size={20} /></div>
       </div>
 
       {loading && <Loading />}
@@ -54,7 +53,7 @@ export function TodayPage() {
                     <span className="time">{a.isFixed ? fmtTime(a.scheduledStart) : 'dinamica'}</span>
                     {a.estimatedMinutes && <span className="dur">· {a.estimatedMinutes} min</span>}
                     <StatusPill label={lk.labelOf(a.statusId) || (a.statusCanonical ?? '')} token={lk.byId(a.statusId)?.colorToken} />
-                    <IonIcon icon={chevronForwardOutline} style={{ marginLeft: 'auto', color: 'var(--ink-faint)' }} />
+                    <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--ink-faint)' }} />
                   </div>
                   <h3 style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600 }}>{a.title}</h3>
                   {a.checklist.length > 0 && (

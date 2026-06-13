@@ -21,6 +21,8 @@ export interface LookupDto {
   colorToken: string | null;
   sequence: number;
   isDefault: boolean;
+  /** true = riga di sistema (tenant_id NULL): in sola lettura per il tenant. */
+  isSystem?: boolean;
 }
 
 /* ── Company ───────────────────────────────────────────────────────── */
@@ -156,6 +158,17 @@ export interface ActivityDto {
 }
 
 export const updateChecklistSchema = z.object({ checklist: checklistSchema });
+
+/* ── Dipendenza tra attività (grafo DAG) ───────────────────────────── */
+export interface DependencyEdgeDto {
+  id: string;
+  predecessorId: string;
+  successorId: string;
+  predecessorTitle: string | null;
+  successorTitle: string | null;
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lagMinutes: number;
+}
 
 export const assignResourceSchema = z.object({
   resourceId: uuid,

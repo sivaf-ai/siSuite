@@ -51,6 +51,33 @@ async function loadOne(db: PoolClient, id: string): Promise<ActivityDto | null> 
 }
 
 export async function activityRoutes(app: FastifyInstance): Promise<void> {
+  // DIPENDENZE della commessa (per i tag "dopo X" nell'albero / il Gantt)
+  app.get<{ Params: { id: string } }>('/engagements/:id/dependencies',
+    { preHandler: [app.authenticate, requirePermission('dependency:read')] },
+    async (request) => {
+      const rows = await withRls(request.ctx, (db) =>
+        db.query(
+          `SELECT d.id, d.predecessor_id, d.successor_id, d.type, d.lag_minutes,
+                  p.title AS predecessor_title, s.title AS successor_title
+           FROM activity_dependency d
+           JOIN activity p ON p.id = d.predecessor_id
+           JOIN activity s ON s.id = d.successor_id
+           WHERE p.engagement_id = $1 OR s.engagement_id = $1`,
+          [request.params.id],
+        ).then((r) => r.rows));
+      return {
+        items: rows.map((r) => ({
+          id: r.id as string,
+          predecessorId: r.predecessor_id as string,
+          successorId: r.successor_id as string,
+          predecessorTitle: (r.predecessor_title as string) ?? null,
+          successorTitle: (r.successor_title as string) ?? null,
+          type: r.type as 'FS' | 'SS' | 'FF' | 'SF',
+          lagMinutes: (r.lag_minutes as number) ?? 0,
+        })),
+      };
+    });
+
   // LISTA (filtri: engagementId, phaseId)
   app.get<{ Querystring: { engagementId?: string; phaseId?: string } }>('/activities',
     { preHandler: [app.authenticate, requirePermission('activity:read')] },

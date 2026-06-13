@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonChip, IonNote } from '@ionic/react';
+import { Pin, Network, CalendarClock, AlertTriangle } from 'lucide-react';
 import type { EngagementDto } from '@sisuite/shared';
 import { Page, Loading, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -32,27 +32,46 @@ export function PianificazionePage() {
       .finally(() => setLoading(false));
   }, [engId]);
 
+  const conflicts = sched?.items.filter((s) => s.conflict !== 'none').length ?? 0;
+
   return (
     <Page title="Pianificazione">
-      <IonNote>Agenda che si riempie da sola: le dinamiche fluiscono da oggi, attorno alle attività fisse.</IonNote>
-      <IonItem>
-        <IonSelect label="Commessa" value={engId} onIonChange={(e) => setEngId(e.detail.value)}>
-          {(engs.data?.items ?? []).map((e) => <IonSelectOption key={e.id} value={e.id}>{e.code} · {e.title}</IonSelectOption>)}
-        </IonSelect>
-      </IonItem>
+      <div className="page-head">
+        <div>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CalendarClock size={24} /> Pianificazione</h1>
+          <div className="sub">Agenda che si riempie da sola: le dinamiche fluiscono da oggi, attorno alle attività fisse.</div>
+        </div>
+      </div>
+
+      <div className="toolbar">
+        <select className="txt" style={{ maxWidth: 420 }} value={engId} onChange={(e) => setEngId(e.target.value)}>
+          {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
+        </select>
+        <span className="spacer" />
+        {conflicts > 0 && (
+          <span className="pill" style={{ color: 'var(--danger)', background: 'var(--danger-wash)' }}>
+            <AlertTriangle size={13} /> {conflicts} conflitt{conflicts === 1 ? 'o' : 'i'}
+          </span>
+        )}
+      </div>
 
       {loading ? <Loading /> : sched ? (sched.items.length === 0 ? <Empty text="Nessuna attività da pianificare." /> : (
-        <IonList>
+        <div className="treeview">
           {sched.items.map((s) => (
-            <IonItem key={s.id}>
-              <IonLabel>
-                <h2>{s.title} {s.fixed && <IonChip color="medium" style={{ height: 18 }}>fissa</IonChip>}</h2>
-                <p>{s.start ? `${fmt(s.start)} → ${fmt(s.end)}` : 'Non collocabile'}</p>
-              </IonLabel>
-              {s.conflict !== 'none' && <StatusPill label={s.conflict === 'due_by_missed' ? 'scadenza' : 'no slot'} token="danger" />}
-            </IonItem>
+            <div className="tnode" key={s.id}>
+              <div className="trow" style={{ cursor: 'default' }}>
+                <span className="ticon" style={{ background: s.fixed ? 'var(--brand-wash)' : 'var(--flow-wash)', color: s.fixed ? 'var(--brand)' : 'var(--flow)' }}>
+                  {s.fixed ? <Pin size={14} /> : <Network size={14} />}
+                </span>
+                <span className="ttl">{s.title}{s.fixed && <span className="chip" style={{ marginLeft: 8 }}>fissa</span>}</span>
+                <span className="tmeta">
+                  <span className="roll">{s.start ? `${fmt(s.start)} → ${fmt(s.end)}` : 'Non collocabile'}</span>
+                  {s.conflict !== 'none' && <StatusPill label={s.conflict === 'due_by_missed' ? 'scadenza' : 'no slot'} token="danger" />}
+                </span>
+              </div>
+            </div>
           ))}
-        </IonList>
+        </div>
       )) : null}
     </Page>
   );
