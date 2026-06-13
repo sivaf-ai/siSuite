@@ -17,13 +17,15 @@ function toDto(r: Record<string, unknown>): ConsumptionDto {
 }
 
 export async function consumptionRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { activityId?: string } }>('/consumptions',
+  app.get<{ Querystring: { activityId?: string; engagementId?: string } }>('/consumptions',
     { preHandler: [app.authenticate, requirePermission('material_consumption:read')] },
     async (request) => {
       const rows = await withRls(request.ctx, (db) => {
         const params: unknown[] = [];
-        let where = '';
-        if (request.query.activityId) { params.push(request.query.activityId); where = `WHERE mc.activity_id = $1`; }
+        const conds: string[] = [];
+        if (request.query.activityId) { params.push(request.query.activityId); conds.push(`mc.activity_id = $${params.length}`); }
+        if (request.query.engagementId) { params.push(request.query.engagementId); conds.push(`mc.activity_id IN (SELECT id FROM activity WHERE engagement_id = $${params.length})`); }
+        const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(`${SELECT} ${where} ORDER BY mc.occurred_on DESC, mc.created_at DESC LIMIT 500`, params).then((r) => r.rows);
       });
       return { items: rows.map(toDto) };

@@ -1,40 +1,84 @@
-import { Briefcase, CheckCheck, Building2, Users, type LucideIcon } from 'lucide-react';
-import { Page, Loading, ErrorBox } from '../components/Page';
+/** Dashboard (mock 05): kpis (4) + grid2 (Attività di oggi · Catture recenti). */
+import { Briefcase, Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Page, Loading, ErrorBox, Empty } from '../components/Page';
+import { StatusPill } from '../components/StatusPill';
 import { useApi } from '../api/hooks';
-import { useAuth } from '../auth/AuthContext';
+import { useLookups } from '../context/Lookups';
 
-interface Counts { engagements: number; activitiesOpen: number; companies: number; resources: number }
-
-function Kpi({ n, label, Icon, fg, bg }: { n: number; label: string; Icon: LucideIcon; fg: string; bg: string }) {
-  return (
-    <div className="kpi">
-      <div className="ic" style={{ background: bg, color: fg }}><Icon size={17} /></div>
-      <div className="lab">{label}</div>
-      <div className="val">{n}</div>
-    </div>
-  );
+interface ActOggi { id: string; title: string; scheduledStart: string | null; statusId: string; statusCanonical: string | null; engagementTitle: string | null }
+interface CapRecente { id: string; rawText: string; status: string; createdAt: string }
+interface Dash {
+  commesseAttive: number; oreSettimana: number; cattureDaRivedere: number; scadenzeARischio: number;
+  attivitaOggi: ActOggi[]; cattureRecenti: CapRecente[]; totaleAttivitaOggi: number;
 }
+const CAP: Record<string, { label: string; token: string }> = {
+  pending: { label: 'In attesa', token: 'neutral' }, proposed: { label: 'Da rivedere', token: 'warning' },
+  applied: { label: 'Applicata', token: 'success' }, rejected: { label: 'Rifiutata', token: 'danger' },
+};
+const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : 'flusso');
 
 export function DashboardPage() {
-  const { user } = useAuth();
-  const { data, loading, error } = useApi<Counts>('/dashboard');
+  const lk = useLookups();
+  const { data, loading, error } = useApi<Dash>('/dashboard');
   return (
     <Page title="Dashboard">
       <div className="page-head">
-        <div>
-          <h1>Ciao {user?.fullName?.split(' ')[0]}</h1>
-          <div className="sub">Il quadro di oggi su commesse, attività e anagrafiche.</div>
-        </div>
+        <div><h1>Dashboard</h1><div className="sub">Il polso dell'azienda, oggi.</div></div>
       </div>
       {loading && <Loading />}
       {error && <ErrorBox message={error} />}
       {data && (
-        <div className="kpis">
-          <Kpi n={data.engagements} label="Commesse" Icon={Briefcase} fg="var(--brand)" bg="var(--brand-wash)" />
-          <Kpi n={data.activitiesOpen} label="Attività aperte" Icon={CheckCheck} fg="var(--flow)" bg="var(--flow-wash)" />
-          <Kpi n={data.companies} label="Clienti" Icon={Building2} fg="var(--info)" bg="var(--info-wash)" />
-          <Kpi n={data.resources} label="Risorse" Icon={Users} fg="var(--success)" bg="var(--success-wash)" />
-        </div>
+        <>
+          <div className="kpis">
+            <div className="kpi">
+              <div className="ic" style={{ background: 'var(--brand-wash)', color: 'var(--brand)' }}><Briefcase size={17} /></div>
+              <div className="lab">Commesse attive</div><div className="val">{data.commesseAttive}</div>
+            </div>
+            <div className="kpi">
+              <div className="ic" style={{ background: 'var(--flow-wash)', color: 'var(--flow)' }}><Clock size={17} /></div>
+              <div className="lab">Ore, questa settimana</div><div className="val">{Math.round(data.oreSettimana / 60)}<small>h</small></div>
+            </div>
+            <div className="kpi">
+              <div className="ic" style={{ background: 'var(--brand-wash)', color: 'var(--brand)' }}><Sparkles size={17} /></div>
+              <div className="lab">Catture da rivedere</div><div className="val">{data.cattureDaRivedere}</div>
+              <div className="trend">in attesa</div>
+            </div>
+            <div className="kpi">
+              <div className="ic" style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}><AlertTriangle size={17} /></div>
+              <div className="lab">Scadenze a rischio</div><div className="val" style={{ color: 'var(--danger)' }}>{data.scadenzeARischio}</div>
+            </div>
+          </div>
+
+          <div className="grid2">
+            <div className="panel">
+              <div className="ph"><h3>Attività di oggi</h3><span className="chip">{data.totaleAttivitaOggi} totali</span></div>
+              <div className="pb">
+                {data.attivitaOggi.length === 0 ? <Empty text="Niente per oggi." /> : data.attivitaOggi.map((a) => (
+                  <div className="row-li" key={a.id}>
+                    <div style={{ flex: 1 }}><b>{a.title}</b>{a.engagementTitle ? ` — ${a.engagementTitle}` : ''}
+                      <div className="cellsub">{fmtTime(a.scheduledStart)}</div></div>
+                    <StatusPill label={lk.labelOf(a.statusId) || (a.statusCanonical ?? '')} token={lk.byId(a.statusId)?.colorToken} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="panel">
+              <div className="ph"><h3>Catture recenti</h3></div>
+              <div className="pb">
+                {data.cattureRecenti.length === 0 ? <Empty text="Nessuna cattura." /> : data.cattureRecenti.map((c) => {
+                  const s = CAP[c.status] ?? CAP.pending!;
+                  return (
+                    <div className="row-li" key={c.id}>
+                      <div style={{ flex: 1 }}><span className="faint">«{c.rawText}»</span>
+                        <div className="cellsub">{new Date(c.createdAt).toLocaleString('it-IT')}</div></div>
+                      <StatusPill label={s.label} token={s.token} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </Page>
   );

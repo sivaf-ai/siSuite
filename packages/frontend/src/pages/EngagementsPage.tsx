@@ -17,11 +17,16 @@ export function EngagementsPage() {
         asset: { endpoint: '/assets', toOption: (a) => ({ id: a.id as string, label: (a as unknown as AssetDto).label }) },
       }}
       columns={[
-        { key: 'code', header: 'Codice', sortable: true, render: (r) => <span className="code">{r.code}</span> },
+        { key: 'code', header: 'Codice', sortable: true, render: (r) => <span className="mono" style={{ fontWeight: 600 }}>{r.code}</span> },
+        { key: 'company', header: 'Cliente', render: (r) => <span className="cellname">{r.companyName ?? '—'}</span> },
         { key: 'title', header: 'Titolo', sortable: true, render: (r) => <span className="cellname">{r.title}</span> },
-        { key: 'type', header: 'Tipo', render: (r) => <span className="chip">{r.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</span> },
-        { key: 'company', header: 'Cliente', render: (r) => r.companyName ?? '—' },
+        {
+          key: 'type', header: 'Tipo', render: (r) => r.type === 'build'
+            ? <span className="pill pill--brand"><span className="dot" />Realizzazione</span>
+            : <span className="pill pill--info"><span className="dot" />Manutenzione</span>,
+        },
         { key: 'status', header: 'Stato', render: (r) => <StatusPill label={lk.labelOf(r.statusId) || (r.statusCanonical ?? '')} token={lk.byId(r.statusId)?.colorToken} /> },
+        { key: 'createdAt', header: 'Aggiornata', sortable: true, render: (r) => <span className="cellsub mono">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
       ]}
       buildForm={(fk) => [{ group: 'Principale', fields: [
         { key: 'companyId', label: 'Cliente', dataType: 'fk', required: true, fkOptions: fk.company },

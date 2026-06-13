@@ -40,6 +40,50 @@ ion-list.inset, ion-list[inset] { border-radius: var(--r-lg); overflow: hidden; 
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: var(--r-pill); background: var(--neutral-wash); color: var(--ink-soft); font-size: 12.5px; font-weight: 500; }
+
+/* ---- pill: modificatori di colore dal token (base.css) — stato/tipo MAI grigi ---- */
+.pill--success { color: var(--success); background: var(--success-wash); }
+.pill--warning { color: var(--warning); background: var(--warning-wash); }
+.pill--danger { color: var(--danger); background: var(--danger-wash); }
+.pill--info { color: var(--info); background: var(--info-wash); }
+.pill--neutral { color: var(--ink-soft); background: var(--neutral-wash); }
+.pill--brand { color: var(--brand-ink); background: var(--brand-wash); }
+
+/* ---- tabs (mock 07) ---- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.tabs a { padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-soft); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.tabs a.on { color: var(--brand); border-bottom-color: var(--brand); }
+
+/* ---- avatar tabella + trend kpi + dashboard ---- */
+.ava { width: 30px; height: 30px; border-radius: 8px; background: var(--flow-grad); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+.ava.gray { background: var(--neutral-wash); color: var(--ink-soft); }
+.kpi .trend { font-size: 12px; font-weight: 600; margin-top: 4px; color: var(--ink-faint); }
+.kpi .trend.up { color: var(--success); }
+.kpi .trend.down { color: var(--danger); }
+.grid2 { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.row-li { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-2); }
+.row-li:last-child { border-bottom: 0; }
+.dep { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-faint); font-family: var(--font-mono); }
+
+/* ---- albero espandibile commessa (.xtree, mock 24) — classi scopate per non collidere ---- */
+.xtree { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden; }
+.xtree .tnode { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line-2); position: relative; }
+.xtree .tnode:last-child { border-bottom: 0; }
+.xtree .tnode:hover { background: var(--paper); }
+.xtree .tchev { width: 20px; height: 20px; display: grid; place-items: center; color: var(--ink-faint); flex: 0 0 auto; cursor: pointer; }
+.xtree .tchev.empty { visibility: hidden; }
+.xtree .ticon { width: 27px; height: 27px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; }
+.xtree .tname { font-weight: 600; font-size: 14px; }
+.xtree .tnode.leaf .tname { font-weight: 500; }
+.xtree .tmeta { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.xtree .troll { font-size: 12px; color: var(--ink-faint); font-family: var(--font-mono); }
+.xtree .tdep { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-faint); font-family: var(--font-mono); }
+.xtree .tactions { display: flex; gap: 2px; opacity: 0; transition: .12s; }
+.xtree .tnode:hover .tactions { opacity: 1; }
+.iaction { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-soft); cursor: pointer; background: none; border: 0; }
+.iaction:hover { background: var(--neutral-wash); color: var(--ink); }
+.iaction.danger:hover { background: var(--danger-wash); color: var(--danger); }
 .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--flow-grad); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px; flex: 0 0 auto; }
 .brand-grad { background: var(--flow-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
