@@ -15,7 +15,10 @@
   - `003_app_functions.sql` — funzione `app_resolve_context` (risolve il contesto utente per l'RLS).
   - `004_field_definition.sql` — tabella `field_definition` (campi dinamici per verticale) + seed.
   - `005_field_definition_rls.sql` — RLS su `field_definition`.
-- **Bootstrap applicativo** (`packages/backend/src/bootstrap.ts`), dopo le migrazioni, con connessione admin: crea il ruolo DB `sisuite_app`, i grant dei permessi dei ruoli di sistema (`role_permission`, dal catalogo in `permissions.ts`), il primo tenant, il numeratore `engagement`, la subscription trial, una company demo e l'utente Owner (GoTrue + `app_user` + `user_role`).
+  - `006_fiber_fields.sql` — **SOLO SEED** (nessun DDL): campi di sistema del verticale `fiber` in `field_definition` (vedi §5.5).
+- **Bootstrap applicativo** (`packages/backend/src/bootstrap.ts`), dopo le migrazioni, con connessione admin: crea il ruolo DB `sisuite_app`, i grant dei permessi dei ruoli di sistema (`role_permission`, dal catalogo in `permissions.ts`), il primo tenant, il numeratore `engagement`, la subscription trial, una company demo e l'utente Owner (GoTrue + `app_user` + `user_role`). **Aggiunta**: se `PLATFORM_ADMIN_EMAIL` è impostato, marca quell'`app_user` con `is_platform_admin=true` (super admin di piattaforma; colonna già esistente, nessun cambio schema).
+
+> **Nota (13/06/2026):** dalla generazione di questo documento la **struttura** dello schema è **invariata** (28 tabelle, 7 enum, 8 funzioni, ~86 indici, ~49 policy). L'unica modifica al DB è la migrazione **006** (solo seed `field_definition` fibra). I "Demo Data Pack" creano dati a runtime in tenant dedicati, non toccano lo schema né le righe di sistema (`tenant_id IS NULL`).
 
 ## Inventario oggetti (schema `public`, solo siSuite)
 - **28 tabelle** di dominio (+ `sisuite_migrations` tracker).
@@ -1416,6 +1419,16 @@ INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type
  (NULL, 'solar', 'asset', 'kwp',     '{"it-IT":"Potenza","en":"Power","es-AR":"Potencia"}',  'number',  false, 'kWp', 'technical', 1),
  (NULL, 'solar', 'asset', 'panels',  '{"it-IT":"N. pannelli","en":"Panels","es-AR":"Paneles"}', 'integer', false, NULL, 'technical', 2),
  (NULL, 'solar', 'asset', 'inverter','{"it-IT":"Inverter","en":"Inverter","es-AR":"Inversor"}', 'text',   false, NULL, 'technical', 3);
+
+-- === AGGIUNTI da migrazione 006 (verticale FIBRA) ===
+INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, options, unit, group_key, sequence) VALUES
+ (NULL, 'fiber', 'asset', 'connection_type', '{"it-IT":"Tipo connessione",...}', 'select', false, '[FTTH|FTTB|FTTC]', NULL, 'technical', 1),
+ (NULL, 'fiber', 'asset', 'socket_id',      '{"it-IT":"ID presa / ROE",...}',   'text',   false, NULL, NULL,  'technical', 2),
+ (NULL, 'fiber', 'asset', 'distance_m',     '{"it-IT":"Distanza dalla centrale",...}', 'number', false, NULL, 'm',  'technical', 3),
+ (NULL, 'fiber', 'asset', 'attenuation_db', '{"it-IT":"Attenuazione misurata",...}', 'number', false, NULL, 'dB', 'technical', 4),
+ (NULL, 'fiber', 'asset', 'ont_serial',     '{"it-IT":"Seriale ONT",...}',      'text',   false, NULL, NULL,  'technical', 5);
+INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, group_key, sequence) VALUES
+ (NULL, 'fiber', 'engagement', 'work_order_ref', '{"it-IT":"Rif. ordine di lavoro",...}', 'text', false, 'contract', 4);
 ```
 
 ### 5.6 Grant dei permessi ai ruoli di sistema (`role_permission`)
