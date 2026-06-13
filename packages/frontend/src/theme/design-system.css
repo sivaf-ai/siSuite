@@ -257,8 +257,9 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
    Regole copiate da docs/mockup/base.css, SCOPATE sotto .phone per non collidere
    con il resto dell'app (es. .avatar della sidebar, .flow/.act/.node desktop).
    ========================================================================= */
-.phone-stage { min-height: 100vh; display: flex; flex-wrap: wrap; gap: 46px; align-items: flex-start; justify-content: center; padding: 48px 24px; background: radial-gradient(1200px 700px at 50% -10%, #fff 0, var(--paper) 60%); }
-.phone { width: 390px; height: 830px; background: var(--card); border-radius: 46px; position: relative; box-shadow: 0 0 0 11px #14151b, 0 0 0 13px #23252e, var(--shadow-2); overflow: hidden; display: flex; flex-direction: column; }
+.phone-stage { min-height: 100vh; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: flex-start; padding: 16px; background: radial-gradient(1200px 700px at 50% -10%, #fff 0, var(--paper) 60%); }
+/* altezza adattata alla finestra: i tab in fondo restano SEMPRE visibili (lo scroll è interno) */
+.phone { width: 390px; max-width: 100%; height: min(830px, calc(100dvh - 92px)); background: var(--card); border-radius: 46px; position: relative; box-shadow: 0 0 0 11px #14151b, 0 0 0 13px #23252e, var(--shadow-2); overflow: hidden; display: flex; flex-direction: column; }
 .phone .status { height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px 0 30px; font-size: 13px; font-weight: 600; flex: 0 0 auto; }
 .phone .status .sigs { display: flex; gap: 5px; align-items: center; }
 .phone .notch { position: absolute; top: 13px; left: 50%; transform: translateX(-50%); width: 118px; height: 30px; background: #14151b; border-radius: var(--r-pill); z-index: 20; }

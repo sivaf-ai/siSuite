@@ -3,7 +3,7 @@
  *  area scroll e tab bar in basso. Su un telefono vero resta una cornice sottile. */
 import type { ReactNode } from 'react';
 
-export function PhoneFrame({ children, tabbar }: { children: ReactNode; tabbar?: ReactNode }) {
+export function PhoneFrame({ children, tabbar, caption }: { children: ReactNode; tabbar?: ReactNode; caption?: ReactNode }) {
   return (
     <div className="phone-stage">
       <div className="phone">
@@ -20,6 +20,7 @@ export function PhoneFrame({ children, tabbar }: { children: ReactNode; tabbar?:
           {tabbar}
         </div>
       </div>
+      {caption}
     </div>
   );
 }

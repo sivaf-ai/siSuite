@@ -35,16 +35,15 @@ export function MobileShell() {
     </div>
   );
 
-  return (
-    <div style={{ position: 'relative' }}>
-      <PhoneFrame tabbar={tabbar}>{content}</PhoneFrame>
-      <div className="phone-caption">
-        <div className="t">Vista tecnico · {user?.fullName}</div>
-        <div className="d">
-          Demo del telefono del tecnico su PC.{' '}
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={logout}><LogOut size={14} /> Esci</button>
-        </div>
+  const caption = (
+    <div className="phone-caption">
+      <div className="t">Vista tecnico · {user?.fullName}</div>
+      <div className="d" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        Telefono del tecnico (demo su PC)
+        <button className="btn btn-ghost btn-sm" onClick={logout}><LogOut size={14} /> Esci</button>
       </div>
     </div>
   );
+
+  return <PhoneFrame tabbar={tabbar} caption={caption}>{content}</PhoneFrame>;
 }
