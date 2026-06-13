@@ -32,6 +32,7 @@ import { numberSeriesRoutes } from './routes/numberSeries.js';
 import { roleRoutes } from './routes/roles.js';
 import { userRoutes } from './routes/users.js';
 import { billingRoutes } from './routes/billing.js';
+import { narrativeRoutes } from './routes/narrative.js';
 
 async function build() {
   const app = Fastify({
@@ -86,6 +87,7 @@ async function build() {
   await app.register(roleRoutes);
   await app.register(userRoutes);
   await app.register(billingRoutes);
+  await app.register(narrativeRoutes);
 
   return app;
 }

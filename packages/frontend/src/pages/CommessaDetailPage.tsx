@@ -11,7 +11,7 @@ import {
   IonList, IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
 } from '@ionic/react';
 import {
-  ChevronDown, ChevronRight, Folder, Plus, Pencil, Trash2, Pin, ArrowRight, GanttChartSquare, List, ListTree,
+  ChevronDown, ChevronRight, Folder, Plus, Pencil, Trash2, Pin, ArrowRight, GanttChartSquare, List, ListTree, Sparkles,
 } from 'lucide-react';
 import type { EngagementDto, PhaseDto, ActivityDto, LookupDto, DependencyEdgeDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -19,6 +19,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
+import { apiFetch } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 
@@ -64,6 +65,14 @@ export function CommessaDetailPage() {
 
   const [view, setView] = useState<View>('tree');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [narr, setNarr] = useState<{ available: boolean; text: string } | null>(null);
+  const [narrLoading, setNarrLoading] = useState(false);
+  async function genNarrative() {
+    setNarrLoading(true);
+    try { setNarr(await apiFetch<{ available: boolean; text: string }>(`/engagements/${id}/narrative`)); }
+    catch (e) { toast((e as Error).message || 'Racconto non disponibile', 'error'); }
+    finally { setNarrLoading(false); }
+  }
   const [phaseModal, setPhaseModal] = useState<{ editing: PhaseDto | null } | null>(null);
   const [actModal, setActModal] = useState<{ editing: ActivityDto | null; presetPhaseId?: string } | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'phase' | 'activity'; id: string; name: string } | null>(null);
@@ -209,6 +218,25 @@ export function CommessaDetailPage() {
               {eng.data.companyName && <div><div className="k">Cliente</div><div className="v">{eng.data.companyName}</div></div>}
               <div><div className="k">Stato</div><div className="v"><StatusPill label={lk.labelOf(eng.data.statusId) || (eng.data.statusCanonical ?? '')} token={lk.byId(eng.data.statusId)?.colorToken} /></div></div>
               <div><div className="k">Avanzamento</div><div className="v mono">{totalDone} / {actList.length} attività</div></div>
+            </div>
+          </div>
+
+          {/* Racconto AI (lato uscita): riassunto in linguaggio naturale, on-demand */}
+          <div className="prop-card" style={{ marginBottom: 18 }}>
+            <div className="prop-head">
+              <div className="spark"><Sparkles size={16} /></div>
+              <b>Racconto AI</b>
+              <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} disabled={narrLoading} onClick={genNarrative}>
+                <Sparkles size={14} /> {narrLoading ? 'Genero…' : narr ? 'Rigenera' : 'Racconta com’è messa'}
+              </button>
+            </div>
+            <div style={{ padding: '14px 16px' }}>
+              {narr
+                ? <>
+                    <div style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--ink)' }}>{narr.text}</div>
+                    {!narr.available && <div className="faint" style={{ fontSize: 12, marginTop: 8, color: 'var(--ink-faint)' }}>Riepilogo automatico (AI non configurata: aggiungi ANTHROPIC_API_KEY per il racconto generato).</div>}
+                  </>
+                : <div className="faint" style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>Chiedi all'assistente un riepilogo dello stato della commessa.</div>}
             </div>
           </div>
 
