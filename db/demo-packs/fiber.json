@@ -1,0 +1,93 @@
+{
+  "pack": "fiber",
+  "tenant": { "name": "Fibra Demo", "vertical": "fiber", "default_locale": "it-IT", "timezone": "Europe/Rome" },
+  "subscription": { "plan_code": "pro", "days_valid": 365 },
+  "users": [
+    { "key": "owner",   "full_name": "Giulia Bianchi", "email": "owner@fibra.demo",   "role": "Owner",   "password": "Demo123!" },
+    { "key": "planner", "full_name": "Paolo Verdi",    "email": "planner@fibra.demo", "role": "Planner", "password": "Demo123!" },
+    { "key": "marco",   "full_name": "Marco Gallo",    "email": "marco@fibra.demo",   "role": "Tecnico", "password": "Demo123!" },
+    { "key": "davide",  "full_name": "Davide Conti",   "email": "davide@fibra.demo",  "role": "Tecnico", "password": "Demo123!" }
+  ],
+  "companies": [
+    { "key": "distributore", "display_name": "FibraItalia Distribuzione SpA", "type": "organization", "address": "Viale del Lavoro 20, Milano",
+      "roles": [{ "role": "customer", "customer_nature": "recurring" }],
+      "contacts": [{ "full_name": "Responsabile Cantieri", "role_title": "Coordinamento installazioni", "phone": "02-1234567", "is_primary": true }] },
+    { "key": "cond_dante", "display_name": "Condominio Via Dante 8, Milano", "type": "organization", "address": "Via Dante 8, Milano",
+      "roles": [{ "role": "customer", "customer_nature": "episodic" }],
+      "contacts": [{ "full_name": "Amministratore di condominio", "phone": "02-7654321", "is_primary": true }] },
+    { "key": "azienda_beta", "display_name": "Beta Logistica Srl", "type": "organization", "address": "Via delle Industrie 5, Sesto San Giovanni",
+      "roles": [{ "role": "customer", "customer_nature": "recurring" }],
+      "contacts": [{ "full_name": "Ufficio IT", "email": "it@betalogistica.demo", "phone": "02-9001122", "is_primary": true }] }
+  ],
+  "assets": [
+    { "key": "borchia_dante_int5", "company": "cond_dante", "kind": "connection_point", "label": "Borchia Via Dante 8 int.5", "installed_on": "2026-06-10",
+      "attributes": { "connection_type": "FTTH", "socket_id": "ROE-MI-00482", "distance_m": 320, "attenuation_db": 0.42, "ont_serial": "ONT-7H2K9" } },
+    { "key": "borchia_beta", "company": "azienda_beta", "kind": "connection_point", "label": "Borchia Beta Logistica - sede",
+      "attributes": { "connection_type": "FTTB", "socket_id": "ROE-MI-00913", "distance_m": 540, "attenuation_db": 0.61 } }
+  ],
+  "resources": [
+    { "key": "marco_r",   "kind": "person",    "label": "Marco Gallo",  "user": "marco",  "attributes": { "hourly_cost": 32, "role": "giuntista" } },
+    { "key": "davide_r",  "kind": "person",    "label": "Davide Conti", "user": "davide", "attributes": { "hourly_cost": 30, "role": "installatore" } },
+    { "key": "furgone",     "kind": "vehicle",   "label": "Furgone attrezzato" },
+    { "key": "giuntatrice", "kind": "equipment", "label": "Giuntatrice a fusione" },
+    { "key": "otdr",        "kind": "equipment", "label": "OTDR + power meter" },
+    { "key": "soffiacavo",  "kind": "equipment", "label": "Macchina soffiacavo" }
+  ],
+  "resource_availability": [
+    { "resource": "davide_r", "kind": "unavailable", "starts_at": "2026-06-22T00:00:00+02:00", "ends_at": "2026-06-27T00:00:00+02:00", "reason": "Ferie" }
+  ],
+  "materials": [
+    { "key": "cavo",     "name": "Cavo fibra ottica drop", "unit": "m" },
+    { "key": "borchia",  "name": "Borchia ottica",         "unit": "pz" },
+    { "key": "pigtail",  "name": "Pigtail SC/APC",         "unit": "pz" },
+    { "key": "soc",      "name": "Connettore SOC",         "unit": "pz" },
+    { "key": "bretella", "name": "Bretella ottica",        "unit": "pz" },
+    { "key": "muffola",  "name": "Muffola di giunzione",   "unit": "pz" }
+  ],
+  "engagements": [
+    {
+      "key": "comm_dante", "company": "cond_dante", "asset": "borchia_dante_int5", "type": "build",
+      "title": "Allaccio FTTH Via Dante 8", "manager": "planner", "status": "active", "started_on": "2026-06-08",
+      "attributes": { "work_order_ref": "WO-2026-7781" },
+      "phases": [{ "key": "allaccio", "name": "Allaccio", "seq": 1, "status": "active" }],
+      "activities": [
+        { "key": "sopr",        "phase": "allaccio", "title": "Sopralluogo",                  "status": "done",        "estimated_minutes": 60,  "resources": ["davide_r"] },
+        { "key": "posa",        "phase": "allaccio", "title": "Posa/soffiaggio cavo drop",    "status": "done",        "estimated_minutes": 120, "after": [{ "act": "sopr", "lag_days": 0 }],         "resources": ["davide_r", "soffiacavo"] },
+        { "key": "giunz",       "phase": "allaccio", "title": "Giunzione (splicing)",         "status": "in_progress", "estimated_minutes": 90,  "after": [{ "act": "posa", "lag_days": 0 }],         "resources": ["marco_r", "giuntatrice"] },
+        { "key": "borchia_act", "phase": "allaccio", "title": "Installazione borchia + ONT",  "status": "planned",     "estimated_minutes": 60,  "after": [{ "act": "giunz", "lag_days": 0 }] },
+        { "key": "collaudo",    "phase": "allaccio", "title": "Collaudo OTDR",                "status": "planned",     "estimated_minutes": 45,  "after": [{ "act": "borchia_act", "lag_days": 0 }],  "resources": ["marco_r", "otdr"] },
+        { "key": "attiv",       "phase": "allaccio", "title": "Attivazione linea",            "status": "planned",     "estimated_minutes": 30,  "after": [{ "act": "collaudo", "lag_days": 0 }] }
+      ],
+      "time_entries": [
+        { "activity": "sopr",  "resource": "davide_r", "typology": "installazione", "minutes": 60,  "occurred_on": "2026-06-08" },
+        { "activity": "posa",  "resource": "davide_r", "typology": "installazione", "minutes": 120, "occurred_on": "2026-06-09" },
+        { "activity": "giunz", "resource": "marco_r",  "typology": "giunzione",     "minutes": 45,  "occurred_on": "2026-06-10" }
+      ],
+      "material_consumption": [
+        { "activity": "posa",        "material": "cavo",    "quantity": 25, "unit": "m",  "occurred_on": "2026-06-09" },
+        { "activity": "borchia_act", "material": "borchia", "quantity": 1,  "unit": "pz", "occurred_on": "2026-06-10" }
+      ],
+      "captures": [
+        { "user": "davide", "channel": "text", "status": "applied", "raw_text": "posato 25 metri di cavo al civico 8 interno 5, due ore" },
+        { "user": "marco",  "channel": "text", "status": "applied", "raw_text": "giunzione fatta su via Dante, 45 minuti" }
+      ]
+    },
+    {
+      "key": "comm_beta", "company": "azienda_beta", "asset": "borchia_beta", "type": "maintenance",
+      "title": "Guasto linea Beta Logistica", "manager": "planner", "status": "active", "started_on": "2026-06-15",
+      "attributes": { "work_order_ref": "WO-2026-7799" },
+      "phases": [{ "key": "intervento", "name": "Intervento su guasto", "seq": 1, "status": "active" }],
+      "activities": [
+        { "key": "diagnosi",   "phase": "intervento", "title": "Diagnosi guasto",   "status": "in_progress", "estimated_minutes": 45, "scheduled_start": "2026-06-16T09:00:00+02:00", "resources": ["marco_r", "otdr"] },
+        { "key": "rigiunz",    "phase": "intervento", "title": "Ri-giunzione",      "status": "planned",     "estimated_minutes": 60, "after": [{ "act": "diagnosi", "lag_days": 0 }], "resources": ["marco_r", "giuntatrice"] },
+        { "key": "ricollaudo", "phase": "intervento", "title": "Ricollaudo OTDR",   "status": "planned",     "estimated_minutes": 30, "after": [{ "act": "rigiunz", "lag_days": 0 }], "resources": ["marco_r", "otdr"] }
+      ],
+      "time_entries": [
+        { "activity": "diagnosi", "resource": "marco_r", "typology": "manutenzione", "minutes": 30, "occurred_on": "2026-06-16" }
+      ],
+      "captures": [
+        { "user": "marco", "channel": "text", "status": "pending", "raw_text": "controllata la linea Beta, sembra un guasto sulla giunzione in muffola" }
+      ]
+    }
+  ]
+}

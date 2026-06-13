@@ -70,6 +70,17 @@ Chiusi i buchi di *impianto* (cheap ora, cari dopo) prima del via a Claude Code.
 
 ---
 
+## Rimandati dalla sessione decisioni del 13/06/2026 (non dimenticare)
+
+- **Integrazione dipendenze nel motore agenda + soluzione proposta.** Stato: rimandato (dopo scheduling per-risorsa; suite di test scheduler ✓ fatta il 13/06). Comprende: (1) lo scheduler rispetta le dipendenze **FS** — ordinamento topologico + `earliest_effettivo(succ) = max(earliest_start(succ), fine(pred) + lag)`; predecessore non collocabile → successore **bloccato**; (2) a fronte di conflitto/slittamento il sistema **non auto-sposta**: genera una **riprogrammazione proposta** pronta da confermare con un tocco, modificabile prima della conferma. Costo retrofit: **Medio**. La parte SEMPLICE (creare/cancellare dipendenze + tag "dopo X" + anti-ciclo + stessa commessa) si fa prima (FASE 3). Schema `activity_dependency` (FS/SS/FF/SF + lag) già completo: nessuna migrazione.
+- **Qualità della proposta** migliora col **solver** (Timefold/OR-Tools, post-MVP): prima versione = spostamento semplice; poi più sofisticata.
+- **Gateway AI cloud per on-prem**: la chiave Anthropic non risiede mai sul cliente; l'on-prem passa da un gateway cloud della piattaforma e si autentica con un token di licenza.
+- **Gestione campi personalizzati senza codice** (UI + `POST/PATCH/DELETE /field-definitions` + RLS scrittura solo tenant) — FASE 3, non blocca il demo fibra.
+- **Aggiornare i demo-pack e i campi dinamici** man mano che lo schema cresce (artefatto vivo in `db/demo-packs/`).
+- **Funzione SUPER ADMIN in-app** per azzerare i dati DEMO e re-importare un pack (oggi: solo CLI `demo:load`/`demo:wipe`/`demo:list`). Da definire: collocazione UI, gating `is_platform_admin`/`platform:access`, upload JSON arbitrari o solo pack inclusi.
+
+---
+
 ## Da produrre / decidere PRIMA dello sviluppo (radar pre-sviluppo)
 
 Non sono feature rimandate: sono artefatti e decisioni necessari per partire con la Fase 0-1. Tenuti qui per non perderli di vista.

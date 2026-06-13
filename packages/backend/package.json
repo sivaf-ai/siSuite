@@ -8,6 +8,9 @@
     "start": "tsx src/index.ts",
     "build": "echo 'backend: nessuno step di build, gira via tsx'",
     "migrate": "tsx src/migrate.ts",
+    "demo:load": "tsx src/demo/load.ts",
+    "demo:wipe": "tsx src/demo/wipe.ts",
+    "demo:list": "tsx src/demo/list.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
