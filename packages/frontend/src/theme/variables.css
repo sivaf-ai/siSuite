@@ -95,3 +95,46 @@
 /* ritocchi per componenti con colori cablati non coperti dai token */
 :root[data-theme="dark"] .alert { border-color: #4A3A1A; color: #E8C98A; }
 :root[data-theme="dark"] .ds-tabbar { background: rgba(26, 28, 34, .92); }
+
+/* =========================================================================
+   PALETTE CURATA (parte 8 §2) — ~16 colori, ognuno con colore + wash, in
+   variante chiara e scura. lookup_value.color_token memorizza la CHIAVE
+   (es. "teal"), non un hex. I token semantici di sistema (success/warning/…)
+   restano per gli stati logici; questi sono per scelta libera coerente.
+   ========================================================================= */
+:root {
+  --c-rose: #E11D48;    --c-rose-wash: #FFE4E6;
+  --c-pink: #DB2777;    --c-pink-wash: #FCE7F3;
+  --c-fuchsia: #C026D3; --c-fuchsia-wash: #FAE8FF;
+  --c-violet: #7C3AED;  --c-violet-wash: #EDE9FE;
+  --c-indigo: #4F46E5;  --c-indigo-wash: #E0E7FF;
+  --c-sky: #0284C7;     --c-sky-wash: #E0F2FE;
+  --c-cyan: #0891B2;    --c-cyan-wash: #CFFAFE;
+  --c-teal: #0D9488;    --c-teal-wash: #CCFBF1;
+  --c-emerald: #059669; --c-emerald-wash: #D1FAE5;
+  --c-green: #16A34A;   --c-green-wash: #DCFCE7;
+  --c-lime: #65A30D;    --c-lime-wash: #ECFCCB;
+  --c-amber: #B45309;   --c-amber-wash: #FEF3C7;
+  --c-orange: #EA580C;  --c-orange-wash: #FFEDD5;
+  --c-red: #DC2626;     --c-red-wash: #FEE2E2;
+  --c-slate: #475569;   --c-slate-wash: #E2E8F0;
+  --c-stone: #57534E;   --c-stone-wash: #E7E5E4;
+}
+:root[data-theme="dark"] {
+  --c-rose: #FB7185;    --c-rose-wash: #4C1D24;
+  --c-pink: #F472B6;    --c-pink-wash: #4A1D38;
+  --c-fuchsia: #E879F9; --c-fuchsia-wash: #461B4D;
+  --c-violet: #A78BFA;  --c-violet-wash: #2E2065;
+  --c-indigo: #818CF8;  --c-indigo-wash: #221F4B;
+  --c-sky: #38BDF8;     --c-sky-wash: #0C2A3F;
+  --c-cyan: #22D3EE;    --c-cyan-wash: #0A3038;
+  --c-teal: #2DD4BF;    --c-teal-wash: #0C2E2A;
+  --c-emerald: #34D399; --c-emerald-wash: #0C2E22;
+  --c-green: #4ADE80;   --c-green-wash: #0F2E1A;
+  --c-lime: #A3E635;    --c-lime-wash: #1F2A0A;
+  --c-amber: #FBBF24;   --c-amber-wash: #2E2206;
+  --c-orange: #FB923C;  --c-orange-wash: #2E1B0A;
+  --c-red: #F87171;     --c-red-wash: #2E1212;
+  --c-slate: #94A3B8;   --c-slate-wash: #1E293B;
+  --c-stone: #A8A29E;   --c-stone-wash: #292524;
+}

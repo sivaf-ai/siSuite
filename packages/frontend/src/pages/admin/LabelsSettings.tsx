@@ -12,6 +12,8 @@ import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { ColorSwatchPicker } from '../../ui/ColorSwatchPicker';
+import { swatchColor } from '../../theme/palette';
 
 const CATS = [
   { key: 'activity_status', label: 'Attività' },
@@ -19,8 +21,6 @@ const CATS = [
   { key: 'phase_status', label: 'Fase' },
   { key: 'priority', label: 'Priorità' },
 ];
-const COLOR_VAR: Record<string, string> = { neutral: 'var(--neutral)', info: 'var(--info)', success: 'var(--success)', warning: 'var(--warning)', danger: 'var(--danger)', brand: 'var(--brand)' };
-const COLOR_OPTS = ['neutral', 'info', 'success', 'warning', 'danger', 'brand'].map((v) => ({ value: v, label: { 'it-IT': v } }));
 
 export function LabelsSettings() {
   const toast = useToast();
@@ -59,7 +59,7 @@ export function LabelsSettings() {
             : rows.map((l) => (
               <div className="lv-row" key={l.id}>
                 <span className="drag" style={{ color: 'var(--ink-faint)' }}><GripVertical size={15} /></span>
-                <span className="swatch" style={{ background: COLOR_VAR[l.colorToken ?? 'neutral'] ?? 'var(--neutral)' }} />
+                <span className="swatch" style={{ background: swatchColor(l.colorToken) }} />
                 <span className="abbr">{l.abbreviation ?? '—'}</span>
                 <span className="lvname">{l.label['it-IT'] ?? l.code}{l.isSystem && <span className="chip" style={{ marginLeft: 8 }}>sistema</span>}</span>
                 <span className="canon">→ {l.canonical}</span>
@@ -121,7 +121,6 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
     ]),
     { key: 'labelIt', label: 'Etichetta (IT)', dataType: 'text', required: true },
     { key: 'abbreviation', label: 'Sigla', dataType: 'text' },
-    { key: 'colorToken', label: 'Colore', dataType: 'select', options: COLOR_OPTS },
     { key: 'sequence', label: 'Ordine', dataType: 'integer' },
     { key: 'isDefault', label: 'Default della categoria', dataType: 'boolean' },
   ];
@@ -152,6 +151,10 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
       </>}>
       <div className="form-group">
         {fields.map((f) => <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />)}
+        <div className="field">
+          <label>Colore</label>
+          <ColorSwatchPicker includeSemantic value={(v.colorToken as string) ?? 'neutral'} onChange={(key) => setV((s) => ({ ...s, colorToken: key }))} />
+        </div>
       </div>
     </Drawer>
   );

@@ -48,6 +48,31 @@ ion-list.inset, ion-list[inset] { border-radius: var(--r-lg); overflow: hidden; 
 .pill--info { color: var(--info); background: var(--info-wash); }
 .pill--neutral { color: var(--ink-soft); background: var(--neutral-wash); }
 .pill--brand { color: var(--brand-ink); background: var(--brand-wash); }
+/* pill della palette curata (parte 8 §2) */
+.pill--rose { color: var(--c-rose); background: var(--c-rose-wash); }
+.pill--pink { color: var(--c-pink); background: var(--c-pink-wash); }
+.pill--fuchsia { color: var(--c-fuchsia); background: var(--c-fuchsia-wash); }
+.pill--violet { color: var(--c-violet); background: var(--c-violet-wash); }
+.pill--indigo { color: var(--c-indigo); background: var(--c-indigo-wash); }
+.pill--sky { color: var(--c-sky); background: var(--c-sky-wash); }
+.pill--cyan { color: var(--c-cyan); background: var(--c-cyan-wash); }
+.pill--teal { color: var(--c-teal); background: var(--c-teal-wash); }
+.pill--emerald { color: var(--c-emerald); background: var(--c-emerald-wash); }
+.pill--green { color: var(--c-green); background: var(--c-green-wash); }
+.pill--lime { color: var(--c-lime); background: var(--c-lime-wash); }
+.pill--amber { color: var(--c-amber); background: var(--c-amber-wash); }
+.pill--orange { color: var(--c-orange); background: var(--c-orange-wash); }
+.pill--red { color: var(--c-red); background: var(--c-red-wash); }
+.pill--slate { color: var(--c-slate); background: var(--c-slate-wash); }
+.pill--stone { color: var(--c-stone); background: var(--c-stone-wash); }
+
+/* picker swatch (parte 8 §2) */
+.swatch-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+.swatch-btn { position: relative; height: 34px; border-radius: var(--r-sm); border: 2px solid transparent; cursor: pointer; display: grid; place-items: center; transition: transform .1s; }
+.swatch-btn:hover { transform: translateY(-1px); }
+.swatch-btn .dot { width: 13px; height: 13px; border-radius: 50%; }
+.swatch-btn.on .dot { display: none; }
+.swatch-btn .chk { stroke-width: 3; }
 
 /* ---- tabs (mock 07) ---- */
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
