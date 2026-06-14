@@ -95,3 +95,80 @@
   `COALESCE(budget_amount, (attributes->>'budget')::numeric)`. Il form continua a
   scrivere attributes.budget (nessuna modifica UI necessaria). **Da rivedere**:
   in un follow-up, far scrivere il form sulla colonna e ritirare il field_definition.
+
+---
+
+## PARTE 2 — Backend (route/logica). Tutto verificato e2e + typecheck + 27/27 vitest.
+
+### Permessi (catalogo RBAC)
+- Aggiunti: `time_entry:approve`, risorsa `absence` (create/read/update/delete/approve),
+  `work_report` (CRUD), `stock` (read/move/manage). Grant a Planner/Tecnico/
+  Contabile/Sola lettura; Owner='*'. **role_permission 131→165.** Per applicarli
+  ho rieseguito `migrate` (il bootstrap riscrive role_permission dal catalogo).
+
+### 4.1/4.2/4.3 ore (rates.ts + routes/timeEntries.ts)
+- `resolveRates`: listino `rate_card` (riga più specifica e valida alla data) →
+  fallback Minimo. Snapshot cost_rate/bill_rate/currency nella riga.
+- POST time-entry: typology_id, tariffe, stato 'draft'.
+- Workflow in blocco: `/time-entries/{submit,approve,reject,lock,unlock}`.
+  DELETE non tocca righe is_locked. **SCELTA**: submit gate `time_entry:create`
+  (il tecnico invia le sue); approve/reject/lock/unlock gate `time_entry:approve`.
+
+### 4.4 assenze + 4.5 timer (routes/absences.ts, timeTracking.ts)
+- Assenze: approve idempotente (non raddoppia `used`). **Unità saldo**: ore se
+  valorizzate, altrimenti giorni calendario inclusivi (half_day −0,5). Precisione
+  CCNL/working-days → backlog.
+- Timer: commit crea la riga ore dal misurato; **guard 400** se la sessione non
+  ha commessa/attività (vincolo §4.6). re-commit → 409.
+
+### §5 rapportino (routes/workReports.ts)
+- raw→ai_proposed→confirmed→signed. **No leak costi al cliente**: il payload
+  all'LLM esclude i costi per audience customer (e le ore per 'fixed'). L'AI non
+  scrive lo stato finale; senza chiave degrada a testo deterministico.
+  Con chiave attiva: verificato che il rapportino cliente mostra ore senza costi,
+  l'interno mostra i costi.
+
+### §7 budget (routes/budget.ts)
+- `GET /engagements/:id/budget`: fatto costo/ricavo dai dati fotografati +
+  movimenti 'out'; previsto = budget (COALESCE attributes.budget) o stima
+  ore×tariffa default tenant; margine/rimane/allarme>0,85; breakdown per fase.
+- **SEMPLIFICAZIONE**: rollup ad albero di fasi annidate non ricorsivo (oggi
+  per-fase diretta); materiali a livello commessa. Rifinibile.
+
+### §6 agenda (routes/activities.ts)
+- Esposti `scheduleModeId`/`pinnedDay` (additivi). **DIFFERITO/GATED**:
+  l'integrazione nel motore (onorare fixed/pinned in `scheduleResources`,
+  isolare `planningAnchor(resource, now)`) tocca `flow/scheduler.ts` che è
+  **gated** (rete di test) → richiede sessione presidiata + conferma titolare.
+
+### ⚠️ SCOPERTA RILEVANTE (RLS + platform admin) — da sapere per i test
+- `owner@sisuite.local` è **platform admin** nel tenant **Si.Va.F.** Le SELECT
+  con `app_is_platform_admin()` gli fanno **vedere TUTTI i tenant** (incluse le 3
+  demo fiber/software/pools). Ma le policy **UPDATE** richiedono
+  `tenant_id = app_current_tenant()` → un platform admin **non può modificare**
+  i dati di un altro tenant (0 righe, corretto e sicuro).
+- **Conseguenza pratica per i test**: `/engagements` come Owner ritorna anche
+  commesse di tenant demo; se ci scrivi sopra (es. PATCH attività) ottieni 0
+  righe. **Testare nel tenant del dato** (es. login `owner@pools.demo`).
+- Alcuni miei smoke hanno creato dati nel tenant Sivaf che puntano a FK di tenant
+  demo (innocuo, ricaricabile via demo:load): non è sporco "vero".
+
+### ⚙️ NOTE RUNTIME / DEPLOY
+- **`shared` non ha step di build**: `@sisuite/shared` esporta direttamente
+  `./src/index.ts`; il container backend la vede aggiornata (mount), quindi le
+  modifiche agli schemi sono live dopo `docker compose restart backend`.
+- **PUSH BLOCCATO**: l'harness ha negato `git push origin main` (push diretto su
+  default branch non auto-autorizzato). **Tutti i commit sono LOCALI**. → **Sivaf:
+  esegui `git push origin main`** (12 commit di questa sessione) quando rivedi.
+
+## STATO FINALE & COSA RESTA
+- **FATTO e verificato**: migrazioni 011–022; backend Moduli Ore (4.1–4.6),
+  Rapportino (5), Budget (7), Magazzino (8); esposizione Agenda (6).
+- **DA FARE (domani / sessione presidiata)**:
+  1. **FRONTEND di tutti i moduli** (non iniziato): timesheet+approvazione, assenze,
+     cronometro, rapportino (editor+firma), magazzino (giacenze/movimenti/documenti/
+     bolla), budget bar, badge agenda fixed/pinned. Seguire i mockup come specifica
+     letterale.
+  2. **§6 planner integration** (GATED): onorare fixed/pinned in scheduleResources.
+  3. Budget: budget su form commessa scrive su colonna; rollup fasi annidate.
+  4. `git push origin main`.
