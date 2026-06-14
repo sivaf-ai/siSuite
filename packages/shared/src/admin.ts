@@ -123,6 +123,27 @@ export interface TenantSettingsDto {
   workingHours: Record<string, [string, string][]>;
 }
 
+/* ── Terminologia per-tenant (glossario di dominio, parte 8 §1) ─────────── */
+// Insieme CURATO di termini di dominio sovrascrivibili dal tenant (~20).
+export const TERM_KEYS = [
+  'engagement', 'phase', 'activity', 'resource', 'asset', 'material', 'customer',
+  'contact', 'capture', 'dependency', 'time_entry', 'consumption', 'checklist',
+  'planning', 'dashboard', 'template', 'priority', 'status',
+] as const;
+export type TermKey = (typeof TERM_KEYS)[number];
+
+export interface TermOverrideDto { termKey: string; valueSingular: string; valuePlural: string | null }
+
+export const updateTerminologySchema = z.object({
+  locale: z.enum(['it-IT', 'en', 'es-AR']),
+  terms: z.array(z.object({
+    termKey: z.string().min(1).max(60),
+    valueSingular: z.string().max(120),
+    valuePlural: z.string().max(120).nullable().optional(),
+  })),
+});
+export type UpdateTerminologyInput = z.infer<typeof updateTerminologySchema>;
+
 /* ── Billing: piano + abbonamento del tenant (sola lettura) ─────────────── */
 export interface PlanDto {
   id: string;

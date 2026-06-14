@@ -3,7 +3,7 @@ import { IonApp, IonSpinner } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Route, Switch } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
-import { syncUserLocale } from './i18n';
+import { syncUserLocale, refreshTerminology } from './i18n';
 import { LookupsProvider } from './context/Lookups';
 import { ToastProvider } from './ui/Toast';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -14,7 +14,12 @@ import { MobileShell } from './mobile/MobileShell';
 function Gate() {
   const { user, loading } = useAuth();
   // allinea la lingua UI ad app_user.locale (solo se l'utente non ha scelto a mano)
-  useEffect(() => { syncUserLocale(user?.locale); }, [user?.locale]);
+  // e carica gli override di terminologia del tenant
+  useEffect(() => {
+    if (!user) return;
+    syncUserLocale(user.locale);
+    void refreshTerminology();
+  }, [user]);
   if (loading) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', height: '100vh' }}>

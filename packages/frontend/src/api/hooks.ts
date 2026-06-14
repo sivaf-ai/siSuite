@@ -24,6 +24,6 @@ export function useApi<T>(path: string | null) {
   return { data, loading, error, reload, setData };
 }
 
-export async function mutate<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
+export async function mutate<T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
   return apiFetch<T>(path, { method, body: body ? JSON.stringify(body) : undefined });
 }

@@ -37,6 +37,26 @@
     "loading": "Loading…",
     "language": "Language"
   },
+  "terms": {
+    "engagement": "Job", "engagement_plural": "Jobs",
+    "phase": "Phase", "phase_plural": "Phases",
+    "activity": "Activity", "activity_plural": "Activities",
+    "resource": "Resource", "resource_plural": "Resources",
+    "asset": "Asset", "asset_plural": "Assets",
+    "material": "Material", "material_plural": "Materials",
+    "customer": "Customer", "customer_plural": "Customers",
+    "contact": "Contact", "contact_plural": "Contacts",
+    "capture": "Capture", "capture_plural": "Captures",
+    "dependency": "Dependency", "dependency_plural": "Dependencies",
+    "time_entry": "Time entry", "time_entry_plural": "Time entries",
+    "consumption": "Consumption", "consumption_plural": "Consumptions",
+    "checklist": "Checklist", "checklist_plural": "Checklists",
+    "planning": "Planning", "planning_plural": "Planning",
+    "dashboard": "Dashboard", "dashboard_plural": "Dashboards",
+    "template": "Template", "template_plural": "Templates",
+    "priority": "Priority", "priority_plural": "Priorities",
+    "status": "Status", "status_plural": "Statuses"
+  },
   "planning": {
     "title": "Planning",
     "subtitle": "Dynamic activities flow from today; fixed ones act as anchors. Per-resource scheduling.",

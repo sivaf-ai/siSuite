@@ -9,7 +9,8 @@
  */
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import type { Locale } from '@sisuite/shared';
+import type { Locale, TermOverrideDto } from '@sisuite/shared';
+import { apiFetch } from '../api/client';
 import itIT from './it-IT.json';
 import en from './en.json';
 import esAR from './es-AR.json';
@@ -38,10 +39,23 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
-/** Cambia lingua e PERSISTE la scelta dell'utente (localStorage). */
+/** Carica gli override di terminologia del tenant per la lingua corrente e li
+ *  inietta nel namespace `terms` (sovrascrivono i default). Non bloccante. */
+export async function refreshTerminology(): Promise<void> {
+  const lng = i18n.language || 'it-IT';
+  try {
+    const res = await apiFetch<{ items: TermOverrideDto[] }>(`/settings/terminology?locale=${lng}`);
+    for (const t of res.items) {
+      if (t.valueSingular) i18n.addResource(lng, 'translation', `terms.${t.termKey}`, t.valueSingular);
+      if (t.valuePlural) i18n.addResource(lng, 'translation', `terms.${t.termKey}_plural`, t.valuePlural);
+    }
+  } catch { /* override assenti o non autenticato: si usano i default */ }
+}
+
+/** Cambia lingua, PERSISTE la scelta (localStorage) e ricarica gli override. */
 export function changeLanguage(code: Locale): void {
   localStorage.setItem(KEY, code);
-  void i18n.changeLanguage(code);
+  void i18n.changeLanguage(code).then(() => refreshTerminology());
 }
 
 /** Allinea ad app_user.locale SOLO se l'utente non ha già scelto a mano. */

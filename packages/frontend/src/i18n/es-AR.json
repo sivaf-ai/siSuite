@@ -37,6 +37,26 @@
     "loading": "Cargando…",
     "language": "Idioma"
   },
+  "terms": {
+    "engagement": "Trabajo", "engagement_plural": "Trabajos",
+    "phase": "Fase", "phase_plural": "Fases",
+    "activity": "Actividad", "activity_plural": "Actividades",
+    "resource": "Recurso", "resource_plural": "Recursos",
+    "asset": "Activo", "asset_plural": "Activos",
+    "material": "Material", "material_plural": "Materiales",
+    "customer": "Cliente", "customer_plural": "Clientes",
+    "contact": "Contacto", "contact_plural": "Contactos",
+    "capture": "Captura", "capture_plural": "Capturas",
+    "dependency": "Dependencia", "dependency_plural": "Dependencias",
+    "time_entry": "Registro de horas", "time_entry_plural": "Registros de horas",
+    "consumption": "Consumo", "consumption_plural": "Consumos",
+    "checklist": "Checklist", "checklist_plural": "Checklists",
+    "planning": "Planificación", "planning_plural": "Planificaciones",
+    "dashboard": "Tablero", "dashboard_plural": "Tableros",
+    "template": "Plantilla", "template_plural": "Plantillas",
+    "priority": "Prioridad", "priority_plural": "Prioridades",
+    "status": "Estado", "status_plural": "Estados"
+  },
   "planning": {
     "title": "Planificación",
     "subtitle": "Las actividades dinámicas fluyen desde hoy; las fijas son anclas. Cálculo por recurso.",

@@ -37,6 +37,26 @@
     "loading": "Caricamento…",
     "language": "Lingua"
   },
+  "terms": {
+    "engagement": "Commessa", "engagement_plural": "Commesse",
+    "phase": "Fase", "phase_plural": "Fasi",
+    "activity": "Attività", "activity_plural": "Attività",
+    "resource": "Risorsa", "resource_plural": "Risorse",
+    "asset": "Asset", "asset_plural": "Asset",
+    "material": "Materiale", "material_plural": "Materiali",
+    "customer": "Cliente", "customer_plural": "Clienti",
+    "contact": "Contatto", "contact_plural": "Contatti",
+    "capture": "Cattura", "capture_plural": "Catture",
+    "dependency": "Dipendenza", "dependency_plural": "Dipendenze",
+    "time_entry": "Registrazione ore", "time_entry_plural": "Ore",
+    "consumption": "Consumo", "consumption_plural": "Consumi",
+    "checklist": "Checklist", "checklist_plural": "Checklist",
+    "planning": "Pianificazione", "planning_plural": "Pianificazioni",
+    "dashboard": "Dashboard", "dashboard_plural": "Dashboard",
+    "template": "Modello", "template_plural": "Modelli",
+    "priority": "Priorità", "priority_plural": "Priorità",
+    "status": "Stato", "status_plural": "Stati"
+  },
   "planning": {
     "title": "Pianificazione",
     "subtitle": "Le attività dinamiche fluiscono da oggi; le fisse fanno da ancora. Calcolo per-risorsa.",

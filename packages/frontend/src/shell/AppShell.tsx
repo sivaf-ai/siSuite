@@ -35,6 +35,7 @@ import { RolesPage } from '../pages/admin/RolesPage';
 import { SettingsLayout } from '../pages/admin/SettingsLayout';
 import { GeneralSettings } from '../pages/admin/GeneralSettings';
 import { LabelsSettings } from '../pages/admin/LabelsSettings';
+import { TerminologySettings } from '../pages/admin/TerminologySettings';
 import { NumbersSettings } from '../pages/admin/NumbersSettings';
 import { BillingContent } from '../pages/admin/BillingPage';
 import { SuperAdminPage } from '../pages/admin/SuperAdminPage';
@@ -44,6 +45,12 @@ const GROUP_LABEL: Record<NonNullable<MenuItem['group']>, string> = {
   lavoro: 'Lavoro',
   anagrafiche: 'Anagrafiche',
   amministrazione: 'Amministrazione',
+};
+
+/** voci di menu che sono ENTITÀ di dominio → usano il glossario `terms` (override-abili per-tenant). */
+const TERM_OF: Record<string, string> = {
+  engagements: 'engagement_plural', resources: 'resource_plural', materials: 'material_plural',
+  companies: 'customer_plural', assets: 'asset_plural', captures: 'capture_plural', 'captures-inbox': 'capture_plural',
 };
 
 /** Rotte fisse dell'app (liste + dettagli). Le voci di MENU controllano solo
@@ -68,6 +75,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/admin/settings', render: () => <Redirect to="/admin/settings/general" /> },
   { path: '/admin/settings/general', render: () => <SettingsLayout active="general"><GeneralSettings /></SettingsLayout> },
   { path: '/admin/settings/labels', render: () => <SettingsLayout active="labels"><LabelsSettings /></SettingsLayout> },
+  { path: '/admin/settings/terminology', render: () => <SettingsLayout active="terminology"><TerminologySettings /></SettingsLayout> },
   { path: '/admin/settings/numbers', render: () => <SettingsLayout active="numbers"><NumbersSettings /></SettingsLayout> },
   { path: '/admin/settings/billing', render: () => <SettingsLayout active="billing"><BillingContent /></SettingsLayout> },
   { path: '/admin/platform', render: () => <SuperAdminPage /> },
@@ -131,7 +139,9 @@ export function AppShell() {
                     <div className="ds-navgroup">{t(`group.${g}`, { defaultValue: GROUP_LABEL[g] })}</div>
                     {items.map((m) => {
                       const I = MENU_ICON[m.id] ?? Circle;
-                      const label = t(`nav.${m.id}`, { defaultValue: m.label });
+                      const label = TERM_OF[m.id]
+                        ? t(`terms.${TERM_OF[m.id]}`, { defaultValue: t(`nav.${m.id}`, { defaultValue: m.label }) })
+                        : t(`nav.${m.id}`, { defaultValue: m.label });
                       return (
                         <div key={m.id} className={`ds-navitem${isActive(m.route) ? ' active' : ''}`} data-tip={label} onClick={() => go(m.route)}>
                           <I size={18} />
