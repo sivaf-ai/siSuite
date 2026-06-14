@@ -15,6 +15,9 @@ import '@ionic/react/css/text-alignment.css';
 import './theme/variables.css';
 import './theme/design-system.css';
 
+/* multilingua: inizializza i18next (it-IT/en/es-AR) prima del render */
+import './i18n';
+
 import { App } from './App';
 import { applyTheme, initialTheme } from './theme/ThemeContext';
 

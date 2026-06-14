@@ -13,6 +13,7 @@ import { Redirect, Route } from 'react-router-dom';
 import { useHistory, useLocation } from 'react-router';
 import { LogOut, Mic, Circle, ShieldAlert, PanelLeftClose, PanelLeftOpen, Sun, Moon } from 'lucide-react';
 import { MENU_ICON } from '../ui/icons';
+import { useTranslation } from 'react-i18next';
 import { visibleMenu, type MenuItem, type PermissionKey } from '@sisuite/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -80,6 +81,7 @@ function initialCollapsed(): boolean {
 
 export function AppShell() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const { theme, toggle: toggleTheme } = useTheme();
   const history = useHistory();
   const location = useLocation();
@@ -114,7 +116,7 @@ export function AppShell() {
               <div className="ds-brand">
                 <div className="mark">s</div>
                 <div className="name">siSuite</div>
-                <button className="ds-iconbtn toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Espandi menu' : 'Riduci menu'} title={collapsed ? 'Espandi' : 'Riduci'}>
+                <button className="ds-iconbtn toggle" onClick={toggleSidebar} aria-label={collapsed ? t('actions.expand') : t('actions.collapse')} title={collapsed ? t('actions.expand') : t('actions.collapse')}>
                   {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                 </button>
               </div>
@@ -124,13 +126,14 @@ export function AppShell() {
                 if (items.length === 0) return null;
                 return (
                   <div key={g}>
-                    <div className="ds-navgroup">{GROUP_LABEL[g]}</div>
+                    <div className="ds-navgroup">{t(`group.${g}`, { defaultValue: GROUP_LABEL[g] })}</div>
                     {items.map((m) => {
                       const I = MENU_ICON[m.id] ?? Circle;
+                      const label = t(`nav.${m.id}`, { defaultValue: m.label });
                       return (
-                        <div key={m.id} className={`ds-navitem${isActive(m.route) ? ' active' : ''}`} data-tip={m.label} onClick={() => go(m.route)}>
+                        <div key={m.id} className={`ds-navitem${isActive(m.route) ? ' active' : ''}`} data-tip={label} onClick={() => go(m.route)}>
                           <I size={18} />
-                          <span>{m.label}</span>
+                          <span>{label}</span>
                         </div>
                       );
                     })}
@@ -141,9 +144,9 @@ export function AppShell() {
               {user?.isPlatformAdmin && (
                 <div>
                   <div className="ds-navgroup">Piattaforma</div>
-                  <div className={`ds-navitem${isActive('/admin/platform') ? ' active' : ''}`} data-tip="Demo / Super admin" onClick={() => go('/admin/platform')}>
+                  <div className={`ds-navitem${isActive('/admin/platform') ? ' active' : ''}`} data-tip={t('nav.platform')} onClick={() => go('/admin/platform')}>
                     <ShieldAlert size={18} />
-                    <span>Demo / Super admin</span>
+                    <span>{t('nav.platform')}</span>
                   </div>
                 </div>
               )}
@@ -154,10 +157,10 @@ export function AppShell() {
                   <div className="nm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
                   <div className="rl">{user?.dataScope}</div>
                 </div>
-                <button className="ds-iconbtn" onClick={toggleTheme} aria-label="Cambia tema" title={theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}>
+                <button className="ds-iconbtn" onClick={toggleTheme} aria-label={t('actions.theme')} title={t('actions.theme')}>
                   {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
-                <IonButton fill="clear" size="small" onClick={logout} aria-label="Esci" style={{ '--color': '#8A8F9B' } as CSSProperties}>
+                <IonButton fill="clear" size="small" onClick={logout} aria-label={t('actions.logout')} style={{ '--color': '#8A8F9B' } as CSSProperties}>
                   <LogOut size={18} />
                 </IonButton>
               </div>

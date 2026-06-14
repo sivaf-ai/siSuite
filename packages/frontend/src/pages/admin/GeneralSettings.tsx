@@ -1,13 +1,15 @@
 /** GeneralSettings — "Generale" (mock 18). Valori dell'organizzazione; l'ORARIO
  *  DI LAVORO è editabile e PERSISTENTE (alimenta il motore di pianificazione). */
 import { useEffect, useState } from 'react';
-import type { TenantSettingsDto } from '@sisuite/shared';
+import { useTranslation } from 'react-i18next';
+import type { Locale, TenantSettingsDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useTheme } from '../../theme/ThemeContext';
+import { changeLanguage, currentLocale, LOCALES } from '../../i18n';
 
 const DAYS: { key: string; label: string }[] = [
   { key: 'mon', label: 'Lunedì' }, { key: 'tue', label: 'Martedì' }, { key: 'wed', label: 'Mercoledì' },
@@ -33,6 +35,7 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 export function GeneralSettings() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const toast = useToast();
   const canManage = !!user?.permissions.includes('settings:manage' as never);
   const { data, loading, error, reload } = useApi<TenantSettingsDto>('/settings');
@@ -62,12 +65,19 @@ export function GeneralSettings() {
       {data && (
         <>
           <div className="panel">
-            <div className="set-row"><div className="st"><b>Lingua dell'organizzazione</b><span>Lingua predefinita dell'interfaccia</span></div><span className="selv">{data.defaultLocale}</span></div>
-            <div className="set-row"><div className="st"><b>Fuso orario</b><span>Usato per pianificazione e scadenze</span></div><span className="selv">{data.timezone}</span></div>
-            <div className="set-row"><div className="st"><b>Verticale</b><span>Dominio di lavoro (domain pack)</span></div><span className="selv">{data.vertical}</span></div>
-            <div className="set-row"><div className="st"><b>Tema scuro</b><span>Persistente su questo dispositivo (default: impostazioni di sistema)</span></div><Switch on={dark} onToggle={() => setTheme(dark ? 'light' : 'dark')} /></div>
-            <div className="set-row"><div className="st"><b>Notifiche push</b><span>Avvisi su scadenze e nuove catture</span></div><Switch on={push} onToggle={() => setPush((x) => !x)} /></div>
-            <div className="set-row"><div className="st"><b>Portale cliente</b><span>Abilita l'accesso esterno ai referenti</span></div><Switch on={portal} onToggle={() => setPortal((x) => !x)} /></div>
+            <div className="set-row">
+              <div className="st"><b>{t('settings.general.myLanguage')}</b><span>{t('settings.general.myLanguageDesc')}</span></div>
+              <select className="txt" style={{ width: 'auto', minWidth: 160, height: 38 }} value={currentLocale()}
+                onChange={(e) => changeLanguage(e.target.value as Locale)}>
+                {LOCALES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+              </select>
+            </div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.orgLanguage')}</b><span>{t('settings.general.orgLanguageDesc')}</span></div><span className="selv">{data.defaultLocale}</span></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.timezone')}</b><span>{t('settings.general.timezoneDesc')}</span></div><span className="selv">{data.timezone}</span></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.vertical')}</b><span>{t('settings.general.verticalDesc')}</span></div><span className="selv">{data.vertical}</span></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.darkTheme')}</b><span>{t('settings.general.darkThemeDesc')}</span></div><Switch on={dark} onToggle={() => setTheme(dark ? 'light' : 'dark')} /></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.push')}</b><span>{t('settings.general.pushDesc')}</span></div><Switch on={push} onToggle={() => setPush((x) => !x)} /></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.portal')}</b><span>{t('settings.general.portalDesc')}</span></div><Switch on={portal} onToggle={() => setPortal((x) => !x)} /></div>
           </div>
 
           <div className="panel" style={{ marginTop: 16 }}>

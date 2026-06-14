@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "today": "Hoy",
+    "agenda": "Agenda",
+    "captures": "Capturas",
+    "dashboard": "Tablero",
+    "planning": "Planificación",
+    "engagements": "Trabajos",
+    "captures-inbox": "Capturas",
+    "assets": "Activos",
+    "companies": "Clientes",
+    "resources": "Recursos",
+    "materials": "Materiales",
+    "users": "Usuarios",
+    "roles": "Roles",
+    "settings": "Configuración",
+    "platform": "Demo / Súper admin"
+  },
+  "group": {
+    "lavoro": "Trabajo",
+    "anagrafiche": "Registros",
+    "amministrazione": "Administración"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "new": "Nuevo",
+    "search": "Buscar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "logout": "Salir",
+    "theme": "Cambiar tema",
+    "collapse": "Contraer menú",
+    "expand": "Expandir menú"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "language": "Idioma"
+  },
+  "planning": {
+    "title": "Planificación",
+    "subtitle": "Las actividades dinámicas fluyen desde hoy; las fijas son anclas. Cálculo por recurso.",
+    "thisWeek": "Esta semana",
+    "hoursPlanned": "Horas planificadas",
+    "activities": "Actividades",
+    "conflicts": "Conflictos",
+    "summaryTitle": "La semana, en breve",
+    "baseProposals": "Propuestas base — con la clave de IA se vuelven a medida.",
+    "noResources": "Sin recursos. Agregá recursos y asignalos a las actividades para ver el plan.",
+    "atRisk": "en riesgo",
+    "flow": "flujo",
+    "deadlineAtRisk_one": "vencimiento en riesgo",
+    "deadlineAtRisk_other": "vencimientos en riesgo"
+  },
+  "settings": {
+    "general": {
+      "orgLanguage": "Idioma de la organización",
+      "orgLanguageDesc": "Idioma predeterminado de la interfaz para nuevos usuarios",
+      "myLanguage": "Mi idioma",
+      "myLanguageDesc": "Idioma de la interfaz en este dispositivo",
+      "timezone": "Zona horaria",
+      "timezoneDesc": "Se usa para planificación y vencimientos",
+      "vertical": "Vertical",
+      "verticalDesc": "Dominio de trabajo (domain pack)",
+      "darkTheme": "Tema oscuro",
+      "darkThemeDesc": "Persistente en este dispositivo (por defecto: configuración del sistema)",
+      "push": "Notificaciones push",
+      "pushDesc": "Avisos de vencimientos y nuevas capturas",
+      "portal": "Portal del cliente",
+      "portalDesc": "Habilitar el acceso externo para los contactos"
+    }
+  }
+}

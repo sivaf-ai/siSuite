@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "today": "Today",
+    "agenda": "Agenda",
+    "captures": "Captures",
+    "dashboard": "Dashboard",
+    "planning": "Planning",
+    "engagements": "Jobs",
+    "captures-inbox": "Captures",
+    "assets": "Assets",
+    "companies": "Customers",
+    "resources": "Resources",
+    "materials": "Materials",
+    "users": "Users",
+    "roles": "Roles",
+    "settings": "Settings",
+    "platform": "Demo / Super admin"
+  },
+  "group": {
+    "lavoro": "Work",
+    "anagrafiche": "Records",
+    "amministrazione": "Administration"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "new": "New",
+    "search": "Search",
+    "edit": "Edit",
+    "delete": "Delete",
+    "logout": "Log out",
+    "theme": "Toggle theme",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu"
+  },
+  "common": {
+    "loading": "Loading…",
+    "language": "Language"
+  },
+  "planning": {
+    "title": "Planning",
+    "subtitle": "Dynamic activities flow from today; fixed ones act as anchors. Per-resource scheduling.",
+    "thisWeek": "This week",
+    "hoursPlanned": "Planned hours",
+    "activities": "Activities",
+    "conflicts": "Conflicts",
+    "summaryTitle": "The week, at a glance",
+    "baseProposals": "Baseline proposals — with the AI key they become tailored.",
+    "noResources": "No resources. Add resources and assign them to activities to see the plan.",
+    "atRisk": "at risk",
+    "flow": "flow",
+    "deadlineAtRisk_one": "deadline at risk",
+    "deadlineAtRisk_other": "deadlines at risk"
+  },
+  "settings": {
+    "general": {
+      "orgLanguage": "Organization language",
+      "orgLanguageDesc": "Default interface language for new users",
+      "myLanguage": "My language",
+      "myLanguageDesc": "Interface language on this device",
+      "timezone": "Time zone",
+      "timezoneDesc": "Used for scheduling and deadlines",
+      "vertical": "Vertical",
+      "verticalDesc": "Work domain (domain pack)",
+      "darkTheme": "Dark theme",
+      "darkThemeDesc": "Persisted on this device (default: system settings)",
+      "push": "Push notifications",
+      "pushDesc": "Alerts on deadlines and new captures",
+      "portal": "Customer portal",
+      "portalDesc": "Enable external access for contacts"
+    }
+  }
+}

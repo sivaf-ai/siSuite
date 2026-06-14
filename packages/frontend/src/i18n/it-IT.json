@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "today": "Oggi",
+    "agenda": "Agenda",
+    "captures": "Catture",
+    "dashboard": "Dashboard",
+    "planning": "Pianificazione",
+    "engagements": "Commesse",
+    "captures-inbox": "Catture",
+    "assets": "Asset",
+    "companies": "Clienti",
+    "resources": "Risorse",
+    "materials": "Materiali",
+    "users": "Utenti",
+    "roles": "Ruoli",
+    "settings": "Impostazioni",
+    "platform": "Demo / Super admin"
+  },
+  "group": {
+    "lavoro": "Lavoro",
+    "anagrafiche": "Anagrafiche",
+    "amministrazione": "Amministrazione"
+  },
+  "actions": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "new": "Nuovo",
+    "search": "Cerca",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "logout": "Esci",
+    "theme": "Cambia tema",
+    "collapse": "Riduci menu",
+    "expand": "Espandi menu"
+  },
+  "common": {
+    "loading": "Caricamento…",
+    "language": "Lingua"
+  },
+  "planning": {
+    "title": "Pianificazione",
+    "subtitle": "Le attività dinamiche fluiscono da oggi; le fisse fanno da ancora. Calcolo per-risorsa.",
+    "thisWeek": "Questa settimana",
+    "hoursPlanned": "Ore pianificate",
+    "activities": "Attività",
+    "conflicts": "Conflitti",
+    "summaryTitle": "La settimana, in breve",
+    "baseProposals": "Proposte di base — con la chiave AI diventano su misura.",
+    "noResources": "Nessuna risorsa. Aggiungi risorse e assegnale alle attività per vedere il piano.",
+    "atRisk": "a rischio",
+    "flow": "flusso",
+    "deadlineAtRisk_one": "scadenza a rischio",
+    "deadlineAtRisk_other": "scadenze a rischio"
+  },
+  "settings": {
+    "general": {
+      "orgLanguage": "Lingua dell'organizzazione",
+      "orgLanguageDesc": "Lingua predefinita dell'interfaccia per i nuovi utenti",
+      "myLanguage": "La mia lingua",
+      "myLanguageDesc": "Lingua dell'interfaccia su questo dispositivo",
+      "timezone": "Fuso orario",
+      "timezoneDesc": "Usato per pianificazione e scadenze",
+      "vertical": "Verticale",
+      "verticalDesc": "Dominio di lavoro (domain pack)",
+      "darkTheme": "Tema scuro",
+      "darkThemeDesc": "Persistente su questo dispositivo (default: impostazioni di sistema)",
+      "push": "Notifiche push",
+      "pushDesc": "Avvisi su scadenze e nuove catture",
+      "portal": "Portale cliente",
+      "portalDesc": "Abilita l'accesso esterno ai referenti"
+    }
+  }
+}
