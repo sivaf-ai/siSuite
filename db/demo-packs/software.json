@@ -1,0 +1,78 @@
+{
+  "pack": "software",
+  "reference_date": "2026-06-14",
+  "tenant": { "name": "Software Demo", "vertical": "software", "default_locale": "it-IT", "timezone": "Europe/Rome" },
+  "subscription": { "plan_code": "pro", "days_valid": 365 },
+  "users": [
+    { "key": "owner",   "full_name": "Elena Ferri",   "email": "owner@software.demo",   "role": "Owner",   "password": "Demo123!" },
+    { "key": "planner", "full_name": "Luca Moretti",   "email": "planner@software.demo", "role": "Planner", "password": "Demo123!" },
+    { "key": "sara",    "full_name": "Sara De Luca",   "email": "sara@software.demo",    "role": "Tecnico", "password": "Demo123!" },
+    { "key": "ahmed",   "full_name": "Ahmed Rossi",    "email": "ahmed@software.demo",   "role": "Tecnico", "password": "Demo123!" }
+  ],
+  "companies": [
+    { "key": "retailco", "display_name": "RetailCo SpA", "type": "organization", "address": "Via Torino 10, Milano",
+      "roles": [{ "role": "customer", "customer_nature": "recurring" }],
+      "contacts": [{ "full_name": "Responsabile IT", "role_title": "CTO", "email": "it@retailco.demo", "phone": "02-5550101", "is_primary": true }] },
+    { "key": "studiolex", "display_name": "Studio Legale Bianchi", "type": "organization", "address": "Corso Italia 4, Torino",
+      "roles": [{ "role": "customer", "customer_nature": "episodic" }],
+      "contacts": [{ "full_name": "Avv. Bianchi", "phone": "011-5550202", "is_primary": true }] }
+  ],
+  "resources": [
+    { "key": "sara_r",  "kind": "person",    "label": "Sara De Luca",  "user": "sara",  "attributes": { "hourly_cost": 45, "role": "full-stack" } },
+    { "key": "ahmed_r", "kind": "person",    "label": "Ahmed Rossi",   "user": "ahmed", "attributes": { "hourly_cost": 40, "role": "backend" } },
+    { "key": "staging", "kind": "equipment", "label": "Ambiente di staging" }
+  ],
+  "resource_availability": [
+    { "resource": "ahmed_r", "kind": "unavailable", "starts_at": "2026-06-29T00:00:00+02:00", "ends_at": "2026-07-04T00:00:00+02:00", "reason": "Formazione" }
+  ],
+  "materials": [
+    { "key": "lic_db",   "name": "Licenza database (annua)", "unit": "pz", "attributes": { "unit_cost": 1200 } },
+    { "key": "lic_apm",  "name": "Licenza monitoraggio APM", "unit": "pz", "attributes": { "unit_cost": 480 } }
+  ],
+  "engagements": [
+    {
+      "key": "comm_portal", "company": "retailco", "type": "build",
+      "title": "Portale e-commerce RetailCo", "manager": "planner", "status": "active", "started_on": "2026-06-09",
+      "attributes": { "budget": 24000 },
+      "phases": [
+        { "key": "analisi", "name": "Analisi", "seq": 1, "status": "active" },
+        { "key": "sviluppo", "name": "Sviluppo", "seq": 2, "status": "pending" }
+      ],
+      "activities": [
+        { "key": "requisiti",  "phase": "analisi",  "title": "Raccolta requisiti",        "status": "done",        "estimated_minutes": 240, "resources": ["sara_r"] },
+        { "key": "architettura","phase": "analisi", "title": "Disegno architettura",       "status": "in_progress", "estimated_minutes": 180, "after": [{ "act": "requisiti", "lag_days": 0 }], "resources": ["ahmed_r"] },
+        { "key": "api",        "phase": "sviluppo", "title": "Sviluppo API catalogo",      "status": "planned",     "estimated_minutes": 480, "after": [{ "act": "architettura", "lag_days": 0 }], "resources": ["ahmed_r"] },
+        { "key": "frontend",   "phase": "sviluppo", "title": "Sviluppo frontend negozio",  "status": "planned",     "estimated_minutes": 480, "after": [{ "act": "architettura", "lag_days": 0 }], "resources": ["sara_r"] },
+        { "key": "collaudo",   "phase": "sviluppo", "title": "Collaudo e go-live",         "status": "planned",     "estimated_minutes": 240, "after": [{ "act": "api", "lag_days": 0 }, { "act": "frontend", "lag_days": 0 }], "resources": ["sara_r", "staging"] }
+      ],
+      "time_entries": [
+        { "activity": "requisiti",   "resource": "sara_r",  "typology": "analisi",   "minutes": 240, "occurred_on": "2026-06-09" },
+        { "activity": "architettura","resource": "ahmed_r", "typology": "sviluppo",  "minutes": 120, "occurred_on": "2026-06-11" }
+      ],
+      "material_consumption": [
+        { "activity": "api", "material": "lic_db", "quantity": 1, "unit": "pz", "occurred_on": "2026-06-11" }
+      ],
+      "captures": [
+        { "user": "sara", "channel": "text", "status": "applied", "raw_text": "finita la raccolta requisiti con RetailCo, 4 ore" },
+        { "user": "ahmed", "channel": "text", "status": "pending", "raw_text": "serve una licenza database per l'ambiente di staging" }
+      ]
+    },
+    {
+      "key": "comm_manut", "company": "studiolex", "type": "maintenance",
+      "title": "Manutenzione gestionale Studio Bianchi", "manager": "planner", "status": "active", "started_on": "2026-06-15",
+      "attributes": { "budget": 3000 },
+      "phases": [{ "key": "intervento", "name": "Intervento", "seq": 1, "status": "active" }],
+      "activities": [
+        { "key": "diagnosi", "phase": "intervento", "title": "Diagnosi rallentamenti", "status": "in_progress", "estimated_minutes": 90, "scheduled_start": "2026-06-16T10:00:00+02:00", "resources": ["ahmed_r"] },
+        { "key": "patch",    "phase": "intervento", "title": "Ottimizzazione query",   "status": "planned",     "estimated_minutes": 180, "after": [{ "act": "diagnosi", "lag_days": 0 }], "resources": ["ahmed_r"] },
+        { "key": "verifica", "phase": "intervento", "title": "Verifica con il cliente", "status": "planned",    "estimated_minutes": 60,  "after": [{ "act": "patch", "lag_days": 0 }], "resources": ["sara_r"] }
+      ],
+      "time_entries": [
+        { "activity": "diagnosi", "resource": "ahmed_r", "typology": "manutenzione", "minutes": 60, "occurred_on": "2026-06-16" }
+      ],
+      "captures": [
+        { "user": "ahmed", "channel": "text", "status": "pending", "raw_text": "il gestionale dello studio va a scatti, sembra un problema di indici sul DB" }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { visibleMenu, type MenuItem, type PermissionKey } from '@sisuite/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
+import { NotificationsBell } from '../ui/NotificationsBell';
 import { TodayPage } from '../pages/TodayPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { EngagementsPage } from '../pages/EngagementsPage';
@@ -173,6 +174,7 @@ export function AppShell() {
                   <div className="nm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
                   <div className="rl">{user?.dataScope}</div>
                 </div>
+                <NotificationsBell />
                 <button className="ds-iconbtn" onClick={toggleTheme} aria-label={t('actions.theme')} title={t('actions.theme')}>
                   {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                 </button>

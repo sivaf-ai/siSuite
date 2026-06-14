@@ -1,0 +1,83 @@
+{
+  "pack": "pools",
+  "reference_date": "2026-06-14",
+  "tenant": { "name": "Piscine Demo", "vertical": "pools", "default_locale": "it-IT", "timezone": "Europe/Rome" },
+  "subscription": { "plan_code": "pro", "days_valid": 365 },
+  "users": [
+    { "key": "owner",   "full_name": "Marco Sole",    "email": "owner@pools.demo",   "role": "Owner",   "password": "Demo123!" },
+    { "key": "planner", "full_name": "Anna Riva",     "email": "planner@pools.demo", "role": "Planner", "password": "Demo123!" },
+    { "key": "gino",    "full_name": "Gino Acqua",    "email": "gino@pools.demo",    "role": "Tecnico", "password": "Demo123!" },
+    { "key": "tom",     "full_name": "Tommaso Blu",   "email": "tom@pools.demo",     "role": "Tecnico", "password": "Demo123!" }
+  ],
+  "companies": [
+    { "key": "villa_rossi", "display_name": "Villa Rossi (privato)", "type": "private", "address": "Via dei Pini 3, Como",
+      "roles": [{ "role": "customer", "customer_nature": "episodic" }],
+      "contacts": [{ "full_name": "Sig. Rossi", "phone": "031-5551001", "is_primary": true }] },
+    { "key": "hotel_lago", "display_name": "Hotel Lago Blu", "type": "organization", "address": "Lungolago 22, Como",
+      "roles": [{ "role": "customer", "customer_nature": "recurring" }],
+      "contacts": [{ "full_name": "Direzione", "email": "info@hotellago.demo", "phone": "031-5552002", "is_primary": true }] }
+  ],
+  "resources": [
+    { "key": "gino_r", "kind": "person",    "label": "Gino Acqua",   "user": "gino", "attributes": { "hourly_cost": 28, "role": "installatore" } },
+    { "key": "tom_r",  "kind": "person",    "label": "Tommaso Blu",  "user": "tom",  "attributes": { "hourly_cost": 26, "role": "manutentore" } },
+    { "key": "furgone","kind": "vehicle",   "label": "Furgone cantiere" },
+    { "key": "gru",    "kind": "equipment", "label": "Mini-gru" }
+  ],
+  "resource_availability": [
+    { "resource": "tom_r", "kind": "unavailable", "starts_at": "2026-06-23T00:00:00+02:00", "ends_at": "2026-06-25T00:00:00+02:00", "reason": "Permesso" }
+  ],
+  "materials": [
+    { "key": "liner",  "name": "Liner PVC armato",     "unit": "m2", "attributes": { "unit_cost": 22 } },
+    { "key": "pompa",  "name": "Pompa di filtrazione",  "unit": "pz", "attributes": { "unit_cost": 540 } },
+    { "key": "cloro",  "name": "Cloro (sacco 25kg)",    "unit": "pz", "attributes": { "unit_cost": 48 } }
+  ],
+  "engagements": [
+    {
+      "key": "comm_villa", "company": "villa_rossi", "type": "build",
+      "title": "Costruzione piscina interrata - Villa Rossi", "manager": "planner", "status": "active", "started_on": "2026-06-08",
+      "attributes": { "budget": 38000 },
+      "phases": [
+        { "key": "scavo", "name": "Scavo e struttura", "seq": 1, "status": "active" },
+        { "key": "finitura", "name": "Finitura e impianti", "seq": 2, "status": "pending" }
+      ],
+      "activities": [
+        { "key": "scavo_act", "phase": "scavo",   "title": "Scavo e sbancamento",      "status": "done",        "estimated_minutes": 480, "resources": ["gino_r", "gru"] },
+        { "key": "cassero",   "phase": "scavo",   "title": "Cassero e getto",          "status": "in_progress", "estimated_minutes": 600, "after": [{ "act": "scavo_act", "lag_days": 1 }], "resources": ["gino_r", "tom_r"] },
+        { "key": "liner_act", "phase": "finitura","title": "Posa liner",               "status": "planned",     "estimated_minutes": 360, "after": [{ "act": "cassero", "lag_days": 2 }], "resources": ["tom_r"] },
+        { "key": "impianti",  "phase": "finitura","title": "Impianti filtrazione",     "status": "planned",     "estimated_minutes": 300, "after": [{ "act": "liner_act", "lag_days": 0 }], "resources": ["gino_r"] },
+        { "key": "collaudo",  "phase": "finitura","title": "Riempimento e collaudo",   "status": "planned",     "estimated_minutes": 180, "after": [{ "act": "impianti", "lag_days": 0 }], "resources": ["tom_r"] }
+      ],
+      "time_entries": [
+        { "activity": "scavo_act", "resource": "gino_r", "typology": "costruzione", "minutes": 480, "occurred_on": "2026-06-09" },
+        { "activity": "cassero",   "resource": "gino_r", "typology": "costruzione", "minutes": 300, "occurred_on": "2026-06-11" }
+      ],
+      "material_consumption": [
+        { "activity": "impianti",  "material": "pompa", "quantity": 1,  "unit": "pz", "occurred_on": "2026-06-11" },
+        { "activity": "liner_act", "material": "liner", "quantity": 60, "unit": "m2", "occurred_on": "2026-06-12" }
+      ],
+      "captures": [
+        { "user": "gino", "channel": "text", "status": "applied", "raw_text": "scavo finito a Villa Rossi, 8 ore con la gru" }
+      ]
+    },
+    {
+      "key": "comm_hotel", "company": "hotel_lago", "type": "maintenance",
+      "title": "Manutenzione stagionale piscina Hotel Lago", "manager": "planner", "status": "active", "started_on": "2026-06-15",
+      "attributes": { "budget": 2500 },
+      "phases": [{ "key": "manut", "name": "Apertura stagionale", "seq": 1, "status": "active" }],
+      "activities": [
+        { "key": "pulizia",  "phase": "manut", "title": "Pulizia e svuotamento",   "status": "in_progress", "estimated_minutes": 240, "scheduled_start": "2026-06-16T08:00:00+02:00", "resources": ["tom_r"] },
+        { "key": "tratta",   "phase": "manut", "title": "Trattamento acqua",        "status": "planned",     "estimated_minutes": 120, "after": [{ "act": "pulizia", "lag_days": 0 }], "resources": ["tom_r"] },
+        { "key": "verifica", "phase": "manut", "title": "Verifica impianti",        "status": "planned",     "estimated_minutes": 90,  "after": [{ "act": "tratta", "lag_days": 0 }], "resources": ["gino_r"] }
+      ],
+      "time_entries": [
+        { "activity": "pulizia", "resource": "tom_r", "typology": "manutenzione", "minutes": 120, "occurred_on": "2026-06-16" }
+      ],
+      "material_consumption": [
+        { "activity": "tratta", "material": "cloro", "quantity": 2, "unit": "pz", "occurred_on": "2026-06-16" }
+      ],
+      "captures": [
+        { "user": "tom", "channel": "text", "status": "pending", "raw_text": "iniziata pulizia piscina hotel, l'acqua era molto verde" }
+      ]
+    }
+  ]
+}
