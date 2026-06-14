@@ -6,14 +6,12 @@ import { useState } from 'react';
 import { ListTodo, CalendarDays, Search, Layers, Mic, LogOut } from 'lucide-react';
 import { PhoneFrame } from './PhoneFrame';
 import { TodayMobile } from './TodayMobile';
+import { AgendaMobile } from './AgendaMobile';
+import { SearchMobile } from './SearchMobile';
 import { CaptureContent } from '../pages/CapturePage';
 import { useAuth } from '../auth/AuthContext';
 
 type Tab = 'today' | 'agenda' | 'search' | 'captures';
-
-function Placeholder({ title }: { title: string }) {
-  return <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-soft)' }}>{title} — in arrivo.</div>;
-}
 
 export function MobileShell() {
   const { user, logout } = useAuth();
@@ -22,8 +20,8 @@ export function MobileShell() {
   const content =
     tab === 'today' ? <TodayMobile onCapture={() => setTab('captures')} />
       : tab === 'captures' ? <CaptureContent />
-        : tab === 'agenda' ? <Placeholder title="Agenda" />
-          : <Placeholder title="Cerca" />;
+        : tab === 'agenda' ? <AgendaMobile />
+          : <SearchMobile />;
 
   const tabbar = (
     <div className="tabbar">

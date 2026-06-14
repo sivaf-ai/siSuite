@@ -475,6 +475,14 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 .stat:not(:last-child) { border-bottom: 1px solid var(--line-2); }
 .stat .v { font-family: var(--font-mono); font-weight: 600; }
 
+/* ---- mobile: risultati ricerca ---- */
+.m-sr { display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--line-2); }
+.m-sr .ic { width: 38px; height: 38px; border-radius: 10px; background: var(--neutral-wash); display: grid; place-items: center; color: var(--ink-soft); flex: 0 0 auto; }
+.m-sr .srt { flex: 1; min-width: 0; }
+.m-sr .srt b { font-weight: 600; font-size: 14.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-sr .srt span { font-size: 12.5px; color: var(--ink-faint); }
+.m-sec { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); margin: 16px 2px 4px; }
+
 /* ---- notifiche (campanella + drawer) ---- */
 .notif-badge { position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; }
 .notif-row { display: flex; align-items: flex-start; gap: 11px; padding: 12px 4px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
