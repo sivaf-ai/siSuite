@@ -12,7 +12,7 @@
 3. **Schema DB**: `docs/analisi/2026-06-13_schema_db_completo.md` (aggiornato 14/06: `term_override`, migr. 007–010).
 4. Solo dopo, pianificare ed eseguire i nuovi lavori.
 
-> 👉 **Spazio per il nuovo documento (parte 9):** _<incollare qui il titolo/percorso del documento delle nuove attività appena disponibile, es. `docs/decisioni/2026-06-15_..._per_claude_code.md`>_
+> 👉 **Spazio per il nuovo documento (parte 9):** 2026-06-14_siSuite_SPEC_BUILD_Claude_Code.md
 
 ---
 
