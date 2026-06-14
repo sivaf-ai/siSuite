@@ -6,10 +6,11 @@ import type { FastifyInstance } from 'fastify';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import {
-  schedule, scheduleResources,
+  schedule,
   type FlowActivity, type WorkingHours, type FlowResource, type FlowAssignedActivity,
 } from '../flow/scheduler.js';
 import { scopeWeek } from '../flow/weekView.js';
+import { scheduleWithDependencies, type DepEdge } from '../flow/dependencyPlan.js';
 import { narrateWeek } from '../ai/narrator.js';
 
 const DAY_MS = 86_400_000;
@@ -100,7 +101,15 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
           resourceIds: (r.resource_ids as string[]) ?? [],
         }));
 
-        return scheduleResources(resources, flowActs, tenantWH, now, horizonDays);
+        // dipendenze FS del tenant (RLS) tra le attività in scope
+        const dep = await db.query(`SELECT predecessor_id, successor_id, lag_minutes FROM activity_dependency`);
+        const deps: DepEdge[] = dep.rows.map((r) => ({
+          predecessorId: r.predecessor_id as string, successorId: r.successor_id as string,
+          lagMinutes: (r.lag_minutes as number) ?? 0,
+        }));
+
+        // integra le dipendenze SENZA toccare lo scheduler (propaga gli earliest)
+        return scheduleWithDependencies(resources, flowActs, deps, tenantWH, now, horizonDays);
       });
 
       // Ritaglia alla settimana richiesta: mini, griglia e rail derivano dallo STESSO insieme.
