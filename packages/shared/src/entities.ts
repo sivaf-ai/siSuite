@@ -98,6 +98,20 @@ export interface ResourceDto {
   userName?: string | null;
 }
 
+/* ── Engagement template (modelli di commessa: instanziazione blueprint) ── */
+export const saveTemplateSchema = z.object({ name: z.string().min(1).max(120) });
+export const instantiateTemplateSchema = z.object({
+  templateId: uuid,
+  companyId: uuid,
+  title: z.string().min(1).max(200).optional(),
+  assetId: uuid.optional(),
+  startedOn: z.string().optional(),
+});
+export interface EngagementTemplateDto {
+  id: string; name: string; type: 'build' | 'maintenance';
+  phaseCount: number; activityCount: number; createdAt: string;
+}
+
 /* ── Resource availability (indisponibilità per-risorsa: ferie, permessi…) ── */
 export const createAvailabilitySchema = z.object({
   startsAt: z.string().min(1),  // ISO datetime

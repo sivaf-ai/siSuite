@@ -12,7 +12,7 @@ import {
   IonList, IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
 } from '@ionic/react';
 import {
-  ChevronDown, ChevronRight, Folder, Plus, Pencil, Trash2, Pin, ArrowRight, GanttChartSquare, List, ListTree, Sparkles, Users,
+  ChevronDown, ChevronRight, Folder, Plus, Pencil, Trash2, Pin, ArrowRight, GanttChartSquare, List, ListTree, Sparkles, Users, Copy,
 } from 'lucide-react';
 import type {
   EngagementDto, PhaseDto, ActivityDto, LookupDto, DependencyEdgeDto, TimeEntryDto, ConsumptionDto, CaptureDto,
@@ -208,6 +208,7 @@ export function CommessaDetailPage() {
       {eng.data && (
         <>
           <div className="detail-head">
+            {can('engagement:create') && <SaveAsTemplate engagementId={id} />}
             <span className="code">{eng.data.code}</span>{' '}
             <span className={`pill ${eng.data.type === 'build' ? 'pill--brand' : 'pill--info'}`}><span className="dot" />{eng.data.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</span>
             <h1>{eng.data.title}{eng.data.companyName ? ` — ${eng.data.companyName}` : ''}</h1>
@@ -502,5 +503,36 @@ function GanttView({ items, loading }: { items: ScheduleItem[]; loading: boolean
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--flow)' }} /> dinamica</span>
       </div>
     </div>
+  );
+}
+
+/** "Salva come modello" — cattura la struttura della commessa in un modello riusabile. */
+function SaveAsTemplate({ engagementId }: { engagementId: string }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    if (!name.trim()) { toast('Indica un nome', 'error'); return; }
+    setBusy(true);
+    try {
+      await mutate('POST', `/engagements/${engagementId}/save-as-template`, { name: name.trim() });
+      toast('Modello salvato — lo trovi in Impostazioni › Modelli commessa');
+      setOpen(false); setName('');
+    } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
+  }
+  return (
+    <>
+      <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => setOpen(true)}><Copy size={14} />Salva come modello</button>
+      <IonModal isOpen={open} onDidDismiss={() => setOpen(false)}>
+        <IonHeader><IonToolbar><IonTitle>Salva come modello</IonTitle>
+          <IonButtons slot="end"><IonButton onClick={() => setOpen(false)}>Chiudi</IonButton></IonButtons></IonToolbar></IonHeader>
+        <IonContent className="ion-padding">
+          <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>Cattura fasi, attività e dipendenze di questa commessa in un modello riutilizzabile.</p>
+          <IonInput label="Nome del modello" labelPlacement="stacked" value={name} onIonInput={(e) => setName(e.detail.value ?? '')} placeholder="es. Allaccio FTTH standard" />
+          <IonButton expand="block" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? <IonSpinner name="crescent" /> : 'Salva modello'}</IonButton>
+        </IonContent>
+      </IonModal>
+    </>
   );
 }

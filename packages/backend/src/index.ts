@@ -25,6 +25,7 @@ import { activityRoutes } from './routes/activities.js';
 import { timeEntryRoutes } from './routes/timeEntries.js';
 import { consumptionRoutes } from './routes/consumptions.js';
 import { scheduleRoutes } from './routes/schedule.js';
+import { templateRoutes } from './routes/templates.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { captureRoutes } from './routes/captures.js';
 import { fieldDefinitionRoutes } from './routes/fieldDefinitions.js';
@@ -82,6 +83,7 @@ async function build() {
   await app.register(timeEntryRoutes);
   await app.register(consumptionRoutes);
   await app.register(scheduleRoutes);
+  await app.register(templateRoutes);
   await app.register(dashboardRoutes);
   await app.register(captureRoutes);
   await app.register(fieldDefinitionRoutes);
