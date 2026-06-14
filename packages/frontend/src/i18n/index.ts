@@ -21,17 +21,15 @@ export const LOCALES: { code: Locale; label: string }[] = [
   { code: 'es-AR', label: 'Español (AR)' },
 ];
 
-function browserLang(): Locale {
-  const n = (navigator.language || 'it').toLowerCase();
-  if (n.startsWith('es')) return 'es-AR';
-  if (n.startsWith('en')) return 'en';
-  return 'it-IT';
-}
 function savedLang(): Locale | null {
   const s = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
   return s === 'it-IT' || s === 'en' || s === 'es-AR' ? s : null;
 }
-export function initialLang(): Locale { return savedLang() ?? browserLang(); }
+/** Lingua iniziale: scelta esplicita salvata → it-IT (default di sistema).
+ *  Dopo il login `syncUserLocale` allinea ad app_user.locale (it-IT nel demo),
+ *  che VINCE sul default finché l'utente non sceglie a mano. NON usiamo la lingua
+ *  del browser come default (apriva il demo italiano in inglese). */
+export function initialLang(): Locale { return savedLang() ?? 'it-IT'; }
 
 void i18n.use(initReactI18next).init({
   resources: { 'it-IT': { translation: itIT }, en: { translation: en }, 'es-AR': { translation: esAR } },

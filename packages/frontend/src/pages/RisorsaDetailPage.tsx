@@ -11,22 +11,15 @@ import { useApi, mutate } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+import { WorkingHoursEditor, whHasErrors, type WH } from '../ui/WorkingHoursEditor';
 
 const DAYS: { key: string; label: string }[] = [
   { key: 'mon', label: 'Lun' }, { key: 'tue', label: 'Mar' }, { key: 'wed', label: 'Mer' },
   { key: 'thu', label: 'Gio' }, { key: 'fri', label: 'Ven' }, { key: 'sat', label: 'Sab' }, { key: 'sun', label: 'Dom' },
 ];
+const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const KIND_LABEL: Record<string, string> = { person: 'Persona', vehicle: 'Mezzo', equipment: 'Attrezzatura' };
-type WH = Record<string, [string, string][]>;
-const toText = (iv: [string, string][] | undefined) => (iv ?? []).map(([a, b]) => `${a}-${b}`).join(', ');
 const fmtHH = (iv: [string, string][] | undefined) => (iv && iv.length ? iv.map(([a, b]) => `${a}–${b}`).join(' · ') : '—');
-function parseText(s: string): [string, string][] {
-  return s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-    const [a, b] = x.split('-').map((t) => t.trim());
-    return [a ?? '', b ?? ''] as [string, string];
-  }).filter(([a, b]) => /^([01]\d|2[0-3]):[0-5]\d$/.test(a) && /^([01]\d|2[0-3]):[0-5]\d$/.test(b));
-}
-const dtLocal = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fmtRange = (a: string, b: string) => `${new Date(a).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} → ${new Date(b).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}`;
 
 export function RisorsaDetailPage() {
@@ -54,10 +47,11 @@ export function RisorsaDetailPage() {
   }, [res, settings]);
 
   async function saveHours() {
+    if (useCustom && whHasErrors(draft)) { toast('Correggi gli intervalli (fine dopo inizio, niente sovrapposizioni)', 'error'); return; }
     setBusy(true);
     try {
       const cleaned: WH = {};
-      for (const d of DAYS) cleaned[d.key] = draft[d.key] ?? [];
+      for (const k of WEEK) cleaned[k] = draft[k] ?? [];
       await mutate('PATCH', `/resources/${id}/working-hours`, { workingHours: useCustom ? cleaned : null });
       toast('Orario della risorsa salvato');
       setEditing(false);
@@ -68,6 +62,7 @@ export function RisorsaDetailPage() {
 
   async function addAvailability() {
     if (!newAv.startsAt || !newAv.endsAt) { toast('Indica inizio e fine', 'error'); return; }
+    if (new Date(newAv.endsAt) <= new Date(newAv.startsAt)) { toast('La fine deve essere dopo l\'inizio', 'error'); return; }
     setBusy(true);
     try {
       await mutate('POST', `/resources/${id}/availability`, {
@@ -85,8 +80,6 @@ export function RisorsaDetailPage() {
     try { await mutate('DELETE', `/resources/${id}/availability/${availId}`); toast('Indisponibilità rimossa'); void reloadAvail(); }
     catch (e) { toast((e as Error).message, 'error'); }
   }
-
-  const shownWH = editing ? draft : effective;
 
   return (
     <Page title={res?.label ?? 'Risorsa'} back="/resources">
@@ -133,26 +126,29 @@ export function RisorsaDetailPage() {
                       Orario personalizzato (override dell'azienda)
                     </label>
                   )}
-                  <div className="avail">
-                    {DAYS.map((d) => {
-                      const iv = shownWH[d.key];
-                      const off = !iv || iv.length === 0;
-                      return (
-                        <div key={d.key} className={`avday${off && !(editing && useCustom) ? ' off' : ''}`}>
-                          <div className="dn">{d.label}</div>
-                          {editing && useCustom
-                            ? <input className="txt" defaultValue={toText(iv)} placeholder="—"
-                                onBlur={(e) => setDraft((s) => ({ ...s, [d.key]: parseText(e.target.value) }))} />
-                            : <div className="hh">{fmtHH(iv)}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {editing && useCustom
+                    ? <WorkingHoursEditor value={draft} onChange={setDraft} />
+                    : (
+                      <div className="avail">
+                        {DAYS.map((d) => {
+                          const iv = (editing ? tenantWH : effective)[d.key];
+                          const off = !iv || iv.length === 0;
+                          return (
+                            <div key={d.key} className={`avday${off ? ' off' : ''}`}>
+                              <div className="dn">{d.label}</div>
+                              <div className="hh">{fmtHH(iv)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   <p className="faint" style={{ fontSize: 12.5, marginTop: 12, color: 'var(--ink-faint)' }}>
-                    {res.workingHours
-                      ? 'Orario personalizzato per questa risorsa (override dell\'azienda). '
-                      : 'Usa l\'orario standard dell\'azienda. '}
-                    Le fasce, meno le indisponibilità, definiscono quando il motore può collocare le attività. Formato: <span className="mono">08:00-13:00, 14:00-18:00</span> (vuoto = chiuso).
+                    {editing && !useCustom
+                      ? 'Usa l\'orario standard dell\'azienda (sopra). Attiva "Orario personalizzato" per sovrascriverlo.'
+                      : res.workingHours
+                        ? 'Orario personalizzato per questa risorsa (override dell\'azienda).'
+                        : 'Usa l\'orario standard dell\'azienda.'}
+                    {' '}Le fasce, meno le indisponibilità, definiscono quando il motore può collocare le attività.
                   </p>
                 </div>
               </div>
@@ -165,8 +161,8 @@ export function RisorsaDetailPage() {
                 <div className="pb">
                   {addOpen && (
                     <div className="row-li" style={{ gap: 10, flexWrap: 'wrap' }}>
-                      <input className="txt" type="datetime-local" style={{ height: 38, maxWidth: 200 }} value={newAv.startsAt} onChange={(e) => setNewAv((s) => ({ ...s, startsAt: e.target.value }))} />
-                      <input className="txt" type="datetime-local" style={{ height: 38, maxWidth: 200 }} value={newAv.endsAt} onChange={(e) => setNewAv((s) => ({ ...s, endsAt: e.target.value }))} />
+                      <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.startsAt} onChange={(e) => setNewAv((s) => ({ ...s, startsAt: e.target.value }))} />
+                      <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.endsAt} onChange={(e) => setNewAv((s) => ({ ...s, endsAt: e.target.value }))} />
                       <input className="txt" placeholder="Motivo (es. ferie)" style={{ height: 38, flex: 1, minWidth: 140 }} value={newAv.reason} onChange={(e) => setNewAv((s) => ({ ...s, reason: e.target.value }))} />
                       <button className="btn btn-primary btn-sm" disabled={busy} onClick={addAvailability}>Aggiungi</button>
                     </div>

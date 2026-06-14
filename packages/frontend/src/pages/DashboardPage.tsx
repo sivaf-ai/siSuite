@@ -55,8 +55,10 @@ export function DashboardPage() {
               <div className="pb">
                 {data.attivitaOggi.length === 0 ? <Empty text="Niente per oggi." /> : data.attivitaOggi.map((a) => (
                   <div className="row-li" key={a.id}>
-                    <div style={{ flex: 1 }}><b>{a.title}</b>{a.engagementTitle ? ` — ${a.engagementTitle}` : ''}
-                      <div className="cellsub">{fmtTime(a.scheduledStart)}</div></div>
+                    <div className="li-main">
+                      <div className="li-title">{a.title}{a.engagementTitle ? ` — ${a.engagementTitle}` : ''}</div>
+                      <div className="cellsub">{fmtTime(a.scheduledStart)}</div>
+                    </div>
                     <StatusPill label={lk.labelOf(a.statusId) || (a.statusCanonical ?? '')} token={lk.byId(a.statusId)?.colorToken} />
                   </div>
                 ))}
@@ -69,8 +71,10 @@ export function DashboardPage() {
                   const s = CAP[c.status] ?? CAP.pending!;
                   return (
                     <div className="row-li" key={c.id}>
-                      <div style={{ flex: 1 }}><span className="faint">«{c.rawText}»</span>
-                        <div className="cellsub">{new Date(c.createdAt).toLocaleString('it-IT')}</div></div>
+                      <div className="li-main">
+                        <div className="li-title faint">«{c.rawText}»</div>
+                        <div className="cellsub">{new Date(c.createdAt).toLocaleString('it-IT')}</div>
+                      </div>
                       <StatusPill label={s.label} token={s.token} />
                     </div>
                   );

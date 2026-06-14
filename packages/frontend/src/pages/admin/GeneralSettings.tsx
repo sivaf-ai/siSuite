@@ -10,19 +10,9 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useTheme } from '../../theme/ThemeContext';
 import { changeLanguage, currentLocale, LOCALES } from '../../i18n';
+import { WorkingHoursEditor, whHasErrors, type WH } from '../../ui/WorkingHoursEditor';
 
-const DAYS: { key: string; label: string }[] = [
-  { key: 'mon', label: 'Lunedì' }, { key: 'tue', label: 'Martedì' }, { key: 'wed', label: 'Mercoledì' },
-  { key: 'thu', label: 'Giovedì' }, { key: 'fri', label: 'Venerdì' }, { key: 'sat', label: 'Sabato' }, { key: 'sun', label: 'Domenica' },
-];
-type WH = Record<string, [string, string][]>;
-const toText = (iv: [string, string][] | undefined) => (iv ?? []).map(([a, b]) => `${a}-${b}`).join(', ');
-function parseText(s: string): [string, string][] {
-  return s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-    const [a, b] = x.split('-').map((t) => t.trim());
-    return [a ?? '', b ?? ''] as [string, string];
-  }).filter(([a, b]) => /^([01]\d|2[0-3]):[0-5]\d$/.test(a) && /^([01]\d|2[0-3]):[0-5]\d$/.test(b));
-}
+const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -47,10 +37,11 @@ export function GeneralSettings() {
   useEffect(() => { if (data) setWh(data.workingHours ?? {}); }, [data]);
 
   async function saveHours() {
+    if (whHasErrors(wh)) { toast('Correggi gli intervalli orari (fine dopo inizio, niente sovrapposizioni)', 'error'); return; }
     setBusy(true);
     try {
       const cleaned: WH = {};
-      for (const d of DAYS) cleaned[d.key] = wh[d.key] ?? [];
+      for (const k of WEEK) cleaned[k] = wh[k] ?? [];
       await mutate('PATCH', '/settings/working-hours', { workingHours: cleaned });
       toast('Orario di lavoro salvato');
       void reload();
@@ -82,15 +73,8 @@ export function GeneralSettings() {
 
           <div className="panel" style={{ marginTop: 16 }}>
             <div className="ph"><h3>Orario di lavoro</h3>{canManage && <button className="btn btn-primary btn-sm" disabled={busy} onClick={saveHours}>Salva orario</button>}</div>
-            <div className="pb">
-              {DAYS.map((d) => (
-                <div className="set-row" key={d.key}>
-                  <div className="st"><b>{d.label}</b><span>Intervalli, es. 08:00-13:00, 14:00-18:00 (vuoto = chiuso)</span></div>
-                  <input className="txt" style={{ maxWidth: 280 }} disabled={!canManage}
-                    defaultValue={toText(wh[d.key])}
-                    onBlur={(e) => setWh((s) => ({ ...s, [d.key]: parseText(e.target.value) }))} />
-                </div>
-              ))}
+            <div className="pb" style={{ paddingTop: 14 }}>
+              <WorkingHoursEditor value={wh} onChange={setWh} disabled={!canManage} />
             </div>
           </div>
           <p className="faint" style={{ fontSize: 13, marginTop: 14, color: 'var(--ink-faint)' }}>
