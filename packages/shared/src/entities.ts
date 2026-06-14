@@ -169,6 +169,8 @@ export const createActivitySchema = z.object({
   scheduledStart: ts.optional(), // valorizzato = attività FISSA (ancora)
   earliestStart: ts.optional(),
   dueBy: ts.optional(),
+  scheduleModeId: uuid.optional(), // §6: lookup schedule_mode (floating/fixed)
+  pinnedDay: day.optional(),       // §6: trascina-e-inchioda al giorno
   checklist: checklistSchema.optional(),
 });
 export const updateActivitySchema = createActivitySchema.omit({ engagementId: true }).partial();
@@ -182,6 +184,7 @@ export interface ActivityDto {
   estimatedMinutes: number | null;
   scheduledStart: string | null; scheduledEnd: string | null;
   earliestStart: string | null; dueBy: string | null;
+  scheduleModeId: string | null; pinnedDay: string | null; // §6
   isFixed: boolean; // scheduled_start valorizzato
   checklist: { text: string; done: boolean }[];
   createdAt: string;

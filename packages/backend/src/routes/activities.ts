@@ -26,7 +26,7 @@ const SELECT = `
          a.status_id, s.canonical AS status_canonical,
          a.priority_id, pr.canonical AS priority_canonical,
          a.estimated_minutes, a.scheduled_start, a.scheduled_end, a.earliest_start, a.due_by,
-         a.checklist, a.created_at
+         a.schedule_mode_id, a.pinned_day, a.checklist, a.created_at
   FROM activity a
   LEFT JOIN lookup_value s  ON s.id  = a.status_id
   LEFT JOIN lookup_value pr ON pr.id = a.priority_id
@@ -42,6 +42,7 @@ function toDto(r: Record<string, unknown>): ActivityDto {
     estimatedMinutes: (r.estimated_minutes as number) ?? null,
     scheduledStart: (r.scheduled_start as string) ?? null, scheduledEnd: (r.scheduled_end as string) ?? null,
     earliestStart: (r.earliest_start as string) ?? null, dueBy: (r.due_by as string) ?? null,
+    scheduleModeId: (r.schedule_mode_id as string) ?? null, pinnedDay: (r.pinned_day as string) ?? null,
     isFixed: r.scheduled_start != null,
     checklist: (r.checklist as { text: string; done: boolean }[]) ?? [],
     createdAt: r.created_at as string,
@@ -197,11 +198,12 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
         const ins = await db.query(
           `INSERT INTO activity
              (tenant_id, engagement_id, phase_id, asset_id, title, kind, status_id, priority_id,
-              estimated_minutes, scheduled_start, earliest_start, due_by, checklist, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING id`,
+              estimated_minutes, scheduled_start, earliest_start, due_by, schedule_mode_id, pinned_day, checklist, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16) RETURNING id`,
           [ctx.tenantId, input.engagementId, input.phaseId ?? null, input.assetId ?? null, input.title,
            input.kind ?? null, statusId, input.priorityId ?? null, input.estimatedMinutes ?? null,
            input.scheduledStart ?? null, input.earliestStart ?? null, input.dueBy ?? null,
+           input.scheduleModeId ?? null, input.pinnedDay ?? null,
            JSON.stringify(input.checklist ?? []), ctx.userId],
         );
         return (await loadOne(db, ins.rows[0].id))!;
@@ -225,11 +227,13 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
              estimated_minutes = COALESCE($8, estimated_minutes),
              scheduled_start = COALESCE($9, scheduled_start),
              earliest_start = COALESCE($10, earliest_start), due_by = COALESCE($11, due_by),
-             updated_by = $12
+             schedule_mode_id = COALESCE($12, schedule_mode_id), pinned_day = COALESCE($13, pinned_day),
+             updated_by = $14
            WHERE id = $1`,
           [request.params.id, input.title ?? null, input.kind ?? null, input.phaseId ?? null, input.assetId ?? null,
            input.statusId ?? null, input.priorityId ?? null, input.estimatedMinutes ?? null,
-           input.scheduledStart ?? null, input.earliestStart ?? null, input.dueBy ?? null, request.ctx.userId],
+           input.scheduledStart ?? null, input.earliestStart ?? null, input.dueBy ?? null,
+           input.scheduleModeId ?? null, input.pinnedDay ?? null, request.ctx.userId],
         );
         if (input.checklist) {
           await db.query(`UPDATE activity SET checklist = $2 WHERE id = $1`, [request.params.id, JSON.stringify(input.checklist)]);
