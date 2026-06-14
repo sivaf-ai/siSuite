@@ -26,7 +26,32 @@ export interface FieldDefinitionDto {
   placeholder: Record<string, string> | null;
   groupKey: string | null;
   sequence: number;
+  /** true = riga di SISTEMA (tenant_id NULL): sola lettura per il tenant. */
+  isSystem?: boolean;
 }
+
+/* ── Campi personalizzati: schemi create/update (admin tenant) ──────────── */
+export const FIELD_DATA_TYPES: FieldDataType[] = [
+  'text', 'textarea', 'number', 'integer', 'money', 'date', 'boolean', 'email', 'phone', 'url', 'select', 'multiselect',
+];
+const fieldDataTypeEnum = z.enum(FIELD_DATA_TYPES as [FieldDataType, ...FieldDataType[]]);
+const i18nLabel = z.record(z.string());
+const fieldOption = z.object({ value: z.string().min(1).max(60), label: i18nLabel });
+export const createFieldDefinitionSchema = z.object({
+  entity: z.string().min(1).max(60),
+  key: z.string().min(1).max(60).regex(/^[a-z][a-z0-9_]*$/, 'minuscolo, lettere/numeri/underscore, inizia con lettera'),
+  label: i18nLabel,
+  dataType: fieldDataTypeEnum,
+  required: z.boolean().optional(),
+  options: z.array(fieldOption).nullable().optional(),
+  unit: z.string().max(20).nullable().optional(),
+  help: i18nLabel.nullable().optional(),
+  groupKey: z.string().max(40).nullable().optional(),
+  sequence: z.number().int().min(0).optional(),
+});
+// in modifica non si cambiano entity/key (chiave logica del campo)
+export const updateFieldDefinitionSchema = createFieldDefinitionSchema.omit({ entity: true, key: true }).partial();
+export type CreateFieldDefinitionInput = z.infer<typeof createFieldDefinitionSchema>;
 
 /** Etichetta nella lingua dell'utente, con fallback it-IT → en → key. */
 export function fieldLabel(l: Record<string, string> | null | undefined, locale = 'it-IT', fallback = ''): string {

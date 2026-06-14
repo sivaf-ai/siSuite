@@ -21,6 +21,7 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
     placeholder: (r.placeholder as Record<string, string>) ?? null,
     groupKey: (r.group_key as string) ?? null,
     sequence: (r.sequence as number) ?? 0,
+    isSystem: (r.is_system as boolean) ?? false,
   };
 }
 
@@ -31,7 +32,8 @@ export async function tenantVertical(db: PoolClient, tenantId: string): Promise<
 
 export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
   const { rows } = await db.query(
-    `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence
+    `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
+            tenant_id IS NULL AS is_system
      FROM field_definition
      WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)
      ORDER BY group_key NULLS FIRST, sequence`,

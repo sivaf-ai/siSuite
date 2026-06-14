@@ -36,6 +36,7 @@ import { SettingsLayout } from '../pages/admin/SettingsLayout';
 import { GeneralSettings } from '../pages/admin/GeneralSettings';
 import { LabelsSettings } from '../pages/admin/LabelsSettings';
 import { TerminologySettings } from '../pages/admin/TerminologySettings';
+import { CustomFieldsSettings } from '../pages/admin/CustomFieldsSettings';
 import { NumbersSettings } from '../pages/admin/NumbersSettings';
 import { BillingContent } from '../pages/admin/BillingPage';
 import { SuperAdminPage } from '../pages/admin/SuperAdminPage';
@@ -76,6 +77,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/admin/settings/general', render: () => <SettingsLayout active="general"><GeneralSettings /></SettingsLayout> },
   { path: '/admin/settings/labels', render: () => <SettingsLayout active="labels"><LabelsSettings /></SettingsLayout> },
   { path: '/admin/settings/terminology', render: () => <SettingsLayout active="terminology"><TerminologySettings /></SettingsLayout> },
+  { path: '/admin/settings/fields', render: () => <SettingsLayout active="fields"><CustomFieldsSettings /></SettingsLayout> },
   { path: '/admin/settings/numbers', render: () => <SettingsLayout active="numbers"><NumbersSettings /></SettingsLayout> },
   { path: '/admin/settings/billing', render: () => <SettingsLayout active="billing"><BillingContent /></SettingsLayout> },
   { path: '/admin/platform', render: () => <SuperAdminPage /> },
