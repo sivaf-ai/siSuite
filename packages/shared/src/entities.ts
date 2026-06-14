@@ -259,3 +259,70 @@ export interface ConsumptionDto {
   id: string; activityId: string | null; materialId: string; materialName: string | null;
   quantity: number; unit: string; occurredOn: string; createdAt: string;
 }
+
+/* ── Magazzino minimo 6A (§8) ──────────────────────────────────────── */
+export const createStockLocationSchema = z.object({
+  name: z.string().min(1).max(120),
+  parentId: uuid.optional(),
+  kind: z.enum(['warehouse', 'sub_location', 'van']).default('warehouse'),
+  resourceId: uuid.optional(),
+  holdsStock: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+});
+export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
+export interface StockLocationDto {
+  id: string; parentId: string | null; name: string; kind: string; resourceId: string | null;
+  holdsStock: boolean; isDefault: boolean; active: boolean;
+}
+
+// movimento singolo (scarico da lavoro, rettifica rapida). quantity = magnitudine
+// positiva per in/out; per 'adjust' è il delta con segno. Il backend applica il segno.
+export const createStockMovementSchema = z.object({
+  typeCode: z.enum(['in', 'out', 'adjust']),
+  materialId: uuid,
+  locationId: uuid,
+  quantity: z.number().refine((n) => n !== 0, 'quantità non può essere 0'),
+  unit: z.string().min(1).max(40),
+  unitCost: z.number().optional(),
+  unitPrice: z.number().optional(),
+  currency: z.string().max(8).optional(),
+  engagementId: uuid.optional(),
+  activityId: uuid.optional(),
+  occurredOn: day.optional(),
+  note: z.string().max(500).optional(),
+});
+export interface StockMovementDto {
+  id: string; materialId: string; materialName: string | null; locationId: string; locationName: string | null;
+  typeId: string; quantity: number; unit: string; unitCost: number | null; unitPrice: number | null;
+  currency: string | null; occurredOn: string; engagementId: string | null; activityId: string | null;
+  note: string | null; createdAt: string;
+}
+export interface StockBalanceDto {
+  materialId: string; materialName: string | null; locationId: string; locationName: string | null;
+  qtyOnHand: number; avgCost: number | null; valueOnHand: number; unit: string | null;
+}
+
+export const stockDocumentLineSchema = z.object({
+  materialId: uuid,
+  quantity: z.number().positive(),
+  unit: z.string().min(1).max(40),
+  unitCost: z.number().optional(),
+  unitPrice: z.number().optional(),
+  currency: z.string().max(8).optional(),
+  note: z.string().max(500).optional(),
+});
+export const createStockDocumentSchema = z.object({
+  typeCode: z.enum(['receipt', 'transfer', 'adjustment']),
+  docDate: day.optional(),
+  sourceLocationId: uuid.optional(),
+  destLocationId: uuid.optional(),
+  companyId: uuid.optional(),
+  externalRef: z.string().max(120).optional(),
+  note: z.string().max(500).optional(),
+  lines: z.array(stockDocumentLineSchema).min(1).max(500),
+});
+export interface StockDocumentDto {
+  id: string; typeId: string; number: string | null; docDate: string; status: string;
+  sourceLocationId: string | null; destLocationId: string | null; companyId: string | null;
+  externalRef: string | null; note: string | null; createdAt: string;
+}
