@@ -92,6 +92,22 @@ export const updateResourceSchema = createResourceSchema.partial();
 export interface ResourceDto {
   id: string; kind: 'person' | 'vehicle' | 'equipment'; label: string;
   userId: string | null; active: boolean; attributes: Record<string, unknown>;
+  /** orario per-risorsa (override dell'azienda); null = usa l'orario del tenant. */
+  workingHours?: Record<string, [string, string][]> | null;
+  /** nome dell'utente collegato (solo nel dettaglio). */
+  userName?: string | null;
+}
+
+/* ── Resource availability (indisponibilità per-risorsa: ferie, permessi…) ── */
+export const createAvailabilitySchema = z.object({
+  startsAt: z.string().min(1),  // ISO datetime
+  endsAt: z.string().min(1),
+  reason: z.string().max(200).nullable().optional(),
+  kind: z.enum(['unavailable', 'available']).default('unavailable'),
+});
+export type CreateAvailabilityInput = z.infer<typeof createAvailabilitySchema>;
+export interface ResourceAvailabilityDto {
+  id: string; resourceId: string; kind: string; startsAt: string; endsAt: string; reason: string | null;
 }
 
 /* ── Material ──────────────────────────────────────────────────────── */

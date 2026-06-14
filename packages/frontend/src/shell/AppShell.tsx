@@ -25,6 +25,7 @@ import { AttivitaDetailPage } from '../pages/AttivitaDetailPage';
 import { ClientiPage } from '../pages/ClientiPage';
 import { ClienteDetailPage } from '../pages/ClienteDetailPage';
 import { RisorsePage } from '../pages/RisorsePage';
+import { RisorsaDetailPage } from '../pages/RisorsaDetailPage';
 import { MaterialiPage } from '../pages/MaterialiPage';
 import { AssetPage } from '../pages/AssetPage';
 import { PianificazionePage } from '../pages/PianificazionePage';
@@ -58,6 +59,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/companies/:id', render: () => <ClienteDetailPage /> },
   { path: '/assets', render: () => <AssetPage /> },
   { path: '/resources', render: () => <RisorsePage /> },
+  { path: '/resources/:id', render: () => <RisorsaDetailPage /> },
   { path: '/materials', render: () => <MaterialiPage /> },
   { path: '/agenda', render: () => <PlaceholderPage title="Agenda" /> },
   { path: '/captures', render: () => <CapturePage /> },

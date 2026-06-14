@@ -31,6 +31,7 @@ export function RisorsePage() {
       ] }]}
       toFormInitial={(r) => ({ kind: r.kind, label: r.label, active: r.active, attributes: r.attributes })}
       toBody={(v) => ({ kind: v.kind, label: v.label, active: v.active ?? true, attributes: v.attributes })}
+      detailPath={(r) => `/resources/${r.id}`}
     />
   );
 }

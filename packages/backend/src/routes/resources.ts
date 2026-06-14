@@ -1,17 +1,31 @@
-/** resources.ts — CRUD risorse (persone, mezzi, attrezzature). */
+/** resources.ts — CRUD risorse (persone, mezzi, attrezzature) + orario per-risorsa
+ *  e indisponibilità (alimentano il motore di pianificazione, mock 20). */
 import type { FastifyInstance } from 'fastify';
-import { createResourceSchema, updateResourceSchema, listQuerySchema, type ResourceDto } from '@sisuite/shared';
+import {
+  createResourceSchema, updateResourceSchema, listQuerySchema, createAvailabilitySchema,
+  workingHoursSchema, type ResourceDto, type ResourceAvailabilityDto,
+} from '@sisuite/shared';
+import { z } from 'zod';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
 
-const SELECT = `SELECT id, kind, label, user_id, active, attributes FROM resource`;
+const SELECT = `SELECT id, kind, label, user_id, active, attributes, working_hours FROM resource`;
 const SORTABLE: Record<string, string> = { label: 'label', kind: 'kind' };
 function toDto(r: Record<string, unknown>): ResourceDto {
   return {
     id: r.id as string, kind: r.kind as ResourceDto['kind'], label: r.label as string,
     userId: (r.user_id as string) ?? null, active: r.active as boolean,
     attributes: (r.attributes as Record<string, unknown>) ?? {},
+    workingHours: (r.working_hours as Record<string, [string, string][]> | null) ?? null,
+    userName: (r.user_name as string | null) ?? null,
+  };
+}
+function toAvailDto(r: Record<string, unknown>): ResourceAvailabilityDto {
+  return {
+    id: r.id as string, resourceId: r.resource_id as string, kind: r.kind as string,
+    startsAt: new Date(r.starts_at as string).toISOString(), endsAt: new Date(r.ends_at as string).toISOString(),
+    reason: (r.reason as string | null) ?? null,
   };
 }
 
@@ -33,9 +47,54 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string } }>('/resources/:id',
     { preHandler: [app.authenticate, requirePermission('resource:read')] },
     async (request, reply) => {
-      const rows = await withRls(request.ctx, (db) => db.query(`${SELECT} WHERE id = $1`, [request.params.id]).then((r) => r.rows));
+      const rows = await withRls(request.ctx, (db) => db.query(
+        `SELECT r.id, r.kind, r.label, r.user_id, r.active, r.attributes, r.working_hours, u.full_name AS user_name
+         FROM resource r LEFT JOIN app_user u ON u.id = r.user_id WHERE r.id = $1`, [request.params.id]).then((r) => r.rows));
       if (!rows.length) return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata', statusCode: 404 });
       return toDto(rows[0]);
+    });
+
+  // ── Orario PER-RISORSA (override dell'azienda; null = usa l'orario del tenant) ──
+  app.patch<{ Params: { id: string } }>('/resources/:id/working-hours',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request) => {
+      const input = z.object({ workingHours: workingHoursSchema.nullable() }).parse(request.body);
+      return withRls(request.ctx, async (db) => {
+        await db.query(`UPDATE resource SET working_hours = $2, updated_by = $3 WHERE id = $1`,
+          [request.params.id, input.workingHours ? JSON.stringify(input.workingHours) : null, request.ctx.userId]);
+        return { ok: true };
+      });
+    });
+
+  // ── Indisponibilità (ferie/permessi): il motore le sottrae al calendario ──
+  app.get<{ Params: { id: string } }>('/resources/:id/availability',
+    { preHandler: [app.authenticate, requirePermission('resource:read')] },
+    async (request) =>
+      withRls(request.ctx, (db) => db.query(
+        `SELECT id, resource_id, kind, starts_at, ends_at, reason FROM resource_availability
+         WHERE resource_id = $1 ORDER BY starts_at`, [request.params.id])
+        .then((r) => r.rows.map(toAvailDto))));
+
+  app.post<{ Params: { id: string } }>('/resources/:id/availability',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request, reply) => {
+      const input = createAvailabilitySchema.parse(request.body);
+      const dto = await withRls(request.ctx, async (db) => {
+        const ins = await db.query(
+          `INSERT INTO resource_availability (tenant_id, resource_id, kind, starts_at, ends_at, reason)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, resource_id, kind, starts_at, ends_at, reason`,
+          [request.ctx.tenantId, request.params.id, input.kind, input.startsAt, input.endsAt, input.reason ?? null]);
+        return toAvailDto(ins.rows[0]);
+      });
+      return reply.code(201).send(dto);
+    });
+
+  app.delete<{ Params: { id: string; availId: string } }>('/resources/:id/availability/:availId',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request, reply) => {
+      await withRls(request.ctx, (db) => db.query(
+        `DELETE FROM resource_availability WHERE id = $1 AND resource_id = $2`, [request.params.availId, request.params.id]));
+      return reply.code(204).send();
     });
 
   app.post('/resources', { preHandler: [app.authenticate, requirePermission('resource:create')] },

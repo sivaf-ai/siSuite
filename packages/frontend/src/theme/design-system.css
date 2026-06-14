@@ -446,6 +446,18 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 .stat:not(:last-child) { border-bottom: 1px solid var(--line-2); }
 .stat .v { font-family: var(--font-mono); font-weight: 600; }
 
+/* ---- striscia disponibilità risorsa (mock 20) ---- */
+.avail { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 4px; }
+.avday { border: 1px solid var(--line); border-radius: var(--r); padding: 11px 6px; text-align: center; background: var(--card); }
+.avday .dn { font-size: 11px; color: var(--ink-faint); font-weight: 700; text-transform: uppercase; }
+.avday .hh { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; margin-top: 7px; line-height: 1.5; }
+.avday.off { background: var(--neutral-wash); }
+.avday.off .hh { color: var(--ink-faint); }
+.avday input.txt { width: 100%; height: 30px; padding: 0 6px; font-size: 11px; text-align: center; margin-top: 6px;
+  border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--card); color: var(--ink); font-family: var(--font-mono); outline: none; }
+.avday input.txt:focus { border-color: var(--brand); }
+.detail-head .sub { color: var(--ink-soft); font-size: 14px; }
+
 /* ---- piano / billing ---- */
 .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 .plan-card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 20px; box-shadow: var(--shadow-1); position: relative; }
