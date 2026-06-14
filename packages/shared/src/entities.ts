@@ -260,6 +260,15 @@ export interface ConsumptionDto {
   quantity: number; unit: string; occurredOn: string; createdAt: string;
 }
 
+/* ── Budget / margine (§7) ─────────────────────────────────────────── */
+export interface EngagementBudgetDto {
+  engagementId: string; currency: string | null; billingMode: string | null;
+  previsto: number | null; previstoSource: 'budget' | 'stima' | 'none';
+  costoFatto: number; ricavoFatto: number; margine: number; rimane: number | null; allarme: boolean;
+  laborCost: number; laborRevenue: number; materialCost: number; materialRevenue: number;
+  phases: { phaseId: string | null; name: string | null; costoFatto: number; ricavoFatto: number }[];
+}
+
 /* ── Rapportino AI (§5) ────────────────────────────────────────────── */
 export const createWorkReportSchema = z.object({
   engagementId: uuid,
