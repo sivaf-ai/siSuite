@@ -40,6 +40,7 @@ import { settingsRoutes } from './routes/settings.js';
 import { stockRoutes } from './routes/stock.js';
 import { absenceRoutes } from './routes/absences.js';
 import { timeTrackingRoutes } from './routes/timeTracking.js';
+import { workReportRoutes } from './routes/workReports.js';
 
 async function build() {
   const app = Fastify({
@@ -102,6 +103,7 @@ async function build() {
   await app.register(stockRoutes);
   await app.register(absenceRoutes);
   await app.register(timeTrackingRoutes);
+  await app.register(workReportRoutes);
 
   return app;
 }

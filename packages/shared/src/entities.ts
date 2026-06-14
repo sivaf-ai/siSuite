@@ -260,6 +260,30 @@ export interface ConsumptionDto {
   quantity: number; unit: string; occurredOn: string; createdAt: string;
 }
 
+/* ── Rapportino AI (§5) ────────────────────────────────────────────── */
+export const createWorkReportSchema = z.object({
+  engagementId: uuid,
+  activityId: uuid.optional(),
+  periodStart: day.optional(),
+  periodEnd: day.optional(),
+  audience: z.enum(['customer', 'internal']).default('customer'),
+  rawText: z.string().max(5000).optional(),
+  timeEntryIds: z.array(uuid).max(1000).optional(),
+});
+export const updateWorkReportSchema = z.object({
+  finalText: z.string().max(20000).optional(),
+  confirm: z.boolean().optional(),   // true = porta a 'confirmed'
+});
+export const signWorkReportSchema = z.object({
+  signerName: z.string().min(1).max(160),
+  signatureUrl: z.string().max(500).optional(),
+});
+export interface WorkReportDto {
+  id: string; engagementId: string; activityId: string | null; periodStart: string | null; periodEnd: string | null;
+  audience: string; statusId: string | null; rawText: string | null; aiText: string | null; finalText: string | null;
+  signerName: string | null; signatureUrl: string | null; signedAt: string | null; generatedByAi: boolean; createdAt: string;
+}
+
 /* ── Assenze (§4.4) ────────────────────────────────────────────────── */
 export const createAbsenceSchema = z.object({
   resourceId: uuid,
