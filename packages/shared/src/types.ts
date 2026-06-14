@@ -60,4 +60,5 @@ export interface EngagementDto {
   startedOn: string | null;
   endedOn: string | null;
   createdAt: string;
+  attributes: Record<string, unknown>;
 }

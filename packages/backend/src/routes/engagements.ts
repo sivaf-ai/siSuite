@@ -22,7 +22,7 @@ const SELECT_DTO = `
   SELECT e.id, e.code, e.title, e.type, e.company_id,
          c.display_name AS company_name,
          e.status_id, lv.canonical AS status_canonical,
-         e.started_on, e.ended_on, e.created_at
+         e.started_on, e.ended_on, e.created_at, e.attributes
   FROM engagement e
   LEFT JOIN company c       ON c.id = e.company_id
   LEFT JOIN lookup_value lv ON lv.id = e.status_id
@@ -33,6 +33,7 @@ interface DbRow {
   company_id: string; company_name: string | null;
   status_id: string; status_canonical: string | null;
   started_on: string | null; ended_on: string | null; created_at: string;
+  attributes: Record<string, unknown> | null;
 }
 
 function toDto(r: DbRow): EngagementDto {
@@ -48,6 +49,7 @@ function toDto(r: DbRow): EngagementDto {
     startedOn: r.started_on,
     endedOn: r.ended_on,
     createdAt: r.created_at,
+    attributes: r.attributes ?? {},
   };
 }
 

@@ -38,7 +38,7 @@ export function EngagementsPage() {
         { key: 'assetId', label: 'Asset (opzionale)', dataType: 'fk', fkOptions: fk.asset },
         { key: 'startedOn', label: 'Inizio', dataType: 'date' },
       ] }]}
-      toFormInitial={(r) => ({ companyId: r.companyId, type: r.type, title: r.title, startedOn: r.startedOn, attributes: {} })}
+      toFormInitial={(r) => ({ companyId: r.companyId, type: r.type, title: r.title, startedOn: r.startedOn, attributes: r.attributes ?? {} })}
       toBody={(v, isEdit) => isEdit
         ? { title: v.title, assetId: v.assetId, startedOn: v.startedOn, attributes: v.attributes }
         : { companyId: v.companyId, type: v.type ?? 'build', title: v.title, assetId: v.assetId, startedOn: v.startedOn, attributes: v.attributes }}
