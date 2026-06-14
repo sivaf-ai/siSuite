@@ -16,13 +16,19 @@
   - `004_field_definition.sql` — tabella `field_definition` (campi dinamici per verticale) + seed.
   - `005_field_definition_rls.sql` — RLS su `field_definition`.
   - `006_fiber_fields.sql` — **SOLO SEED** (nessun DDL): campi di sistema del verticale `fiber` in `field_definition` (vedi §5.5).
+  - `007_term_override.sql` — **NUOVA tabella** `term_override` (glossario di dominio per-tenant) + RLS (vedi §4.3bis). *(14/06)*
+  - `008_cost_fields.sql` — **SOLO SEED**: campi di sistema `engagement.budget`, `resource.hourly_cost`, `material.unit_cost` (money). ⚠️ budget/hourly_cost erano **già** in 004 → vedi 010. *(14/06)*
+  - `009_engagement_template.sql` — creava `engagement_template` → **rimossa da 010** (duplicava `template`). *(14/06, poi annullata)*
+  - `010_fix_dups.sql` — **correzioni**: rimuove i doppioni `field_definition` introdotti da 008; **DROP `engagement_template`**; i modelli di commessa usano ora la tabella `template` preesistente (`scope='engagement'`). *(14/06)*
 - **Bootstrap applicativo** (`packages/backend/src/bootstrap.ts`), dopo le migrazioni, con connessione admin: crea il ruolo DB `sisuite_app`, i grant dei permessi dei ruoli di sistema (`role_permission`, dal catalogo in `permissions.ts`), il primo tenant, il numeratore `engagement`, la subscription trial, una company demo e l'utente Owner (GoTrue + `app_user` + `user_role`). **Aggiunta**: se `PLATFORM_ADMIN_EMAIL` è impostato, marca quell'`app_user` con `is_platform_admin=true` (super admin di piattaforma; colonna già esistente, nessun cambio schema).
 
-> **Nota (13/06/2026):** dalla generazione di questo documento la **struttura** dello schema è **invariata** (28 tabelle, 7 enum, 8 funzioni, ~86 indici, ~49 policy). L'unica modifica al DB è la migrazione **006** (solo seed `field_definition` fibra). I "Demo Data Pack" creano dati a runtime in tenant dedicati, non toccano lo schema né le righe di sistema (`tenant_id IS NULL`).
+> **Nota (13/06/2026):** alla generazione del documento la struttura era 28 tabelle, 7 enum, 8 funzioni, ~86 indici, ~49 policy.
+>
+> **Aggiornamento (14/06/2026):** unica modifica STRUTTURALE = **+1 tabella `term_override`** (migr. 007, vedi §4.3bis) → **29 tabelle**, +2 policy RLS. La tabella `template` (già presente, prima inutilizzata) è ora **usata** per i modelli di commessa (`scope='engagement'`). Migrazioni 008/010 toccano solo il **seed** `field_definition` (aggiunto `material.unit_cost`; budget/hourly_cost restano singoli dopo il dedup di 010). `engagement_template` (creata da 009) è stata **rimossa** da 010. I Demo Pack (ora 3: `fiber`, `software`, `pools`) creano dati a runtime in tenant dedicati, non toccano schema né righe di sistema.
 
-## Inventario oggetti (schema `public`, solo siSuite)
-- **28 tabelle** di dominio (+ `sisuite_migrations` tracker).
-- **7 tipi ENUM**, **8 funzioni** applicative, **trigger** `updated_at` su tabelle mutabili, **~86 indici**, **RLS** con ~49 policy.
+## Inventario oggetti (schema `public`, solo siSuite) — agg. 14/06
+- **29 tabelle** di dominio (+ `sisuite_migrations` tracker). *(era 28; +`term_override`)*
+- **7 tipi ENUM**, **8 funzioni** applicative, **trigger** `updated_at` su tabelle mutabili, **~88 indici**, **RLS** con ~51 policy.
 
 ---
 
@@ -565,6 +571,43 @@ CREATE POLICY tenant_isolation ON public.template USING ((public.app_is_platform
 \unrestrict isByVhvibOPOmEednMHOSGS45syF1VsnYQslXbbAbmkav2XMU1EclThDqVdqEeh
 
 ```
+
+### 4.3bis Terminologia per-tenant (`term_override`, migr. 007 — NUOVA 14/06)
+Glossario di **dominio** per-tenant: ogni azienda usa le proprie parole ("Cantiere" vs "Commessa"). Si sovrappone alle traduzioni standard (namespace i18n `terms`) solo per ~20 `term_key` curati (singolare + plurale, per locale). Filosofia identica a `field_definition`/`lookup_value`: default di sistema (nei file i18n del frontend) + override del tenant (qui). **Niente righe di sistema**: la RLS limita lettura e scrittura al tenant corrente.
+```sql
+CREATE TABLE public.term_override (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    locale text NOT NULL,                 -- it-IT | en | es-AR
+    term_key text NOT NULL,               -- es. engagement, customer, activity…
+    value_singular text NOT NULL,
+    value_plural text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE ONLY public.term_override FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE ONLY public.term_override
+    ADD CONSTRAINT term_override_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.term_override
+    ADD CONSTRAINT term_override_tenant_id_locale_term_key_key UNIQUE (tenant_id, locale, term_key);
+
+ALTER TABLE ONLY public.term_override
+    ADD CONSTRAINT term_override_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id) ON DELETE CASCADE;
+
+ALTER TABLE public.term_override ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY term_select ON public.term_override FOR SELECT
+    USING ((public.app_is_platform_admin() OR (tenant_id = public.app_current_tenant())));
+
+CREATE POLICY term_modify ON public.term_override
+    USING ((public.app_is_platform_admin() OR (tenant_id = public.app_current_tenant())))
+    WITH CHECK ((public.app_is_platform_admin() OR (tenant_id = public.app_current_tenant())));
+```
+
+> **Nota sui MODELLI di commessa (14/06):** NON è stata aggiunta una tabella dedicata. I modelli usano la tabella **`template`** già definita in §4.3 (`scope='engagement'`, `blueprint jsonb` = `{type, phases[], activities[], deps[]}`). La migr. 009 aveva erroneamente introdotto `engagement_template` (duplicato): **rimossa** dalla 010.
 
 ### 4.4 Anagrafiche
 ```sql
@@ -1429,6 +1472,13 @@ INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type
  (NULL, 'fiber', 'asset', 'ont_serial',     '{"it-IT":"Seriale ONT",...}',      'text',   false, NULL, NULL,  'technical', 5);
 INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, group_key, sequence) VALUES
  (NULL, 'fiber', 'engagement', 'work_order_ref', '{"it-IT":"Rif. ordine di lavoro",...}', 'text', false, 'contract', 4);
+
+-- === AGGIUNTI da migrazione 008 (campi economici, vertical NULL = tutti i verticali) ===
+-- NB: engagement.budget e resource.hourly_cost ESISTEVANO GIÀ (004) → la 008 li
+-- aveva duplicati; la 010 ha rimosso i doppioni. Resta NUOVO solo material.unit_cost:
+INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, unit, group_key, sequence) VALUES
+ (NULL, NULL, 'material', 'unit_cost', '{"it-IT":"Costo unitario","en":"Unit cost","es-AR":"Costo unitario"}', 'money', false, '€', 'economics', 50);
+-- Margine commessa ≈ budget − (Σ ore×hourly_cost + Σ consumi×unit_cost) — usato dal widget Marginalità.
 ```
 
 ### 5.6 Grant dei permessi ai ruoli di sistema (`role_permission`)

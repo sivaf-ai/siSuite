@@ -1,3 +1,5 @@
+> ⚠️ **SUPERATO (14/06 sera).** Questo documento fotografa lo stato del *mattino* del 14/06, PRIMA delle sessioni di sviluppo (parti 6-8 + FASE 3 + correzioni). Documento corrente: **`2026-06-14_stato_sviluppo_COMPLETO_per_claude_ai.md`**. Tenuto come storico.
+
 # siSuite — STATO DI SVILUPPO (documento di passaggio per Claude AI)
 
 > **Data:** 14/06/2026. **Questo è IL documento di stato corrente**: sostituisce
