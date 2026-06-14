@@ -12,7 +12,10 @@ import { withRls } from '../context/rls.js';
 import { nextNumber } from '../numberSeries.js';
 import { lookupDefaultId } from '../status.js';
 
+// I modelli vivono nella tabella `template` (scope='engagement'); il `type` della
+// commessa (build/maintenance) è nel blueprint (la tabella template non ha colonna type).
 interface Blueprint {
+  type: 'build' | 'maintenance';
   phases: { name: string; seq: number }[];
   activities: { ref: string; title: string; estimatedMinutes: number | null; priorityCanonical: string | null; phaseName: string | null }[];
   deps: { predRef: string; succRef: string; lagMinutes: number }[];
@@ -45,6 +48,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
            WHERE ap.engagement_id = $1`, [request.params.id])).rows
           .filter((d) => refOf.has(d.predecessor_id as string) && refOf.has(d.successor_id as string));
         const blueprint: Blueprint = {
+          type: eng.rows[0].type as 'build' | 'maintenance',
           phases: phases.map((p) => ({ name: p.name as string, seq: (p.seq as number) ?? 0 })),
           activities: acts.map((a) => ({
             ref: refOf.get(a.id as string)!, title: a.title as string,
@@ -55,8 +59,8 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
           deps: deps.map((d) => ({ predRef: refOf.get(d.predecessor_id as string)!, succRef: refOf.get(d.successor_id as string)!, lagMinutes: (d.lag_minutes as number) ?? 0 })),
         };
         const ins = await db.query(
-          `INSERT INTO engagement_template (tenant_id, name, type, blueprint) VALUES ($1,$2,$3,$4) RETURNING id`,
-          [request.ctx.tenantId, name, eng.rows[0].type, JSON.stringify(blueprint)]);
+          `INSERT INTO template (tenant_id, scope, name, blueprint, created_by, updated_by) VALUES ($1,'engagement',$2,$3,$4,$4) RETURNING id`,
+          [request.ctx.tenantId, name, JSON.stringify(blueprint), request.ctx.userId]);
         return ins.rows[0].id as string;
       });
       if (!out) return reply.code(404).send({ error: 'not_found', message: 'Commessa non trovata', statusCode: 404 });
@@ -68,12 +72,14 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('engagement:read')] },
     async (request) =>
       withRls(request.ctx, async (db): Promise<{ items: EngagementTemplateDto[] }> => {
-        const rows = (await db.query(`SELECT id, name, type, blueprint, created_at FROM engagement_template ORDER BY created_at DESC`)).rows;
+        const rows = (await db.query(
+          `SELECT id, name, blueprint, created_at FROM template
+           WHERE scope = 'engagement' AND active AND archived_at IS NULL ORDER BY created_at DESC`)).rows;
         return {
           items: rows.map((r) => {
             const bp = (r.blueprint ?? {}) as Partial<Blueprint>;
             return {
-              id: r.id as string, name: r.name as string, type: r.type as 'build' | 'maintenance',
+              id: r.id as string, name: r.name as string, type: (bp.type as 'build' | 'maintenance') ?? 'build',
               phaseCount: (bp.phases ?? []).length, activityCount: (bp.activities ?? []).length,
               createdAt: r.created_at as string,
             };
@@ -84,7 +90,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string } }>('/engagement-templates/:id',
     { preHandler: [app.authenticate, requirePermission('engagement:create')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`DELETE FROM engagement_template WHERE id = $1`, [request.params.id]));
+      await withRls(request.ctx, (db) => db.query(`DELETE FROM template WHERE id = $1 AND scope = 'engagement'`, [request.params.id]));
       return reply.code(204).send();
     });
 
@@ -95,15 +101,16 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
       const input = instantiateTemplateSchema.parse(request.body);
       const ctx = request.ctx;
       const out = await withRls(ctx, async (db) => {
-        const t = await db.query(`SELECT name, type, blueprint FROM engagement_template WHERE id = $1`, [input.templateId]);
+        const t = await db.query(`SELECT name, blueprint FROM template WHERE id = $1 AND scope = 'engagement'`, [input.templateId]);
         if (!t.rows.length) return null;
         const bp = (t.rows[0].blueprint ?? {}) as Blueprint;
+        const engType = bp.type ?? 'build';
         const statusId = await lookupDefaultId(db, 'engagement_status', 'open');
         const code = await nextNumber(db, 'engagement');
         const engId = (await db.query(
           `INSERT INTO engagement (tenant_id, company_id, code, type, title, status_id, asset_id, started_on, created_by, updated_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) RETURNING id`,
-          [ctx.tenantId, input.companyId, code, t.rows[0].type, input.title || (t.rows[0].name as string),
+          [ctx.tenantId, input.companyId, code, engType, input.title || (t.rows[0].name as string),
            statusId, input.assetId ?? null, input.startedOn ?? null, ctx.userId])).rows[0].id as string;
 
         const phaseStatus = await lookupDefaultId(db, 'phase_status', 'pending');
