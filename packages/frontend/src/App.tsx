@@ -4,6 +4,7 @@ import { Route, Switch } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { LookupsProvider } from './context/Lookups';
 import { ToastProvider } from './ui/Toast';
+import { ThemeProvider } from './theme/ThemeContext';
 import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
 import { MobileShell } from './mobile/MobileShell';
@@ -35,9 +36,11 @@ function Gate() {
 export function App() {
   return (
     <IonApp>
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </ThemeProvider>
     </IonApp>
   );
 }

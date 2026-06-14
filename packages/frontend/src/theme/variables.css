@@ -7,6 +7,9 @@
   /* superfici */
   --ink: #1B1D24; --ink-2: #2A2D37; --ink-soft: #5C616E; --ink-faint: #8A8F9B;
   --paper: #F3F5F8; --card: #FFFFFF; --line: #E5E8EE; --line-2: #EEF0F4;
+  /* superficie "scura" dedicata (sidebar, racconto AI, toast): resta scura in ENTRAMBI i temi
+     — non legarla a --ink, che nel tema scuro diventa chiaro. */
+  --sidebar: #1B1D24;
 
   /* brand + flow (la firma) */
   --brand: #5B4DF0; --brand-press: #4A3DD6; --brand-wash: #ECEAFE; --brand-ink: #3B2EC0;
@@ -54,3 +57,41 @@
   --ion-color-danger: var(--danger);
   --ion-color-medium: var(--neutral);
 }
+
+/* =========================================================================
+   TEMA SCURO — solo i valori dei token cambiano (gli stessi nomi). I componenti
+   usano var(--token) → cambiano da soli. Contrasti tarati per WCAG AA (≥4.5:1
+   su testo normale). Si attiva con document.documentElement.dataset.theme='dark'.
+   ========================================================================= */
+:root[data-theme="dark"] {
+  /* superfici */
+  --ink: #E7E9EF; --ink-2: #CDD2DC; --ink-soft: #A6ACBA; --ink-faint: #818897;
+  --paper: #0F1014; --card: #1A1C22; --line: #2B2E38; --line-2: #23252E;
+  --sidebar: #15161B;
+
+  /* brand + flow */
+  --brand: #8B7EF7; --brand-press: #7A6CEF; --brand-wash: #241F4D; --brand-ink: #C7BFFF;
+  --flow: #2BD4CE; --flow-wash: #0E2E2C;
+  --flow-grad: linear-gradient(135deg, #8B7EF7 0%, #2BD4CE 100%);
+
+  /* color token di stato (colori vivaci su wash scuri) */
+  --success: #34C88E; --success-wash: #11271D;
+  --warning: #E0A33A; --warning-wash: #2A2113;
+  --danger: #F2616B;  --danger-wash: #2E1719;
+  --info: #5B9BFF;    --info-wash: #15233B;
+  --neutral: #9AA0AD; --neutral-wash: #23262F;
+
+  /* ombre più marcate sul fondo scuro */
+  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.55);
+  --shadow-pop: 0 10px 30px rgba(124,111,245,.30);
+
+  /* mappature Ionic che usano triple rgb cablate */
+  --ion-background-color-rgb: 15, 16, 20;
+  --ion-text-color-rgb: 231, 233, 239;
+  --ion-color-primary-tint: #9b8ff9;
+}
+
+/* ritocchi per componenti con colori cablati non coperti dai token */
+:root[data-theme="dark"] .alert { border-color: #4A3A1A; color: #E8C98A; }
+:root[data-theme="dark"] .ds-tabbar { background: rgba(26, 28, 34, .92); }

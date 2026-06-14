@@ -16,8 +16,12 @@ import './theme/variables.css';
 import './theme/design-system.css';
 
 import { App } from './App';
+import { applyTheme, initialTheme } from './theme/ThemeContext';
 
 setupIonicReact({ mode: 'md' });
+
+// applica il tema PRIMA del render (niente flash chiaro→scuro)
+applyTheme(initialTheme());
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

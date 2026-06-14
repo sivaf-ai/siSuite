@@ -8,13 +8,14 @@
 import {
   IonContent, IonMenu, IonRouterOutlet, IonSplitPane, IonButton,
 } from '@ionic/react';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useHistory, useLocation } from 'react-router';
-import { LogOut, Mic, Circle, ShieldAlert } from 'lucide-react';
+import { LogOut, Mic, Circle, ShieldAlert, PanelLeftClose, PanelLeftOpen, Sun, Moon } from 'lucide-react';
 import { MENU_ICON } from '../ui/icons';
 import { visibleMenu, type MenuItem, type PermissionKey } from '@sisuite/shared';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { TodayPage } from '../pages/TodayPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { EngagementsPage } from '../pages/EngagementsPage';
@@ -69,10 +70,22 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/admin/platform', render: () => <SuperAdminPage /> },
 ];
 
+const SIDEBAR_KEY = 'sisuite.sidebar';
+function initialCollapsed(): boolean {
+  const s = localStorage.getItem(SIDEBAR_KEY);
+  if (s === '1') return true;
+  if (s === '0') return false;
+  return typeof window !== 'undefined' && window.innerWidth < 1024; // schermi stretti: collassata di default
+}
+
 export function AppShell() {
   const { user, logout } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const history = useHistory();
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState<boolean>(() => initialCollapsed());
+  const toggleSidebar = () => setCollapsed((c) => { localStorage.setItem(SIDEBAR_KEY, c ? '0' : '1'); return !c; });
+  const sideW = collapsed ? '64px' : '248px';
   const perms = new Set<PermissionKey>((user?.permissions ?? []) as PermissionKey[]);
   const desktop = visibleMenu(perms, 'desktop');
   const mobile = visibleMenu(perms, 'mobile');
@@ -92,14 +105,18 @@ export function AppShell() {
         ion-menu::part(container){ box-shadow:none; }
       `}</style>
 
-      <IonSplitPane contentId="main" when="md">
+      <IonSplitPane contentId="main" when="md"
+        style={{ '--side-min-width': sideW, '--side-max-width': sideW, '--side-width': sideW } as CSSProperties}>
         {/* ── Sidebar desktop (scura) ── */}
         <IonMenu contentId="main">
-          <IonContent style={{ '--background': 'var(--ink)' } as CSSProperties}>
-            <div className="ds-sidebar">
+          <IonContent style={{ '--background': 'var(--sidebar)' } as CSSProperties}>
+            <div className={`ds-sidebar${collapsed ? ' collapsed' : ''}`}>
               <div className="ds-brand">
                 <div className="mark">s</div>
                 <div className="name">siSuite</div>
+                <button className="ds-iconbtn toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Espandi menu' : 'Riduci menu'} title={collapsed ? 'Espandi' : 'Riduci'}>
+                  {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+                </button>
               </div>
 
               {groups.map((g) => {
@@ -111,7 +128,7 @@ export function AppShell() {
                     {items.map((m) => {
                       const I = MENU_ICON[m.id] ?? Circle;
                       return (
-                        <div key={m.id} className={`ds-navitem${isActive(m.route) ? ' active' : ''}`} onClick={() => go(m.route)}>
+                        <div key={m.id} className={`ds-navitem${isActive(m.route) ? ' active' : ''}`} data-tip={m.label} onClick={() => go(m.route)}>
                           <I size={18} />
                           <span>{m.label}</span>
                         </div>
@@ -124,7 +141,7 @@ export function AppShell() {
               {user?.isPlatformAdmin && (
                 <div>
                   <div className="ds-navgroup">Piattaforma</div>
-                  <div className={`ds-navitem${isActive('/admin/platform') ? ' active' : ''}`} onClick={() => go('/admin/platform')}>
+                  <div className={`ds-navitem${isActive('/admin/platform') ? ' active' : ''}`} data-tip="Demo / Super admin" onClick={() => go('/admin/platform')}>
                     <ShieldAlert size={18} />
                     <span>Demo / Super admin</span>
                   </div>
@@ -133,10 +150,13 @@ export function AppShell() {
 
               <div className="ds-side-user">
                 <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{initials}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="who" style={{ flex: 1, minWidth: 0 }}>
                   <div className="nm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
                   <div className="rl">{user?.dataScope}</div>
                 </div>
+                <button className="ds-iconbtn" onClick={toggleTheme} aria-label="Cambia tema" title={theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}>
+                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
                 <IonButton fill="clear" size="small" onClick={logout} aria-label="Esci" style={{ '--color': '#8A8F9B' } as CSSProperties}>
                   <LogOut size={18} />
                 </IonButton>

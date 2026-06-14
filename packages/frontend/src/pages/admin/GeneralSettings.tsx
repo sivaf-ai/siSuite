@@ -7,6 +7,7 @@ import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useTheme } from '../../theme/ThemeContext';
 
 const DAYS: { key: string; label: string }[] = [
   { key: 'mon', label: 'Lunedì' }, { key: 'tue', label: 'Martedì' }, { key: 'wed', label: 'Mercoledì' },
@@ -22,17 +23,22 @@ function parseText(s: string): [string, string][] {
 }
 
 function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return <div className={`switch${on ? ' on' : ''}`} onClick={onToggle} role="switch" aria-checked={on} />;
+  return (
+    <div className={`switch${on ? ' on' : ''}`} onClick={onToggle} role="switch" aria-checked={on}>
+      <span className="track"><span className="knob" /></span>
+    </div>
+  );
 }
 
 export function GeneralSettings() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const toast = useToast();
   const canManage = !!user?.permissions.includes('settings:manage' as never);
   const { data, loading, error, reload } = useApi<TenantSettingsDto>('/settings');
   const [wh, setWh] = useState<WH>({});
   const [busy, setBusy] = useState(false);
-  const [dark, setDark] = useState(false);
+  const dark = theme === 'dark';
   const [push, setPush] = useState(true);
   const [portal, setPortal] = useState(false);
   useEffect(() => { if (data) setWh(data.workingHours ?? {}); }, [data]);
@@ -59,7 +65,7 @@ export function GeneralSettings() {
             <div className="set-row"><div className="st"><b>Lingua dell'organizzazione</b><span>Lingua predefinita dell'interfaccia</span></div><span className="selv">{data.defaultLocale}</span></div>
             <div className="set-row"><div className="st"><b>Fuso orario</b><span>Usato per pianificazione e scadenze</span></div><span className="selv">{data.timezone}</span></div>
             <div className="set-row"><div className="st"><b>Verticale</b><span>Dominio di lavoro (domain pack)</span></div><span className="selv">{data.vertical}</span></div>
-            <div className="set-row"><div className="st"><b>Tema scuro</b><span>Segui le impostazioni di sistema</span></div><Switch on={dark} onToggle={() => setDark((x) => !x)} /></div>
+            <div className="set-row"><div className="st"><b>Tema scuro</b><span>Persistente su questo dispositivo (default: impostazioni di sistema)</span></div><Switch on={dark} onToggle={() => setTheme(dark ? 'light' : 'dark')} /></div>
             <div className="set-row"><div className="st"><b>Notifiche push</b><span>Avvisi su scadenze e nuove catture</span></div><Switch on={push} onToggle={() => setPush((x) => !x)} /></div>
             <div className="set-row"><div className="st"><b>Portale cliente</b><span>Abilita l'accesso esterno ai referenti</span></div><Switch on={portal} onToggle={() => setPortal((x) => !x)} /></div>
           </div>

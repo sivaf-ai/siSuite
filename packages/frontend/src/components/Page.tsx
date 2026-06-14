@@ -15,7 +15,7 @@ export function Page({ title, action, children, back }: { title: string; action?
           {action && <IonButtons slot="end">{action}</IonButtons>}
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">{children}</IonContent>
+      <IonContent className="ion-padding"><div className="page-container">{children}</div></IonContent>
     </IonPage>
   );
 }

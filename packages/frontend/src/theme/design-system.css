@@ -163,7 +163,7 @@ ion-list.inset, ion-list[inset] { border-radius: var(--r-lg); overflow: hidden; 
 .login-mark { width: 50px; height: 50px; border-radius: 14px; background: var(--flow-grad); display: grid; place-items: center; margin: 0 auto 16px; color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 24px; }
 
 /* ---- sidebar (desktop, scura) ---- */
-.ds-sidebar { background: var(--ink); height: 100%; display: flex; flex-direction: column; padding: 18px 12px; }
+.ds-sidebar { background: var(--sidebar); height: 100%; display: flex; flex-direction: column; padding: 18px 12px; }
 .ds-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; }
 .ds-brand .mark { width: 30px; height: 30px; border-radius: 9px; background: var(--flow-grad); display: grid; place-items: center; color: #fff; font-family: var(--font-display); font-weight: 800; }
 .ds-brand .name { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: #fff; letter-spacing: -.02em; }
@@ -175,6 +175,34 @@ ion-list.inset, ion-list[inset] { border-radius: var(--r-lg); overflow: hidden; 
 .ds-side-user { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 8px 4px; border-top: 1px solid rgba(255,255,255,.08); }
 .ds-side-user .nm { font-size: 13.5px; color: #fff; font-weight: 600; }
 .ds-side-user .rl { font-size: 11.5px; color: #8A8F9B; }
+/* pulsante icona nella sidebar scura (toggle, tema) */
+.ds-iconbtn { width: 34px; height: 34px; border-radius: var(--r-sm); display: grid; place-items: center; color: #C9CDD7; background: none; border: 0; cursor: pointer; flex: 0 0 auto; transition: background .12s, color .12s; }
+.ds-iconbtn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.ds-brand .toggle { margin-left: auto; }
+
+/* ---- sidebar COLLASSATA (solo icone, 64px) ---- */
+.ds-sidebar.collapsed { padding: 18px 8px; align-items: stretch; }
+.ds-sidebar.collapsed .ds-brand { justify-content: center; padding: 6px 0 14px; }
+.ds-sidebar.collapsed .ds-brand .name,
+.ds-sidebar.collapsed .ds-navgroup,
+.ds-sidebar.collapsed .ds-navitem span,
+.ds-sidebar.collapsed .ds-side-user .who { display: none; }
+.ds-sidebar.collapsed .ds-navitem { justify-content: center; padding: 10px 0; }
+.ds-sidebar.collapsed .ds-side-user { flex-direction: column; gap: 8px; }
+/* tooltip in modalità icone */
+.ds-sidebar.collapsed .ds-navitem { position: relative; }
+.ds-sidebar.collapsed .ds-navitem[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  background: var(--sidebar); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  padding: 6px 10px; border-radius: var(--r-sm); box-shadow: var(--shadow-2); z-index: 50; pointer-events: none;
+  border: 1px solid rgba(255,255,255,.12);
+}
+/* transizione morbida della larghezza del pannello */
+ion-split-pane { transition: none; }
+ion-split-pane > .split-pane-side { transition: min-width .18s ease, max-width .18s ease, width .18s ease; }
+
+/* larghezza utile dei contenuti: niente "stiramento" su schermi larghi */
+.page-container { max-width: 1340px; margin: 0 auto; width: 100%; }
 
 /* ---- tab bar mobile ---- */
 .ds-tabbar { background: rgba(255,255,255,.92); backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
@@ -270,7 +298,7 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 
 /* ---- toast ---- */
 .toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.toast { display: flex; align-items: center; gap: 10px; background: var(--ink); color: #fff; padding: 12px 16px; border-radius: var(--r); box-shadow: var(--shadow-2); font-size: 14px; font-weight: 500; animation: toastin .18s ease; }
+.toast { display: flex; align-items: center; gap: 10px; background: var(--sidebar); color: #fff; padding: 12px 16px; border-radius: var(--r); box-shadow: var(--shadow-2); font-size: 14px; font-weight: 500; animation: toastin .18s ease; }
 @keyframes toastin { from { transform: translateY(10px); opacity: 0; } }
 .toast.success .tIc { color: var(--flow); }
 .toast.error .tIc { color: var(--danger); }
@@ -405,7 +433,7 @@ table.t tbody tr:hover .row-actions { opacity: 1; }
 .block.at-risk { border-left: 3px solid var(--danger); background: linear-gradient(90deg, var(--danger-wash), var(--card) 60%); }
 .block .pin { position: absolute; top: 6px; right: 7px; color: var(--brand); }
 .rail { display: flex; flex-direction: column; gap: 16px; }
-.narr { background: var(--ink); color: #E7E9EF; border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); }
+.narr { background: var(--sidebar); color: #E7E9EF; border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); }
 .narr .h { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 15.5px; color: #fff; margin-bottom: 12px; }
 .narr .h .spark { color: var(--flow); }
 .narr p { font-size: 13.5px; line-height: 1.6; color: #C4C8D2; margin: 0 0 12px; }
