@@ -27,10 +27,11 @@ export function RisorsePage() {
           { value: 'equipment', label: { 'it-IT': 'Attrezzatura' } },
         ] },
         { key: 'label', label: 'Nome / Etichetta', dataType: 'text', required: true },
+        { key: 'hourly_cost', label: 'Costo orario', dataType: 'money', unit: '€/h' },
         { key: 'active', label: 'Attiva', dataType: 'boolean' },
       ] }]}
-      toFormInitial={(r) => ({ kind: r.kind, label: r.label, active: r.active, attributes: r.attributes })}
-      toBody={(v) => ({ kind: v.kind, label: v.label, active: v.active ?? true, attributes: v.attributes })}
+      toFormInitial={(r) => ({ kind: r.kind, label: r.label, active: r.active, hourly_cost: (r.attributes as Record<string, unknown>)?.hourly_cost, attributes: r.attributes })}
+      toBody={(v) => ({ kind: v.kind, label: v.label, active: v.active ?? true, attributes: { ...(v.attributes as Record<string, unknown>), hourly_cost: v.hourly_cost ?? null } })}
       detailPath={(r) => `/resources/${r.id}`}
     />
   );

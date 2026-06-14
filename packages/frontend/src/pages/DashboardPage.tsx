@@ -18,6 +18,7 @@ interface Dash {
   orePerGiorno: { date: string; minutes: number }[];
   commessePerStato: { canonical: string; label: string; colorToken: string; count: number }[];
   avanzamentoCommesse: { id: string; title: string; total: number; done: number; pct: number }[];
+  marginalitaCommesse: { id: string; title: string; budget: number; costo: number; margine: number; pct: number }[];
 }
 const CAP: Record<string, { label: string; token: string }> = {
   pending: { label: 'In attesa', token: 'neutral' }, proposed: { label: 'Da rivedere', token: 'warning' },
@@ -26,11 +27,11 @@ const CAP: Record<string, { label: string; token: string }> = {
 const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : 'flusso');
 const dow = (d: string) => new Date(d + 'T00:00:00Z').toLocaleDateString('it-IT', { weekday: 'short', timeZone: 'UTC' });
 
-const ALL_WIDGETS = ['kpis', 'ore_per_giorno', 'commesse_per_stato', 'avanzamento', 'attivita_oggi', 'catture_recenti'] as const;
+const ALL_WIDGETS = ['kpis', 'ore_per_giorno', 'commesse_per_stato', 'avanzamento', 'marginalita', 'attivita_oggi', 'catture_recenti'] as const;
 type WidgetKey = (typeof ALL_WIDGETS)[number];
 const TITLE: Record<WidgetKey, string> = {
   kpis: 'Indicatori', ore_per_giorno: 'Ore per giorno', commesse_per_stato: 'Commesse per stato',
-  avanzamento: 'Avanzamento commesse', attivita_oggi: 'Attività di oggi', catture_recenti: 'Catture recenti',
+  avanzamento: 'Avanzamento commesse', marginalita: 'Marginalità commesse', attivita_oggi: 'Attività di oggi', catture_recenti: 'Catture recenti',
 };
 const DEFAULT_CFG = { order: [...ALL_WIDGETS] as string[], hidden: [] as string[] };
 const CFG_KEY = 'sisuite.dashboard';
@@ -160,6 +161,24 @@ function Widget({ k, data, lk }: { k: WidgetKey; data: Dash; lk: ReturnType<type
       </div>
     </div>
   );
+
+  if (k === 'marginalita') {
+    const eur = (n: number) => n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+    return (
+      <div className="panel"><div className="ph"><h3>Marginalità commesse</h3><span className="chip">budget − costi</span></div>
+        <div className="pb">
+          {data.marginalitaCommesse.length === 0
+            ? <Empty text="Imposta un budget sulle commesse e i costi (orario risorsa, costo materiale) per vedere il margine." />
+            : data.marginalitaCommesse.map((m) => (
+              <div className="row-li" key={m.id}>
+                <div className="li-main"><div className="li-title">{m.title}</div><div className="cellsub mono">budget {eur(m.budget)} · costi {eur(m.costo)}</div></div>
+                <span className={`pill ${m.margine >= 0 ? 'pill--success' : 'pill--danger'}`}><span className="dot" />{eur(m.margine)} · {m.pct}%</span>
+              </div>
+            ))}
+        </div>
+      </div>
+    );
+  }
 
   if (k === 'attivita_oggi') return (
     <div className="panel"><div className="ph"><h3>Attività di oggi</h3><span className="chip">{data.totaleAttivitaOggi} totali</span></div>

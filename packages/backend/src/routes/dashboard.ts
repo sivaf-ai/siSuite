@@ -77,10 +77,33 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         pct: (r.tot as number) > 0 ? Math.round(((r.fatte as number) / (r.tot as number)) * 100) : 0,
       }));
 
+      // marginalità commesse (parte 8 §4.3): budget − (Σ ore×costo_orario + Σ consumi×costo_unitario).
+      // Ricavo/costi dai campi di sistema in attributes (engagement.budget, resource.hourly_cost, material.unit_cost).
+      const marginalitaCommesse = (await db.query(
+        `SELECT e.id, e.title,
+                (e.attributes->>'budget')::numeric AS budget,
+                COALESCE((SELECT sum((t.minutes/60.0) * COALESCE((r.attributes->>'hourly_cost')::numeric,0))
+                          FROM time_entry t LEFT JOIN resource r ON r.id = t.resource_id WHERE t.engagement_id = e.id),0) AS costo_ore,
+                COALESCE((SELECT sum(c.quantity * COALESCE((m.attributes->>'unit_cost')::numeric,0))
+                          FROM material_consumption c JOIN activity a ON a.id = c.activity_id LEFT JOIN material m ON m.id = c.material_id
+                          WHERE a.engagement_id = e.id),0) AS costo_mat
+         FROM engagement e JOIN lookup_value es ON es.id = e.status_id AND es.canonical NOT IN ('closed','cancelled')
+         WHERE e.archived_at IS NULL AND (e.attributes ? 'budget')
+         ORDER BY e.created_at DESC LIMIT 8`)).rows.map((r) => {
+        const budget = Number(r.budget ?? 0);
+        const costo = Number(r.costo_ore ?? 0) + Number(r.costo_mat ?? 0);
+        const margine = budget - costo;
+        return {
+          id: r.id as string, title: r.title as string,
+          budget, costo: Math.round(costo * 100) / 100, margine: Math.round(margine * 100) / 100,
+          pct: budget > 0 ? Math.round((margine / budget) * 100) : 0,
+        };
+      });
+
       return {
         commesseAttive, oreSettimana, cattureDaRivedere, scadenzeARischio,
         attivitaOggi, cattureRecenti, totaleAttivitaOggi,
-        orePerGiorno, commessePerStato, avanzamentoCommesse,
+        orePerGiorno, commessePerStato, avanzamentoCommesse, marginalitaCommesse,
       };
     });
   });

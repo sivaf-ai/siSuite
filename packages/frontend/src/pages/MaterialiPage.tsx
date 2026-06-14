@@ -17,9 +17,10 @@ export function MaterialiPage() {
       buildForm={() => [{ group: 'Principale', fields: [
         { key: 'name', label: 'Nome', dataType: 'text', required: true },
         { key: 'unit', label: 'Unità (pezzo, sacco, m³, ora…)', dataType: 'text', required: true },
+        { key: 'unit_cost', label: 'Costo unitario', dataType: 'money', unit: '€' },
       ] }]}
-      toFormInitial={(r) => ({ name: r.name, unit: r.unit, attributes: r.attributes })}
-      toBody={(v) => ({ name: v.name, unit: v.unit, attributes: v.attributes })}
+      toFormInitial={(r) => ({ name: r.name, unit: r.unit, unit_cost: (r.attributes as Record<string, unknown>)?.unit_cost, attributes: r.attributes })}
+      toBody={(v) => ({ name: v.name, unit: v.unit, attributes: { ...(v.attributes as Record<string, unknown>), unit_cost: v.unit_cost ?? null } })}
     />
   );
 }
