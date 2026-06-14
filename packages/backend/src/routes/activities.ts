@@ -6,11 +6,20 @@ import type { FastifyInstance } from 'fastify';
 import type { PoolClient } from '../db/pool.js';
 import {
   createActivitySchema, updateActivitySchema, updateChecklistSchema, assignResourceSchema,
-  type ActivityDto, type ActivityResourceDto,
+  createDependencySchema,
+  type ActivityDto, type ActivityResourceDto, type DependencyEdgeDto,
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { lookupDefaultId } from '../status.js';
+
+function depDto(r: Record<string, unknown>): DependencyEdgeDto {
+  return {
+    id: r.id as string, predecessorId: r.predecessor_id as string, successorId: r.successor_id as string,
+    predecessorTitle: (r.predecessor_title as string) ?? null, successorTitle: (r.successor_title as string) ?? null,
+    type: r.type as DependencyEdgeDto['type'], lagMinutes: (r.lag_minutes as number) ?? 0,
+  };
+}
 
 const SELECT = `
   SELECT a.id, a.engagement_id, a.phase_id, a.asset_id, a.title, a.kind,
@@ -76,6 +85,61 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
           lagMinutes: (r.lag_minutes as number) ?? 0,
         })),
       };
+    });
+
+  // CREA DIPENDENZA ("Bloccata da"): predecessor → successor.
+  // SICUREZZA: entrambe le attività devono essere VISIBILI al chiamante (withRls) —
+  // la RLS di activity_dependency controlla solo tenant_id, quindi qui verifichiamo
+  // la visibilità delle attività una per una. + stessa commessa + anti-ciclo (WITH RECURSIVE).
+  app.post('/dependencies', { preHandler: [app.authenticate, requirePermission('dependency:manage')] },
+    async (request, reply) => {
+      const input = createDependencySchema.parse(request.body);
+      if (input.predecessorId === input.successorId)
+        return reply.code(400).send({ error: 'bad_request', message: 'Un\'attività non può dipendere da se stessa', statusCode: 400 });
+      try {
+        const result = await withRls(request.ctx, async (db) => {
+          // 1) visibilità di ENTRAMBE sotto RLS (se non le vedo entrambe → stop)
+          const vis = await db.query(`SELECT id, engagement_id FROM activity WHERE id IN ($1, $2)`,
+            [input.predecessorId, input.successorId]);
+          if (vis.rows.length < 2) return { reject: { code: 404, msg: 'Attività non trovata o non visibile' } } as const;
+          const engOf = new Map(vis.rows.map((r) => [r.id as string, r.engagement_id as string]));
+          if (engOf.get(input.predecessorId) !== engOf.get(input.successorId))
+            return { reject: { code: 400, msg: 'Le due attività devono appartenere alla stessa commessa' } } as const;
+          // 2) anti-ciclo: esiste già un percorso successor → … → predecessor? allora P→S chiuderebbe un ciclo
+          const cyc = await db.query(
+            `WITH RECURSIVE reach AS (
+               SELECT successor_id AS node FROM activity_dependency WHERE predecessor_id = $1
+               UNION
+               SELECT d.successor_id FROM activity_dependency d JOIN reach r ON d.predecessor_id = r.node
+             ) SELECT 1 FROM reach WHERE node = $2 LIMIT 1`,
+            [input.successorId, input.predecessorId]);
+          if (cyc.rows.length) return { reject: { code: 409, msg: 'Dipendenza ciclica: creerebbe un ciclo tra le attività' } } as const;
+          // 3) inserisci (un eventuale duplicato 23505 propaga e lo gestiamo fuori)
+          const ins = await db.query(
+            `INSERT INTO activity_dependency (tenant_id, predecessor_id, successor_id, type, lag_minutes)
+             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [request.ctx.tenantId, input.predecessorId, input.successorId, input.type, input.lagMinutes]);
+          const r = await db.query(
+            `SELECT d.id, d.predecessor_id, d.successor_id, d.type, d.lag_minutes,
+                    p.title AS predecessor_title, s.title AS successor_title
+             FROM activity_dependency d JOIN activity p ON p.id = d.predecessor_id JOIN activity s ON s.id = d.successor_id
+             WHERE d.id = $1`, [ins.rows[0].id]);
+          return { dto: depDto(r.rows[0]) } as const;
+        });
+        if ('reject' in result && result.reject) return reply.code(result.reject.code).send({ error: 'error', message: result.reject.msg, statusCode: result.reject.code });
+        return reply.code(201).send('dto' in result ? result.dto : undefined);
+      } catch (err) {
+        if ((err as { code?: string }).code === '23505')
+          return reply.code(409).send({ error: 'conflict', message: 'Dipendenza già presente', statusCode: 409 });
+        throw err;
+      }
+    });
+
+  app.delete<{ Params: { id: string } }>('/dependencies/:id',
+    { preHandler: [app.authenticate, requirePermission('dependency:manage')] },
+    async (request, reply) => {
+      await withRls(request.ctx, (db) => db.query(`DELETE FROM activity_dependency WHERE id = $1`, [request.params.id]));
+      return reply.code(204).send();
     });
 
   // LISTA (filtri: engagementId, phaseId)

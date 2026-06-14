@@ -176,6 +176,13 @@ export interface ActivityDto {
 export const updateChecklistSchema = z.object({ checklist: checklistSchema });
 
 /* ── Dipendenza tra attività (grafo DAG) ───────────────────────────── */
+export const createDependencySchema = z.object({
+  predecessorId: uuid,                 // l'attività che blocca ("dopo X")
+  successorId: uuid,                   // l'attività bloccata
+  type: z.enum(['FS', 'SS', 'FF', 'SF']).default('FS'),
+  lagMinutes: z.number().int().default(0),
+});
+export type CreateDependencyInput = z.infer<typeof createDependencySchema>;
 export interface DependencyEdgeDto {
   id: string;
   predecessorId: string;

@@ -4,7 +4,7 @@ import {
   IonList, IonItem, IonLabel, IonCheckbox, IonButton, IonSelect, IonSelectOption, IonInput,
   IonChip, IonNote, IonSpinner, IonText,
 } from '@ionic/react';
-import type { ActivityDto, ActivityResourceDto, TimeEntryDto, ConsumptionDto, MaterialDto, ResourceDto } from '@sisuite/shared';
+import type { ActivityDto, ActivityResourceDto, TimeEntryDto, ConsumptionDto, MaterialDto, ResourceDto, DependencyEdgeDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { useApi, mutate } from '../api/hooks';
@@ -73,6 +73,8 @@ export function AttivitaDetailPage() {
           )}
 
           <RisorseAssegnate activityId={id} resources={act.data.resources} onChange={() => act.reload()} />
+
+          <Dipendenze activityId={id} engagementId={act.data.engagementId} />
 
           <RendicontazioneOre activityId={id} engagementId={act.data.engagementId} />
           <RendicontazioneMateriali activityId={id} />
@@ -144,6 +146,61 @@ function RisorseAssegnate({ activityId, resources, onChange }:
         </div>
       )}
       <IonNote style={{ display: 'block', marginTop: 6, fontSize: 12 }}>Con orario Da/A il sistema blocca la doppia prenotazione della stessa risorsa.</IonNote>
+      {err && <IonText color="danger"><p>{err}</p></IonText>}
+    </>
+  );
+}
+
+function Dipendenze({ activityId, engagementId }: { activityId: string; engagementId: string }) {
+  const { user } = useAuth();
+  const can = !!user?.permissions.includes('dependency:manage');
+  const acts = useApi<{ items: ActivityDto[] }>(`/activities?engagementId=${engagementId}`);
+  const deps = useApi<{ items: DependencyEdgeDto[] }>(`/engagements/${engagementId}/dependencies`);
+  const [predId, setPredId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const blockedBy = (deps.data?.items ?? []).filter((d) => d.successorId === activityId);
+  const candidates = (acts.data?.items ?? []).filter((a) => a.id !== activityId && !blockedBy.some((d) => d.predecessorId === a.id));
+
+  async function add() {
+    const pid = predId || candidates[0]?.id;
+    if (!pid) { setErr('Nessuna attività candidata'); return; }
+    setBusy(true); setErr(null);
+    try {
+      await mutate('POST', '/dependencies', { predecessorId: pid, successorId: activityId });
+      setPredId(''); void deps.reload();
+    } catch (e) {
+      setErr(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
+    } finally { setBusy(false); }
+  }
+  async function remove(depId: string) {
+    setBusy(true); setErr(null);
+    try { await mutate('DELETE', `/dependencies/${depId}`); void deps.reload(); }
+    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 18 }}>Bloccata da</h3>
+      {blockedBy.length === 0 ? <Empty text="Nessuna dipendenza: parte appena possibile." /> : (
+        <IonList>{blockedBy.map((d) => (
+          <IonItem key={d.id}>
+            <IonLabel>{d.predecessorTitle}<IonNote style={{ display: 'block', fontSize: 12 }}>deve finire prima (FS)</IonNote></IonLabel>
+            {can && <IonButton fill="clear" color="danger" size="small" onClick={() => remove(d.id)} disabled={busy}>Rimuovi</IonButton>}
+          </IonItem>
+        ))}</IonList>
+      )}
+      {can && candidates.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginTop: 8, flexWrap: 'wrap' }}>
+          <IonSelect style={{ minWidth: 220 }} label="Aggiungi vincolo" labelPlacement="stacked"
+            value={predId || candidates[0]?.id} onIonChange={(e) => setPredId(e.detail.value)}>
+            {candidates.map((a) => <IonSelectOption key={a.id} value={a.id}>{a.title}</IonSelectOption>)}
+          </IonSelect>
+          <IonButton size="default" disabled={busy} onClick={add}>{busy ? <IonSpinner name="crescent" /> : 'Blocca'}</IonButton>
+        </div>
+      )}
+      <IonNote style={{ display: 'block', marginTop: 6, fontSize: 12 }}>Vincolo Fine→Inizio nella stessa commessa; il sistema impedisce i cicli.</IonNote>
       {err && <IonText color="danger"><p>{err}</p></IonText>}
     </>
   );
