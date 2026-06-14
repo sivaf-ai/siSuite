@@ -260,6 +260,44 @@ export interface ConsumptionDto {
   quantity: number; unit: string; occurredOn: string; createdAt: string;
 }
 
+/* ── Assenze (§4.4) ────────────────────────────────────────────────── */
+export const createAbsenceSchema = z.object({
+  resourceId: uuid,
+  typeId: uuid,                       // lookup_value category 'absence_type'
+  startsOn: day,
+  endsOn: day,
+  hours: z.number().positive().optional(),   // assenze a ore; assente = giornate intere
+  halfDay: z.boolean().optional(),
+  note: z.string().max(1000).optional(),
+  attachmentUrl: z.string().max(500).optional(),
+});
+export interface AbsenceDto {
+  id: string; resourceId: string; typeId: string; startsOn: string; endsOn: string;
+  hours: number | null; halfDay: boolean; note: string | null; attachmentUrl: string | null;
+  approvalStatusId: string | null; createdAt: string;
+}
+export const upsertAbsenceBalanceSchema = z.object({
+  resourceId: uuid, typeId: uuid, year: z.number().int().min(2000).max(2100),
+  accrued: z.number(),
+});
+export interface AbsenceBalanceDto {
+  resourceId: string; typeId: string; year: number; accrued: number; used: number; residual: number;
+}
+
+/* ── Cronometro (§4.5) ─────────────────────────────────────────────── */
+export const startTimerSchema = z.object({
+  resourceId: uuid.optional(), activityId: uuid.optional(), engagementId: uuid.optional(),
+});
+export const commitTimerSchema = z.object({
+  typology: z.string().min(1).max(60).default('ordinary'),
+  typologyId: uuid.optional(),
+  notes: z.string().max(1000).optional(),
+});
+export interface TimerSessionDto {
+  id: string; resourceId: string; activityId: string | null; engagementId: string | null;
+  startedAt: string; stoppedAt: string | null; committedTimeEntryId: string | null;
+}
+
 /* ── Magazzino minimo 6A (§8) ──────────────────────────────────────── */
 export const createStockLocationSchema = z.object({
   name: z.string().min(1).max(120),
