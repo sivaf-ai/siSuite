@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { SignJWT } from 'jose';
 import type pg from 'pg';
-import { openAdmin, readPack, withMarker, findDemoTenant, authBaseUrl, type DemoPack } from './lib.js';
+import { openAdmin, readPack, rebaseDates, withMarker, findDemoTenant, authBaseUrl, type DemoPack } from './lib.js';
 import { ensureAuthUser } from '../auth/gotrueAdmin.js';
 
 export interface LoadSummary { tenantId: string; tenantName: string; vertical: string; users: number; engagements: number; activities: number; dependencies: number; logins: { role: string; email: string; password: string }[] }
@@ -49,7 +49,7 @@ async function nextEngCode(db: pg.Client, tenantId: string, now = new Date()): P
 
 /** Carica un pack (idempotente per tenant: rifiuta se già presente). */
 export async function loadPack(packName: string): Promise<LoadSummary> {
-  const pack: DemoPack = readPack(packName);
+  const pack: DemoPack = rebaseDates(readPack(packName));
   const db = await openAdmin();
   const T = pack.tenant;
   try {

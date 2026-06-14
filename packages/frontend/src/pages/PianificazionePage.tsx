@@ -1,6 +1,6 @@
 /** Pianificazione (mock 03): griglia RISORSE × GIORNI (per-risorsa, FASE 2) +
  *  rail con narrazione e PROPOSTE AI sui conflitti ("proponi, non forzare"). */
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pin, Sparkles, AlertTriangle, CalendarClock } from 'lucide-react';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { useApi } from '../api/hooks';
@@ -8,8 +8,9 @@ import { useApi } from '../api/hooks';
 interface Block { activityId: string; title: string; kind: 'fixed' | 'flowing'; start: string; end: string; atRisk: boolean }
 interface ResourcePlan { resourceId: string; label: string; resourceKind: string; blocks: Block[] }
 interface Week {
-  weekFrom: string; resources: ResourcePlan[];
+  weekFrom: string; suggestedFrom: string; resources: ResourcePlan[];
   conflicts: { activityId: string; title: string; reason: string }[];
+  totals: { activities: number; minutes: number; conflicts: number };
   narrative: { available: boolean; summary: string; proposals: string[] };
 }
 
@@ -21,6 +22,18 @@ export function PianificazionePage() {
   const [anchor, setAnchor] = useState<Date>(() => mondayOf(new Date()));
   const fromStr = anchor.toISOString().slice(0, 10);
   const { data, loading, error } = useApi<Week>(`/schedule/week?from=${fromStr}`);
+
+  // Apertura intelligente: se la settimana di default è vuota ma il piano ha attività
+  // più avanti (forward-pass), salta UNA volta alla prima settimana piena (suggestedFrom).
+  const didAutoSnap = useRef(false);
+  useEffect(() => {
+    if (didAutoSnap.current || !data) return;
+    didAutoSnap.current = true;
+    const empty = data.resources.every((r) => r.blocks.length === 0);
+    if (empty && data.suggestedFrom && data.suggestedFrom !== fromStr) {
+      setAnchor(new Date(`${data.suggestedFrom}T00:00:00.000Z`));
+    }
+  }, [data, fromStr]);
 
   const days = Array.from({ length: 5 }, (_, i) => new Date(anchor.getTime() + i * 86_400_000));
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -35,9 +48,10 @@ export function PianificazionePage() {
       .map((b) => ({ ...b, startsToday: new Date(b.start).getTime() >= s }));
   };
 
-  const totMin = (data?.resources ?? []).reduce((sum, r) => sum + r.blocks.reduce((s, b) => s + (new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000, 0), 0);
-  const totAct = new Set((data?.resources ?? []).flatMap((r) => r.blocks.map((b) => b.activityId))).size;
-  const nConf = data?.conflicts.length ?? 0;
+  // mini = stessi numeri della griglia: arrivano già ritagliati alla settimana dal backend (scopeWeek)
+  const totMin = data?.totals.minutes ?? 0;
+  const totAct = data?.totals.activities ?? 0;
+  const nConf = data?.totals.conflicts ?? 0;
 
   return (
     <Page title="Pianificazione">

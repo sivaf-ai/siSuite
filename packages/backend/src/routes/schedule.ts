@@ -9,7 +9,10 @@ import {
   schedule, scheduleResources,
   type FlowActivity, type WorkingHours, type FlowResource, type FlowAssignedActivity,
 } from '../flow/scheduler.js';
+import { scopeWeek } from '../flow/weekView.js';
 import { narrateWeek } from '../ai/narrator.js';
+
+const DAY_MS = 86_400_000;
 
 const PRIORITY_SEQ: Record<string, number> = { urgent: 1, high: 2, medium: 3, low: 4 };
 
@@ -50,8 +53,14 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const fromStr = request.query.from;
       const weekFrom = fromStr && /^\d{4}-\d{2}-\d{2}$/.test(fromStr) ? fromStr : new Date().toISOString().slice(0, 10);
+      // Il piano è UN forward-pass da "ora"; l'orizzonte deve coprire la settimana richiesta
+      // (anche se più avanti di qualche settimana) così la navigazione mostra dati.
+      const now = new Date();
+      const day0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const weekEndMs = Date.UTC(+weekFrom.slice(0, 4), +weekFrom.slice(5, 7) - 1, +weekFrom.slice(8, 10)) + 7 * DAY_MS;
+      const horizonDays = Math.max(28, Math.ceil((weekEndMs - day0) / DAY_MS) + 7);
 
-      const week = await withRls(request.ctx, async (db) => {
+      const full = await withRls(request.ctx, async (db) => {
         const tw = await db.query(`SELECT working_hours FROM tenant WHERE id = $1`, [request.ctx.tenantId]);
         const tenantWH = (tw.rows[0]?.working_hours ?? {}) as WorkingHours;
 
@@ -91,15 +100,21 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
           resourceIds: (r.resource_ids as string[]) ?? [],
         }));
 
-        return scheduleResources(resources, flowActs, tenantWH, new Date());
+        return scheduleResources(resources, flowActs, tenantWH, now, horizonDays);
       });
 
-      // layer AI: racconta la settimana e PROPONE la riprogrammazione sui conflitti
+      // Ritaglia alla settimana richiesta: mini, griglia e rail derivano dallo STESSO insieme.
+      const view = scopeWeek(full, weekFrom);
+
+      // layer AI: racconta la settimana RITAGLIATA e PROPONE la riprogrammazione sui conflitti
       const narrative = await narrateWeek(request.ctx, {
-        resources: week.resources.map((r) => ({ label: r.label, blocks: r.blocks.map((b) => ({ title: b.title, atRisk: b.atRisk })) })),
-        conflicts: week.conflicts.map((c) => ({ title: c.title, reason: c.reason })),
+        resources: view.resources.map((r) => ({ label: r.label, blocks: r.blocks.map((b) => ({ title: b.title, atRisk: b.atRisk })) })),
+        conflicts: view.conflicts.map((c) => ({ title: c.title, reason: c.reason })),
       });
 
-      return { weekFrom, resources: week.resources, conflicts: week.conflicts, narrative };
+      return {
+        weekFrom: view.weekFrom, suggestedFrom: view.suggestedFrom,
+        resources: view.resources, conflicts: view.conflicts, totals: view.totals, narrative,
+      };
     });
 }

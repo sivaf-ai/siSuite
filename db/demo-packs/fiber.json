@@ -1,5 +1,6 @@
 {
   "pack": "fiber",
+  "reference_date": "2026-06-14",
   "tenant": { "name": "Fibra Demo", "vertical": "fiber", "default_locale": "it-IT", "timezone": "Europe/Rome" },
   "subscription": { "plan_code": "pro", "days_valid": 365 },
   "users": [
