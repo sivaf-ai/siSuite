@@ -223,14 +223,29 @@ export const createTimeEntrySchema = z.object({
   activityId: uuid.optional(),
   resourceId: uuid.optional(),
   typology: z.string().min(1).max(60),
+  typologyId: uuid.optional(),         // §4.1 natura via lookup_value (time_typology)
   minutes: z.number().int().positive(),
   occurredOn: day,
   notes: z.string().max(1000).optional(),
+  billable: z.boolean().optional(),    // §4.2 default true lato DB
 });
 export interface TimeEntryDto {
   id: string; engagementId: string | null; activityId: string | null; resourceId: string | null;
-  typology: string; minutes: number; occurredOn: string; notes: string | null; createdAt: string;
+  typology: string; typologyId: string | null; minutes: number; occurredOn: string; notes: string | null;
+  // §4.2 tariffe fotografate
+  costRate: number | null; billRate: number | null; currency: string | null; billable: boolean;
+  // §4.3 approvazione + blocco
+  approvalStatusId: string | null; isLocked: boolean; lockReason: string | null;
+  createdAt: string;
 }
+
+/* ── Time entry: workflow approvazione/blocco (§4.3, azioni in blocco) ── */
+export const timeEntryIdsSchema = z.object({ ids: z.array(uuid).min(1).max(500) });
+export const rejectTimeEntriesSchema = z.object({ ids: z.array(uuid).min(1).max(500), reason: z.string().max(500).optional() });
+export const lockTimeEntriesSchema = z.object({
+  ids: z.array(uuid).min(1).max(500),
+  reason: z.enum(['PAYROLL', 'INVOICED', 'PERIOD_CLOSE', 'MANUAL']).default('MANUAL'),
+});
 
 /* ── Material consumption (rendicontazione materiali via form) ─────── */
 export const createConsumptionSchema = z.object({

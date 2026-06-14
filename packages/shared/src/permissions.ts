@@ -36,8 +36,11 @@ export const PERMISSION_CATALOG = {
 
   // --- Esecuzione e rendicontazione (il mondo del tecnico) ---------------
   capture:              { label: 'Catture',           actions: { create: 'Crea', read: 'Vedi', apply: 'Applica estrazione', delete: 'Elimina' } },
-  time_entry:           { label: 'Ore',               actions: { create: 'Registra', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
+  time_entry:           { label: 'Ore',               actions: { create: 'Registra', read: 'Vedi', update: 'Modifica', delete: 'Elimina', approve: 'Approva/Blocca' } },
   material_consumption: { label: 'Consumi materiali', actions: { create: 'Registra', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
+  absence:              { label: 'Assenze',           actions: { create: 'Richiedi', read: 'Vedi', update: 'Modifica', delete: 'Elimina', approve: 'Approva' } },
+  work_report:          { label: 'Rapportini',        actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
+  stock:                { label: 'Magazzino',         actions: { read: 'Vedi', move: 'Registra movimento', manage: 'Gestisci (ubicazioni/documenti)' } },
 
   // --- Anagrafiche / master data -----------------------------------------
   company:  { label: 'Aziende',     actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
@@ -108,7 +111,10 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'dependency:read', 'dependency:manage',
       'asset:create', 'asset:read', 'asset:update',
       'template:create', 'template:read', 'template:update',
-      'capture:read', 'time_entry:read', 'material_consumption:read',
+      'capture:read', 'time_entry:read', 'time_entry:approve', 'material_consumption:read',
+      'absence:read', 'absence:approve',
+      'work_report:create', 'work_report:read', 'work_report:update',
+      'stock:read', 'stock:move', 'stock:manage',
       'company:read', 'contact:read', 'resource:read', 'material:read',
       'report:read', 'report:export',
     ],
@@ -122,6 +128,9 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'capture:create', 'capture:read',
       'time_entry:create', 'time_entry:read',
       'material_consumption:create', 'material_consumption:read',
+      'absence:create', 'absence:read',
+      'work_report:create', 'work_report:read',
+      'stock:read', 'stock:move',
       'engagement:read', 'phase:read', 'asset:read', 'material:read',
     ],
   },
@@ -131,6 +140,7 @@ export const SYSTEM_ROLES: SystemRole[] = [
     dataScope: 'tenant',
     permissions: [
       ...reads('engagement', 'phase', 'activity', 'time_entry', 'material_consumption',
+               'absence', 'work_report', 'stock',
                'material', 'company', 'contact', 'asset', 'resource'),
       'report:read', 'report:export',
     ],
@@ -141,7 +151,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
     dataScope: 'tenant',
     permissions: [
       ...reads('engagement', 'phase', 'activity', 'dependency', 'capture', 'time_entry',
-               'material_consumption', 'company', 'contact', 'asset', 'resource',
+               'material_consumption', 'absence', 'work_report', 'stock',
+               'company', 'contact', 'asset', 'resource',
                'material', 'template'),
       'report:read',
     ],
