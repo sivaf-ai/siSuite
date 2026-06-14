@@ -9,6 +9,7 @@
  * L'AI non scrive mai diretta nel DB: emette intento, il deterministico dispone.
  */
 import type { FastifyInstance } from 'fastify';
+import type { PoolClient } from '../db/pool.js';
 import {
   createCaptureSchema, applyCaptureSchema, type CaptureDto, type ProposedOperation,
   type PermissionKey,
@@ -28,6 +29,16 @@ interface CaptureRow {
   id: string; status: CaptureDto['status']; channel: CaptureDto['channel'];
   raw_text: string; created_at: string; processed_at: string | null; extraction: { operations?: RawOperation[] } | null;
 }
+/** Quota AI mensile (entitlement `ai_quota_month`): uso = catture del mese.
+ *  0/assente = nessun limite. Superata → la cattura si salva ma l'AI non gira. */
+async function aiQuotaExceeded(db: PoolClient, entitlements: Record<string, unknown>): Promise<boolean> {
+  const quota = Number(entitlements?.ai_quota_month ?? 0);
+  if (!quota || quota <= 0) return false;
+  const r = await db.query(`SELECT count(*)::int AS n FROM capture WHERE date_trunc('month', created_at) = date_trunc('month', now())`);
+  return (r.rows[0].n as number) > quota;
+}
+const QUOTA_NOTE = 'Quota AI mensile esaurita: la cattura è salvata, elaborala dai form (o aggiorna il piano).';
+
 function baseDto(r: CaptureRow, operations: ProposedOperation[] = []): CaptureDto {
   return {
     id: r.id, status: r.status, channel: r.channel, rawText: r.raw_text,
@@ -84,6 +95,9 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
       if (!aiEnabled()) {
         return reply.code(201).send({ ...baseDto(row), note: 'Pipeline AI non configurata (ANTHROPIC_API_KEY). La cattura è salvata; usa i form per rendicontare.' });
       }
+      if (await withRls(ctx, (db) => aiQuotaExceeded(db, ctx.entitlements))) {
+        return reply.code(201).send({ ...baseDto(row), note: QUOTA_NOTE });
+      }
 
       let operations: ProposedOperation[] = [];
       let status = row.status;
@@ -135,8 +149,11 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
 
       // 2) elabora-dopo: accoda l'estrazione (o fallback sincrono se la coda è giù)
       let queued = false;
+      const overQuota = aiEnabled() ? await withRls(ctx, (db) => aiQuotaExceeded(db, ctx.entitlements)) : false;
       if (!aiEnabled()) {
         notes.push('Pipeline AI non configurata.');
+      } else if (overQuota) {
+        notes.push(QUOTA_NOTE);
       } else if (!transcript) {
         notes.push('Nessuna trascrizione: audio salvato, niente da estrarre.');
       } else {
