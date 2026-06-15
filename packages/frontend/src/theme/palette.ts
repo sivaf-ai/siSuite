@@ -2,10 +2,15 @@
  *  memorizza una CHIAVE (semantica o di palette); qui la risolviamo nei token CSS
  *  (var --c-<key> / --c-<key>-wash) con variante chiaro/scuro automatica. */
 
-/** Colori liberi della palette (16), coerenti e a prova di tema scuro. */
+/** Colori liberi della palette (32), coerenti e a prova di tema scuro.
+ *  Ogni chiave ha una variante chiaro/scuro AUTOMATICA (token `--c-<key>` /
+ *  `--c-<key>-wash` definiti in variables.css per `:root` e `[data-theme=dark]`):
+ *  l'utente sceglie UN solo colore, il tema applica la tonalità giusta. */
 export const PALETTE: string[] = [
-  'rose', 'pink', 'fuchsia', 'violet', 'indigo', 'sky', 'cyan', 'teal',
-  'emerald', 'green', 'lime', 'amber', 'orange', 'red', 'slate', 'stone',
+  'rose', 'pink', 'fuchsia', 'magenta', 'plum', 'purple', 'violet', 'indigo',
+  'navy', 'blue', 'azure', 'sky', 'cyan', 'teal', 'jade', 'emerald',
+  'forest', 'green', 'olive', 'lime', 'yellow', 'gold', 'amber', 'orange',
+  'brown', 'red', 'maroon', 'slate', 'gray', 'zinc', 'stone', 'charcoal',
 ];
 
 /** Token semantici di sistema (per gli stati logici): restano disponibili. */

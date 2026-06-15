@@ -119,6 +119,22 @@
   --c-red: #DC2626;     --c-red-wash: #FEE2E2;
   --c-slate: #475569;   --c-slate-wash: #E2E8F0;
   --c-stone: #57534E;   --c-stone-wash: #E7E5E4;
+  --c-blue: #2563EB;    --c-blue-wash: #DBEAFE;
+  --c-purple: #9333EA;  --c-purple-wash: #F3E8FF;
+  --c-yellow: #CA8A04;  --c-yellow-wash: #FEF9C3;
+  --c-gray: #4B5563;    --c-gray-wash: #EEF0F3;
+  --c-zinc: #52525B;    --c-zinc-wash: #ECECEE;
+  --c-navy: #1E40AF;    --c-navy-wash: #DBEAFE;
+  --c-forest: #15803D;  --c-forest-wash: #DCFCE7;
+  --c-maroon: #9F1239;  --c-maroon-wash: #FFE4E6;
+  --c-gold: #A16207;    --c-gold-wash: #FEF3C7;
+  --c-plum: #6B21A8;    --c-plum-wash: #F3E8FF;
+  --c-azure: #0369A1;   --c-azure-wash: #E0F2FE;
+  --c-jade: #047857;    --c-jade-wash: #D1FAE5;
+  --c-magenta: #A21CAF; --c-magenta-wash: #FAE8FF;
+  --c-brown: #78350F;   --c-brown-wash: #F5E6D8;
+  --c-olive: #4D7C0F;   --c-olive-wash: #ECFCCB;
+  --c-charcoal: #374151;--c-charcoal-wash: #E5E7EB;
 }
 :root[data-theme="dark"] {
   --c-rose: #FB7185;    --c-rose-wash: #4C1D24;
@@ -137,4 +153,20 @@
   --c-red: #F87171;     --c-red-wash: #2E1212;
   --c-slate: #94A3B8;   --c-slate-wash: #1E293B;
   --c-stone: #A8A29E;   --c-stone-wash: #292524;
+  --c-blue: #60A5FA;    --c-blue-wash: #16223F;
+  --c-purple: #C084FC;  --c-purple-wash: #281042;
+  --c-yellow: #FACC15;  --c-yellow-wash: #2C2705;
+  --c-gray: #9CA3AF;    --c-gray-wash: #1F2630;
+  --c-zinc: #A1A1AA;    --c-zinc-wash: #26262A;
+  --c-navy: #93C5FD;    --c-navy-wash: #111B3A;
+  --c-forest: #86EFAC;  --c-forest-wash: #0C2616;
+  --c-maroon: #FDA4AF;  --c-maroon-wash: #2A0E16;
+  --c-gold: #FCD34D;    --c-gold-wash: #2A1E05;
+  --c-plum: #D8B4FE;    --c-plum-wash: #21103A;
+  --c-azure: #7DD3FC;   --c-azure-wash: #0A2436;
+  --c-jade: #6EE7B7;    --c-jade-wash: #0A2A20;
+  --c-magenta: #F0ABFC; --c-magenta-wash: #2E0E33;
+  --c-brown: #D6A671;   --c-brown-wash: #2A1B0C;
+  --c-olive: #BEF264;   --c-olive-wash: #1C2A0A;
+  --c-charcoal: #94A3B8;--c-charcoal-wash: #1A2029;
 }
