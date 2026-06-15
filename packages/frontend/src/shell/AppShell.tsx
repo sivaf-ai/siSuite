@@ -29,6 +29,7 @@ import { RisorsePage } from '../pages/RisorsePage';
 import { RisorsaDetailPage } from '../pages/RisorsaDetailPage';
 import { MaterialiPage } from '../pages/MaterialiPage';
 import { TimeEntriesPage } from '../pages/TimeEntriesPage';
+import { MagazzinoPage } from '../pages/MagazzinoPage';
 import { AssetPage } from '../pages/AssetPage';
 import { PianificazionePage } from '../pages/PianificazionePage';
 import { CapturePage } from '../pages/CapturePage';
@@ -73,6 +74,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/resources', render: () => <RisorsePage /> },
   { path: '/resources/:id', render: () => <RisorsaDetailPage /> },
   { path: '/materials', render: () => <MaterialiPage /> },
+  { path: '/stock', render: () => <MagazzinoPage /> },
   { path: '/agenda', render: () => <PlaceholderPage title="Agenda" /> },
   { path: '/captures', render: () => <CapturePage /> },
   { path: '/admin/users', render: () => <UsersPage /> },

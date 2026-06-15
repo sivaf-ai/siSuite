@@ -47,6 +47,7 @@ export const MENU: MenuItem[] = [
   { id: 'companies',   label: 'Clienti',       route: '/companies',   icon: 'business-outline',   permission: 'company:read',    shells: ['desktop'], group: 'anagrafiche' },
   { id: 'resources',   label: 'Risorse',       route: '/resources',   icon: 'people-outline',     permission: 'resource:read',   shells: ['desktop'], group: 'anagrafiche' },
   { id: 'materials',   label: 'Materiali',     route: '/materials',   icon: 'layers-outline',     permission: 'material:read',   shells: ['desktop'], group: 'anagrafiche' },
+  { id: 'stock',       label: 'Magazzino',     route: '/stock',       icon: 'cube-outline',       permission: 'stock:read',      shells: ['desktop'], group: 'anagrafiche' },
 
   { id: 'users',       label: 'Utenti',        route: '/admin/users',    icon: 'person-circle-outline', permission: 'user:read',     shells: ['desktop'], group: 'amministrazione' },
   { id: 'roles',       label: 'Ruoli',         route: '/admin/roles',    icon: 'shield-outline',        permission: 'role:read',     shells: ['desktop'], group: 'amministrazione' },
