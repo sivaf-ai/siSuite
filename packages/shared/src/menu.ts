@@ -42,6 +42,8 @@ export const MENU: MenuItem[] = [
   { id: 'engagements', label: 'Commesse',      route: '/engagements', icon: 'briefcase-outline',  permission: 'engagement:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'time-entries', label: 'Foglio ore',   route: '/time-entries', icon: 'time-outline',      permission: 'time_entry:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'work-reports', label: 'Rapportini',    route: '/work-reports', icon: 'document-text-outline', permission: 'work_report:read', shells: ['desktop'], group: 'lavoro' },
+  { id: 'timer',        label: 'Cronometro',    route: '/timer',        icon: 'stopwatch-outline', permission: 'time_entry:read', shells: ['desktop'], group: 'lavoro' },
+  { id: 'absences',     label: 'Assenze',       route: '/absences',     icon: 'calendar-clear-outline', permission: 'absence:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'captures-inbox', label: 'Catture',    route: '/captures',    icon: 'sparkles-outline',   permission: 'capture:read',    shells: ['desktop'], group: 'lavoro' },
   { id: 'assets',      label: 'Asset',         route: '/assets',      icon: 'cube-outline',       permission: 'asset:read',      shells: ['desktop'], group: 'lavoro' },
 

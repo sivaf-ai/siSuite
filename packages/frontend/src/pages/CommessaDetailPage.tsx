@@ -25,8 +25,9 @@ import { useApi, mutate } from '../api/hooks';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
+import { BudgetPanel } from '../components/BudgetPanel';
 
-type MainTab = 'struttura' | 'risorse' | 'ore' | 'catture';
+type MainTab = 'struttura' | 'risorse' | 'ore' | 'catture' | 'budget';
 type StructView = 'tree' | 'gantt' | 'list';
 interface ScheduleItem { id: string; title: string; fixed: boolean; start: string | null; end: string | null; conflict: string }
 interface LkApi { labelOf: (id: string | null | undefined) => string; byId: (id: string | null | undefined) => LookupDto | undefined }
@@ -241,6 +242,7 @@ export function CommessaDetailPage() {
             <a className={mainTab === 'risorse' ? 'on' : ''} onClick={() => setMainTab('risorse')}>Risorse</a>
             <a className={mainTab === 'ore' ? 'on' : ''} onClick={() => setMainTab('ore')}>Ore &amp; materiali</a>
             <a className={mainTab === 'catture' ? 'on' : ''} onClick={() => setMainTab('catture')}>Catture</a>
+            <a className={mainTab === 'budget' ? 'on' : ''} onClick={() => setMainTab('budget')}>Budget</a>
           </div>
 
           {mainTab === 'struttura' && (
@@ -265,6 +267,7 @@ export function CommessaDetailPage() {
           {mainTab === 'risorse' && <ResourcesTab engagementId={id} acts={actList} onOpen={(aid) => history.push(`/activities/${aid}`)} />}
           {mainTab === 'ore' && <HoursMaterialsTab engagementId={id} />}
           {mainTab === 'catture' && <CapturesTab />}
+          {mainTab === 'budget' && <BudgetPanel engagementId={id} />}
         </>
       )}
 

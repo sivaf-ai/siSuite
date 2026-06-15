@@ -3,7 +3,8 @@ import {
   Search, Plus, SlidersHorizontal, ArrowUpDown, Download, ChevronDown, ChevronRight,
   Pencil, Trash2, Copy, MoreHorizontal, Check, Mic, AlertTriangle,
   Briefcase, Building2, Users, Package, Box, Calendar, Settings, Layers, LayoutGrid,
-  CalendarCheck, UserCircle, ShieldCheck, CreditCard, Hash, X, Clock, Warehouse, FileText, type LucideIcon,
+  CalendarCheck, UserCircle, ShieldCheck, CreditCard, Hash, X, Clock, Warehouse, FileText,
+  Timer, CalendarOff, type LucideIcon,
 } from 'lucide-react';
 
 export {
@@ -24,6 +25,8 @@ export const MENU_ICON: Record<string, LucideIcon> = {
   engagements: Briefcase,
   'time-entries': Clock,
   'work-reports': FileText,
+  timer: Timer,
+  absences: CalendarOff,
   assets: Box,
   companies: Building2,
   resources: Users,
