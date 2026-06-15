@@ -21,8 +21,10 @@ export interface LookupDto {
   colorToken: string | null;
   sequence: number;
   isDefault: boolean;
-  /** true = riga di sistema (tenant_id NULL): in sola lettura per il tenant. */
+  /** true = riga di sistema (tenant_id NULL). Personalizzabile via override (non eliminabile). */
   isSystem?: boolean;
+  /** true = la voce di sistema ha un override del tenant attivo (nome/sigla/colore/ordine). */
+  isCustomized?: boolean;
 }
 
 /* ── Company ───────────────────────────────────────────────────────── */

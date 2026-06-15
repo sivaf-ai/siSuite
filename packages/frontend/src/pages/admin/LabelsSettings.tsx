@@ -2,7 +2,7 @@
  *  righe lv-row (pallino colore + sigla + nome + canonico), aggiungi/modifica/elimina.
  *  Le righe di SISTEMA sono in sola lettura. Riusa /lookups (settings:manage). */
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, GripVertical, RotateCcw } from 'lucide-react';
 import type { LookupDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { Drawer } from '../../ui/Drawer';
@@ -44,6 +44,12 @@ export function LabelsSettings() {
     finally { setBusy(false); }
   }
 
+  // ripristina il default di sistema (elimina l'override del tenant)
+  async function doReset(l: LookupDto) {
+    try { await mutate('DELETE', `/lookups/${l.id}/override`); toast('Ripristinato il default'); void reload(); }
+    catch (e) { toast((e as Error).message, 'error'); }
+  }
+
   return (
     <>
       <div className="panel" style={{ marginBottom: 16 }}>
@@ -61,12 +67,17 @@ export function LabelsSettings() {
                 <span className="drag" style={{ color: 'var(--ink-faint)' }}><GripVertical size={15} /></span>
                 <span className="swatch" style={{ background: swatchColor(l.colorToken) }} />
                 <span className="abbr">{l.abbreviation ?? '—'}</span>
-                <span className="lvname">{l.label['it-IT'] ?? l.code}{l.isSystem && <span className="chip" style={{ marginLeft: 8 }}>sistema</span>}</span>
+                <span className="lvname">{l.label['it-IT'] ?? l.code}
+                  {l.isSystem && <span className="chip" style={{ marginLeft: 8 }}>sistema</span>}
+                  {l.isCustomized && <span className="pill pill--brand" style={{ marginLeft: 6 }}><span className="dot" />personalizzato</span>}
+                </span>
                 <span className="canon">→ {l.canonical}</span>
-                {canManage && !l.isSystem && (
+                {canManage && (
                   <span className="lv-acts">
                     <button className="act-icon" title="Modifica" onClick={() => setEditing(l)}><Pencil size={15} /></button>
-                    <button className="act-icon danger" title="Elimina" onClick={() => setConfirm(l)}><Trash2 size={15} /></button>
+                    {l.isSystem
+                      ? (l.isCustomized && <button className="act-icon" title="Ripristina default" onClick={() => doReset(l)}><RotateCcw size={15} /></button>)
+                      : <button className="act-icon danger" title="Elimina" onClick={() => setConfirm(l)}><Trash2 size={15} /></button>}
                   </span>
                 )}
               </div>
@@ -79,8 +90,9 @@ export function LabelsSettings() {
         )}
       </div>
       <p className="faint" style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
-        Le etichette sono <b>configurabili</b> (nome, colore, sigla, ordine) ma ognuna è mappata a uno <b>stato canonico</b> di sistema:
-        la logica gira sul canonico, l'utente vede l'etichetta. Più etichette possono puntare allo stesso canonico.
+        Le etichette sono <b>configurabili</b> (nome, colore, sigla, ordine). Anche le voci di <b>sistema</b> sono
+        personalizzabili: la tua modifica crea un <b>override</b> della tua azienda (le voci di sistema non si eliminano;
+        “Ripristina” riporta al default). La logica gira sullo <b>stato canonico</b>: cambi solo come lo vedi.
       </p>
 
       {editing !== undefined && (
@@ -114,6 +126,7 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const isSystemEdit = !!editing?.isSystem;
   const fields: RenderableField[] = [
     ...(editing ? [] : [
       { key: 'canonical', label: 'Stato canonico', dataType: 'select' as const, required: true, options: canonicals.map((c) => ({ value: c, label: { 'it-IT': c } })) },
@@ -122,7 +135,8 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
     { key: 'labelIt', label: 'Etichetta (IT)', dataType: 'text', required: true },
     { key: 'abbreviation', label: 'Sigla', dataType: 'text' },
     { key: 'sequence', label: 'Ordine', dataType: 'integer' },
-    { key: 'isDefault', label: 'Default della categoria', dataType: 'boolean' },
+    // "Default della categoria" non si applica alle voci di sistema (override solo estetico)
+    ...(isSystemEdit ? [] : [{ key: 'isDefault', label: 'Default della categoria', dataType: 'boolean' as const }]),
   ];
 
   async function submit() {
@@ -134,7 +148,8 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
     setBusy(true);
     const common = { label: { 'it-IT': v.labelIt }, abbreviation: (v.abbreviation as string) || null, colorToken: (v.colorToken as string) || null, sequence: v.sequence ?? 0, isDefault: !!v.isDefault };
     try {
-      if (editing) await mutate('PATCH', `/lookups/${editing.id}`, common);
+      if (editing?.isSystem) await mutate('PUT', `/lookups/${editing.id}/override`, common); // personalizza voce di sistema
+      else if (editing) await mutate('PATCH', `/lookups/${editing.id}`, common);
       else await mutate('POST', '/lookups', { category, canonical: v.canonical, code: v.code, ...common });
       toast(editing ? 'Etichetta aggiornata' : 'Etichetta creata');
       onSaved();
