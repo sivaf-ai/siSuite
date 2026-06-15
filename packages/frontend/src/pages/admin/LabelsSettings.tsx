@@ -16,10 +16,18 @@ import { ColorSwatchPicker } from '../../ui/ColorSwatchPicker';
 import { swatchColor } from '../../theme/palette';
 
 const CATS = [
-  { key: 'activity_status', label: 'Attività' },
-  { key: 'engagement_status', label: 'Commessa' },
-  { key: 'phase_status', label: 'Fase' },
+  { key: 'activity_status', label: 'Stato attività' },
+  { key: 'engagement_status', label: 'Stato commessa' },
+  { key: 'phase_status', label: 'Stato fase' },
   { key: 'priority', label: 'Priorità' },
+  { key: 'time_typology', label: 'Tipologie ore' },
+  { key: 'time_entry_status', label: 'Stato ore (approvazione)' },
+  { key: 'absence_type', label: 'Tipi di assenza' },
+  { key: 'billing_mode', label: 'Modalità di vendita' },
+  { key: 'work_report_status', label: 'Stato rapportino' },
+  { key: 'schedule_mode', label: 'Modalità pianificazione' },
+  { key: 'stock_movement_type', label: 'Magazzino · tipi movimento' },
+  { key: 'stock_document_type', label: 'Magazzino · tipi documento' },
 ];
 
 export function LabelsSettings() {
@@ -54,10 +62,10 @@ export function LabelsSettings() {
     <>
       <div className="panel" style={{ marginBottom: 16 }}>
         <div className="ph">
-          <h3>Stato {CATS.find((c) => c.key === cat)?.label.toLowerCase()}</h3>
-          <div className="seg">
-            {CATS.map((c) => <button key={c.key} className={cat === c.key ? 'on' : ''} onClick={() => setCat(c.key)}>{c.label}</button>)}
-          </div>
+          <h3>{CATS.find((c) => c.key === cat)?.label ?? cat}</h3>
+          <select className="txt" style={{ maxWidth: 280 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+            {CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
         </div>
         <div className="pb" style={{ padding: 0 }}>
           {loading ? <Loading /> : error ? <ErrorBox message={error} /> : rows.length === 0
