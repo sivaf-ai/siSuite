@@ -10,6 +10,7 @@ import { StatusPill } from '../components/StatusPill';
 import { useApi, mutate } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { hhmm } from '../lib/time';
 import { useLookups } from '../context/Lookups';
 
 type ActivityDetail = ActivityDto & { resources: ActivityResourceDto[] };
@@ -228,7 +229,7 @@ function RendicontazioneOre({ activityId, engagementId }: { activityId: string; 
     <>
       <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 18 }}>Ore</h3>
       {(list.data?.items ?? []).map((t) => (
-        <IonNote key={t.id} style={{ display: 'block', padding: '4px 0' }}>{t.occurredOn} · {t.typology} · {t.minutes} min</IonNote>
+        <IonNote key={t.id} style={{ display: 'block', padding: '4px 0' }}>{t.occurredOn} · {t.typology} · {hhmm(t.minutes)}</IonNote>
       ))}
       {can && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginTop: 8, flexWrap: 'wrap' }}>

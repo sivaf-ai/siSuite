@@ -91,8 +91,12 @@ export function DashboardPage() {
       {loading && <Loading />}
       {error && <ErrorBox message={error} />}
       {data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {visible.map((k) => <Widget key={k} k={k as WidgetKey} data={data} lk={lk} />)}
+        <div className="dash-grid">
+          {visible.map((k) => (
+            <div key={k} className="dash-cell" style={k === 'kpis' ? { gridColumn: '1 / -1' } : undefined}>
+              <Widget k={k as WidgetKey} data={data} lk={lk} />
+            </div>
+          ))}
         </div>
       )}
     </Page>
@@ -113,7 +117,7 @@ function Widget({ k, data, lk }: { k: WidgetKey; data: Dash; lk: ReturnType<type
     const d = data.orePerGiorno.map((x) => ({ g: dow(x.date), ore: Math.round((x.minutes / 60) * 10) / 10 }));
     return (
       <div className="panel"><div className="ph"><h3>Ore per giorno</h3><span className="chip">settimana</span></div>
-        <div className="pb" style={{ paddingTop: 14, height: 240 }}>
+        <div className="pb" style={{ paddingTop: 14, height: 210 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={d} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
               <XAxis dataKey="g" tick={{ fontSize: 12, fill: 'var(--ink-faint)' }} axisLine={false} tickLine={false} />
@@ -132,7 +136,7 @@ function Widget({ k, data, lk }: { k: WidgetKey; data: Dash; lk: ReturnType<type
     const tot = d.reduce((s, x) => s + x.value, 0);
     return (
       <div className="panel"><div className="ph"><h3>Commesse per stato</h3><span className="chip">{tot} totali</span></div>
-        <div className="pb" style={{ paddingTop: 8, height: 240 }}>
+        <div className="pb" style={{ paddingTop: 8, height: 210 }}>
           {tot === 0 ? <Empty text="Nessuna commessa." /> : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

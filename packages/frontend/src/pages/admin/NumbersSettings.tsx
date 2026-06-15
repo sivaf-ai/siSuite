@@ -14,6 +14,15 @@ import { useAuth } from '../../auth/AuthContext';
 
 const RESET: Record<string, string> = { never: 'Mai', yearly: 'Annuale', monthly: 'Mensile' };
 
+/** descrizione leggibile per chiave di numerazione (la chiave resta come sottotitolo). */
+const KEY_LABEL: Record<string, string> = {
+  engagement: 'Commesse', receipt: 'Ricevute', invoice: 'Fatture', quote: 'Preventivi', order: 'Ordini',
+  ddt: 'Bolle / DDT', stock_receipt: 'Carichi magazzino', stock_adjustment: 'Rettifiche magazzino',
+};
+function keyLabel(key: string): string {
+  return KEY_LABEL[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** anteprima del prossimo codice (approssimata, lato client). */
 function preview(format: string, lastNumber: number): string {
   const now = new Date();
@@ -45,13 +54,13 @@ export function NumbersSettings() {
     <>
       <div className="table-wrap">
         <table className="t">
-          <thead><tr><th>Entità</th><th>Formato</th><th>Azzeramento</th><th>Anteprima</th><th>Ultimo</th>{canManage && <th />}</tr></thead>
+          <thead><tr><th>Numerazione</th><th>Formato</th><th>Azzeramento</th><th>Anteprima</th><th>Ultimo</th>{canManage && <th />}</tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={6}><Loading /></td></tr>
               : error ? <tr><td colSpan={6}><ErrorBox message={error} /></td></tr>
                 : rows.map((r) => (
                   <tr key={r.id}>
-                    <td className="cellname">{r.key}</td>
+                    <td><div className="cellname">{keyLabel(r.key)}</div><div className="cellsub mono">{r.key}</div></td>
                     <td><span className="mono">{r.format}</span></td>
                     <td>{RESET[r.resetPeriod] ?? r.resetPeriod}</td>
                     <td><span className="mono" style={{ color: 'var(--brand-ink)' }}>{preview(r.format, r.lastNumber)}</span></td>

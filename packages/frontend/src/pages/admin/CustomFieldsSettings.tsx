@@ -58,23 +58,34 @@ export function CustomFieldsSettings() {
         <div className="pb" style={{ padding: 0 }}>
           {loading ? <Loading /> : error ? <ErrorBox message={error} /> : rows.length === 0
             ? <div style={{ padding: 20, color: 'var(--ink-soft)' }}>Nessun campo per questa entità.</div>
-            : rows.map((d) => (
-              <div className="lv-row" key={d.id}>
-                <span className="lvname">{d.label['it-IT'] ?? d.key}
-                  {d.isSystem
-                    ? <span className="chip" style={{ marginLeft: 8 }}>sistema</span>
-                    : <span className="pill pill--brand" style={{ marginLeft: 8 }}><span className="dot" />tuo</span>}
-                </span>
-                <span className="canon">{DT_LABEL[d.dataType]}{d.required ? ' · obbl.' : ''}</span>
-                <span className="abbr">{d.key}</span>
-                {canManage && !d.isSystem && (
-                  <span className="lv-acts">
-                    <button className="act-icon" title="Modifica" onClick={() => setEditing(d)}><Pencil size={15} /></button>
-                    <button className="act-icon danger" title="Elimina" onClick={() => setConfirm(d)}><Trash2 size={15} /></button>
-                  </span>
-                )}
-              </div>
-            ))}
+            : (
+              <>
+                <div className="fd-row fd-head">
+                  <span>Campo</span><span>Tipo</span><span>Obbl.</span><span>Chiave</span><span />
+                </div>
+                {rows.map((d) => (
+                  <div className="fd-row" key={d.id}>
+                    <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="cellname" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label['it-IT'] ?? d.key}</span>
+                      {d.isSystem
+                        ? <span className="chip">sistema</span>
+                        : <span className="pill pill--brand"><span className="dot" />tuo</span>}
+                    </span>
+                    <span className="chip" style={{ justifySelf: 'start' }}>{DT_LABEL[d.dataType]}</span>
+                    <span className="cellsub" style={{ textAlign: 'center' }}>{d.required ? 'sì' : '—'}</span>
+                    <span className="mono cellsub" style={{ whiteSpace: 'nowrap' }}>{d.key}</span>
+                    <span style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                      {canManage && !d.isSystem && (
+                        <>
+                          <button className="act-icon" title="Modifica" onClick={() => setEditing(d)}><Pencil size={15} /></button>
+                          <button className="act-icon danger" title="Elimina" onClick={() => setConfirm(d)}><Trash2 size={15} /></button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
         </div>
         {canManage && (
           <div style={{ padding: '12px 16px' }}>

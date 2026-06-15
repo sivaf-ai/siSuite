@@ -26,6 +26,7 @@ import { apiFetch } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 import { BudgetPanel } from '../components/BudgetPanel';
+import { hhmm } from '../lib/time';
 
 type MainTab = 'struttura' | 'risorse' | 'ore' | 'catture' | 'budget';
 type StructView = 'tree' | 'gantt' | 'list';
@@ -324,10 +325,10 @@ function HoursMaterialsTab({ engagementId }: { engagementId: string }) {
   return (
     <div className="grid2">
       <div className="panel">
-        <div className="ph"><h3>Ore registrate</h3><span className="chip mono">{Math.round(totMin / 60)}h</span></div>
+        <div className="ph"><h3>Ore registrate</h3><span className="chip mono">{hhmm(totMin)}</span></div>
         <div className="pb">
           {te.loading ? <Loading /> : (te.data?.items.length ? te.data.items.map((t) => (
-            <div className="row-li" key={t.id}><div style={{ flex: 1 }}><b>{t.typology}</b><div className="cellsub">{t.occurredOn}</div></div><span className="mono">{t.minutes} min</span></div>
+            <div className="row-li" key={t.id}><div style={{ flex: 1 }}><b>{t.typology}</b><div className="cellsub">{t.occurredOn}</div></div><span className="mono">{hhmm(t.minutes)}</span></div>
           )) : <Empty text="Nessuna ora registrata." />)}
         </div>
       </div>

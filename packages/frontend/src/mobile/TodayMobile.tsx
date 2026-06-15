@@ -11,6 +11,7 @@ import { apiFetch } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 import { TimerWidget } from '../components/TimerWidget';
+import { hhmm } from '../lib/time';
 
 function fmtTime(iso: string | null): string {
   if (!iso) return '—';
@@ -26,7 +27,6 @@ export function TodayMobile({ onCapture, onOpen }: { onCapture: () => void; onOp
 
   const items = data?.items ?? [];
   const totalMin = items.reduce((s, a) => s + (a.estimatedMinutes ?? 0), 0);
-  const h = Math.floor(totalMin / 60), m = totalMin % 60;
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const initials = (user?.fullName ?? '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
@@ -56,7 +56,7 @@ export function TodayMobile({ onCapture, onOpen }: { onCapture: () => void; onOp
 
       <div className="section-label">
         <span className="eyebrow">Oggi</span>
-        <span className="n">{items.length} attività · {h}h{m ? ` ${m}m` : ''}</span>
+        <span className="n">{items.length} attività · {hhmm(totalMin)}</span>
       </div>
 
       {loading ? <Loading /> : items.length === 0 ? <Empty text="Niente in agenda per oggi." /> : (

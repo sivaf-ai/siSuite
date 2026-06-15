@@ -6,7 +6,7 @@
  * SOLO se l'utente ha la PermissionKey. (La sicurezza vera è API+RLS.)
  */
 import {
-  IonContent, IonMenu, IonRouterOutlet, IonSplitPane, IonButton,
+  IonContent, IonMenu, IonRouterOutlet, IonSplitPane,
 } from '@ionic/react';
 import { useState, type CSSProperties } from 'react';
 import { Redirect, Route } from 'react-router-dom';
@@ -179,18 +179,22 @@ export function AppShell() {
               )}
 
               <div className="ds-side-user">
-                <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{initials}</div>
-                <div className="who" style={{ flex: 1, minWidth: 0 }}>
-                  <div className="nm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
-                  <div className="rl">{user?.dataScope}</div>
+                <div className="ds-side-id">
+                  <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{initials}</div>
+                  <div className="who" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="nm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
+                    <div className="rl">{user?.dataScope}</div>
+                  </div>
                 </div>
-                <NotificationsBell />
-                <button className="ds-iconbtn" onClick={toggleTheme} aria-label={t('actions.theme')} title={t('actions.theme')}>
-                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                </button>
-                <IonButton fill="clear" size="small" onClick={logout} aria-label={t('actions.logout')} style={{ '--color': '#8A8F9B' } as CSSProperties}>
-                  <LogOut size={18} />
-                </IonButton>
+                <div className="ds-side-actions">
+                  <NotificationsBell />
+                  <button className="ds-iconbtn" onClick={toggleTheme} aria-label={t('actions.theme')} title={t('actions.theme')}>
+                    {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                  </button>
+                  <button className="ds-iconbtn" onClick={logout} aria-label={t('actions.logout')} title={t('actions.logout')}>
+                    <LogOut size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </IonContent>

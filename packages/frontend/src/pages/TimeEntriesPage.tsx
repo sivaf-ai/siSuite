@@ -16,6 +16,7 @@ import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+import { hhmm } from '../lib/time';
 
 type StatusFilter = 'all' | 'draft' | 'submitted' | 'approved' | 'rejected';
 const FILTERS: { key: StatusFilter; label: string }[] = [
@@ -26,10 +27,6 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'rejected', label: 'Respinte' },
 ];
 
-function hours(min: number): string {
-  const h = Math.floor(min / 60), m = min % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
 function dateIt(s: string): string {
   // occurredOn arriva come 'YYYY-MM-DD' o ISO: mostra gg/mm/aaaa
   const d = new Date(s);
@@ -119,7 +116,7 @@ export function TimeEntriesPage() {
         return l ? <StatusPill label={lk.labelOf(r.typologyId)} token={l.colorToken} /> : <span className="chip">{r.typology}</span>;
       },
     },
-    { key: 'minutes', header: 'Ore', align: 'right', render: (r) => <span className="mono">{hours(r.minutes)}</span> },
+    { key: 'minutes', header: 'Ore (hh:mm)', align: 'right', render: (r) => <span className="mono">{hhmm(r.minutes)}</span> },
     {
       key: 'bill', header: 'Tariffa', align: 'right', render: (r) =>
         r.billRate != null ? <span className="mono">€ {r.billRate.toFixed(2)}/h</span> : <span style={{ color: 'var(--ink-faint)' }}>—</span>,
