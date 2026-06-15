@@ -172,3 +172,38 @@
   2. **§6 planner integration** (GATED): onorare fixed/pinned in scheduleResources.
   3. Budget: budget su form commessa scrive su colonna; rollup fasi annidate.
   4. `git push origin main`.
+
+---
+
+## PARTE 3 — Frontend (15/06, sessione presidiata con l'utente). Tutto typecheck FE verde + Vite 200.
+
+Non esistono mockup dedicati ai moduli nuovi → schermate nuove **coerenti col
+design system** esistente (Page/DataTable/Drawer/StatusPill/seg/btn/useApi/mutate/
+useLookups/useToast). Tutte cablate a endpoint **già verificati e2e**.
+
+- **Foglio ore** (`/time-entries`, menu *Lavoro*, gate `time_entry:read`):
+  filtro stato (Tutte/Bozze/Inviate/Approvate/Respinte), multi-selezione, azioni
+  in blocco invia/approva/respingi/blocca/sblocca (gate create vs approve), pill
+  stato+tipologia, 🔒 sulle bloccate.
+- **Magazzino** (`/stock`, menu *Anagrafiche*, gate `stock:read`): schede
+  Giacenze / Movimenti / Documenti (carico/trasferimento/rettifica con "Salva e
+  conferma" → numero) / Ubicazioni. Form documento con editor righe.
+- **Rapportini** (`/work-reports`, *Lavoro*, gate `work_report:read`): lista +
+  cassetto crea → Genera (AI) → editor testo finale → Conferma → Firma.
+- **Budget**: nuovo **tab "Budget"** nel dettaglio commessa (`BudgetPanel`):
+  previsto/costo/ricavo/margine/rimane + barra costo/previsto con allarme >85% +
+  breakdown per fase con toggle Costo/Ricavo/Margine.
+- **Assenze** (`/absences`, *Lavoro*, gate `absence:read`): schede Richieste
+  (crea/approva/elimina) e Saldi (maturato/goduto/residuo).
+- **Cronometro** (`/timer`, *Lavoro*): avvio su commessa/attività, tempo live,
+  "Ferma e registra" → crea la riga ore. + **widget mobile** in TodayMobile
+  (vista tecnico `/m`): timer live + avvio rapido sull'attività di oggi.
+
+### Note / scelte FE
+- Voci di menu nuove tutte `shells:['desktop']` + icone lucide in `ui/icons.ts`.
+- **Verifica**: typecheck dei 3 package + Vite 200 + 27/27 vitest. **Il render
+  visivo NON è stato verificato con screenshot** (niente browser headless in
+  ambiente): controllare a video e segnalare aggiustamenti di stile.
+- Reason di blocco/rifiuto via `window.prompt` (V1) — sostituibili con dialog.
+- **Restano (FE)**: rifiniture estetiche post-review; eventuale timesheet mobile
+  completo; portare le azioni reason su dialog dedicati. **§6 planner** resta GATED.
