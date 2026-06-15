@@ -20,11 +20,13 @@ import './i18n';
 
 import { App } from './App';
 import { applyTheme, initialTheme } from './theme/ThemeContext';
+import { applyDensity, initialDensity } from './theme/DensityContext';
 
 setupIonicReact({ mode: 'md' });
 
-// applica il tema PRIMA del render (niente flash chiaro→scuro)
+// applica tema + densità PRIMA del render (niente flash)
 applyTheme(initialTheme());
+applyDensity(initialDensity());
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

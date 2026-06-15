@@ -32,6 +32,16 @@
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
+  /* ── SCALA FONT (base.css v5, standard 2) ────────────────────────── */
+  --fs-h1: 22px; --fs-h2: 16px; --fs-card: 15px; --fs-body: 13px; --fs-label: 12px;
+  --fs-th: 11.5px; --fs-eyebrow: 10.5px; --fs-mono: 13px;
+
+  /* ── DENSITÀ (base.css v5, standard 1) — default = comfortable ─────
+     Mai dimensioni cablate nei componenti: usare queste variabili.
+     L'attributo <html data-density="compact|comfortable|spacious"> le commuta. */
+  --row-pad: 9px 14px; --cell-fs: 13px; --ctrl-h: 36px; --input-h: 38px;
+  --pill-h: 22px; --sec-gap: 16px;
+
   /* ── mappatura → Ionic ──────────────────────────────────────────── */
   --ion-font-family: var(--font-body);
   --ion-background-color: var(--paper);
@@ -56,6 +66,16 @@
   --ion-color-warning: var(--warning);
   --ion-color-danger: var(--danger);
   --ion-color-medium: var(--neutral);
+}
+
+/* densità compatta / spaziosa (base.css v5) — solo le variabili cambiano */
+html[data-density="compact"] {
+  --row-pad: 5px 12px; --cell-fs: 12.5px; --ctrl-h: 32px; --input-h: 34px;
+  --pill-h: 21px; --sec-gap: 12px;
+}
+html[data-density="spacious"] {
+  --row-pad: 13px 16px; --cell-fs: 13.5px; --ctrl-h: 40px; --input-h: 42px;
+  --pill-h: 24px; --sec-gap: 20px;
 }
 
 /* =========================================================================

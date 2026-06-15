@@ -45,19 +45,21 @@ export function DataTable<T extends { id: string }>({
         <table className="t">
           <thead>
             <tr>
-              {columns.map((c) => (
-                <th key={c.key}
-                  className={c.sortable ? 'sortable' : ''}
-                  style={{ textAlign: c.align ?? 'left' }}
-                  onClick={() => c.sortable && onSort?.(c.key)}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    {c.header}
-                    {c.sortable && (sortBy === c.key
-                      ? (sortDir === 'asc' ? <ChevronDown size={13} style={{ transform: 'rotate(180deg)' }} /> : <ChevronDown size={13} />)
-                      : <ArrowUpDown size={12} style={{ opacity: .4 }} />)}
-                  </span>
-                </th>
-              ))}
+              {columns.map((c) => {
+                const right = c.align === 'right';
+                return (
+                  <th key={c.key}
+                    className={`${c.sortable ? 'sortable' : ''}${right ? ' num' : ''}`.trim()}
+                    onClick={() => c.sortable && onSort?.(c.key)}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: right ? 'flex-end' : 'flex-start' }}>
+                      {c.header}
+                      {c.sortable && (sortBy === c.key
+                        ? (sortDir === 'asc' ? <ChevronDown size={13} style={{ transform: 'rotate(180deg)' }} /> : <ChevronDown size={13} />)
+                        : <ArrowUpDown size={12} style={{ opacity: .4 }} />)}
+                    </span>
+                  </th>
+                );
+              })}
               {actions && <th style={{ width: 1 }} />}
             </tr>
           </thead>

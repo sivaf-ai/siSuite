@@ -7,6 +7,7 @@ import { syncUserLocale, refreshTerminology } from './i18n';
 import { LookupsProvider } from './context/Lookups';
 import { ToastProvider } from './ui/Toast';
 import { ThemeProvider } from './theme/ThemeContext';
+import { DensityProvider } from './theme/DensityContext';
 import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
 import { MobileShell } from './mobile/MobileShell';
@@ -46,9 +47,11 @@ export function App() {
   return (
     <IonApp>
       <ThemeProvider>
-        <AuthProvider>
-          <Gate />
-        </AuthProvider>
+        <DensityProvider>
+          <AuthProvider>
+            <Gate />
+          </AuthProvider>
+        </DensityProvider>
       </ThemeProvider>
     </IonApp>
   );
