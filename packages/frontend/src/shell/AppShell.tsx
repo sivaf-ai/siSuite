@@ -28,6 +28,7 @@ import { ClienteDetailPage } from '../pages/ClienteDetailPage';
 import { RisorsePage } from '../pages/RisorsePage';
 import { RisorsaDetailPage } from '../pages/RisorsaDetailPage';
 import { MaterialiPage } from '../pages/MaterialiPage';
+import { TimeEntriesPage } from '../pages/TimeEntriesPage';
 import { AssetPage } from '../pages/AssetPage';
 import { PianificazionePage } from '../pages/PianificazionePage';
 import { CapturePage } from '../pages/CapturePage';
@@ -63,6 +64,7 @@ const ROUTES: { path: string; render: () => JSX.Element }[] = [
   { path: '/dashboard', render: () => <DashboardPage /> },
   { path: '/planning', render: () => <PianificazionePage /> },
   { path: '/engagements', render: () => <EngagementsPage /> },
+  { path: '/time-entries', render: () => <TimeEntriesPage /> },
   { path: '/engagements/:id', render: () => <CommessaDetailPage /> },
   { path: '/activities/:id', render: () => <AttivitaDetailPage /> },
   { path: '/companies', render: () => <ClientiPage /> },

@@ -40,6 +40,7 @@ export const MENU: MenuItem[] = [
   { id: 'dashboard',   label: 'Dashboard',     route: '/dashboard',   icon: 'grid-outline',       permission: 'engagement:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'planning',    label: 'Pianificazione', route: '/planning',   icon: 'git-network-outline', permission: 'activity:read',  shells: ['desktop'], group: 'lavoro' },
   { id: 'engagements', label: 'Commesse',      route: '/engagements', icon: 'briefcase-outline',  permission: 'engagement:read', shells: ['desktop'], group: 'lavoro' },
+  { id: 'time-entries', label: 'Foglio ore',   route: '/time-entries', icon: 'time-outline',      permission: 'time_entry:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'captures-inbox', label: 'Catture',    route: '/captures',    icon: 'sparkles-outline',   permission: 'capture:read',    shells: ['desktop'], group: 'lavoro' },
   { id: 'assets',      label: 'Asset',         route: '/assets',      icon: 'cube-outline',       permission: 'asset:read',      shells: ['desktop'], group: 'lavoro' },
 
