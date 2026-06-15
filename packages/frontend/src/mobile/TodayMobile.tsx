@@ -10,6 +10,7 @@ import { useApi } from '../api/hooks';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
+import { TimerWidget } from '../components/TimerWidget';
 
 function fmtTime(iso: string | null): string {
   if (!iso) return '—';
@@ -50,6 +51,8 @@ export function TodayMobile({ onCapture, onOpen }: { onCapture: () => void; onOp
           <span>{day.text}</span>
         </div>
       )}
+
+      <TimerWidget activities={items} />
 
       <div className="section-label">
         <span className="eyebrow">Oggi</span>
