@@ -17,9 +17,14 @@ export interface RenderableField {
 
 const LOCALE = 'it-IT';
 
-export function Field({ field, value, onChange, error }:
-  { field: RenderableField; value: unknown; onChange: (v: unknown) => void; error?: string }) {
+/** 'default' = layout drawer (.field/.txt); 'page' = pagina-form v5 (.fld/.inp, mock 33). */
+export type FieldVariant = 'default' | 'page';
+
+export function Field({ field, value, onChange, error, variant = 'default' }:
+  { field: RenderableField; value: unknown; onChange: (v: unknown) => void; error?: string; variant?: FieldVariant }) {
   const id = `f_${field.key}`;
+  const page = variant === 'page';
+  const inputCls = page ? 'inp' : 'txt';
   const label = (
     <label htmlFor={id}>{field.label}{field.required && <span className="req">*</span>}</label>
   );
@@ -27,7 +32,7 @@ export function Field({ field, value, onChange, error }:
   function control() {
     switch (field.dataType) {
       case 'textarea':
-        return <textarea id={id} className="txt" value={(value as string) ?? ''} placeholder={field.placeholder}
+        return <textarea id={id} className={inputCls} value={(value as string) ?? ''} placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)} />;
       case 'boolean':
         return (
@@ -39,23 +44,23 @@ export function Field({ field, value, onChange, error }:
       case 'number': case 'money': case 'integer':
         return (
           <div className="with-unit">
-            <input id={id} className="txt" type="number" value={(value as number | string) ?? ''} placeholder={field.placeholder}
+            <input id={id} className={inputCls} type="number" value={(value as number | string) ?? ''} placeholder={field.placeholder}
               onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} />
             {field.unit && <span className="unit">{field.unit}</span>}
           </div>
         );
       case 'date':
-        return <input id={id} className="txt" type="date" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)} />;
+        return <input id={id} className={inputCls} type="date" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)} />;
       case 'select':
         return (
-          <select id={id} className="txt" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+          <select id={id} className={inputCls} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
             <option value="">—</option>
             {(field.options ?? []).map((o) => <option key={o.value} value={o.value}>{fieldLabel(o.label, LOCALE, o.value)}</option>)}
           </select>
         );
       case 'fk':
         return (
-          <select id={id} className="txt" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+          <select id={id} className={inputCls} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
             <option value="">—</option>
             {(field.fkOptions ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
@@ -77,10 +82,21 @@ export function Field({ field, value, onChange, error }:
         );
       }
       default: // text, email, phone, url
-        return <input id={id} className="txt" type={field.dataType === 'email' ? 'email' : 'text'}
+        return <input id={id} className={inputCls} type={field.dataType === 'email' ? 'email' : 'text'}
           value={(value as string) ?? ''} placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)} />;
     }
+  }
+
+  if (page) {
+    return (
+      <div className={`fld${field.dataType === 'textarea' || field.dataType === 'multiselect' || field.dataType === 'roles' ? ' f-full' : ''}`}>
+        {label}
+        {control()}
+        {field.help && !error && <div className="fhint">{field.help}</div>}
+        {error && <div className="fhint err">{error}</div>}
+      </div>
+    );
   }
 
   return (

@@ -31,10 +31,12 @@ interface Props<T> {
   offset?: number;
   onPage?: (offset: number) => void;
   empty?: ReactNode;
+  /** id della riga selezionata (pattern master-detail): evidenzia con .sel. */
+  selectedId?: string | null;
 }
 
 export function DataTable<T extends { id: string }>({
-  columns, rows, loading, sortBy, sortDir, onSort, actions, onRowClick, total, limit, offset, onPage, empty,
+  columns, rows, loading, sortBy, sortDir, onSort, actions, onRowClick, total, limit, offset, onPage, empty, selectedId,
 }: Props<T>) {
   const colCount = columns.length + (actions ? 1 : 0);
   const showPager = total != null && limit != null && offset != null && onPage && total > limit;
@@ -75,7 +77,8 @@ export function DataTable<T extends { id: string }>({
               : rows.length === 0
                 ? <tr><td colSpan={colCount} style={{ padding: 0 }}>{empty}</td></tr>
                 : rows.map((row) => (
-                  <tr key={row.id} style={onRowClick ? { cursor: 'pointer' } : undefined} onClick={() => onRowClick?.(row)}>
+                  <tr key={row.id} className={selectedId === row.id ? 'sel' : undefined}
+                    style={onRowClick ? { cursor: 'pointer' } : undefined} onClick={() => onRowClick?.(row)}>
                     {columns.map((c) => (
                       <td key={c.key} style={{ textAlign: c.align ?? 'left' }}>
                         {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '')}

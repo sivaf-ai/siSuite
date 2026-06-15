@@ -1,19 +1,39 @@
+/**
+ * ClienteDetailPage — pagina-form ricca (mock 33), il METRO delle entità complesse.
+ * Crea (/companies/new) e modifica/dettaglio (/companies/:id) nella stessa maschera:
+ * Anagrafica (campi tipizzati) + sezioni da field_definition (Indirizzo/Dati fiscali/Note)
+ * + Contatti (sub-CRUD) + elimina con conferma. Layout pagina intera, barra azioni fissa.
+ */
 import { useState } from 'react';
-import { useParams } from 'react-router';
-import { Mail, Phone, Star, Box, Plus, Pencil, Trash2 } from 'lucide-react';
-import { fieldLabel, type CompanyDto, type ContactDto, type AssetDto, type FieldDefinitionDto } from '@sisuite/shared';
-import { Page, Loading, ErrorBox, Empty } from '../components/Page';
-import { DetailLayout, type KV } from '../ui/DetailLayout';
+import { useParams, useHistory } from 'react-router';
+import { Building2, Contact, Star, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
+import type { CompanyDto, ContactDto } from '@sisuite/shared';
+import { Page, Loading, ErrorBox } from '../components/Page';
+import { FormPage, FormCard } from '../ui/FormPage';
+import { EntityForm, type TypedGroup } from '../ui/EntityForm';
 import { Drawer } from '../ui/Drawer';
 import { Field, type RenderableField } from '../ui/Field';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
-import { ApiError } from '../api/client';
+import { apiFetch, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
 type CompanyDetail = CompanyDto & { contacts: ContactDto[] };
 const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'Fornitore', partner: 'Partner' };
+
+const TYPED: TypedGroup[] = [{
+  group: 'Anagrafica',
+  icon: Building2,
+  fields: [
+    { key: 'displayName', label: 'Ragione sociale', dataType: 'text', required: true },
+    { key: 'type', label: 'Tipo cliente', dataType: 'select', options: [
+      { value: 'organization', label: { 'it-IT': 'Azienda' } },
+      { value: 'private', label: { 'it-IT': 'Privato' } },
+    ] },
+    { key: 'roles', label: 'Ruoli', dataType: 'roles' },
+  ],
+}];
 
 const CONTACT_FIELDS: RenderableField[] = [
   { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
@@ -23,126 +43,158 @@ const CONTACT_FIELDS: RenderableField[] = [
   { key: 'isPrimary', label: 'Contatto principale', dataType: 'boolean' },
 ];
 
+const GROUP_LABEL = (k: string) => (k === 'registry' ? 'Indirizzo e recapiti' : undefined);
+
 export function ClienteDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const isNew = id === 'new';
   const { user } = useAuth();
   const toast = useToast();
-  const { data, loading, error, reload } = useApi<CompanyDetail>(`/companies/${id}`);
-  const assets = useApi<{ items: AssetDto[] }>(`/assets?companyId=${id}`);
-  const defs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=company');
-
+  const history = useHistory();
   const can = (p: string) => !!user?.permissions.includes(p as never);
 
-  // drawer: undefined = chiuso, null = nuovo, contatto = modifica
-  const [editing, setEditing] = useState<ContactDto | null | undefined>(undefined);
-  const [confirm, setConfirm] = useState<ContactDto | null>(null);
+  const { data, loading, error, reload } = useApi<CompanyDetail>(isNew ? '' : `/companies/${id}`);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<ContactDto | null | undefined>(undefined); // undefined chiuso, null nuovo
+  const [delContact, setDelContact] = useState<ContactDto | null>(null);
+  const [delCompany, setDelCompany] = useState(false);
 
-  const attrs = (data?.attributes ?? {}) as Record<string, unknown>;
-  const kv: KV[] = [
-    { k: 'Tipo', v: data?.type === 'organization' ? 'Azienda' : 'Privato' },
-    ...(data?.address ? [{ k: 'Indirizzo', v: data.address }] : []),
-    ...(defs.data?.items ?? [])
-      .filter((d) => attrs[d.key] != null && attrs[d.key] !== '')
-      .map((d) => ({ k: fieldLabel(d.label, 'it-IT', d.key), v: String(attrs[d.key]) })),
-  ];
-
-  async function doDelete() {
-    if (!confirm) return;
+  async function saveCompany(values: Record<string, unknown>) {
     setBusy(true);
+    const body = {
+      displayName: values.displayName,
+      type: (values.type as string) ?? 'organization',
+      roles: ((values.roles as string[]) ?? []).map((role) => ({ role })),
+      attributes: values.attributes,
+    };
     try {
-      await mutate('DELETE', `/contacts/${confirm.id}`);
-      toast('Contatto eliminato');
-      setConfirm(null);
-      void reload();
+      if (isNew) {
+        const created = await apiFetch<CompanyDto>('/companies', { method: 'POST', body: JSON.stringify(body) });
+        toast('Cliente creato');
+        history.replace(`/companies/${created.id}`);
+      } else {
+        await mutate('PATCH', `/companies/${id}`, body);
+        toast('Modifiche salvate');
+        void reload();
+      }
     } catch (e) {
-      toast((e as Error).message || 'Impossibile eliminare', 'error');
-      setConfirm(null);
+      toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error');
     } finally { setBusy(false); }
   }
 
-  const contactsTab = data && (
-    <>
+  async function doDeleteContact() {
+    if (!delContact) return;
+    setBusy(true);
+    try {
+      await mutate('DELETE', `/contacts/${delContact.id}`);
+      toast('Contatto eliminato'); setDelContact(null); void reload();
+    } catch (e) { toast((e as Error).message || 'Impossibile eliminare', 'error'); setDelContact(null); }
+    finally { setBusy(false); }
+  }
+
+  async function doDeleteCompany() {
+    setBusy(true);
+    try {
+      await mutate('DELETE', `/companies/${id}`);
+      toast('Cliente archiviato'); history.replace('/companies');
+    } catch (e) {
+      toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Impossibile eliminare') : (e as Error).message, 'error');
+      setDelCompany(false);
+    } finally { setBusy(false); }
+  }
+
+  // sezione Contatti (mock 33) — solo in modifica (serve l'id azienda)
+  const contactsCard = data && (
+    <FormCard icon={<Contact />} title="Contatti">
+      {data.contacts.length > 0 && (
+        <div className="chead"><span>Nome</span><span>Ruolo</span><span>Email</span><span>Telefono</span><span /></div>
+      )}
+      {data.contacts.map((c) => (
+        <div className="crow" key={c.id}>
+          <div className="inp" style={{ display: 'flex', alignItems: 'center' }}>
+            {c.fullName}{c.isPrimary && <Star className="star" size={14} style={{ marginLeft: 'auto' }} />}
+          </div>
+          <div className="inp">{c.roleTitle ?? '—'}</div>
+          <div className="inp" style={{ fontSize: 12.5 }}>{c.email ?? '—'}</div>
+          <div className="inp mono">{c.phone ?? '—'}</div>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {can('contact:update') && <button className="xbtn" title="Modifica" onClick={() => setEditing(c)} style={{ color: 'var(--ink-soft)' }}><Pencil size={15} /></button>}
+            {can('contact:delete') && <button className="xbtn" title="Elimina" onClick={() => setDelContact(c)}><Trash2 size={15} /></button>}
+          </div>
+        </div>
+      ))}
+      {data.contacts.length === 0 && <div className="fhint" style={{ marginBottom: 8 }}>Nessun contatto.</div>}
       {can('contact:create') && (
-        <div className="toolbar">
-          <span className="spacer" />
-          <button className="btn btn-primary btn-sm" onClick={() => setEditing(null)}><Plus size={16} /> Aggiungi contatto</button>
-        </div>
+        <button className="addline" onClick={() => setEditing(null)}><Plus size={15} /> Aggiungi contatto</button>
       )}
-      {data.contacts.length === 0 ? <Empty text="Nessun contatto." /> : (
-        <div className="table-wrap">
-          <table className="t"><tbody>
-            {data.contacts.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <div className="cellname">{c.fullName} {c.isPrimary && <Star size={13} style={{ color: 'var(--warning)', verticalAlign: 'middle' }} />}</div>
-                  {c.roleTitle && <div className="cellsub">{c.roleTitle}</div>}
-                </td>
-                <td>{c.email && <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Mail size={14} />{c.email}</span>}</td>
-                <td>{c.phone && <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Phone size={14} />{c.phone}</span>}</td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <div className="row-actions">
-                    {can('contact:update') && <div className="act-icon" title="Modifica" onClick={() => setEditing(c)}><Pencil size={15} /></div>}
-                    {can('contact:delete') && <div className="act-icon danger" title="Elimina" onClick={() => setConfirm(c)}><Trash2 size={15} /></div>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody></table>
-        </div>
-      )}
-    </>
+    </FormCard>
   );
 
-  const assetsTab = (
-    assets.loading ? <Loading /> : (assets.data?.items.length ? (
-      <div className="table-wrap">
-        <table className="t"><tbody>
-          {assets.data.items.map((a) => (
-            <tr key={a.id}>
-              <td><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><Box size={16} /><span className="cellname">{a.label}</span></span></td>
-              <td className="cellsub">{a.kind}</td>
-            </tr>
-          ))}
-        </tbody></table>
-      </div>
-    ) : <Empty text="Nessun asset." />)
+  const newContactHint = isNew && (
+    <FormCard icon={<Contact />} title="Contatti">
+      <div className="fhint">Salva prima il cliente per aggiungere i contatti.</div>
+    </FormCard>
   );
+
+  const title = isNew ? 'Nuovo cliente' : (data?.displayName ?? 'Cliente');
+  const roles = data?.roles ?? [];
 
   return (
-    <Page title={data?.displayName ?? 'Cliente'} back="/companies">
-      {loading && <Loading />}
-      {error && <ErrorBox message={error} />}
-      {data && (
-        <DetailLayout
-          title={data.displayName}
-          status={data.roles.map((r) => <span key={r} className="chip" style={{ marginLeft: 4 }}>{ROLE_LABEL[r] ?? r}</span>)}
-          kv={kv}
-          tabs={[
-            { key: 'contatti', label: `Contatti (${data.contacts.length})`, content: contactsTab },
-            { key: 'asset', label: `Asset (${assets.data?.items.length ?? 0})`, content: assetsTab },
-          ]}
-        />
+    <Page title={title} back="/companies">
+      {!isNew && loading && <Loading />}
+      {!isNew && error && <ErrorBox message={error} />}
+      {(isNew || data) && (
+        <FormPage
+          back={() => history.push('/companies')} backLabel="Clienti"
+          title={title}
+          code={!isNew && data ? data.id.slice(0, 8).toUpperCase() : undefined}
+          status={roles.map((r) => <span key={r} className="chip" style={{ marginLeft: 4 }}>{ROLE_LABEL[r] ?? r}</span>)}
+        >
+          <EntityForm
+            entityKey="company"
+            layout="page"
+            typedGroups={TYPED}
+            groupLabel={GROUP_LABEL}
+            initial={isNew ? undefined : data ? { displayName: data.displayName, type: data.type, roles: data.roles, attributes: data.attributes } : undefined}
+            busy={busy}
+            submitLabel={isNew ? 'Crea cliente' : 'Salva cliente'}
+            onSubmit={saveCompany}
+            onCancel={() => history.push('/companies')}
+            extraSections={<>{contactsCard}{newContactHint}</>}
+            barLeft={!isNew && can('company:delete') ? (
+              <button type="button" className="btn btn-ghost" onClick={() => setDelCompany(true)} style={{ color: 'var(--danger)' }}>
+                <Trash2 size={15} /> Elimina
+              </button>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} style={{ color: 'var(--success)' }} /> {isNew ? 'Compila e crea' : ''}</span>
+            )}
+          />
+        </FormPage>
       )}
 
-      {editing !== undefined && (
+      {editing !== undefined && data && (
         <ContactDrawer
-          companyId={id}
-          editing={editing}
+          companyId={data.id} editing={editing}
           busy={busy} setBusy={setBusy}
           onClose={() => setEditing(undefined)}
           onSaved={() => { setEditing(undefined); void reload(); }}
-          toastError={(m) => toast(m, 'error')}
-          toastOk={(m) => toast(m)}
+          toastError={(m) => toast(m, 'error')} toastOk={(m) => toast(m)}
         />
       )}
 
       <ConfirmDialog
-        open={!!confirm} danger
+        open={!!delContact} danger
         title="Eliminare il contatto?"
-        message={`“${confirm?.fullName}” verrà rimosso da questo cliente.`}
+        message={`“${delContact?.fullName}” verrà rimosso da questo cliente.`}
         confirmLabel="Elimina" busy={busy}
-        onConfirm={doDelete} onCancel={() => setConfirm(null)}
+        onConfirm={doDeleteContact} onCancel={() => setDelContact(null)}
+      />
+      <ConfirmDialog
+        open={delCompany} danger
+        title="Archiviare il cliente?"
+        message="Il cliente verrà archiviato. Le voci legate a storia fatturabile restano protette."
+        confirmLabel="Archivia" busy={busy}
+        onConfirm={doDeleteCompany} onCancel={() => setDelCompany(false)}
       />
     </Page>
   );
@@ -153,11 +205,8 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
   onClose: () => void; onSaved: () => void; toastError: (m: string) => void; toastOk: (m: string) => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({
-    fullName: editing?.fullName ?? '',
-    roleTitle: editing?.roleTitle ?? '',
-    email: editing?.email ?? '',
-    phone: editing?.phone ?? '',
-    isPrimary: editing?.isPrimary ?? false,
+    fullName: editing?.fullName ?? '', roleTitle: editing?.roleTitle ?? '',
+    email: editing?.email ?? '', phone: editing?.phone ?? '', isPrimary: editing?.isPrimary ?? false,
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
