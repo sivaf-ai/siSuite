@@ -88,6 +88,26 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
       return dto;
     }));
 
+  // Lavorazioni che usano la voce + storico prezzi (prezzi fotografati su work_line).
+  app.get<{ Params: { id: string } }>('/price-list-items/:id/usage', { preHandler: [app.authenticate, requirePermission('report:read')] },
+    async (request) => withRls(request.ctx, async (db) => {
+      const r = await db.query(
+        `SELECT wl.id, wl.description, wl.quantity, wl.unit, wl.cost_price, wl.revenue_price, wl.occurred_on,
+                wl.engagement_id, e.code AS engagement_code, e.title AS engagement_title
+         FROM work_line wl LEFT JOIN engagement e ON e.id = wl.engagement_id
+         WHERE wl.price_list_item_id = $1 ORDER BY wl.occurred_on DESC, wl.created_at DESC`, [request.params.id]);
+      const items = r.rows.map((w) => ({
+        id: w.id as string, description: (w.description as string) ?? null,
+        engagementId: (w.engagement_id as string) ?? null, engagementCode: (w.engagement_code as string) ?? null,
+        engagementTitle: (w.engagement_title as string) ?? null,
+        quantity: Number(w.quantity), unit: (w.unit as string) ?? null,
+        costPrice: w.cost_price != null ? Number(w.cost_price) : null,
+        revenuePrice: w.revenue_price != null ? Number(w.revenue_price) : null,
+        occurredOn: (w.occurred_on as Date | null)?.toISOString().slice(0, 10) ?? null,
+      }));
+      return { items };
+    }));
+
   app.post('/price-list-items', { preHandler: [app.authenticate, requirePermission('settings:manage')] }, async (request, reply) => {
     const input = createPriceListItemSchema.parse(request.body);
     const dto = await withRls(request.ctx, async (db) => {

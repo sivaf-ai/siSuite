@@ -82,7 +82,13 @@ export async function serialRoutes(app: FastifyInstance): Promise<void> {
       if (r.rows.length === 0) return reply.code(404).send({ error: 'not_found', message: 'Seriale non trovato', statusCode: 404 });
       const enc = (r.rows[0].secrets as Record<string, unknown>)?.password as string | undefined;
       if (!enc) return reply.code(404).send({ error: 'no_secret', message: 'Nessuna password impostata', statusCode: 404 });
-      try { return { password: decryptSecret(enc) }; }
+      let plain: string;
+      try { plain = decryptSecret(enc); }
       catch { return reply.code(500).send({ error: 'decrypt_failed', message: 'Impossibile decifrare il segreto', statusCode: 500 }); }
+      // audit: registra CHI ha sbloccato QUALE unità QUANDO (mai il valore in chiaro)
+      await db.query(
+        `INSERT INTO serial_secret_reveal_log (tenant_id, serial_unit_id, user_id) VALUES ($1,$2,$3)`,
+        [request.ctx.tenantId, request.params.id, request.ctx.userId]);
+      return { password: plain };
     }));
 }

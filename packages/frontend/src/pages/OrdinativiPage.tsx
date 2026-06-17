@@ -11,6 +11,7 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { Drawer } from '../ui/Drawer';
+import { downloadXlsx } from '../lib/xlsx';
 import { SlidersHorizontal, Columns3, Sparkles, Upload, Download, Users, Plus } from '../ui/icons';
 import { useApi, mutate } from '../api/hooks';
 import { useToast } from '../ui/Toast';
@@ -78,14 +79,22 @@ export function OrdinativiPage() {
   }
   function exitSelect() { setSelectMode(false); setSelected(new Set()); }
 
-  function exportSelected() {
+  async function exportSelected() {
     const chosen = rows.filter((w) => selected.has(w.id));
-    const lines = ['Codice;Committente;Rif. esterno;Indirizzo;Commessa;Stato;Squadra;Programmato'];
-    const esc = (s: string) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-    for (const w of chosen) lines.push([esc(w.code), esc(w.principalCompanyName ?? ''), esc(w.principalOrderRef ?? ''), esc(w.address ?? ''), esc(w.engagementTitle ?? ''), esc(statusOf(w).label), esc(w.assignedResourceLabel ?? ''), esc(w.scheduledOn ?? '')].join(';'));
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'ordini-di-lavoro.csv'; a.click(); URL.revokeObjectURL(url);
-    toast('Esportati i selezionati');
+    await downloadXlsx('ordini-di-lavoro', [{
+      name: 'Ordini di lavoro',
+      columns: [
+        { header: 'Codice', key: 'code', width: 16 }, { header: 'Committente', key: 'comm', width: 26 },
+        { header: 'Rif. esterno', key: 'ref', width: 18 }, { header: 'Indirizzo', key: 'addr', width: 32 },
+        { header: 'Commessa', key: 'eng', width: 26 }, { header: 'Stato', key: 'st', width: 16 },
+        { header: 'Squadra', key: 'team', width: 20 }, { header: 'Programmato', key: 'sched', width: 14 },
+      ],
+      rows: chosen.map((w) => ({
+        code: w.code, comm: w.principalCompanyName ?? '', ref: w.principalOrderRef ?? '', addr: w.address ?? '',
+        eng: w.engagementTitle ?? '', st: statusOf(w).label, team: w.assignedResourceLabel ?? '', sched: w.scheduledOn ?? '',
+      })),
+    }]);
+    toast('Esportati i selezionati (.xlsx)');
   }
 
   const leftActions: ListAction[] = [
@@ -98,7 +107,7 @@ export function OrdinativiPage() {
   ];
   const rightActions: ListAction[] = [
     ...(can('import') ? [{ key: 'import', icon: Upload, tip: 'Importa da CSV', onClick: () => setImportOpen(true) } as ListAction] : []),
-    { key: 'export', icon: Download, tip: selectMode && selected.size ? `Esporta ${selected.size} selezionati` : 'Esporta (seleziona righe)', disabled: !(selectMode && selected.size > 0), onClick: exportSelected },
+    { key: 'export', icon: Download, tip: selectMode && selected.size ? `Esporta ${selected.size} selezionati (.xlsx)` : 'Esporta (seleziona righe)', disabled: !(selectMode && selected.size > 0), onClick: () => void exportSelected() },
     ...(can('assign') ? [{ key: 'assign', icon: Users, tip: selectMode && selected.size ? `Assegna ${selected.size} a squadra` : 'Assegna (seleziona righe)', disabled: !(selectMode && selected.size > 0), onClick: () => setAssignOpen(true) } as ListAction] : []),
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo ordine di lavoro', variant: 'primary' as const, onClick: () => history.push('/work-orders/new') }] : []),
   ];

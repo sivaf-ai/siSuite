@@ -8,6 +8,7 @@ import { ChevronRight, ChevronDown, Download, FileOutput, Scale } from 'lucide-r
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { Money } from '../ui/Num';
 import { TotalsStrip } from '../ui/DocumentArchetype';
+import { downloadXlsx } from '../lib/xlsx';
 import { useApi } from '../api/hooks';
 import { useToast } from '../ui/Toast';
 import { swatchColor } from '../theme/palette';
@@ -83,23 +84,30 @@ export function PivotPage() {
     return out;
   }, [data, open]);
 
-  function exportCsv() {
+  async function exportXlsx() {
     if (!data) return;
-    const lines: string[] = ['Commessa;Fase/WBS;Voce;Quantità;Ricavi;Costi;Margine;Margine %'];
-    const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+    const rows: Record<string, unknown>[] = [];
     for (const e of data.tree) {
       for (const p of e.phases) {
         for (const l of p.lines) {
-          lines.push([esc(`${e.code} ${e.title}`), esc(`${p.wbsCode ?? ''} ${p.name}`.trim()), esc(l.label),
-            l.quantity, l.revenue, l.cost, l.margin, pct(l.margin, l.revenue) ?? ''].join(';'));
+          rows.push({
+            commessa: `${e.code} ${e.title}`, fase: `${p.wbsCode ?? ''} ${p.name}`.trim(), voce: l.label,
+            quantita: l.quantity, ricavi: l.revenue, costi: l.cost, margine: l.margin, marginePct: pct(l.margin, l.revenue) ?? '',
+          });
         }
       }
     }
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'preventivo-consuntivo.csv'; a.click();
-    URL.revokeObjectURL(url);
-    toast('Esportato (Excel/CSV)');
+    await downloadXlsx('preventivo-consuntivo', [{
+      name: 'Preventivo-consuntivo',
+      columns: [
+        { header: 'Commessa', key: 'commessa', width: 30 }, { header: 'Fase/WBS', key: 'fase', width: 28 },
+        { header: 'Voce', key: 'voce', width: 16 }, { header: 'Quantità', key: 'quantita', width: 12 },
+        { header: 'Ricavi', key: 'ricavi', width: 14 }, { header: 'Costi', key: 'costi', width: 14 },
+        { header: 'Margine', key: 'margine', width: 14 }, { header: 'Margine %', key: 'marginePct', width: 12 },
+      ],
+      rows,
+    }]);
+    toast('Esportato in Excel (.xlsx)');
   }
 
   if (loading) return <Page title="Preventivo–consuntivo"><Loading /></Page>;
@@ -114,7 +122,7 @@ export function PivotPage() {
 
         <div className="dsx-toolbar">
           <div className="spacer" />
-          <button className="tib" data-tip="Esporta Excel (CSV)" onClick={exportCsv}><Download /></button>
+          <button className="tib" data-tip="Esporta Excel (.xlsx)" onClick={() => void exportXlsx()}><Download /></button>
           <button className="tib" data-tip="Esporta per CPM (add-on, presto)" disabled><FileOutput /></button>
         </div>
 

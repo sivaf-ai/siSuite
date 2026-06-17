@@ -110,4 +110,12 @@
 - **H Magazzino**: schermate `/stock` già complete (Giacenze/Movimenti/Documenti DDT/Ubicazioni). Riempiti i tab placeholder: **Articolo** (Giacenze/Movimenti/Documenti reali) e **Ordine di lavoro** (Materiali scaricati). `GET /stock/movements` +filtro `workOrderId` + `workOrderId`/`documentRef` nel DTO. `DONE_H_*`.
 - **B-bis Ordini**: `OrdinativiPage` +selezione multipla (pick-multi) + **assegna bulk** (`/work-orders/assign`) + **esporta selezionati** + **import CSV con editor di mapping** colonna→campo (`/work-orders/import`). Densità accentrata in Impostazioni (rimossa da ClientiPage in M). `DONE_Bbis_*`.
 - **Nuovi componenti riusabili**: `ui/AttrFields.tsx` (M), `ui/DocumentArchetype.tsx` (F/H).
-- **Resta da fare a Ricardo**: verifica visiva a video (screenshot non producibili headless), ricarica demo se serve, eventuale seed di scarichi su ordine (per popolare "Materiali scaricati"), valutare export `.xlsx` nativo (ora CSV).
+- **Resta da fare a Ricardo**: verifica visiva a video (screenshot non producibili headless).
+
+## 2026-06-17 (4) — Debiti tecnici chiusi + seed scarichi su ordine
+- **Migrazione 033** `serial_security.sql` applicata (prossima libera: **034**): RLS `stock_serial_unit` con `data_scope='own'` per-comando (Tecnico vede solo le sue unità) + tabella audit `serial_secret_reveal_log` (reveal segreto: chi/quale/quando, mai il valore). `routes/serials.ts` logga il reveal.
+- **Listino**: nuovo `GET /price-list-items/:id/usage`; tab "Lavorazioni che la usano" + "Storico prezzi" (snapshot da work_line) ora reali.
+- **Export .xlsx nativo**: +dep `exceljs`, helper `lib/xlsx.ts`; Pivot e "Esporta selezionati" Ordini ora producono .xlsx (no più CSV).
+- **Schema doc** rigenerato: `docs/analisi/2026-06-17_schema_db_completo.md` (pg_dump dopo 001-033).
+- **Demo H**: `demo/runner.ts` ora seeda stock_movement 'out' con work_order_id (tab "Materiali scaricati" popolato). Demo ricaricata.
+- Dettagli: `docs/DONE_debiti_2026-06-17.md`. Typecheck shared+backend+frontend puliti. Tutto pushato su GitHub main.

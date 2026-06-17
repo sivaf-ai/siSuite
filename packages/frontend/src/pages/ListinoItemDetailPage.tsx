@@ -17,6 +17,10 @@ import { useAuth } from '../auth/AuthContext';
 
 type Detail = PriceListItemDto & { overrides: PriceOverrideDto[] };
 interface ListResp<T> { items: T[] }
+interface UsageRow {
+  id: string; description: string | null; engagementCode: string | null; engagementTitle: string | null;
+  quantity: number; unit: string | null; costPrice: number | null; revenuePrice: number | null; occurredOn: string | null;
+}
 
 export function ListinoItemDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +31,7 @@ export function ListinoItemDetailPage() {
   const canManage = !!user?.permissions.includes('settings:manage' as never);
 
   const detail = useApi<Detail>(isNew ? null : `/price-list-items/${id}`);
+  const usage = useApi<{ items: UsageRow[] }>(isNew ? null : `/price-list-items/${id}/usage`);
   const priceLists = useApi<ListResp<PriceListDto>>('/price-lists');
   const companies = useApi<ListResp<CompanyDto>>('/companies?role=operator&limit=200');
   const engagements = useApi<ListResp<{ id: string; title?: string; code?: string }>>('/engagements');
@@ -124,10 +129,56 @@ export function ListinoItemDetailPage() {
       )}
     </>
   );
+  const usageRows = usage.data?.items ?? [];
+  // storico prezzi = snapshot distinti (data, costo, ricavo) fotografati sulle lavorazioni
+  const priceHistory = (() => {
+    const seen = new Set<string>(); const out: UsageRow[] = [];
+    for (const u of usageRows) {
+      const k = `${u.occurredOn}|${u.costPrice}|${u.revenuePrice}`;
+      if (seen.has(k)) continue; seen.add(k); out.push(u);
+    }
+    return out;
+  })();
+
+  const usageTable = (
+    <table className="subt">
+      <thead><tr><th>Lavorazione</th><th>Commessa</th><th>Data</th><th className="num">Q.tà</th><th className="num">Costo</th><th className="num">Ricavo</th></tr></thead>
+      <tbody>
+        {usageRows.map((u) => (
+          <tr key={u.id}>
+            <td>{u.description ?? '—'}</td>
+            <td className="mono">{u.engagementCode ?? '—'}</td>
+            <td className="mono faint">{u.occurredOn ?? '—'}</td>
+            <td className="num mono">{u.quantity.toLocaleString('it-IT')} {u.unit ?? ''}</td>
+            <td className="num"><Money value={u.costPrice} /></td>
+            <td className="num"><Money value={u.revenuePrice} /></td>
+          </tr>
+        ))}
+        {usageRows.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessuna lavorazione usa questa voce.</div></td></tr>}
+      </tbody>
+    </table>
+  );
+  const historyTable = (
+    <table className="subt">
+      <thead><tr><th>Data</th><th className="num">Costo fotografato</th><th className="num">Ricavo fotografato</th><th className="num">Margine</th></tr></thead>
+      <tbody>
+        {priceHistory.map((u, i) => { const m = marginPct(u.costPrice, u.revenuePrice); return (
+          <tr key={i}>
+            <td className="mono faint">{u.occurredOn ?? '—'}</td>
+            <td className="num"><Money value={u.costPrice} /></td>
+            <td className="num"><Money value={u.revenuePrice} /></td>
+            <td className="num mono">{m == null ? '—' : `${m.toFixed(1)}%`}</td>
+          </tr>
+        ); })}
+        {priceHistory.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessun prezzo storicizzato (la voce non è ancora stata usata in lavorazioni).</div></td></tr>}
+      </tbody>
+    </table>
+  );
+
   const tabs: RelTab[] = [
     { key: 'overrides', label: 'Ritocchi (override)', icon: Sliders, count: d?.overrides?.length ?? 0, content: overridesTable },
-    { key: 'history', label: 'Storico prezzi', icon: History, content: <div className="dsx-empty">In arrivo.</div> },
-    { key: 'usage', label: 'Lavorazioni che la usano', icon: Wrench, content: <div className="dsx-empty">In arrivo (Blocco E).</div> },
+    { key: 'history', label: 'Storico prezzi', icon: History, count: priceHistory.length, content: historyTable },
+    { key: 'usage', label: 'Lavorazioni che la usano', icon: Wrench, count: usageRows.length, content: usageTable },
   ];
 
   return (
