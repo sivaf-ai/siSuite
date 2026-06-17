@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — DDT di carico (archetipo Documento master-detail)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);--shadow-modal:0 24px 70px rgba(27,29,36,.30);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-th:11.5px;--fs-eyebrow:10.5px;--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--input-h:36px;--sec-gap:16px;--lblw:128px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--input-h:32px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--input-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 13px;border-radius:var(--r-sm);font-weight:600;font-size:13px}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ghost:hover{background:var(--paper)}
+.btn-danger{background:var(--card);color:var(--danger);border:1px solid var(--danger-wash)}.btn-danger:hover{background:var(--danger-wash)}
+.btn-ai{background:var(--brand-wash);color:var(--brand-ink);font-weight:600}
+.btn-confirm{background:var(--success);color:#fff;box-shadow:0 8px 24px rgba(19,160,107,.20)}.btn-confirm:hover{filter:brightness(.96)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}
+.tag{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-soft);background:var(--neutral-wash);padding:2px 7px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+/* shell */
+.app{display:grid;grid-template-columns:228px 1fr;height:880px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);position:relative}
+.topbar{height:58px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:540px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:18px 22px}
+.tdiv{width:1px;height:24px;background:var(--line);margin:0 3px;flex:0 0 auto}
+/* object/doc head */
+.op-head{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.op-head .back{display:inline-flex;align-items:center;gap:5px;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer}
+.op-head.sticky{position:sticky;top:0;z-index:30;background:var(--paper);padding:12px 0;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.op-ctx{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--ink-2)}
+.docnum{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill);font-weight:600}
+.ohacts{display:flex;align-items:center;gap:8px;margin-left:auto}
+/* fields in border (testata) */
+.obox{position:relative;border:1.5px solid var(--line);border-radius:var(--r-lg);padding:21px 16px 15px;margin-bottom:14px;background:var(--card)}
+.obox-t{position:absolute;top:-9px;left:14px;padding:0 7px;background:var(--card);font-family:var(--font-display);font-weight:700;font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.obox-t svg{width:14px;height:14px;color:var(--brand)}
+.bgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 12px;align-items:start}
+.bf{position:relative;grid-column:span 1}.bf.c2{grid-column:span 2}.bf.c3{grid-column:span 3}.bf.c4{grid-column:span 4}
+.bl{position:absolute;top:-7px;left:10px;padding:0 5px;background:var(--card);font-size:11px;font-weight:600;color:var(--ink-soft);line-height:1;white-space:nowrap;max-width:calc(100% - 18px);overflow:hidden;text-overflow:ellipsis}
+.bl .req{color:var(--danger)}
+.bi{width:100%;height:var(--input-h);padding:0 11px;background:var(--card);border:1.5px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink)}
+.bi.seld{justify-content:space-between;cursor:pointer}.bi.mono{font-family:var(--font-mono);font-size:13px}.bi .ph{color:var(--ink-faint)}
+.bi.area{height:auto;min-height:52px;padding:9px 11px;align-items:flex-start}
+.bi.green{background:#EAF7F0;border-color:#BFE6D4;color:var(--success);font-family:var(--font-mono);font-weight:600}
+.reuse{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:var(--brand-ink);background:var(--brand-wash);padding:2px 7px;border-radius:var(--r-pill);position:absolute;top:-9px;right:10px}
+.reuse svg{width:12px;height:12px}
+/* state stepper */
+.dstate{display:flex;align-items:center;gap:10px;margin:0 0 13px;padding:9px 14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1)}
+.dstep{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-faint)}
+.dstep .dt{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dstep.done{color:var(--success)}.dstep.done .dt{background:var(--success)}
+.dstep.cur{color:var(--brand-ink)}.dstep.cur .dt{background:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+.dstate .arr{color:var(--ink-faint);display:inline-flex}.dstate .arr svg{width:15px;height:15px}
+.dstate .lock{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-faint)}.dstate .lock svg{width:14px;height:14px}
+/* rows (master-detail body) */
+.rowscard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden;margin-bottom:14px}
+.rowshead{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.rowshead .ti{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.rowshead .ti svg{width:16px;height:16px;color:var(--brand)}
+.rowshead .ti .cnt{font-size:11px;background:var(--neutral-wash);color:var(--ink-soft);border-radius:var(--r-pill);padding:1px 7px;font-weight:700}
+.rowshead .acts{margin-left:auto;display:flex;gap:8px}
+.dt-tbl{width:100%;border-collapse:collapse}
+.dt-tbl thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.dt-tbl thead th.r{text-align:right}
+.dt-tbl td{padding:6px 10px;border-bottom:1px solid var(--line-2);font-size:13px;vertical-align:middle;white-space:nowrap}
+.dt-tbl tbody tr:last-child td{border-bottom:0}.dt-tbl tbody tr:hover{background:var(--paper)}
+.dt-tbl td.r{text-align:right}
+.rn{font-family:var(--font-mono);color:var(--ink-faint);font-size:12px}
+.artc{display:flex;align-items:center;gap:9px;min-width:300px;cursor:pointer}
+.artc .ac{font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--brand-ink);background:var(--brand-wash);padding:1px 6px;border-radius:6px;flex:0 0 auto}
+.artc .ad{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.cin{height:30px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);padding:0 9px;font-family:var(--font-mono);font-feature-settings:"tnum" 1;font-size:13px;color:var(--ink);text-align:right;width:90px}
+.cin:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+.cin.pct{width:60px}
+.money{display:inline-flex;align-items:center;justify-content:space-between;gap:16px;font-family:var(--font-mono);font-feature-settings:"tnum" 1;min-width:92px}
+.money .sym{color:var(--ink-faint);font-weight:500}
+.umtag{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);background:var(--neutral-wash);padding:2px 7px;border-radius:6px}
+.lotc{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft)}
+.delx{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-faint)}.delx:hover{background:var(--danger-wash);color:var(--danger)}
+.delx svg{width:15px;height:15px}
+.addrow{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);padding:11px 14px;cursor:pointer;border-top:1px solid var(--line-2)}
+/* totals */
+.dtot{display:flex;justify-content:flex-end;margin-bottom:14px}
+.dtotbox{min-width:330px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-1);padding:13px 15px}
+.dtotrow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+.dtotrow .k{color:var(--ink-soft)}.dtotrow .v{font-family:var(--font-mono);font-feature-settings:"tnum" 1;font-weight:600;display:inline-flex;justify-content:space-between;gap:16px;min-width:120px}
+.dtotrow .v .sym{color:var(--ink-faint);font-weight:500}
+.dtotrow .v.neg{color:var(--danger)}
+.dtotrow.grand{border-top:1px solid var(--line);margin-top:5px;padding-top:9px;font-size:15px}
+.dtotrow.grand .k{font-weight:700;color:var(--ink)}.dtotrow.grand .v{color:var(--brand-ink);font-weight:800}
+.metaline{display:flex;gap:14px;font-size:12px;color:var(--ink-faint);padding:0 2px 10px}
+.metaline b{color:var(--ink-soft);font-family:var(--font-mono);font-weight:600}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px;margin-bottom:14px}
+.note svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;margin-top:1px}
+/* tooltip */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:7px;white-space:nowrap;z-index:60;pointer-events:none}
+[data-tip]:hover::before{content:"";position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--ink);z-index:60;pointer-events:none}
+/* modal */
+.modal-stage{position:relative;height:560px;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-2)}
+.modal-bg{position:absolute;inset:0;background:var(--paper)}
+.dim{position:absolute;inset:0;background:rgba(27,29,36,.45);backdrop-filter:blur(1.5px)}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-width:92%;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow-modal);overflow:hidden}
+.modal-h{display:flex;align-items:center;gap:11px;padding:18px 20px 6px}
+.modal-h .mic{width:40px;height:40px;border-radius:11px;background:var(--success-wash);color:var(--success);display:grid;place-items:center;flex:0 0 auto}
+.modal-h .ti{font-family:var(--font-display);font-weight:700;font-size:16px}
+.modal-b{padding:6px 20px 4px;font-size:13.5px;color:var(--ink-soft);line-height:1.5}
+.modal-b .eff{margin:12px 0 4px;border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;background:var(--paper)}
+.modal-b .eff .er{display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0}.modal-b .eff .er svg{width:15px;height:15px;color:var(--success)}.modal-b .eff .er b{font-family:var(--font-mono)}
+.modal-f{display:flex;align-items:center;gap:9px;padding:15px 20px 18px}.modal-f .sp{flex:1}
+/* page scaffolding */
+.wrap{max-width:1320px;margin:0 auto;padding:34px 20px 80px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:900px}
+.cap{margin:42px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:900px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:6px">
+    <h1><em>si</em>Suite — DDT di carico · archetipo <em>Documento</em></h1>
+    <p>Il terzo archetipo dello standard: <b>testata + righe master-detail</b> nella stessa pagina. Una testata con i campi del documento, una griglia di righe a <b>una sola riga</b> (incolonnamento e confronto dei numeri), numerazione automatica, stato con <b>conferma immutabile</b> e totali in formato contabile. Esempio: carico di magazzino da fornitore.</p>
+  </div>
+
+  <!-- ============ SCENA 1 — DOCUMENTO ============ -->
+  <div class="cap"><div class="e">1 · Documento (master-detail)</div><div class="t">DDT di carico — testata + righe</div>
+    <div class="d">Le righe sono <em>a una riga sola</em>: serve incolonnare e confrontare quantità e importi. Fornitore e Articoli si scelgono richiamando la <em>stessa</em> lista (Aziende / Articoli) in modalità selezione. Alla <em>Conferma</em> il documento aggiorna le giacenze e diventa non modificabile.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="building-2"></i> Aziende</a>
+      <a class="nav-item"><i data-lucide="package"></i> Articoli</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <div class="nav-group">Operatività</div>
+      <a class="nav-item"><i data-lucide="folder-kanban"></i> Commesse</a>
+      <a class="nav-item active"><i data-lucide="warehouse"></i> Magazzino</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Documenti</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Amministratore</div></div></div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <div style="width:36px"></div>
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Chiedi o cerca…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button>
+        <button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+
+      <div class="work">
+        <!-- HEAD STICKY: solo azioni del documento -->
+        <div class="op-head sticky">
+          <span class="back"><i data-lucide="chevron-left"></i> Magazzino</span>
+          <span class="op-ctx">DDT di carico</span>
+          <span class="docnum">DDT-CAR · 2026/0042</span>
+          <span class="pill pill--warning"><span class="dot"></span>Bozza</span>
+          <div class="ohacts">
+            <button class="btn btn-ghost" data-tip="Annulla le modifiche">Annulla</button>
+            <button class="btn btn-ghost" data-tip="Salva senza confermare"><i data-lucide="save"></i> Salva bozza</button>
+            <button class="btn btn-confirm" data-tip="Conferma: aggiorna le giacenze e blocca il documento"><i data-lucide="check-check"></i> Conferma carico</button>
+          </div>
+        </div>
+
+        <!-- STATO -->
+        <div class="dstate">
+          <span class="dstep cur"><span class="dt"></span> Bozza</span>
+          <span class="arr"><i data-lucide="chevron-right"></i></span>
+          <span class="dstep"><span class="dt"></span> Confermato</span>
+          <span class="arr"><i data-lucide="chevron-right"></i></span>
+          <span class="dstep"><span class="dt"></span> Contabilizzato</span>
+          <span class="lock"><i data-lucide="info"></i> alla conferma le giacenze si aggiornano e il documento si blocca</span>
+        </div>
+
+        <!-- TESTATA -->
+        <div class="obox">
+          <span class="obox-t"><i data-lucide="file-input"></i> Testata documento</span>
+          <div class="bgrid">
+            <div class="bf"><span class="bl">Numero</span><div class="bi green">DDT-CAR 2026/0042</div></div>
+            <div class="bf"><span class="bl">Data documento <span class="req">*</span></span><div class="bi mono">12/06/2026</div></div>
+            <div class="bf"><span class="bl">Causale <span class="req">*</span></span><div class="bi seld">Carico da fornitore <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div></div>
+            <div class="bf"><span class="bl">Magazzino destinazione <span class="req">*</span></span><div class="bi seld">Deposito centrale <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div></div>
+
+            <div class="bf c2"><span class="bl">Fornitore <span class="req">*</span></span><span class="reuse" data-tip="Apre la stessa lista Aziende in selezione"><i data-lucide="external-link"></i> stessa lista Aziende</span><div class="bi seld">Fibraltalia Distribuzione SpA <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div></div>
+            <div class="bf"><span class="bl">Rif. DDT fornitore</span><div class="bi mono">2026/8841</div></div>
+            <div class="bf"><span class="bl">Data rif.</span><div class="bi mono">11/06/2026</div></div>
+
+            <div class="bf c4"><span class="bl">Note</span><div class="bi area"><span class="ph">Note interne sul carico…</span></div></div>
+          </div>
+        </div>
+
+        <!-- RIGHE (master-detail) -->
+        <div class="rowscard">
+          <div class="rowshead">
+            <div class="ti"><i data-lucide="list"></i> Righe documento <span class="cnt">4</span></div>
+            <div class="acts">
+              <button class="btn btn-ai" data-tip="Leggi le righe da una foto della bolla/DDP (AI)"><i data-lucide="scan-line"></i> Leggi da bolla</button>
+              <button class="btn btn-ghost" data-tip="Aggiungi una riga (stessa lista Articoli)"><i data-lucide="plus"></i> Aggiungi riga</button>
+            </div>
+          </div>
+          <table class="dt-tbl">
+            <thead><tr>
+              <th style="width:34px">#</th>
+              <th>Articolo</th>
+              <th style="width:64px">UM</th>
+              <th class="r" style="width:120px">Quantità</th>
+              <th class="r" style="width:140px">Prezzo unit.</th>
+              <th class="r" style="width:92px">Sconto</th>
+              <th style="width:150px">Lotto / Matricola</th>
+              <th class="r" style="width:130px">Valore</th>
+              <th style="width:40px"></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="rn">1</span></td>
+                <td><div class="artc" data-tip="Apre la stessa lista Articoli in selezione"><span class="ac">ART-014</span><span class="ad">Cavo fibra ottica drop G657 (matassa)</span></div></td>
+                <td><span class="umtag">m</span></td>
+                <td class="r"><input class="cin" value="1.200,00"></td>
+                <td class="r"><input class="cin" value="0,42"></td>
+                <td class="r"><input class="cin pct" value="0"></td>
+                <td><span class="lotc">LOT-2406A</span></td>
+                <td class="r"><span class="money"><span class="sym">€</span><span>504,00</span></span></td>
+                <td><button class="delx" data-tip="Rimuovi riga"><i data-lucide="trash-2"></i></button></td>
+              </tr>
+              <tr>
+                <td><span class="rn">2</span></td>
+                <td><div class="artc"><span class="ac">ART-022</span><span class="ad">ONT Sky OF — borchia ottica</span></div></td>
+                <td><span class="umtag">pz</span></td>
+                <td class="r"><input class="cin" value="50"></td>
+                <td class="r"><input class="cin" value="18,90"></td>
+                <td class="r"><input class="cin pct" value="5"></td>
+                <td><span class="lotc">SN: 50 matricole</span></td>
+                <td class="r"><span class="money"><span class="sym">€</span><span>897,75</span></span></td>
+                <td><button class="delx" data-tip="Rimuovi riga"><i data-lucide="trash-2"></i></button></td>
+              </tr>
+              <tr>
+                <td><span class="rn">3</span></td>
+                <td><div class="artc"><span class="ac">ART-031</span><span class="ad">HUB6 — router FTTH</span></div></td>
+                <td><span class="umtag">pz</span></td>
+                <td class="r"><input class="cin" value="25"></td>
+                <td class="r"><input class="cin" value="42,00"></td>
+                <td class="r"><input class="cin pct" value="0"></td>
+                <td><span class="lotc">SN: 25 matricole</span></td>
+                <td class="r"><span class="money"><span class="sym">€</span><span>1.050,00</span></span></td>
+                <td><button class="delx" data-tip="Rimuovi riga"><i data-lucide="trash-2"></i></button></td>
+              </tr>
+              <tr>
+                <td><span class="rn">4</span></td>
+                <td><div class="artc"><span class="ac">ART-045</span><span class="ad">Splitter ottico 1:8</span></div></td>
+                <td><span class="umtag">pz</span></td>
+                <td class="r"><input class="cin" value="40"></td>
+                <td class="r"><input class="cin" value="6,30"></td>
+                <td class="r"><input class="cin pct" value="0"></td>
+                <td><span class="lotc">LOT-2406S</span></td>
+                <td class="r"><span class="money"><span class="sym">€</span><span>252,00</span></span></td>
+                <td><button class="delx" data-tip="Rimuovi riga"><i data-lucide="trash-2"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="addrow"><i data-lucide="plus"></i> Aggiungi riga</div>
+        </div>
+
+        <div class="metaline"><span>Righe: <b>4</b></span><span>Pezzi: <b>115</b></span><span>Cavo: <b>1.200 m</b></span></div>
+
+        <!-- TOTALI -->
+        <div class="dtot">
+          <div class="dtotbox">
+            <div class="dtotrow"><span class="k">Subtotale lordo</span><span class="v"><span class="sym">€</span><span>2.751,00</span></span></div>
+            <div class="dtotrow"><span class="k">Sconti</span><span class="v neg"><span class="sym">−€</span><span>47,25</span></span></div>
+            <div class="dtotrow grand"><span class="k">Valore di carico</span><span class="v"><span class="sym">€</span><span>2.703,75</span></span></div>
+          </div>
+        </div>
+
+        <div class="note"><i data-lucide="repeat"></i><div><b>Riuso:</b> il Fornitore e gli Articoli non hanno liste proprie qui dentro: si richiamano la <b>stessa lista Aziende</b> e la <b>stessa lista Articoli</b> in modalità selezione; se mancano, si creano al volo con la stessa scheda. È l'unico punto in cui usiamo il vero master-detail (testata + righe): le entità semplici restano Lista → Scheda.</div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCENA 2 — CONFERMA IMMUTABILE ============ -->
+  <div class="cap"><div class="e">2 · Conferma immutabile</div><div class="t">Conferma del carico</div>
+    <div class="d">La conferma di un documento <em>genera gli effetti</em> (qui: aggiorna le giacenze) e rende il documento <em>non modificabile</em>. Va sempre chiesta esplicitamente.</div></div>
+
+  <div class="modal-stage">
+    <div class="modal-bg"></div>
+    <div class="dim"></div>
+    <div class="modal">
+      <div class="modal-h"><div class="mic"><i data-lucide="check-check"></i></div><div class="ti">Confermare il carico?</div></div>
+      <div class="modal-b">
+        Il documento <b style="font-family:var(--font-mono);color:var(--ink)">DDT-CAR 2026/0042</b> verrà confermato. Effetti sul <b>Deposito centrale</b>:
+        <div class="eff">
+          <div class="er"><i data-lucide="plus-circle"></i> Giacenze: <b>+115 pz</b> e <b>+1.200 m</b> su 4 articoli</div>
+          <div class="er"><i data-lucide="hash"></i> Verranno registrate <b>75 matricole/seriali</b> in tracciabilità</div>
+          <div class="er"><i data-lucide="lock"></i> Il documento diventerà <b>non modificabile</b></div>
+        </div>
+      </div>
+      <div class="modal-f">
+        <button class="btn btn-ghost">Annulla</button>
+        <span class="sp"></span>
+        <button class="btn btn-confirm"><i data-lucide="check-check"></i> Conferma carico</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons()</script>
+</body>
+</html>

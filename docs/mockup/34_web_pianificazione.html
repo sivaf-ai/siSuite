@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Pianificazione</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--ctrl-h:36px;--sec-gap:16px;}
+html[data-density="compact"]{--ctrl-h:32px;--sec-gap:12px;}html[data-density="spacious"]{--ctrl-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}.pill--success{color:var(--success);background:var(--success-wash)}
+.app{display:grid;grid-template-columns:230px 1fr;height:820px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head .ti{display:flex;align-items:center;gap:10px}.page-head .ti .ic{width:30px;height:30px;border-radius:9px;background:var(--brand-wash);color:var(--brand-ink);display:grid;place-items:center}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.week-switch{display:flex;align-items:center;gap:4px}
+.week-switch .nav{width:34px;height:34px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}
+.week-switch .lbl{font-weight:700;font-size:14px;padding:0 10px}
+/* layout pianificazione */
+.planwrap{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:16px;align-items:start}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.grid{display:grid;grid-template-columns:148px repeat(5,1fr)}
+.gh{padding:11px 10px;border-bottom:1px solid var(--line);border-left:1px solid var(--line-2);font-size:12px;color:var(--ink-soft);text-align:center;background:var(--card)}
+.gh.today{background:var(--brand-wash);color:var(--brand-ink);font-weight:700}
+.gh .d{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--ink);margin-top:1px}
+.gh.corner{border-left:0;background:var(--card)}
+.rescell{padding:12px 12px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;font-weight:600;font-size:13px}
+.rescell .rdot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint)}
+.rescell.busy .rdot{background:var(--success)}
+.daycell{border-left:1px solid var(--line-2);border-bottom:1px solid var(--line-2);padding:7px 7px;min-height:74px}
+.daycell.today{background:#FBFAFF}
+.ev{border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:9px;padding:6px 8px;margin-bottom:6px;background:var(--card);position:relative;box-shadow:var(--shadow-1)}
+.ev:last-child{margin-bottom:0}
+.ev .t{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-faint);font-weight:600}
+.ev .n{font-size:12.5px;font-weight:600;line-height:1.25;margin-top:1px}
+.ev.flow{border-left-color:var(--flow)}.ev.flow .t{color:var(--flow)}
+.ev.fiber{border-left-color:var(--info)}.ev.pool{border-left-color:var(--flow)}.ev.solar{border-left-color:var(--warning)}.ev.soft{border-left-color:var(--brand)}
+.ev .pin{position:absolute;top:6px;right:6px;color:var(--brand);transform:rotate(35deg)}
+/* riepilogo */
+.sumdark{background:var(--ink);color:#fff;border-radius:var(--r-lg);padding:17px 18px;box-shadow:var(--shadow-1);position:relative;overflow:hidden}
+.sumdark::before{content:"";position:absolute;inset:0;background:radial-gradient(360px 160px at 90% -20%,rgba(31,200,194,.25),transparent)}
+.sumdark .h{position:relative;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--flow)}
+.sumdark .b{position:relative;font-size:14px;line-height:1.5;margin-top:9px;color:#E7E9F0}
+.sumcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:6px 18px;margin-top:14px}
+.sumrow{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:13.5px}
+.sumrow:last-child{border-bottom:0}.sumrow .v{font-family:var(--font-mono);font-weight:700;font-size:15px}
+.sumcard .ct{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);padding:14px 0 2px}
+.wrap{max-width:1280px;margin:0 auto;padding:34px 20px 70px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:16px">
+    <h1><em>si</em>Suite — Pianificazione</h1>
+    <p>La schermata agenda rifatta su <code>base.css</code> v5: stessa densità che ti piaceva, card attività con orario o "flusso", attività fisse con spillo, e il pannello riepilogo della settimana.</p>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item active"><i data-lucide="calendar"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head">
+          <div class="ti">
+            <div class="ic"><i data-lucide="calendar-clock" style="width:18px;height:18px"></i></div>
+            <div><h1>Pianificazione</h1><div class="sub">Le attività dinamiche fluiscono da oggi; le fisse fanno da àncora. Calcolo per-risorsa.</div></div>
+          </div>
+          <div class="week-switch">
+            <button class="nav"><i data-lucide="chevron-left"></i></button>
+            <span class="lbl">15–19 giugno</span>
+            <button class="nav"><i data-lucide="chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div class="planwrap">
+          <div class="plan">
+            <div class="grid">
+              <!-- header -->
+              <div class="gh corner"></div>
+              <div class="gh today">lun<div class="d">15</div></div>
+              <div class="gh">mar<div class="d">16</div></div>
+              <div class="gh">mer<div class="d">17</div></div>
+              <div class="gh">gio<div class="d">18</div></div>
+              <div class="gh">ven<div class="d">19</div></div>
+
+              <!-- Ahmed Rossi -->
+              <div class="rescell busy"><span class="rdot"></span> Ahmed Rossi</div>
+              <div class="daycell today">
+                <div class="ev soft"><div class="t">09:45</div><div class="n">Disegno architettura</div></div>
+                <div class="ev soft"><div class="t">16:45</div><div class="n">Sviluppo API catalogo</div></div>
+              </div>
+              <div class="daycell">
+                <div class="ev flow"><div class="t">flusso</div><div class="n">Sviluppo API catalogo</div></div>
+                <div class="ev soft"><i data-lucide="pin" class="pin" style="width:13px;height:13px"></i><div class="t">08:00</div><div class="n">Diagnosi rallentamenti</div></div>
+                <div class="ev soft"><div class="t">09:30</div><div class="n">Ottimizzazione query</div></div>
+              </div>
+              <div class="daycell"><div class="ev flow"><div class="t">flusso</div><div class="n">Sviluppo API catalogo</div></div></div>
+              <div class="daycell"></div>
+              <div class="daycell"></div>
+
+              <!-- Davide Conti -->
+              <div class="rescell"><span class="rdot"></span> Davide Conti</div>
+              <div class="daycell today"></div><div class="daycell"></div><div class="daycell"></div><div class="daycell"></div><div class="daycell"></div>
+
+              <!-- Gino Acqua -->
+              <div class="rescell busy"><span class="rdot"></span> Gino Acqua</div>
+              <div class="daycell today"><div class="ev pool"><div class="t">09:45</div><div class="n">Cassero e getto</div></div></div>
+              <div class="daycell"><div class="ev flow"><div class="t">flusso</div><div class="n">Cassero e getto</div></div></div>
+              <div class="daycell"><div class="ev pool"><div class="t">08:45</div><div class="n">Verifica impianti</div></div></div>
+              <div class="daycell"></div>
+              <div class="daycell"><div class="ev pool"><div class="t">10:45</div><div class="n">Impianti filtrazione</div></div></div>
+
+              <!-- Marco Gallo -->
+              <div class="rescell busy"><span class="rdot"></span> Marco Gallo</div>
+              <div class="daycell today">
+                <div class="ev fiber"><div class="t">09:45</div><div class="n">Collaudo OTDR</div></div>
+                <div class="ev fiber"><div class="t">10:30</div><div class="n">Giunzione (splicing)</div></div>
+              </div>
+              <div class="daycell">
+                <div class="ev fiber"><i data-lucide="pin" class="pin" style="width:13px;height:13px"></i><div class="t">07:00</div><div class="n">Diagnosi guasto</div></div>
+                <div class="ev fiber"><div class="t">08:00</div><div class="n">Ri-giunzione</div></div>
+                <div class="ev fiber"><div class="t">09:00</div><div class="n">Ricollaudo OTDR</div></div>
+              </div>
+              <div class="daycell"></div><div class="daycell"></div><div class="daycell"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="sumdark">
+              <div class="h"><i data-lucide="sparkles" style="width:15px;height:15px"></i> La settimana, in breve</div>
+              <div class="b">14 risorse, 27 attività collocate questa settimana. Nessun conflitto.</div>
+            </div>
+            <div class="sumcard">
+              <div class="ct">Questa settimana</div>
+              <div class="sumrow"><span class="muted">Ore pianificate</span><span class="v">254:00</span></div>
+              <div class="sumrow"><span class="muted">Attività</span><span class="v">27</span></div>
+              <div class="sumrow"><span class="muted">Conflitti</span><span class="v" style="color:var(--success)">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

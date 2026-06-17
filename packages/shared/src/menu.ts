@@ -46,6 +46,8 @@ export const MENU: MenuItem[] = [
   { id: 'absences',     label: 'Assenze',       route: '/absences',     icon: 'calendar-clear-outline', permission: 'absence:read', shells: ['desktop'], group: 'lavoro' },
   { id: 'captures-inbox', label: 'Catture',    route: '/captures',    icon: 'sparkles-outline',   permission: 'capture:read',    shells: ['desktop'], group: 'lavoro' },
   { id: 'assets',      label: 'Asset',         route: '/assets',      icon: 'cube-outline',       permission: 'asset:read',      shells: ['desktop'], group: 'lavoro' },
+  // POWERCOM — Campo: ordinativi FTTH (modulo verticale fibra)
+  { id: 'work-orders', label: 'Ordini di lavoro', route: '/work-orders', icon: 'git-branch-outline', permission: 'work_order:read', shells: ['desktop', 'mobile'], group: 'lavoro' },
 
   { id: 'companies',   label: 'Clienti',       route: '/companies',   icon: 'business-outline',   permission: 'company:read',    shells: ['desktop'], group: 'anagrafiche' },
   { id: 'resources',   label: 'Risorse',       route: '/resources',   icon: 'people-outline',     permission: 'resource:read',   shells: ['desktop'], group: 'anagrafiche' },

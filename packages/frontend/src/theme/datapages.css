@@ -1,0 +1,132 @@
+/* datapages.css — superfici dati riusabili: EntityList (lista) + ObjectPage/ObjectBox/RelatedTabs (scheda).
+   Estratto dalla maschera Ordinativi (mock 44). Scope neutro .dsx, solo design-token v5. */
+ * Tutto scoped sotto .dsx per non sporcare il resto dell'app; usa SOLO i design
+ * token v5 (variables.css). Riusa le classi globali .btn/.pill/.card/.chip/.mono. */
+
+.dsx { --lblw: 128px; }
+
+/* header lista */
+.dsx .lh { display: flex; align-items: baseline; gap: 11px; margin-bottom: 11px; }
+.dsx .lh h1 { font-size: var(--fs-h1); font-weight: 800; margin: 0; font-family: var(--font-display); letter-spacing: -.02em; }
+.dsx .lh .sub { font-size: 12.5px; color: var(--ink-soft); }
+
+/* viste (filtri salvati) */
+.dsx .views { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+.dsx .viewchip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
+  border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  background: var(--card); border: 1px solid var(--line); cursor: pointer; }
+.dsx .viewchip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.dsx .viewchip .c { font-size: 11px; opacity: .7; }
+
+/* toolbar a icone */
+.dsx .dsx-toolbar { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; flex-wrap: wrap; }
+.dsx .dsx-search { display: flex; align-items: center; gap: 8px; height: var(--ctrl-h, 36px); padding: 0 12px;
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-sm); width: 230px; color: var(--ink-faint); }
+.dsx .dsx-search input { border: 0; background: none; outline: none; font-family: inherit; font-size: 13px; flex: 1; color: var(--ink); }
+.dsx .spacer { flex: 1; }
+.dsx .tdiv { width: 1px; height: 24px; background: var(--line); margin: 0 3px; }
+.dsx .tib { position: relative; width: var(--ctrl-h, 36px); height: var(--ctrl-h, 36px); border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-soft); display: grid; place-items: center; cursor: pointer; }
+.dsx .tib:hover { background: var(--paper); color: var(--ink); }
+.dsx .tib svg { width: 16px; height: 16px; }
+.dsx .tib.ai { background: var(--brand-wash); color: var(--brand-ink); border-color: transparent; }
+.dsx .tib.primary { background: var(--brand); color: #fff; border-color: transparent; box-shadow: var(--shadow-pop); }
+.dsx .tib.primary:hover { background: var(--brand-press); }
+.dsx .tib:disabled { opacity: .45; cursor: not-allowed; }
+
+/* tabella 2 livelli */
+.dsx .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden; }
+.dsx table.t { width: 100%; border-collapse: collapse; }
+.dsx .t thead th { text-align: left; font-size: var(--fs-th); font-weight: 600; color: var(--ink-faint);
+  padding: 9px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--card); }
+.dsx .t thead th .h2 { display: block; font-size: 9.5px; color: var(--ink-faint); font-weight: 500; opacity: .75; }
+.dsx .t thead th.num { text-align: right; }
+.dsx .t td { padding: var(--row-pad, 9px 14px); border-bottom: 1px solid var(--line-2); font-size: var(--cell-fs, 13px); vertical-align: middle; white-space: nowrap; }
+.dsx .t tbody tr:last-child td { border-bottom: 0; }
+.dsx .t tbody tr { cursor: pointer; }
+.dsx .t tbody tr:hover { background: var(--paper); }
+.dsx .t tr.sel { background: var(--brand-wash); }
+.dsx .two { display: flex; flex-direction: column; gap: 1px; }
+.dsx .two .a { font-weight: 600; color: var(--ink); }
+.dsx .two .b { font-size: 11.5px; color: var(--ink-faint); }
+.dsx .two .b.mono { font-family: var(--font-mono); }
+.dsx .pii { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-faint); }
+.dsx .pii svg { width: 13px; height: 13px; color: var(--warning); }
+.dsx .appchips { display: flex; gap: 4px; flex-wrap: wrap; }
+.dsx .pager { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px;
+  border-top: 1px solid var(--line-2); font-size: 12.5px; color: var(--ink-soft); }
+.dsx .pgs { display: flex; gap: 4px; }
+.dsx .pgbtn { min-width: 30px; height: 30px; padding: 0 7px; border-radius: 7px; border: 1px solid var(--line);
+  display: grid; place-items: center; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); background: var(--card); cursor: pointer; }
+.dsx .pgbtn.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.dsx .pgbtn:disabled { opacity: .4; cursor: default; }
+
+/* ── object page (scheda) ── */
+/* header sticky OPACO e A FILO dell'intestazione (regola tassativa, vedi memory).
+   La pagina usa Page bleed → IonContent senza padding-top: la barra sta a top:0,
+   bleed orizzontale (-16px) per coprire tutta la larghezza. NIENTE margine-top
+   negativo: nessun buco dove scrollano i dati. */
+.dsx .op-head { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  margin: 0 -16px 13px; padding: 13px 16px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.dsx .op-head .back { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-soft); font-size: 13px; font-weight: 600; cursor: pointer; background: none; }
+.dsx .op-head h1 { font-size: 18px; font-weight: 800; margin: 0; font-family: var(--font-display); letter-spacing: -.02em; }
+.dsx .op-head .code { font-family: var(--font-mono); font-size: 12px; color: var(--brand-ink); background: var(--brand-wash); padding: 3px 9px; border-radius: var(--r-pill); font-weight: 600; }
+.dsx .op-head .acts { margin-left: auto; display: flex; gap: 8px; }
+
+.dsx .obox { position: relative; border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 21px 16px 15px; margin-bottom: 13px; background: var(--card); }
+.dsx .obox-t { position: absolute; top: -9px; left: 14px; padding: 0 7px; background: var(--card); font-family: var(--font-display); font-weight: 700; font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.dsx .obox-t svg { width: 14px; height: 14px; color: var(--brand); }
+.dsx .obox-act { position: absolute; top: -12px; right: 14px; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; background: var(--brand-wash); color: var(--brand-ink); border-radius: var(--r-pill); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.dsx .obox-act svg { width: 13px; height: 13px; }
+.dsx .bgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 12px; align-items: start; }
+.dsx .bf { position: relative; grid-column: span 1; }
+.dsx .bf.c2 { grid-column: span 2; } .dsx .bf.c3 { grid-column: span 3; } .dsx .bf.c4 { grid-column: span 4; }
+.dsx .bl { position: absolute; top: -7px; left: 10px; padding: 0 5px; background: var(--card); font-size: 11px; font-weight: 600; color: var(--ink-soft); line-height: 1; white-space: nowrap; z-index: 1; }
+.dsx .bl .req { color: var(--danger); }
+.dsx .bi { width: 100%; min-height: var(--input-h, 38px); padding: 0 11px; background: var(--card); border: 1.5px solid var(--line); border-radius: 9px; display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); }
+.dsx input.bi, .dsx select.bi { font-family: inherit; outline: none; }
+.dsx input.bi:focus, .dsx select.bi:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-wash); }
+.dsx .bi.mono { font-family: var(--font-mono); font-size: 13px; }
+.dsx .bi.green { background: #EAF7F0; border-color: #BFE6D4; color: var(--success); font-family: var(--font-mono); }
+.dsx .bi .ph { color: var(--ink-faint); }
+
+/* PII / mascheramento */
+.dsx .maskline { display: flex; align-items: center; gap: 8px; }
+.dsx .maskline .mk { font-family: var(--font-mono); letter-spacing: .04em; }
+.dsx .reveal { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--brand-ink); background: var(--brand-wash); padding: 3px 9px; border-radius: var(--r-pill); cursor: pointer; border: 0; }
+.dsx .reveal svg { width: 13px; height: 13px; }
+.dsx .reveal.locked { color: var(--ink-faint); background: var(--neutral-wash); cursor: not-allowed; }
+.dsx .lockicon { width: 14px; height: 14px; color: var(--warning); }
+.dsx .privacy-note { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: var(--warning); background: var(--warning-wash); border: 1px solid #F0DCB0; border-radius: var(--r-sm); padding: 9px 12px; margin-top: 13px; }
+.dsx .privacy-note svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+.dsx .privacy-note .tag { font-family: var(--font-mono); font-size: 11px; background: var(--neutral-wash); padding: 1px 6px; border-radius: 5px; color: var(--ink-2); }
+
+/* capture bar AI */
+.dsx .capbar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-lg);
+  background: var(--card); border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--card), var(--card)), var(--flow-grad);
+  background-origin: border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow-1); margin-bottom: 14px; }
+.dsx .capbar .mic { width: 42px; height: 42px; border-radius: 12px; background: var(--flow-grad); color: #fff; display: grid; place-items: center; flex: 0 0 auto; box-shadow: var(--shadow-pop); }
+.dsx .capbar .tx b { display: block; font-size: 13.5px; font-weight: 600; }
+.dsx .capbar .tx span { font-size: 12px; color: var(--ink-soft); }
+.dsx .capbar .sp { flex: 1; }
+.dsx .btn-ai { background: var(--brand-wash); color: var(--brand-ink); }
+
+/* sotto-tabelle + tab correlate */
+.dsx .subt { width: 100%; border-collapse: collapse; margin-top: 2px; }
+.dsx .subt th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink-faint); padding: 7px 12px; border-bottom: 1px solid var(--line-2); }
+.dsx .subt th.num { text-align: right; }
+.dsx .subt td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
+.dsx .subt td.num { text-align: right; font-family: var(--font-mono); }
+.dsx .subt tr:last-child td { border-bottom: 0; }
+.dsx .addline { display: flex; align-items: center; gap: 7px; padding: 10px 12px; color: var(--brand-ink); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.dsx .addline svg { width: 15px; height: 15px; }
+.dsx .serialtag { font-family: var(--font-mono); font-size: 11.5px; background: var(--neutral-wash); padding: 2px 7px; border-radius: 6px; color: var(--ink-2); }
+.dsx .reltabbar { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 2px; overflow-x: auto; }
+.dsx .rtab { display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--ink-soft); border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer; background: none; }
+.dsx .rtab svg { width: 15px; height: 15px; }
+.dsx .rtab.on { color: var(--brand-ink); border-bottom-color: var(--brand); }
+.dsx .rtab .cnt { font-size: 11px; background: var(--neutral-wash); color: var(--ink-soft); border-radius: var(--r-pill); padding: 0 6px; font-weight: 700; }
+
+.dsx .dsx-empty { padding: 40px; text-align: center; color: var(--ink-faint); }
+.dsx .skelrow { height: 44px; }

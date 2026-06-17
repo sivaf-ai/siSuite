@@ -119,20 +119,20 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     });
 
   // ── Movimenti (storico + registrazione singola) ─────────────────────
-  app.get<{ Querystring: { materialId?: string; locationId?: string; engagementId?: string; activityId?: string } }>(
+  app.get<{ Querystring: { materialId?: string; locationId?: string; engagementId?: string; activityId?: string; workOrderId?: string } }>(
     '/stock/movements', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
       const rows = await withRls(request.ctx, (db) => {
         const params: unknown[] = []; const conds: string[] = [];
         for (const [k, col] of [['materialId', 'sm.material_id'], ['locationId', 'sm.location_id'],
-          ['engagementId', 'sm.engagement_id'], ['activityId', 'sm.activity_id']] as const) {
+          ['engagementId', 'sm.engagement_id'], ['activityId', 'sm.activity_id'], ['workOrderId', 'sm.work_order_id']] as const) {
           const v = request.query[k]; if (v) { params.push(v); conds.push(`${col} = $${params.length}`); }
         }
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(
           `SELECT sm.id, sm.material_id, m.name AS material_name, sm.location_id, l.name AS location_name,
                   sm.type_id, sm.quantity, sm.unit, sm.unit_cost, sm.unit_price, sm.currency, sm.occurred_on,
-                  sm.engagement_id, sm.activity_id, sm.note, sm.created_at
+                  sm.engagement_id, sm.activity_id, sm.work_order_id, sm.document_ref, sm.note, sm.created_at
            FROM stock_movement sm JOIN material m ON m.id = sm.material_id JOIN stock_location l ON l.id = sm.location_id
            ${where} ORDER BY sm.occurred_on DESC, sm.created_at DESC LIMIT 500`, params).then((r) => r.rows);
       });
@@ -141,7 +141,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         locationName: r.location_name ?? null, typeId: r.type_id, quantity: Number(r.quantity), unit: r.unit,
         unitCost: r.unit_cost === null ? null : Number(r.unit_cost), unitPrice: r.unit_price === null ? null : Number(r.unit_price),
         currency: r.currency ?? null, occurredOn: r.occurred_on, engagementId: r.engagement_id ?? null,
-        activityId: r.activity_id ?? null, note: r.note ?? null, createdAt: r.created_at,
+        activityId: r.activity_id ?? null, workOrderId: r.work_order_id ?? null, documentRef: r.document_ref ?? null,
+        note: r.note ?? null, createdAt: r.created_at,
       }));
       return { items };
     });

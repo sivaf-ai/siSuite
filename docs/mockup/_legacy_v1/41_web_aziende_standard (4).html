@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Aziende (standard liste & CRUD)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);--shadow-modal:0 24px 70px rgba(27,29,36,.30);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-th:11.5px;--fs-eyebrow:10.5px;--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--input-h:36px;--sec-gap:16px;--lblw:128px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--input-h:32px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--input-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 13px;border-radius:var(--r-sm);font-weight:600;font-size:13px}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ghost:hover{background:var(--paper)}
+.btn-danger{background:var(--card);color:var(--danger);border:1px solid var(--danger-wash)}.btn-danger:hover{background:var(--danger-wash)}
+.btn-ai{background:var(--brand-wash);color:var(--brand-ink);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}
+.tag{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-soft);background:var(--neutral-wash);padding:2px 7px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+/* shell */
+.app{display:grid;grid-template-columns:228px 1fr;height:820px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.nav-sub{display:flex;align-items:center;gap:10px;padding:6px 10px 6px 38px;border-radius:var(--r-sm);font-size:13px;color:#9AA0AD}.nav-sub:hover{color:#fff}.nav-sub.active{color:#fff;font-weight:600}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);position:relative}
+.topbar{height:58px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:540px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:18px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.views{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
+.viewchip{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card);border:1px solid var(--line)}
+.viewchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}.viewchip .c{font-size:11px;opacity:.7}
+.lh{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:11px;flex-wrap:wrap}
+.lh-l{display:flex;align-items:baseline;gap:10px}.lh-l h1{font-size:var(--fs-h1);font-weight:800}.lh-sub{font-size:12.5px;color:var(--ink-soft)}
+.lh .views{margin:0}
+.tdiv{width:1px;height:24px;background:var(--line);margin:0 3px;flex:0 0 auto}
+.tib{position:relative;width:var(--ctrl-h);height:var(--ctrl-h);border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-soft);display:grid;place-items:center}
+.tib:hover{background:var(--paper);color:var(--ink)}.tib svg{width:16px;height:16px}
+.tib.ai{background:var(--brand-wash);color:var(--brand-ink);border-color:transparent}
+.tib.dgr{color:var(--danger)}.tib.dgr:hover{background:var(--danger-wash)}
+.tib.primary{background:var(--brand);color:#fff;border-color:transparent;box-shadow:var(--shadow-pop)}.tib.primary:hover{background:var(--brand-press)}
+.tib .b2{position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;border-radius:var(--r-pill);background:var(--brand);color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;padding:0 3px}
+.selnum{min-width:22px;height:22px;border-radius:var(--r-pill);background:var(--brand);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;font-family:var(--font-mono);padding:0 6px}
+.t td .nm{display:block;font-weight:600;color:var(--ink);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* toolbar */
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:11px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:var(--ctrl-h);padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:200px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.tbtn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:13px;font-weight:600}.tbtn:hover{background:var(--paper);color:var(--ink)}.tbtn svg{width:15px;height:15px}
+.tbtn .chipn{background:var(--brand);color:#fff;border-radius:var(--r-pill);font-size:10.5px;padding:0 6px;font-weight:700}
+.spacer{flex:1}
+/* selection bar */
+.selbar{display:flex;align-items:center;gap:9px;margin-bottom:11px;padding:7px 9px 7px 14px;background:var(--brand-wash);border:1px solid #D9D4FB;border-radius:var(--r-sm)}
+.selbar .n{font-size:13px;font-weight:700;color:var(--brand-ink)}.selbar .n b{font-family:var(--font-mono)}
+.selbar .clr{font-size:12.5px;color:var(--brand-ink);font-weight:600;text-decoration:underline;cursor:pointer}
+.selbar .acts{margin-left:auto;display:flex;gap:7px}
+.sbtn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2)}.sbtn:hover{background:#fff}.sbtn svg{width:15px;height:15px}.sbtn.danger{color:var(--danger)}
+/* table */
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}.t thead th.chk,.t td.chk{width:42px;padding-left:16px;padding-right:0}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle;white-space:nowrap}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr{cursor:pointer}.t tbody tr:hover{background:var(--paper)}
+.t tr.sel{background:var(--brand-wash)}.t tr.sel:hover{background:#E6E2FD}
+.cbx{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line);background:var(--card);display:inline-grid;place-items:center;vertical-align:middle}
+.cbx.on{background:var(--brand);border-color:var(--brand);color:#fff}.cbx.on svg{width:13px;height:13px}
+.rdo{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);display:inline-grid;place-items:center;vertical-align:middle}
+.rdo.on{border-color:var(--brand);border-width:5px}
+.ent{display:flex;flex-direction:column;gap:1px}.ent .nm{font-weight:600;color:var(--ink)}.ent .ty{font-size:11.5px;color:var(--ink-faint)}
+.roles{display:flex;gap:4px}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft)}.iaction:hover{background:var(--neutral-wash);color:var(--ink)}.iaction.danger:hover{background:var(--danger-wash);color:var(--danger)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px}.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* modal picker */
+.modal-stage{position:relative;height:660px;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-2)}
+.modal-bg{position:absolute;inset:0;background:var(--paper)}
+.modal-bg .topbar{background:var(--card)}
+.dim{position:absolute;inset:0;background:rgba(27,29,36,.45);backdrop-filter:blur(1.5px)}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:640px;max-width:92%;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow-modal);overflow:hidden;display:flex;flex-direction:column;max-height:88%}
+.modal-h{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line-2)}
+.modal-h .ti{font-family:var(--font-display);font-weight:700;font-size:16px}.modal-h .x{margin-left:auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}
+.modal-search{padding:12px 18px 6px}
+.modal-list{overflow:auto;padding:0 6px}
+.modal-f{display:flex;align-items:center;gap:9px;padding:13px 18px;border-top:1px solid var(--line-2);background:var(--paper)}
+.modal-f .info{font-size:12.5px;color:var(--ink-soft)}.modal-f .sp{flex:1}
+.reuse{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill)}
+/* object page */
+.op-head{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:13px}
+.op-head .back{display:inline-flex;align-items:center;gap:5px;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer}
+.op-head h1{font-size:var(--fs-h1);font-weight:800}
+.op-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill);font-weight:600}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--ink-soft);border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}
+.tab svg{width:15px;height:15px}.tab:hover{color:var(--ink)}.tab.on{color:var(--brand-ink);border-bottom-color:var(--brand)}
+.tab .cnt{font-size:11px;background:var(--neutral-wash);color:var(--ink-soft);border-radius:var(--r-pill);padding:0 6px;font-weight:700}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:16px 18px;margin-bottom:14px}
+.fcard > .ct{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;font-family:var(--font-display);margin-bottom:14px;color:var(--ink-2)}
+.fcard > .ct svg{width:16px;height:16px;color:var(--brand)}
+/* DENSE label-left form grid */
+.fform{display:grid;grid-template-columns:var(--lblw) minmax(0,1fr) var(--lblw) minmax(0,1fr);gap:11px 16px;align-items:center}
+.fform .lbl{font-size:12.5px;color:var(--ink-soft);font-weight:500;text-align:right;justify-self:end}
+.fform .lbl .req{color:var(--danger)}
+.fform .ctrl{min-width:0}
+.fform .row-full{grid-column:2/-1}
+.fform .span3{grid-column:2/5}
+.fform .sec-span{grid-column:1/-1;height:1px;background:var(--line-2);margin:4px 0}
+.inp{width:100%;height:var(--input-h);padding:0 11px;background:var(--paper);border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13.5px;color:var(--ink);display:flex;align-items:center;gap:8px}
+.inp.sel{justify-content:space-between;cursor:pointer}.inp .ph{color:var(--ink-faint)}.inp.mono{font-family:var(--font-mono);font-size:13px}
+.inp.area{height:auto;min-height:64px;padding:9px 11px;align-items:flex-start}
+.inp.green{background:#EAF7F0;border-color:#BFE6D4;color:var(--success);font-family:var(--font-mono)}
+.modal.wide{width:920px;max-width:95%}
+.bgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 12px;align-items:start}
+.bf{position:relative;grid-column:span 1}.bf.c2{grid-column:span 2}.bf.c3{grid-column:span 3}.bf.c4{grid-column:span 4}
+.bl{position:absolute;top:-7px;left:10px;padding:0 5px;background:var(--card);font-size:11px;font-weight:600;color:var(--ink-soft);line-height:1;white-space:nowrap;max-width:calc(100% - 18px);overflow:hidden;text-overflow:ellipsis}
+.bl .req{color:var(--danger)}
+.bi{width:100%;height:var(--input-h);padding:0 11px;background:var(--card);border:1.5px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink)}
+.bi.seld{justify-content:space-between;cursor:pointer}.bi.mono{font-family:var(--font-mono);font-size:13px}.bi .ph{color:var(--ink-faint)}
+.bi.area{height:auto;min-height:58px;padding:9px 11px;align-items:flex-start}
+.bi.green{background:#EAF7F0;border-color:#BFE6D4;color:var(--success);font-family:var(--font-mono)}
+.bf.foc .bi{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+.bf.toplbl{display:flex;flex-direction:column;gap:5px}.bf.toplbl .bl{position:static;background:none;padding:0;font-size:12px;color:var(--ink-soft);max-width:none}
+.bf.err .bi{border-color:var(--danger);background:var(--danger-wash)}.bf.err .bl{color:var(--danger)}
+.errmsg{position:absolute;top:calc(100% + 3px);left:3px;font-size:10.5px;color:var(--danger);font-weight:600;display:flex;align-items:center;gap:3px}
+.obox{position:relative;border:1.5px solid var(--line);border-radius:var(--r-lg);padding:21px 16px 15px;margin-bottom:13px;background:var(--card)}
+.obox-t{position:absolute;top:-9px;left:14px;padding:0 7px;background:var(--card);font-family:var(--font-display);font-weight:700;font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.obox-t svg{width:14px;height:14px;color:var(--brand)}.obox-t .sub{font-weight:500;font-family:var(--font-body);color:var(--ink-faint);font-size:11.5px}
+.reltabs{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden;margin-top:6px}
+.reltabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 8px;overflow-x:auto}
+.reltabbody{padding:14px 16px}
+.op-head.sticky{position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0 10px;margin-bottom:13px}
+.ohacts{display:flex;align-items:center;gap:8px;margin-left:auto}
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:7px;white-space:nowrap;z-index:60;pointer-events:none}
+[data-tip]:hover::before{content:"";position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--ink);z-index:60;pointer-events:none}
+.rolepick{display:flex;gap:7px}
+.rolebtn{height:var(--input-h);padding:0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft)}
+.rolebtn.on{border-color:var(--brand);background:var(--brand-wash);color:var(--brand-ink)}
+.switchrow{display:flex;align-items:center;gap:11px}
+.switch{width:38px;height:22px;border-radius:var(--r-pill);background:var(--line);position:relative;flex:0 0 auto}.switch.on{background:var(--success)}
+.switch i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:var(--shadow-1);transition:.15s}.switch.on i{left:18px}
+.switch-meta .t{font-size:13px;font-weight:600}.switch-meta .d{font-size:11.5px;color:var(--ink-faint)}
+/* sub-crud */
+.subt{width:100%;border-collapse:collapse}
+.subt th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:7px 10px;border-bottom:1px solid var(--line)}
+.subt td{padding:7px 10px;border-bottom:1px solid var(--line-2);font-size:13px}.subt tr:last-child td{border-bottom:0}
+.subt .star{color:var(--warning)}.subt . rowa{display:flex;gap:3px}
+.addline{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);margin-top:11px;cursor:pointer}
+/* footer action bar */
+.opbar{position:sticky;bottom:0;display:flex;align-items:center;gap:10px;padding:12px 0 2px;background:linear-gradient(180deg,rgba(243,245,248,0) 0%,var(--paper) 40%)}
+.opbar .left{margin-right:auto}
+/* page scaffolding */
+.wrap{max-width:1320px;margin:0 auto;padding:34px 20px 80px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:880px}
+.cap{margin:42px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:880px}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;margin-top:10px}
+.note svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;margin-top:1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:6px">
+    <h1><em>si</em>Suite — Aziende · standard liste &amp; CRUD</h1>
+    <p>Una sola entità (Aziende, con ruoli Cliente/Fornitore/Partner), una sola lista riusata in due modalità, e una scheda a tab con form denso. Niente toggle densità nella maschera, niente passaggio piccolo→grande.</p>
+  </div>
+
+  <!-- ===================== 1. LISTA GESTIONE ===================== -->
+  <div class="cap"><div class="e">1 · List Report — modalità gestione</div><div class="t">Lista Aziende (gestione)</div>
+    <div class="d">Toolbar in alto, checkbox a sinistra per le azioni multiple, clic sulla riga → scheda. "Clienti" e "Fornitori" sono viste filtrate della stessa lista. La densità non è qui: si imposta una volta in Impostazioni.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item active"><i data-lucide="building-2"></i> Aziende</a>
+      <a class="nav-sub active">Clienti</a>
+      <a class="nav-sub">Fornitori</a>
+      <a class="nav-item"><i data-lucide="package"></i> Articoli</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <div class="nav-group">Operatività</div>
+      <a class="nav-item"><i data-lucide="folder-kanban"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Documenti</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Owner</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Chiedi o cerca:  «clienti di Bergamo senza P.IVA»"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="lh">
+          <div class="lh-l"><h1>Aziende</h1><span class="lh-sub">142 · una sola entità, ruoli e viste</span></div>
+          <div class="views">
+            <span class="viewchip on">Tutte <span class="c">142</span></span>
+            <span class="viewchip">Clienti <span class="c">89</span></span>
+            <span class="viewchip">Fornitori <span class="c">53</span></span>
+            <span class="viewchip">Senza P.IVA <span class="c">7</span></span>
+            <span class="viewchip" style="color:var(--brand-ink);border-style:dashed"><i data-lucide="bookmark-plus" style="width:14px;height:14px"></i> Salva</span>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="searchbar" style="flex:1"><i data-lucide="search"></i><input placeholder="Cerca nome, P.IVA, città…"></div>
+          <button class="tib" data-tip="Filtri"><i data-lucide="sliders-horizontal"></i><span class="b2">2</span></button>
+          <button class="tib" data-tip="Colonne"><i data-lucide="columns-3"></i></button>
+          <button class="tib ai" data-tip="Azioni AI"><i data-lucide="sparkles"></i></button>
+          <span class="tdiv"></span>
+          <span class="selnum" data-tip="3 selezionate">3</span>
+          <button class="tib" data-tip="Modifica"><i data-lucide="pencil"></i></button>
+          <button class="tib" data-tip="Duplica"><i data-lucide="copy"></i></button>
+          <button class="tib" data-tip="Esporta"><i data-lucide="download"></i></button>
+          <button class="tib dgr" data-tip="Elimina"><i data-lucide="trash-2"></i></button>
+          <button class="tib primary" data-tip="Nuova azienda"><i data-lucide="plus"></i></button>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <div class="tablewrap"><table class="t">
+            <thead><tr>
+              <th class="chk"><span class="cbx on"><i data-lucide="minus"></i></span></th>
+              <th>Nome</th><th>Ruoli</th><th>P.IVA</th><th>Città</th><th>Creato</th>
+            </tr></thead>
+            <tbody>
+              <tr class="sel"><td class="chk"><span class="cbx on"><i data-lucide="check"></i></span></td>
+                <td><span class="nm" title="Fibraltalia Distribuzione SpA">Fibraltalia Distribuzione SpA</span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span><span class="pill pill--neutral">Fornitore</span></div></td>
+                <td class="mono">02938471025</td><td>Milano</td><td class="muted">14/06/2026</td></tr>
+              <tr class="sel"><td class="chk"><span class="cbx on"><i data-lucide="check"></i></span></td>
+                <td><span class="nm" title="Rossi SpA">Rossi SpA</span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span></div></td>
+                <td class="mono">12345678901</td><td>Bergamo</td><td class="muted">12/06/2026</td></tr>
+              <tr class="sel"><td class="chk"><span class="cbx on"><i data-lucide="check"></i></span></td>
+                <td><span class="nm" title="Beta Logistica Srl">Beta Logistica Srl</span></td>
+                <td><div class="roles"><span class="pill pill--neutral">Fornitore</span></div></td>
+                <td class="mono">08471920338</td><td>Brescia</td><td class="muted">14/06/2026</td></tr>
+              <tr><td class="chk"><span class="cbx"></span></td>
+                <td><span class="nm" title="ACME Srl">ACME Srl</span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span></div></td>
+                <td class="muted">—</td><td class="muted">—</td><td class="muted">12/06/2026</td></tr>
+              <tr><td class="chk"><span class="cbx"></span></td>
+                <td><span class="nm" title="Studio Legale Bianchi">Studio Legale Bianchi</span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span><span class="pill pill--info">Partner</span></div></td>
+                <td class="mono">11002937461</td><td>Bergamo</td><td class="muted">14/06/2026</td></tr>
+              <tr><td class="chk"><span class="cbx"></span></td>
+                <td><span class="nm" title="RetailCo SpA">RetailCo SpA</span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span></div></td>
+                <td class="mono">03918274655</td><td>Torino</td><td class="muted">14/06/2026</td></tr>
+              <tr><td class="chk"><span class="cbx"></span></td>
+                <td><span class="nm" title="Villa Rossi (privato)">Villa Rossi <span class="muted" style="font-weight:400">· privato</span></span></td>
+                <td><div class="roles"><span class="pill pill--brand">Cliente</span></div></td>
+                <td class="muted">—</td><td>Como</td><td class="muted">14/06/2026</td></tr>
+            </tbody>
+          </table></div>
+          <div class="pager"><span>1–7 di 142</span><div class="pgs"><button class="pgbtn on">1</button><button class="pgbtn">2</button><button class="pgbtn">3</button><button class="pgbtn">…</button><button class="pgbtn">21</button></div></div>
+        </div>
+        <div class="note"><i data-lucide="info"></i> Tutte le azioni stanno nella toolbar (solo icone, con tooltip al passaggio) e agiscono sulle righe selezionate. Niente icone-funzione ripetute nelle righe, niente pannello laterale.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 2. LISTA SELEZIONE (POPUP) ===================== -->
+  <div class="cap"><div class="e">2 · Value Help — modalità selezione</div><div class="t">La stessa lista, in selezione</div>
+    <div class="d">Quando un'altra maschera deve scegliere un'azienda (es. la testata di un documento), si riapre <em>la stessa identica lista</em> in pop-up largo: stessa toolbar (anche Nuova/Modifica/Duplica/Elimina) e stesse colonne, solo con il <b>radio</b> al posto della checkbox. Se l'azienda non c'è la crei col + lì dentro; "Seleziona" restituisce il record. Una lista scritta una volta, riusata ovunque.</div></div>
+
+  <div class="modal-stage">
+    <div class="modal-bg">
+      <div class="topbar"><div class="cmdbar" style="opacity:.5"><i data-lucide="file-plus" class="spark"></i><input placeholder="Nuovo documento di carico — testata"></div></div>
+      <div style="padding:22px"><div style="font-size:13px;color:var(--ink-faint)">Documento di carico · testata</div>
+        <div style="margin-top:12px;display:grid;grid-template-columns:128px 1fr;gap:11px 16px;align-items:center;max-width:520px">
+          <span style="text-align:right;font-size:12.5px;color:var(--ink-soft)">Fornitore</span>
+          <div class="inp sel" style="border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)"><span class="ph">Seleziona azienda…</span><i data-lucide="search" style="width:15px;height:15px;color:var(--brand)"></i></div>
+          <span style="text-align:right;font-size:12.5px;color:var(--ink-soft)">Data</span><div class="inp mono">15/06/2026</div>
+        </div>
+      </div>
+    </div>
+    <div class="dim"></div>
+    <div class="modal wide">
+      <div class="modal-h"><i data-lucide="building-2" style="width:18px;height:18px;color:var(--brand)"></i><span class="ti">Seleziona azienda</span><span class="reuse"><i data-lucide="recycle" style="width:13px;height:13px"></i> stessa lista, in selezione</span><button class="x"><i data-lucide="x"></i></button></div>
+      <div style="padding:12px 16px 8px">
+        <div class="toolbar" style="margin:0">
+          <div class="searchbar" style="flex:1"><i data-lucide="search"></i><input placeholder="Cerca nome, P.IVA, città…" value="for"><span class="tag">Fornitori</span></div>
+          <button class="tib" data-tip="Filtri"><i data-lucide="sliders-horizontal"></i></button>
+          <button class="tib" data-tip="Colonne"><i data-lucide="columns-3"></i></button>
+          <span class="tdiv"></span>
+          <button class="tib" data-tip="Modifica"><i data-lucide="pencil"></i></button>
+          <button class="tib" data-tip="Duplica"><i data-lucide="copy"></i></button>
+          <button class="tib dgr" data-tip="Elimina"><i data-lucide="trash-2"></i></button>
+          <button class="tib primary" data-tip="Nuova azienda"><i data-lucide="plus"></i></button>
+        </div>
+      </div>
+      <div class="modal-list">
+        <table class="t">
+          <thead><tr><th class="chk"></th><th>Nome</th><th>Ruoli</th><th>P.IVA</th><th>Città</th><th>Creato</th></tr></thead>
+          <tbody>
+            <tr><td class="chk"><span class="rdo"></span></td><td><span class="nm">Beta Logistica Srl</span></td><td><div class="roles"><span class="pill pill--neutral">Fornitore</span></div></td><td class="mono">08471920338</td><td>Brescia</td><td class="muted">14/06/2026</td></tr>
+            <tr class="sel"><td class="chk"><span class="rdo on"></span></td><td><span class="nm">Fibraltalia Distribuzione SpA</span></td><td><div class="roles"><span class="pill pill--brand">Cliente</span><span class="pill pill--neutral">Fornitore</span></div></td><td class="mono">02938471025</td><td>Milano</td><td class="muted">14/06/2026</td></tr>
+            <tr><td class="chk"><span class="rdo"></span></td><td><span class="nm">Forniture Tecniche Nord Srl</span></td><td><div class="roles"><span class="pill pill--neutral">Fornitore</span></div></td><td class="mono">04471829930</td><td>Verona</td><td class="muted">10/06/2026</td></tr>
+            <tr><td class="chk"><span class="rdo"></span></td><td><span class="nm">FortiCavi SpA</span></td><td><div class="roles"><span class="pill pill--neutral">Fornitore</span></div></td><td class="mono">02093847561</td><td>Padova</td><td class="muted">09/06/2026</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-f"><span class="info"><i data-lucide="corner-down-left" style="width:14px;height:14px;vertical-align:-2px"></i> "Seleziona" restituisce il record alla maschera chiamante · non c'è? Creala col <b>+</b></span><span class="sp"></span><button class="btn btn-ghost">Annulla</button><button class="btn btn-primary"><i data-lucide="check"></i> Seleziona</button></div>
+    </div>
+  </div>
+
+  <!-- ===================== 3. SCHEDA / CRUD ===================== -->
+  <div class="cap"><div class="e">3 · Object Page — scheda completa</div><div class="t">Scheda azienda (crea / vedi / modifica)</div>
+    <div class="d">Titoli <em>e</em> label fissi nel bordo (massima densità, campi affiancati), Salva/Annulla <em>in alto</em> sempre visibili, Elimina come azione globale nell'intestazione, validazione dei campi obbligatori in rosso, tooltip sulle icone. Le tabelle correlate (Contatti, Articoli, Documenti…) sono una <em>strip di tab in fondo</em>.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item active"><i data-lucide="building-2"></i> Aziende</a>
+      <a class="nav-item"><i data-lucide="package"></i> Articoli</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <div class="nav-group">Operatività</div>
+      <a class="nav-item"><i data-lucide="folder-kanban"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Documenti</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Owner</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Chiedi o cerca…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="op-head sticky">
+          <span class="back"><i data-lucide="chevron-left"></i> Aziende</span>
+          <h1>Fibraltalia Distribuzione SpA</h1>
+          <span class="code">AZ-0042</span>
+          <span class="pill pill--success"><span class="dot"></span>Attiva</span>
+          <span class="pill pill--brand">Cliente</span><span class="pill pill--neutral">Fornitore</span>
+          <div class="ohacts">
+            <button class="btn btn-ai" data-tip="Compila l'anagrafica dalla P.IVA"><i data-lucide="sparkles"></i> Compila da P.IVA</button>
+            <span class="tdiv"></span>
+            <button class="tib" data-tip="Duplica"><i data-lucide="copy"></i></button>
+            <button class="tib dgr" data-tip="Elimina azienda"><i data-lucide="trash-2"></i></button>
+            <span class="tdiv"></span>
+            <button class="btn btn-ghost" data-tip="Annulla le modifiche">Annulla</button>
+            <button class="btn btn-primary" data-tip="Salva (Ctrl+S)"><i data-lucide="check"></i> Salva</button>
+          </div>
+        </div>
+
+        <!-- Dati propri: box con TITOLO nel bordo, label nel bordo, campi affiancati -->
+        <div class="obox">
+          <span class="obox-t"><i data-lucide="building-2"></i> Classificazione</span>
+          <div class="bgrid">
+            <div class="bf c2 foc"><span class="bl">Ragione sociale <span class="req">*</span></span><div class="bi">Fibraltalia Distribuzione SpA</div></div>
+            <div class="bf"><span class="bl">Tipo</span><div class="bi seld">Azienda <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div></div>
+            <div class="bf"><span class="bl">Codice</span><div class="bi green">AZ-0042</div></div>
+            <div class="bf c4"><span class="bl">Ruoli</span><div class="bi" style="height:auto;gap:7px;padding:6px 8px"><span class="rolebtn on">Cliente</span><span class="rolebtn on">Fornitore</span><span class="rolebtn">Partner</span></div></div>
+            <div class="bf"><span class="bl">Paese</span><div class="bi">Italia (ITA)</div></div>
+            <div class="bf"><span class="bl">Valuta</span><div class="bi mono">EUR</div></div>
+            <div class="bf"><span class="bl">Data costituzione</span><div class="bi mono">12/03/2009</div></div>
+            <div class="bf"><span class="bl">N. REA</span><div class="bi mono"><span class="ph">—</span></div></div>
+            <div class="bf c4"><span class="bl">Descrizione</span><div class="bi area"><span class="ph">Note descrittive sull'azienda…</span></div></div>
+          </div>
+        </div>
+
+        <div class="obox">
+          <span class="obox-t"><i data-lucide="receipt"></i> Dati fiscali</span>
+          <div class="bgrid">
+            <div class="bf"><span class="bl">P.IVA</span><div class="bi mono">02938471025</div></div>
+            <div class="bf"><span class="bl">Codice fiscale</span><div class="bi mono">02938471025</div></div>
+            <div class="bf c2 err"><span class="bl">PEC <span class="req">*</span></span><div class="bi"><span class="ph">obbligatoria…</span></div><span class="errmsg"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Campo obbligatorio</span></div>
+            <div class="bf"><span class="bl">Codice SDI</span><div class="bi mono"><span class="ph">—</span></div></div>
+            <div class="bf"><span class="bl">Regime fiscale</span><div class="bi seld">Ordinario <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div></div>
+            <div class="bf c2"><span class="bl">IBAN</span><div class="bi mono"><span class="ph">IT…</span></div></div>
+          </div>
+          <div style="margin-top:15px;font-size:11.5px;color:var(--ink-faint);display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px"></i> Validazione: al Salva i campi obbligatori mancanti diventano rossi con il messaggio sotto il campo (esempio su PEC).</div>
+        </div>
+
+        <div class="obox">
+          <span class="obox-t"><i data-lucide="map-pin"></i> Indirizzo e recapiti</span>
+          <div class="bgrid">
+            <div class="bf c2"><span class="bl">Indirizzo</span><div class="bi">Via Lecco 14</div></div>
+            <div class="bf"><span class="bl">Città</span><div class="bi">Milano</div></div>
+            <div class="bf"><span class="bl">Prov.</span><div class="bi">MI</div></div>
+            <div class="bf"><span class="bl">CAP</span><div class="bi mono">20121</div></div>
+            <div class="bf"><span class="bl">Telefono</span><div class="bi mono">02 1234567</div></div>
+            <div class="bf c2"><span class="bl">Sito web</span><div class="bi"><span class="ph">https://…</span></div></div>
+          </div>
+        </div>
+
+        <div class="obox">
+          <span class="obox-t"><i data-lucide="toggle-right"></i> Stato</span>
+          <div style="display:flex;gap:34px;flex-wrap:wrap;padding-top:2px">
+            <div class="switchrow"><div class="switch on"><i></i></div><div class="switch-meta"><div class="t">Attiva</div><div class="d">Visibile e utilizzabile</div></div></div>
+            <div class="switchrow"><div class="switch"><i></i></div><div class="switch-meta"><div class="t">In black list</div><div class="d">Segnalata come rischiosa</div></div></div>
+          </div>
+        </div>
+
+        <!-- Tabelle correlate = strip di TAB in fondo, una per collezione associata -->
+        <div class="reltabs">
+          <div class="reltabbar">
+            <span class="tab on"><i data-lucide="contact"></i> Contatti <span class="cnt">3</span></span>
+            <span class="tab"><i data-lucide="package"></i> Articoli <span class="cnt">8</span></span>
+            <span class="tab"><i data-lucide="file-text"></i> Documenti <span class="cnt">12</span></span>
+            <span class="tab"><i data-lucide="folder-kanban"></i> Commesse <span class="cnt">5</span></span>
+            <span class="tab"><i data-lucide="map-pin"></i> Indirizzi <span class="cnt">2</span></span>
+            <span class="tab"><i data-lucide="history"></i> Storico</span>
+          </div>
+          <div class="reltabbody">
+            <table class="subt">
+              <thead><tr><th style="width:34px"></th><th>Nome</th><th>Ruolo</th><th>Email</th><th>Telefono</th><th style="width:70px"></th></tr></thead>
+              <tbody>
+                <tr><td data-tip="Contatto principale"><i data-lucide="star" class="star" style="width:15px;height:15px;fill:currentColor"></i></td><td>Marco Conti</td><td>Resp. Cantieri</td><td class="muted">m.conti@fibraltalia.it</td><td class="mono">02 1234567</td><td><div style="display:flex;gap:3px"><span class="iaction" data-tip="Modifica"><i data-lucide="pencil" style="width:14px;height:14px"></i></span><span class="iaction danger" data-tip="Rimuovi"><i data-lucide="trash-2" style="width:14px;height:14px"></i></span></div></td></tr>
+                <tr><td><i data-lucide="star" style="width:15px;height:15px;color:var(--line)"></i></td><td>Giulia Ferri</td><td>Amministrazione</td><td class="muted">g.ferri@fibraltalia.it</td><td class="mono">02 1234570</td><td><div style="display:flex;gap:3px"><span class="iaction" data-tip="Modifica"><i data-lucide="pencil" style="width:14px;height:14px"></i></span><span class="iaction danger" data-tip="Rimuovi"><i data-lucide="trash-2" style="width:14px;height:14px"></i></span></div></td></tr>
+                <tr><td><i data-lucide="star" style="width:15px;height:15px;color:var(--line)"></i></td><td>Luca Neri</td><td>Magazzino</td><td class="muted">—</td><td class="mono">348 9981726</td><td><div style="display:flex;gap:3px"><span class="iaction" data-tip="Modifica"><i data-lucide="pencil" style="width:14px;height:14px"></i></span><span class="iaction danger" data-tip="Rimuovi"><i data-lucide="trash-2" style="width:14px;height:14px"></i></span></div></td></tr>
+              </tbody>
+            </table>
+            <div class="addline"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi contatto</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

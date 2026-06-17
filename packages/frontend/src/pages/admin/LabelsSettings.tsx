@@ -2,7 +2,7 @@
  *  righe lv-row (pallino colore + sigla + nome + canonico), aggiungi/modifica/elimina.
  *  Le righe di SISTEMA sono in sola lettura. Riusa /lookups (settings:manage). */
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, GripVertical, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, GripVertical, RotateCcw } from 'lucide-react';
 import type { LookupDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { Drawer } from '../../ui/Drawer';
@@ -71,7 +71,8 @@ export function LabelsSettings() {
           {loading ? <Loading /> : error ? <ErrorBox message={error} /> : rows.length === 0
             ? <div style={{ padding: 20, color: 'var(--ink-soft)' }}>Nessuna etichetta in questa categoria.</div>
             : rows.map((l) => (
-              <div className="lv-row" key={l.id}>
+              <div className="lv-row" key={l.id} style={canManage ? { cursor: 'pointer' } : undefined}
+                onClick={canManage ? () => setEditing(l) : undefined}>
                 <span className="drag" style={{ color: 'var(--ink-faint)' }}><GripVertical size={15} /></span>
                 <span className="swatch" style={{ background: swatchColor(l.colorToken) }} />
                 <span className="abbr">{l.abbreviation ?? '—'}</span>
@@ -80,14 +81,6 @@ export function LabelsSettings() {
                   {l.isCustomized && <span className="pill pill--brand" style={{ marginLeft: 6 }}><span className="dot" />personalizzato</span>}
                 </span>
                 <span className="canon">→ {l.canonical}</span>
-                {canManage && (
-                  <span className="lv-acts">
-                    <button className="act-icon" title="Modifica" onClick={() => setEditing(l)}><Pencil size={15} /></button>
-                    {l.isSystem
-                      ? (l.isCustomized && <button className="act-icon" title="Ripristina default" onClick={() => doReset(l)}><RotateCcw size={15} /></button>)
-                      : <button className="act-icon danger" title="Elimina" onClick={() => setConfirm(l)}><Trash2 size={15} /></button>}
-                  </span>
-                )}
               </div>
             ))}
         </div>
@@ -108,6 +101,8 @@ export function LabelsSettings() {
           category={cat} canonicals={canonicals} editing={editing}
           onClose={() => setEditing(undefined)}
           onSaved={() => { setEditing(undefined); void reload(); }}
+          onDelete={editing && !editing.isSystem ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined}
+          onReset={editing?.isSystem && editing.isCustomized ? () => { const e = editing; setEditing(undefined); void doReset(e); } : undefined}
           toast={toast}
         />
       )}
@@ -118,9 +113,9 @@ export function LabelsSettings() {
   );
 }
 
-function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }: {
+function LabelDrawer({ category, canonicals, editing, onClose, onSaved, onDelete, onReset, toast }: {
   category: string; canonicals: string[]; editing: LookupDto | null;
-  onClose: () => void; onSaved: () => void; toast: (m: string, t?: 'error') => void;
+  onClose: () => void; onSaved: () => void; onDelete?: () => void; onReset?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({
     canonical: editing?.canonical ?? canonicals[0] ?? '',
@@ -169,6 +164,8 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, toast }:
   return (
     <Drawer open title={editing ? 'Modifica etichetta' : 'Nuova etichetta'} onClose={onClose}
       footer={<>
+        {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
+        {onReset && <button className="btn btn-ghost" onClick={onReset} disabled={busy} style={{ marginRight: 'auto' }}><RotateCcw size={15} /> Ripristina default</button>}
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>

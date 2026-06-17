@@ -22,7 +22,7 @@ function whenLabel(at: string | null): string {
 export function NotificationsBell() {
   const { data, reload } = useApi<{ items: Notif[]; count: number }>('/notifications');
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; bottom: number }>({ left: 16, bottom: 72 });
+  const [pos, setPos] = useState<{ left: number; top: number }>({ left: 16, top: 60 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const history = useHistory();
   const items = data?.items ?? [];
@@ -30,7 +30,9 @@ export function NotificationsBell() {
 
   function openPanel() {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setPos({ left: Math.max(8, r.left), bottom: Math.max(8, window.innerHeight - r.top + 8) });
+    // la campana ora è nella topbar: il pannello scende SOTTO, allineato a destra
+    // del pulsante e clampato dentro la viewport.
+    if (r) { const w = Math.min(360, window.innerWidth - 24); setPos({ left: Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8), top: r.bottom + 8 }); }
     setOpen(true); void reload();
   }
 
@@ -44,7 +46,7 @@ export function NotificationsBell() {
       {open && createPortal(
         <>
           <div className="notif-backdrop" onClick={() => setOpen(false)} />
-          <div className="notif-panel" style={{ left: pos.left, bottom: pos.bottom }} role="dialog" aria-label="Notifiche">
+          <div className="notif-panel" style={{ left: pos.left, top: pos.top }} role="dialog" aria-label="Notifiche">
             <div className="notif-panel-head">
               <strong>Notifiche{count ? ` · ${count}` : ''}</strong>
               <button className="act-icon" onClick={() => setOpen(false)} aria-label="Chiudi"><X size={16} /></button>

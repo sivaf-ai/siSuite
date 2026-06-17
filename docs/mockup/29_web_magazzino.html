@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Magazzino (nuovo design system)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+/* --- estratto di base.css v5 (per rendere la maschera autonoma) --- */
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-h2:16px;--fs-card:15px;--fs-body:13px;--fs-label:12px;--fs-th:11.5px;--fs-eyebrow:10.5px;
+--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--input-h:38px;--pill-h:22px;--sec-gap:16px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--input-h:34px;--pill-h:21px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--input-h:42px;--pill-h:24px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:var(--fs-body);-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1;letter-spacing:-.01em}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ghost:hover{border-color:var(--ink-faint)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:var(--pill-h);padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}.pill--success{color:var(--success);background:var(--success-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.eyebrow{font-size:var(--fs-eyebrow);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+.app{display:grid;grid-template-columns:230px 1fr;height:760px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);position:relative}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}.ico-btn:hover{background:var(--paper)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.tabsbar{display:flex;gap:8px;margin-bottom:var(--sec-gap)}
+.tabchip{padding:7px 13px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;background:var(--card);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer}
+.tabchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:var(--ctrl-h);padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:230px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:calc(var(--ctrl-h) - 8px);padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}.seg.dens button.on{color:var(--brand-ink)}
+.ibtn{width:var(--ctrl-h);height:var(--ctrl-h);border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}
+.ibtn:hover{background:var(--paper);color:var(--ink)}.spacer{flex:1}.denslabel{font-size:11px;color:var(--ink-faint);font-weight:600}
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr:hover{background:var(--paper)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.money{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--font-mono);font-feature-settings:"tnum" 1;white-space:nowrap}
+.money .sym{color:var(--ink-faint);flex:0 0 auto}.money .val{text-align:right;flex:1}
+.money.negative .val,.money.negative .sym{color:var(--danger)}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}.iaction:hover{background:var(--neutral-wash);color:var(--ink)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px}.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* pagina-form */
+.formpage{max-width:940px;margin:0 auto}
+.formpage-head{display:flex;align-items:center;gap:12px;margin-bottom:var(--sec-gap)}
+.formpage-head .back{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;font-weight:600}
+.formpage-head h1{font-size:var(--fs-h1);font-weight:800}
+.formpage-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill);font-weight:600}
+.formcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:18px 20px;margin-bottom:16px}
+.formcard > .ct{font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.f-full{grid-column:1/-1}
+.fld label{display:block;font-size:var(--fs-label);font-weight:600;color:var(--ink-soft);margin-bottom:6px}.fld .req{color:var(--danger);margin-left:2px}
+.inp{width:100%;height:var(--input-h);padding:0 12px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:13.5px;color:var(--ink);display:flex;align-items:center}
+.inp.sel{justify-content:space-between}.inp .ph{color:var(--ink-faint)}
+.dline{display:grid;grid-template-columns:1fr 110px 140px 36px;gap:10px;align-items:center;margin-bottom:9px}
+.dline .hh{font-size:var(--fs-th);font-weight:600;color:var(--ink-faint)}
+.dline .inp.r{justify-content:flex-end;font-family:var(--font-mono)}
+.addline{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);margin-top:4px;cursor:pointer}
+.doctot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2);font-size:13.5px}
+.doctot b{font-family:var(--font-mono);font-size:16px}
+.fhint{font-size:11.5px;color:var(--ink-faint);margin-top:5px}
+.fhint.flow{color:var(--brand-ink);background:var(--brand-wash);padding:8px 11px;border-radius:var(--r-sm);display:flex;gap:7px;align-items:flex-start}
+.formbar{display:flex;gap:10px;justify-content:flex-end;padding-top:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:800px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:800px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:18px">
+    <h1><em>si</em>Suite — Magazzino</h1>
+    <p>Sul nuovo design system. Giacenze con unità nell'intestazione e valori in formato contabile (€ a sinistra, numero a destra, decimali incolonnati). Il documento di carico è una <b>pagina intera</b>, non più un drawer.</p>
+  </div>
+
+  <!-- 1. GIACENZE -->
+  <div class="cap"><div class="e">Magazzino · scheda Giacenze</div><div class="t">Giacenze</div>
+    <div class="d">Header con unità: "Giacenza (pz)", "Costo medio", "Valore". Numeri a destra in cifre tabellari; valuta in formato contabile. Riga a giacenza negativa evidenziata.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item active"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head">
+          <div><h1>Magazzino</h1><div class="sub">Magazzino principale · 142 articoli</div></div>
+          <button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuovo documento</button>
+        </div>
+        <div class="tabsbar">
+          <span class="tabchip on">Giacenze</span><span class="tabchip">Movimenti</span><span class="tabchip">Documenti</span><span class="tabchip">Ubicazioni</span>
+        </div>
+        <div class="toolbar">
+          <div class="searchbar"><i data-lucide="search"></i><input placeholder="Cerca articolo…"></div>
+          <div class="seg"><button class="on">Tutti</button><button>Sotto scorta</button><button>A zero</button></div>
+          <div class="spacer"></div>
+          <span class="denslabel">Densità</span>
+          <div class="seg dens"><button class="on">Comoda</button><button>Compatta</button><button>Spaziosa</button></div>
+          <button class="ibtn"><i data-lucide="download"></i></button>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <div class="tablewrap">
+          <table class="t">
+            <thead><tr>
+              <th>Codice</th><th>Articolo</th><th>Ubicazione</th>
+              <th class="num">Giacenza (pz)</th><th class="num">Costo medio</th><th class="num">Valore</th><th style="width:70px"></th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="mono">FLT-300</td><td>Filtro pompa 300mm</td><td>Magazzino principale</td>
+                <td class="num">24</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">12,40</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">297,60</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">CUS-62</td><td>Cuscinetto pompa 62mm</td><td>Magazzino principale</td>
+                <td class="num">8</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">5,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">40,00</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">CUS-62</td><td>Cuscinetto pompa 62mm</td><td>Furgone Marco R.</td>
+                <td class="num">3</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">5,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">15,00</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">VAL-S40</td><td>Valvola sfioro 40</td><td>Magazzino principale</td>
+                <td class="num" style="color:var(--danger);font-weight:600">−2</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">18,00</span></span></td>
+                <td><span class="money negative"><span class="sym">−€</span><span class="val">36,00</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">RAC-12</td><td>Raccordo ottone 1/2"</td><td>Magazzino principale</td>
+                <td class="num">156</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2,10</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">327,60</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">TUB-50</td><td>Tubo PVC Ø50 (barra 3m)</td><td>Magazzino principale</td>
+                <td class="num">1.240</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">8,75</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">10.850,00</span></span></td>
+                <td><div class="rowact"><span class="iaction"><i data-lucide="history"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div class="pager"><span>1–6 di 142 articoli</span>
+            <div class="pgs"><button class="pgbtn"><i data-lucide="chevron-left" style="width:14px;height:14px"></i></button><button class="pgbtn on">1</button><button class="pgbtn">2</button><button class="pgbtn">3</button><button class="pgbtn"><i data-lucide="chevron-right" style="width:14px;height:14px"></i></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DOCUMENTO DI CARICO — PAGINA INTERA -->
+  <div class="cap"><div class="e">Magazzino · documento</div><div class="t">Documento di carico — pagina intera</div>
+    <div class="d">Le righe hanno bisogno di spazio: il documento è una pagina centrale ben distribuita (non un drawer). Alla conferma genera i movimenti, aggiorna le giacenze e numera la bolla.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item active"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="formpage">
+          <div class="formpage-head">
+            <span class="back"><i data-lucide="chevron-left"></i> Magazzino</span>
+            <h1>Documento di carico</h1>
+            <span class="code">CAR-2026-0042</span>
+            <span class="pill pill--neutral" style="margin-left:2px"><span class="dot"></span>Bozza</span>
+          </div>
+
+          <div class="formcard">
+            <div class="ct">Testata</div>
+            <div class="fgrid">
+              <div class="fld"><label>Fornitore</label><div class="inp sel">Idrotecnica SRL <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>N. DDT fornitore</label><div class="inp mono">DDT-3391</div></div>
+              <div class="fld"><label>Data</label><div class="inp sel mono">12/06/2026 <i data-lucide="calendar" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Magazzino destinazione <span class="req">*</span></label><div class="inp sel">Magazzino principale <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+            </div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct">Righe</div>
+            <div class="dline"><div class="hh">Articolo</div><div class="hh" style="text-align:right">Quantità</div><div class="hh" style="text-align:right">Costo unit. (€)</div><div></div></div>
+            <div class="dline">
+              <div class="inp sel">Filtro pompa 300mm <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div>
+              <div class="inp r">10</div><div class="inp r">12,40</div>
+              <span class="iaction" style="color:var(--danger)"><i data-lucide="x"></i></span>
+            </div>
+            <div class="dline">
+              <div class="inp sel">Cuscinetto pompa 62mm <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div>
+              <div class="inp r">20</div><div class="inp r">5,00</div>
+              <span class="iaction" style="color:var(--danger)"><i data-lucide="x"></i></span>
+            </div>
+            <div class="dline">
+              <div class="inp sel">Tubo PVC Ø50 (barra 3m) <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--ink-faint)"></i></div>
+              <div class="inp r">120</div><div class="inp r">8,75</div>
+              <span class="iaction" style="color:var(--danger)"><i data-lucide="x"></i></span>
+            </div>
+            <div class="addline"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi riga</div>
+            <div class="doctot"><span class="muted">Totale documento</span><b>€&nbsp;&nbsp;1.274,00</b></div>
+          </div>
+
+          <div class="formcard" style="margin-bottom:14px">
+            <div class="fhint flow" style="margin:0"><i data-lucide="info" style="width:14px;height:14px;flex:0 0 auto;margin-top:1px"></i> Alla conferma vengono generati i <b>movimenti di carico</b>, aggiornate le giacenze (media mobile) e numerata la <b>bolla</b>. Il documento confermato non si modifica più (le correzioni si fanno con un nuovo documento).</div>
+          </div>
+
+          <div class="formbar">
+            <button class="btn btn-ghost">Salva bozza</button>
+            <button class="btn btn-primary"><i data-lucide="check-check" style="width:16px;height:16px"></i> Salva e conferma</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

@@ -9,13 +9,16 @@ const SORTABLE: Record<string, string> = { label: 'a.label', kind: 'a.kind', cre
 
 const SELECT = `
   SELECT a.id, a.company_id, c.display_name AS company_name, a.kind, a.label,
-         a.installed_at, a.attributes, a.created_at
-  FROM asset a LEFT JOIN company c ON c.id = a.company_id
+         a.site_id, s.name AS site_name, a.installed_at, a.attributes, a.created_at
+  FROM asset a
+  LEFT JOIN company c ON c.id = a.company_id
+  LEFT JOIN site s ON s.id = a.site_id
 `;
 function toDto(r: Record<string, unknown>): AssetDto {
   return {
     id: r.id as string, companyId: r.company_id as string, companyName: (r.company_name as string) ?? null,
     kind: r.kind as string, label: r.label as string,
+    siteId: (r.site_id as string) ?? null, siteName: (r.site_name as string) ?? null,
     installedOn: (r.installed_at as string) ?? null,
     attributes: (r.attributes as Record<string, unknown>) ?? {}, createdAt: r.created_at as string,
   };
@@ -54,9 +57,9 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       const dto = await withRls(ctx, async (db) => {
         const attrs = await validateAttributes(db, ctx.tenantId, 'asset', input.attributes);
         const ins = await db.query(
-          `INSERT INTO asset (tenant_id, company_id, kind, label, installed_at, attributes, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id`,
-          [ctx.tenantId, input.companyId, input.kind, input.label, input.installedOn ?? null, attrs, ctx.userId],
+          `INSERT INTO asset (tenant_id, company_id, kind, label, site_id, installed_at, attributes, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING id`,
+          [ctx.tenantId, input.companyId, input.kind, input.label, input.siteId ?? null, input.installedOn ?? null, attrs, ctx.userId],
         );
         const r = await db.query(`${SELECT} WHERE a.id = $1`, [ins.rows[0].id]);
         return toDto(r.rows[0]);
@@ -74,9 +77,11 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'asset', input.attributes) : null;
         await db.query(
           `UPDATE asset SET kind = COALESCE($2, kind), label = COALESCE($3, label),
-             installed_at = COALESCE($4, installed_at), attributes = COALESCE($5, attributes), updated_by = $6
+             site_id = CASE WHEN $4::uuid IS NOT NULL OR $7 THEN $4 ELSE site_id END,
+             installed_at = COALESCE($5, installed_at), attributes = COALESCE($6, attributes), updated_by = $8
            WHERE id = $1`,
-          [request.params.id, input.kind ?? null, input.label ?? null, input.installedOn ?? null, attrs, request.ctx.userId],
+          [request.params.id, input.kind ?? null, input.label ?? null, input.siteId ?? null,
+           input.installedOn ?? null, attrs, input.siteId === null, request.ctx.userId],
         );
         const r = await db.query(`${SELECT} WHERE a.id = $1`, [request.params.id]);
         return toDto(r.rows[0]);

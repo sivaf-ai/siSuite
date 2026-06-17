@@ -6,18 +6,20 @@ import type { FastifyInstance } from 'fastify';
 import { createFieldDefinitionSchema, updateFieldDefinitionSchema } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
-import { loadFieldDefs, tenantVertical } from '../fields.js';
+import { loadFieldDefs, loadAllFieldDefs, tenantVertical } from '../fields.js';
 
 export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { entity?: string } }>(
+  app.get<{ Querystring: { entity?: string; manage?: string } }>(
     '/field-definitions',
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const entity = request.query.entity;
       if (!entity) return reply.code(400).send({ error: 'bad_request', message: 'parametro entity obbligatorio', statusCode: 400 });
+      // ?manage=1 (Field Builder): include anche i campi disattivati, ma solo per chi gestisce le impostazioni
+      const manage = request.query.manage === '1' && request.ctx.permissions.includes('settings:manage');
       const items = await withRls(request.ctx, async (db) => {
         const vertical = await tenantVertical(db, request.ctx.tenantId);
-        return loadFieldDefs(db, entity, vertical);
+        return manage ? loadAllFieldDefs(db, entity, vertical) : loadFieldDefs(db, entity, vertical);
       });
       return { items };
     },
@@ -33,11 +35,13 @@ export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void>
           const dup = await db.query(`SELECT 1 FROM field_definition WHERE entity = $1 AND key = $2 LIMIT 1`, [input.entity, input.key]);
           if (dup.rows.length) return { dup: true } as const;
           const r = await db.query(
-            `INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, options, unit, help, group_key, sequence, active)
-             VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true) RETURNING id`,
+            `INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, options, unit, help, placeholder, group_key, sequence, active)
+             VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
             [request.ctx.tenantId, input.entity, input.key, JSON.stringify(input.label), input.dataType,
              input.required ?? false, input.options ? JSON.stringify(input.options) : null,
-             input.unit ?? null, input.help ? JSON.stringify(input.help) : null, input.groupKey ?? null, input.sequence ?? 100]);
+             input.unit ?? null, input.help ? JSON.stringify(input.help) : null,
+             input.placeholder ? JSON.stringify(input.placeholder) : null,
+             input.groupKey ?? null, input.sequence ?? 100, input.active ?? true]);
           return { id: r.rows[0].id as string } as const;
         });
         if ('dup' in out) return reply.code(409).send({ error: 'conflict', message: 'Esiste già un campo con questa chiave per l\'entità', statusCode: 409 });
@@ -58,7 +62,8 @@ export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void>
         const r = await db.query(
           `UPDATE field_definition SET
              label = COALESCE($2, label), data_type = COALESCE($3, data_type), required = COALESCE($4, required),
-             options = $5, unit = $6, help = $7, group_key = $8, sequence = COALESCE($9, sequence)
+             options = $5, unit = $6, help = $7, group_key = $8, sequence = COALESCE($9, sequence),
+             placeholder = $11, active = COALESCE($12, active)
            WHERE id = $1 AND tenant_id = $10 RETURNING id`,
           [request.params.id,
            input.label ? JSON.stringify(input.label) : null,
@@ -67,7 +72,9 @@ export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void>
            input.unit !== undefined ? input.unit : null,
            input.help !== undefined ? (input.help ? JSON.stringify(input.help) : null) : null,
            input.groupKey !== undefined ? input.groupKey : null,
-           input.sequence ?? null, request.ctx.tenantId]);
+           input.sequence ?? null, request.ctx.tenantId,
+           input.placeholder !== undefined ? (input.placeholder ? JSON.stringify(input.placeholder) : null) : null,
+           input.active ?? null]);
         return r.rows.length > 0;
       });
       if (!ok) return reply.code(404).send({ error: 'not_found', message: 'Campo non trovato o di sistema (non modificabile)', statusCode: 404 });

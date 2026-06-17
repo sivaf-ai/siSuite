@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Cliente (pagina-form ricca)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-label:12px;--fs-eyebrow:10.5px;--input-h:38px;--ctrl-h:36px;--sec-gap:16px;}
+html[data-density="compact"]{--input-h:34px;--ctrl-h:32px;--sec-gap:12px;}
+html[data-density="spacious"]{--input-h:42px;--ctrl-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ghost:hover{border-color:var(--ink-faint)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}.pill--success{color:var(--success);background:var(--success-wash)}
+.app{display:grid;grid-template-columns:230px 1fr;height:880px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+/* PAGINA-FORM */
+.formpage{max-width:920px;margin:0 auto}
+.formpage-head{display:flex;align-items:center;gap:12px;margin-bottom:var(--sec-gap)}
+.formpage-head .back{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer}
+.formpage-head h1{font-size:var(--fs-h1);font-weight:800}
+.formpage-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill);font-weight:600}
+.formcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:18px 20px;margin-bottom:14px}
+.formcard > .ct{display:flex;align-items:center;gap:8px;font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:14px}
+.formcard > .ct svg{width:17px;height:17px;color:var(--brand)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.fgrid.three{grid-template-columns:1fr 1fr 1fr}.f-full{grid-column:1/-1}
+.fld label{display:block;font-size:var(--fs-label);font-weight:600;color:var(--ink-soft);margin-bottom:6px}.fld .req{color:var(--danger);margin-left:2px}
+.inp{width:100%;height:var(--input-h);padding:0 12px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:13.5px;color:var(--ink);display:flex;align-items:center}
+.inp.focus{border-color:var(--brand);background:var(--card);box-shadow:0 0 0 3px var(--brand-wash)}
+.inp.sel{justify-content:space-between}.inp .ph{color:var(--ink-faint)}
+textarea.inp{height:auto;min-height:64px;padding:9px 12px;display:block;resize:vertical;font-family:inherit}
+.fhint{font-size:11.5px;color:var(--ink-faint);margin-top:5px}
+.rowtoggle{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);margin-bottom:13px}
+.switch{width:42px;height:24px;border-radius:999px;background:var(--brand);position:relative;flex:0 0 auto;cursor:pointer}
+.switch::after{content:"";position:absolute;top:2px;left:20px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:var(--shadow-1)}
+.switch.off{background:var(--line)}.switch.off::after{left:2px}
+/* contatti */
+.chead,.crow{display:grid;grid-template-columns:1.2fr 1fr 1.4fr 130px 32px;gap:10px;align-items:center}
+.chead{font-size:var(--fs-eyebrow);font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:8px;padding:0 2px}
+.crow{margin-bottom:9px}
+.crow .star{display:grid;place-items:center;color:var(--warning)}
+.xbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-faint);cursor:pointer}.xbtn:hover{background:var(--danger-wash);color:var(--danger)}
+.addline{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);margin-top:4px;cursor:pointer}
+.formbar{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:14px 0;margin-top:4px;background:linear-gradient(transparent,var(--paper) 30%)}
+.formbar .left{margin-right:auto;font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:16px">
+    <h1><em>si</em>Suite — Cliente (pagina-form ricca)</h1>
+    <p>Il riferimento per le entità complesse: niente drawer stretto, ma una pagina centrale ben distribuita con sezioni in schede. Stesso pattern per Commessa e Asset. Etichette in sentence case, barra azioni fissa in basso.</p>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item active"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <a class="nav-item"><i data-lucide="box"></i> Asset</a>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="formpage">
+          <div class="formpage-head">
+            <span class="back"><i data-lucide="chevron-left"></i> Clienti</span>
+            <h1>Rossi Piscine SRL</h1>
+            <span class="code">CLI-0184</span>
+            <span class="pill pill--success"><span class="dot"></span>Attivo</span>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="building-2"></i> Anagrafica</div>
+            <div class="fgrid">
+              <div class="fld f-full"><label>Ragione sociale <span class="req">*</span></label><div class="inp focus">Rossi Piscine SRL</div></div>
+              <div class="fld"><label>Tipo cliente</label><div class="inp sel">Azienda <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Settore</label><div class="inp sel">Edilizia / piscine <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Telefono</label><div class="inp mono">035 123456</div></div>
+              <div class="fld"><label>Sito web</label><div class="inp"><span class="ph">www.rossipiscine.it</span></div></div>
+            </div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="receipt"></i> Dati fiscali</div>
+            <div class="fgrid three">
+              <div class="fld"><label>Partita IVA</label><div class="inp mono">IT 02845710168</div></div>
+              <div class="fld"><label>Codice fiscale</label><div class="inp mono">02845710168</div></div>
+              <div class="fld"><label>Regime</label><div class="inp sel">Ordinario <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Codice SDI</label><div class="inp mono">M5UXCR1</div></div>
+              <div class="fld f-full" style="grid-column:span 2"><label>PEC</label><div class="inp"><span class="ph">amministrazione@pec.rossipiscine.it</span></div></div>
+            </div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="contact"></i> Contatti</div>
+            <div class="chead"><span>Nome</span><span>Ruolo</span><span>Email</span><span>Telefono</span><span></span></div>
+            <div class="crow">
+              <div class="inp">Giulia Rossi <i data-lucide="star" class="star" style="width:14px;height:14px;margin-left:auto"></i></div>
+              <div class="inp">Titolare</div>
+              <div class="inp" style="font-size:12.5px">giulia@rossipiscine.it</div>
+              <div class="inp mono">347 1122334</div>
+              <span class="xbtn"><i data-lucide="x" style="width:15px;height:15px"></i></span>
+            </div>
+            <div class="crow">
+              <div class="inp">Andrea Conti</div>
+              <div class="inp">Ufficio tecnico</div>
+              <div class="inp" style="font-size:12.5px">tecnico@rossipiscine.it</div>
+              <div class="inp mono">340 5566778</div>
+              <span class="xbtn"><i data-lucide="x" style="width:15px;height:15px"></i></span>
+            </div>
+            <div class="addline"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi contatto</div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="map-pin"></i> Indirizzi</div>
+            <div style="font-size:var(--fs-eyebrow);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:10px">Sede legale</div>
+            <div class="fgrid three">
+              <div class="fld f-full" style="grid-column:span 2"><label>Indirizzo</label><div class="inp">Via Industria, 24</div></div>
+              <div class="fld"><label>CAP</label><div class="inp mono">24050</div></div>
+              <div class="fld"><label>Città</label><div class="inp">Grassobbio</div></div>
+              <div class="fld"><label>Provincia</label><div class="inp">BG</div></div>
+              <div class="fld"><label>Paese</label><div class="inp sel">Italia <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+            </div>
+            <div class="rowtoggle" style="margin-top:14px"><span class="switch"></span> Sede operativa uguale alla sede legale</div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="handshake"></i> Condizioni commerciali</div>
+            <div class="fgrid three">
+              <div class="fld"><label>Listino prezzi</label><div class="inp sel">Standard 2026 <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Termini di pagamento</label><div class="inp sel">30 gg f.m. <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld"><label>Valuta</label><div class="inp sel">EUR (€) <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--ink-faint)"></i></div></div>
+              <div class="fld f-full"><label>IBAN</label><div class="inp mono">IT60 X054 2811 1010 0000 0123 456</div></div>
+            </div>
+          </div>
+
+          <div class="formcard" style="margin-bottom:6px">
+            <div class="ct"><i data-lucide="sticky-note"></i> Note</div>
+            <div class="fld"><textarea class="inp">Cliente storico. Preferisce essere contattato via email. Paga puntuale.</textarea></div>
+          </div>
+
+          <div class="formbar">
+            <span class="left"><i data-lucide="check-circle-2" style="width:14px;height:14px;color:var(--success)"></i> Salvato 2 minuti fa</span>
+            <button class="btn btn-ghost">Annulla</button>
+            <button class="btn btn-primary"><i data-lucide="check" style="width:16px;height:16px"></i> Salva cliente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

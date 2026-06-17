@@ -5,7 +5,7 @@
  * Le FASI si annidano via parent_phase_id; solo le ATTIVITÀ foglia portano lavoro.
  * Il "Racconto AI" è una CARD sotto la testata, non un tab.
  */
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
 import {
   IonButton, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
@@ -19,6 +19,8 @@ import type {
 } from '@sisuite/shared';
 import { Page, Loading, ErrorBox, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
+import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { Briefcase } from '../ui/icons';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
@@ -46,16 +48,18 @@ function hoursLabel(min: number | null, fixed: boolean): string {
 
 export function CommessaDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const isNew = id === 'new';
   const { user } = useAuth();
   const lk = useLookups();
   const toast = useToast();
   const history = useHistory();
 
-  const eng = useApi<EngagementDto>(`/engagements/${id}`);
-  const phases = useApi<{ items: PhaseDto[] }>(`/engagements/${id}/phases`);
-  const acts = useApi<{ items: ActivityDto[] }>(`/activities?engagementId=${id}`);
-  const sched = useApi<{ items: ScheduleItem[]; conflicts: ScheduleItem[] }>(`/engagements/${id}/schedule`);
-  const deps = useApi<{ items: DependencyEdgeDto[] }>(`/engagements/${id}/dependencies`);
+  const eng = useApi<EngagementDto>(isNew ? null : `/engagements/${id}`);
+  const phases = useApi<{ items: PhaseDto[] }>(isNew ? null : `/engagements/${id}/phases`);
+  const acts = useApi<{ items: ActivityDto[] }>(isNew ? null : `/activities?engagementId=${id}`);
+  const sched = useApi<{ items: ScheduleItem[]; conflicts: ScheduleItem[] }>(isNew ? null : `/engagements/${id}/schedule`);
+  const deps = useApi<{ items: DependencyEdgeDto[] }>(isNew ? null : `/engagements/${id}/dependencies`);
+  const companies = useApi<{ items: { id: string; displayName: string }[] }>('/companies?limit=200');
 
   const can = (p: string) => !!user?.permissions.includes(p as never);
 
@@ -78,6 +82,30 @@ export function CommessaDetailPage() {
   const [actModal, setActModal] = useState<{ editing: ActivityDto | null; presetPhaseId?: string } | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'phase' | 'activity'; id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Anagrafica editabile (header sticky Salva/Annulla) — testata commessa
+  const [head, setHead] = useState({ title: '', companyId: '', type: 'build', statusId: '', startedOn: '', endedOn: '' });
+  useEffect(() => {
+    const e = eng.data;
+    if (e) setHead({ title: e.title, companyId: e.companyId, type: e.type, statusId: e.statusId ?? '', startedOn: e.startedOn ?? '', endedOn: e.endedOn ?? '' });
+  }, [eng.data]);
+  const setH = (k: keyof typeof head, v: string) => setHead((h) => ({ ...h, [k]: v }));
+
+  async function saveHead() {
+    if (!head.title.trim()) { toast('Il titolo è obbligatorio', 'error'); return; }
+    if (isNew && !head.companyId) { toast('Seleziona il cliente', 'error'); return; }
+    setBusy(true);
+    try {
+      if (isNew) {
+        const body = { companyId: head.companyId, type: head.type, title: head.title.trim(), startedOn: head.startedOn || undefined };
+        const c = await apiFetch<EngagementDto>('/engagements', { method: 'POST', body: JSON.stringify(body) });
+        toast('Commessa creata'); history.replace(`/engagements/${c.id}`);
+      } else {
+        const body = { title: head.title.trim(), statusId: head.statusId || undefined, startedOn: head.startedOn || undefined, endedOn: head.endedOn || undefined };
+        await mutate('PATCH', `/engagements/${id}`, body); toast('Modifiche salvate'); void eng.reload();
+      }
+    } catch (e) { toast((e as Error).message || 'Errore salvataggio', 'error'); } finally { setBusy(false); }
+  }
 
   async function genNarrative() {
     setNarrLoading(true);
@@ -203,24 +231,55 @@ export function CommessaDetailPage() {
 
   const empty = phaseList.length + actList.length === 0;
 
+  if (!isNew && eng.loading) return <Page title="Commessa" bleed><Loading /></Page>;
+  if (!isNew && eng.error) return <Page title="Commessa" bleed><ErrorBox message={eng.error} /></Page>;
+
+  const e = eng.data;
+  const statusOpts = lk.byCategory('engagement_status');
+  const companyOpts = companies.data?.items ?? [];
+  const canEdit = isNew ? can('engagement:create') : can('engagement:update');
+
   return (
-    <Page title={eng.data ? eng.data.code : 'Commessa'} back="/engagements">
-      {eng.loading && <Loading />}
-      {eng.error && <ErrorBox message={eng.error} />}
-      {eng.data && (
-        <>
-          <div className="detail-head">
-            {can('engagement:create') && <SaveAsTemplate engagementId={id} />}
-            <span className="code">{eng.data.code}</span>{' '}
-            <span className={`pill ${eng.data.type === 'build' ? 'pill--brand' : 'pill--info'}`}><span className="dot" />{eng.data.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</span>
-            <h1>{eng.data.title}{eng.data.companyName ? ` — ${eng.data.companyName}` : ''}</h1>
-            <div className="kv">
-              {eng.data.companyName && <div><div className="k">Cliente</div><div className="v">{eng.data.companyName}</div></div>}
-              <div><div className="k">Stato</div><div className="v">{pill(eng.data.statusId, eng.data.statusCanonical)}</div></div>
-              {eng.data.startedOn && <div><div className="k">Periodo</div><div className="v mono">{fmtDay(eng.data.startedOn)}{eng.data.endedOn ? ` → ${fmtDay(eng.data.endedOn)}` : ''}</div></div>}
-              <div><div className="k">Avanzamento</div><div className="v mono">{totalDone} / {actList.length} attività</div></div>
-            </div>
+    <Page title={isNew ? 'Nuova commessa' : (e ? e.code : 'Commessa')} bleed>
+      <ObjectPage
+        backLabel="Commesse" onBack={() => history.push('/engagements')}
+        title={isNew ? 'Nuova commessa' : (head.title || e?.title || 'Commessa')}
+        code={!isNew && e ? e.code : undefined}
+        status={!isNew && e ? pill(e.statusId, e.statusCanonical) : undefined}
+        onSave={canEdit ? saveHead : undefined} onCancel={() => history.push('/engagements')} saving={busy}
+      >
+        <ObjectBox icon={Briefcase} title="Anagrafica commessa">
+          <div className="bgrid">
+            <div className="bf c2"><span className="bl">Titolo <span className="req">*</span></span>
+              <input className="bi" value={head.title} onChange={(ev) => setH('title', ev.target.value)} /></div>
+            <div className="bf"><span className="bl">Tipo</span>
+              {isNew
+                ? <select className="bi" value={head.type} onChange={(ev) => setH('type', ev.target.value)}><option value="build">Realizzazione</option><option value="maintenance">Manutenzione</option></select>
+                : <div className="bi">{head.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</div>}</div>
+            <div className="bf"><span className="bl">Cliente</span>
+              {isNew
+                ? <select className="bi" value={head.companyId} onChange={(ev) => setH('companyId', ev.target.value)}><option value="">— seleziona —</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}</select>
+                : <div className="bi">{e?.companyName ?? '—'}</div>}</div>
+            {!isNew && (
+              <div className="bf"><span className="bl">Stato</span>
+                <select className="bi" value={head.statusId} onChange={(ev) => setH('statusId', ev.target.value)}>
+                  {statusOpts.map((s) => <option key={s.id} value={s.id}>{s.label['it-IT'] ?? s.code}</option>)}
+                </select></div>
+            )}
+            <div className="bf"><span className="bl">Inizio</span>
+              <input className="bi" type="date" value={head.startedOn ? head.startedOn.slice(0, 10) : ''} onChange={(ev) => setH('startedOn', ev.target.value)} /></div>
+            {!isNew && (
+              <div className="bf"><span className="bl">Fine</span>
+                <input className="bi" type="date" value={head.endedOn ? head.endedOn.slice(0, 10) : ''} onChange={(ev) => setH('endedOn', ev.target.value)} /></div>
+            )}
           </div>
+        </ObjectBox>
+
+        {isNew && <div className="dsx-empty" style={{ marginTop: 4 }}>Salva la commessa per gestire struttura, risorse, ore e catture.</div>}
+
+        {!isNew && e && (
+        <>
+          {can('engagement:create') && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}><SaveAsTemplate engagementId={id} /></div>}
 
           {/* Racconto AI — CARD, non tab */}
           <div className="prop-card" style={{ marginBottom: 18 }}>
@@ -270,7 +329,8 @@ export function CommessaDetailPage() {
           {mainTab === 'catture' && <CapturesTab />}
           {mainTab === 'budget' && <BudgetPanel engagementId={id} />}
         </>
-      )}
+        )}
+      </ObjectPage>
 
       {phaseModal && (
         <PhaseModal open engagementId={id} editing={phaseModal.editing} phases={phaseList}

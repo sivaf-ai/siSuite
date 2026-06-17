@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Foglio ore (nuova densità)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{
+  --ink:#1B1D24; --ink-2:#2A2D37; --ink-soft:#5C616E; --ink-faint:#8A8F9B;
+  --paper:#F3F5F8; --card:#FFFFFF; --line:#E5E8EE; --line-2:#EEF0F4;
+  --brand:#5B4DF0; --brand-press:#4A3DD6; --brand-wash:#ECEAFE; --brand-ink:#3B2EC0;
+  --flow:#1FC8C2; --flow-wash:#DEF7F5; --flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+  --success:#13A06B; --success-wash:#E0F4EC; --warning:#D9912A; --warning-wash:#FBF0DA;
+  --danger:#E04550; --danger-wash:#FBE7E8; --info:#3B82F6; --info-wash:#E6EFFE;
+  --neutral:#8A8F9B; --neutral-wash:#EDEFF3;
+  --r-sm:10px; --r:14px; --r-lg:20px; --r-pill:999px;
+  --shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);
+  --shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);
+  --shadow-pop:0 8px 24px rgba(91,77,240,.18);
+  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --font-body:"Inter",system-ui,sans-serif; --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  /* NUOVA SCALA FONT */
+  --fs-h1:22px; --fs-h2:16px; --fs-card:15px; --fs-body:13px; --fs-label:12px;
+  --fs-th:11.5px; --fs-cell:13px; --fs-mono:13px; --fs-eyebrow:10.5px;
+  /* densità (default: comoda) */
+  --row-pad:9px 14px; --cell-fs:13px;
+}
+.compact{ --row-pad:5px 12px; --cell-fs:12.5px; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.45;font-size:var(--fs-body)}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1;letter-spacing:-.01em}
+.muted{color:var(--ink-soft)} .faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}
+svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px;transition:.12s}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}
+.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--ink-faint)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}
+.pill--warning{color:var(--warning);background:var(--warning-wash)}
+.pill--danger{color:var(--danger);background:var(--danger-wash)}
+.pill--info{color:var(--info);background:var(--info-wash)}
+.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+/* shell */
+.app{display:grid;grid-template-columns:230px 1fr;height:780px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}
+.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff;letter-spacing:-.02em}
+.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}
+.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.active{background:var(--brand);color:#fff}
+.nav-item .badge{margin-left:auto;background:var(--flow);color:#06302e;font-size:10.5px;font-weight:700;border-radius:var(--r-pill);padding:1px 7px}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}
+.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);position:relative}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}
+.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.ico-btn:hover{background:var(--paper)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}
+.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.week-switch{display:flex;align-items:center;gap:4px}
+.week-switch .nav{width:32px;height:32px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}
+.week-switch .lbl{font-weight:600;font-size:13.5px;padding:0 8px}
+/* toolbar */
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:210px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:28px;padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.seg.dens button.on{color:var(--brand-ink)}
+.ibtn{width:36px;height:36px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}
+.ibtn:hover{background:var(--paper);color:var(--ink)}
+.spacer{flex:1}
+.denslabel{font-size:11px;color:var(--ink-faint);font-weight:600;margin-right:-3px}
+/* split master-detail */
+.split{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+.split.open{grid-template-columns:minmax(0,1fr) 348px}
+.tablecard{overflow:hidden}
+.tablewrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle;white-space:nowrap}
+.t tbody tr:last-child td{border-bottom:0}
+.t tbody tr{cursor:pointer}
+.t tbody tr:hover{background:var(--paper)}
+.t tr.sel{background:var(--brand-wash)}
+.t tr.sel:hover{background:var(--brand-wash)}
+.t tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.cbx{width:17px;height:17px;border-radius:5px;border:2px solid var(--line);display:inline-grid;place-items:center;color:#fff}
+.cbx.on{background:var(--brand);border-color:var(--brand)}
+.num{text-align:right}
+.dur{font-family:var(--font-mono);font-feature-settings:"tnum" 1;text-align:right;color:var(--ink)}
+/* formato contabile valuta: simbolo a sinistra, numero a destra */
+.money{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--font-mono);font-feature-settings:"tnum" 1}
+.money .sym{color:var(--ink-faint)}
+.money .val{text-align:right}
+.money.negative .val,.money.negative .sym{color:var(--danger)}
+.lockico{color:var(--ink-faint)}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}
+.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft)}
+.iaction:hover{background:var(--neutral-wash);color:var(--ink)}
+.iaction.danger:hover{background:var(--danger-wash);color:var(--danger)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px;align-items:center}
+.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}
+.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* bulk bar */
+.bulkbar{display:flex;align-items:center;gap:9px;padding:8px 13px;background:var(--brand-wash);border:1px solid #D9D4FB;border-radius:var(--r-sm);margin-bottom:12px}
+.bulkbar .bn{font-weight:600;font-size:13px;color:var(--brand-ink)}
+.minib{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;background:var(--card);border:1px solid #D9D4FB;color:var(--brand-ink);font-size:12.5px;font-weight:600}
+.minib:hover{background:#fff}
+.minib svg{width:14px;height:14px}
+/* detail panel (master-detail) */
+.detailpanel{display:none;position:sticky;top:0}
+.split.open .detailpanel{display:flex;flex-direction:column}
+.dp-h{display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid var(--line-2)}
+.dp-h .code{font-family:var(--font-mono);font-size:11.5px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.dp-h .x{margin-left:auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft)}
+.dp-h .x:hover{background:var(--neutral-wash)}
+.dp-b{padding:14px 16px;overflow:auto}
+.dp-title{font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:3px}
+.dp-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px}
+.kvline{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+.kvline:last-child{border-bottom:0}
+.kvline .k{color:var(--ink-soft)}
+.kvline .v{font-weight:600}
+.snapbox{margin-top:13px;background:var(--paper);border:1px dashed var(--line);border-radius:var(--r-sm);padding:11px 13px}
+.snapbox .st{font-size:var(--fs-eyebrow);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin-bottom:8px}
+.snaprow{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
+.snaprow .v{font-family:var(--font-mono);font-weight:600}
+.dp-f{display:flex;gap:8px;padding:13px 16px;border-top:1px solid var(--line-2);background:var(--paper)}
+.dp-f .btn{flex:1;justify-content:center}
+.eyebrow{font-size:var(--fs-eyebrow);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+/* note above mock */
+.wrap{max-width:1280px;margin:0 auto;padding:34px 20px 70px}
+.intro{margin-bottom:22px}
+.intro h1{font-size:26px;font-weight:800}
+.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:780px}
+.try{display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:12.5px;color:var(--brand-ink);background:var(--brand-wash);padding:7px 12px;border-radius:var(--r-pill);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1><em>si</em>Suite — Foglio ore, nuova densità</h1>
+    <p>La stessa maschera con la scala dei font più stretta, intestazioni in sentence case, unità nell'intestazione, ore in formato h:mm, tariffe in formato contabile (€ a sinistra, numero a destra, decimali incolonnati).</p>
+    <div class="try"><i data-lucide="hand" style="width:15px;height:15px"></i> Provala: usa <b>Comoda / Compatta</b> in alto a destra, e <b>clicca una riga</b> per aprire il pannello — poi clicca un'altra riga, resta aperto.</div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item active"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item"><i data-lucide="palmtree"></i> Assenze</a>
+      <a class="nav-item"><i data-lucide="timer"></i> Cronometro</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda <span class="badge">5</span></a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button>
+        <button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+
+      <div class="work">
+        <div class="page-head">
+          <div><h1>Foglio ore</h1><div class="sub">Settimana 24 · 9–15 giugno 2026 · 38:30 registrate</div></div>
+          <div class="week-switch">
+            <button class="nav"><i data-lucide="chevron-left"></i></button>
+            <span class="lbl">Sett. 24</span>
+            <button class="nav"><i data-lucide="chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="searchbar"><i data-lucide="search"></i><input placeholder="Cerca riga…"></div>
+          <div class="seg">
+            <button class="on">Tutte</button><button>Bozze</button><button>Inviate</button><button>Approvate</button><button>Respinte</button>
+          </div>
+          <button class="ibtn"><i data-lucide="sliders-horizontal"></i></button>
+          <div class="spacer"></div>
+          <span class="denslabel">Densità</span>
+          <div class="seg dens" id="dens">
+            <button class="on" data-d="comfortable">Comoda</button><button data-d="compact">Compatta</button>
+          </div>
+          <button class="ibtn"><i data-lucide="download"></i></button>
+          <button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuova riga</button>
+        </div>
+
+        <div class="bulkbar">
+          <span class="cbx on"><i data-lucide="check" style="width:12px;height:12px"></i></span>
+          <span class="bn">3 righe selezionate</span>
+          <div class="spacer"></div>
+          <button class="minib"><i data-lucide="send"></i> Invia</button>
+          <button class="minib"><i data-lucide="check-check"></i> Approva</button>
+          <button class="minib"><i data-lucide="x"></i> Respingi</button>
+          <button class="minib"><i data-lucide="lock"></i> Blocca</button>
+        </div>
+
+        <div class="split" id="split">
+          <div class="card tablecard" id="tablecard">
+            <div class="tablewrap">
+            <table class="t">
+              <thead><tr>
+                <th style="width:34px"></th>
+                <th>Data</th><th>Risorsa</th><th>Commessa · Attività</th><th>Tipologia</th>
+                <th class="num">Ore (h:mm)</th><th class="num">Tariffa (€/h)</th><th>Stato</th><th style="width:74px"></th>
+              </tr></thead>
+              <tbody id="tbody">
+                <tr data-code="ORE-1042" data-date="10/06/2026" data-res="Marco Rossi" data-job="Piscina Rossi" data-act="Idraulica" data-typ="Straordinario" data-typc="warning" data-ore="4:00" data-cost="22,00" data-bill="35,00" data-stato="Bozza" data-statc="neutral" data-note="Sostituzione cuscinetto pompa e taratura valvola.">
+                  <td><span class="cbx on"><i data-lucide="check" style="width:12px;height:12px"></i></span></td>
+                  <td class="mono">10/06</td><td>Marco Rossi</td>
+                  <td>Piscina Rossi · <span class="muted">Idraulica</span></td>
+                  <td><span class="pill pill--warning"><span class="dot"></span>Straordinario</span></td>
+                  <td class="dur">4:00</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">35,00</span></span></td>
+                  <td><span class="pill pill--neutral"><span class="dot"></span>Bozza</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1041" data-date="10/06/2026" data-res="Marco Rossi" data-job="Piscina Rossi" data-act="Scavo" data-typ="Ordinarie" data-typc="info" data-ore="3:30" data-cost="22,00" data-bill="28,00" data-stato="Bozza" data-statc="neutral" data-note="Scavo per vasca di compensazione.">
+                  <td><span class="cbx on"><i data-lucide="check" style="width:12px;height:12px"></i></span></td>
+                  <td class="mono">10/06</td><td>Marco Rossi</td>
+                  <td>Piscina Rossi · <span class="muted">Scavo</span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Ordinarie</span></td>
+                  <td class="dur">3:30</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">28,00</span></span></td>
+                  <td><span class="pill pill--neutral"><span class="dot"></span>Bozza</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1038" data-date="11/06/2026" data-res="Luca Bianchi" data-job="Fibra Via Dante" data-act="Posa" data-typ="Ordinarie" data-typc="info" data-ore="8:00" data-cost="24,00" data-bill="30,00" data-stato="Bozza" data-statc="neutral" data-note="Posa cavo dorsale tratta A-B.">
+                  <td><span class="cbx on"><i data-lucide="check" style="width:12px;height:12px"></i></span></td>
+                  <td class="mono">11/06</td><td>Luca Bianchi</td>
+                  <td>Fibra Via Dante · <span class="muted">Posa</span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Ordinarie</span></td>
+                  <td class="dur">8:00</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">30,00</span></span></td>
+                  <td><span class="pill pill--neutral"><span class="dot"></span>Bozza</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1031" data-date="09/06/2026" data-res="Marco Rossi" data-job="Fotovoltaico Bianchi" data-act="Collaudo" data-typ="Viaggio" data-typc="neutral" data-ore="1:30" data-cost="22,00" data-bill="28,00" data-stato="Inviata" data-statc="info" data-note="Trasferta cantiere e collaudo stringhe.">
+                  <td><span class="cbx"></span></td>
+                  <td class="mono">09/06</td><td>Marco Rossi</td>
+                  <td>Fotovoltaico Bianchi · <span class="muted">Collaudo</span></td>
+                  <td><span class="pill pill--neutral"><span class="dot"></span>Viaggio</span></td>
+                  <td class="dur">1:30</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">28,00</span></span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Inviata</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1024" data-date="06/06/2026" data-res="Luca Bianchi" data-job="Piscina Rossi" data-act="Idraulica" data-typ="Ordinarie" data-typc="info" data-ore="7:00" data-cost="24,00" data-bill="30,00" data-stato="Approvata" data-statc="success" data-locked="1" data-note="Montaggio gruppo di filtraggio.">
+                  <td><span class="cbx"></span></td>
+                  <td class="mono">06/06</td><td>Luca Bianchi</td>
+                  <td>Piscina Rossi · <span class="muted">Idraulica</span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Ordinarie</span></td>
+                  <td class="dur">7:00</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">30,00</span></span></td>
+                  <td><span class="pill pill--success"><span class="dot"></span>Approvata</span></td>
+                  <td><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><i data-lucide="lock" class="lockico" style="width:14px;height:14px"></i></div></td>
+                </tr>
+                <tr data-code="ORE-1019" data-date="05/06/2026" data-res="Marco Rossi" data-job="Fibra Via Dante" data-act="Giunzione" data-typ="Straordinario" data-typc="warning" data-ore="2:00" data-cost="22,00" data-bill="35,00" data-stato="Respinta" data-statc="danger" data-note="Ore eccedenti non autorizzate — da rivedere.">
+                  <td><span class="cbx"></span></td>
+                  <td class="mono">05/06</td><td>Marco Rossi</td>
+                  <td>Fibra Via Dante · <span class="muted">Giunzione</span></td>
+                  <td><span class="pill pill--warning"><span class="dot"></span>Straordinario</span></td>
+                  <td class="dur">2:00</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">35,00</span></span></td>
+                  <td><span class="pill pill--danger"><span class="dot"></span>Respinta</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1015" data-date="05/06/2026" data-res="Gino Acqua" data-job="Piscina Verdi" data-act="Cassero" data-typ="Ordinarie" data-typc="info" data-ore="6:45" data-cost="24,00" data-bill="30,00" data-stato="Inviata" data-statc="info" data-note="Cassero e getto bordo vasca.">
+                  <td><span class="cbx"></span></td>
+                  <td class="mono">05/06</td><td>Gino Acqua</td>
+                  <td>Piscina Verdi · <span class="muted">Cassero</span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Ordinarie</span></td>
+                  <td class="dur">6:45</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">30,00</span></span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Inviata</span></td>
+                  <td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span><span class="iaction danger"><i data-lucide="trash-2"></i></span></div></td>
+                </tr>
+                <tr data-code="ORE-1009" data-date="04/06/2026" data-res="Marco Gallo" data-job="Fibra Via Dante" data-act="Ricollaudo" data-typ="Ordinarie" data-typc="info" data-ore="0:45" data-cost="24,00" data-bill="30,00" data-stato="Approvata" data-statc="success" data-locked="1" data-note="Ricollaudo OTDR tratta C.">
+                  <td><span class="cbx"></span></td>
+                  <td class="mono">04/06</td><td>Marco Gallo</td>
+                  <td>Fibra Via Dante · <span class="muted">Ricollaudo</span></td>
+                  <td><span class="pill pill--info"><span class="dot"></span>Ordinarie</span></td>
+                  <td class="dur">0:45</td>
+                  <td><span class="money"><span class="sym">€</span><span class="val">30,00</span></span></td>
+                  <td><span class="pill pill--success"><span class="dot"></span>Approvata</span></td>
+                  <td><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><i data-lucide="lock" class="lockico" style="width:14px;height:14px"></i></div></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+            <div class="pager">
+              <span>1–8 di 24 righe</span>
+              <div class="pgs">
+                <button class="pgbtn"><i data-lucide="chevron-left" style="width:14px;height:14px"></i></button>
+                <button class="pgbtn on">1</button><button class="pgbtn">2</button><button class="pgbtn">3</button>
+                <button class="pgbtn"><i data-lucide="chevron-right" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANNELLO MASTER-DETAIL -->
+          <div class="card detailpanel" id="panel">
+            <div class="dp-h">
+              <span class="code" id="dpCode">ORE-1042</span>
+              <span class="pill pill--neutral" id="dpStato"><span class="dot"></span>Bozza</span>
+              <button class="x" onclick="closePanel()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="dp-b">
+              <div class="dp-title" id="dpTitle">Piscina Rossi · Idraulica</div>
+              <div class="dp-sub" id="dpSub">Marco Rossi · 10/06/2026</div>
+              <div class="kvline"><span class="k">Tipologia</span><span class="v" id="dpTyp">Straordinario</span></div>
+              <div class="kvline"><span class="k">Ore (h:mm)</span><span class="v mono" id="dpOre">4:00</span></div>
+              <div class="kvline"><span class="k">Stato</span><span class="v" id="dpStato2">Bozza</span></div>
+              <div class="snapbox">
+                <div class="st">Tariffa fotografata</div>
+                <div class="snaprow"><span class="k">Costo interno</span><span class="v" id="dpCost">€ 22,00/h</span></div>
+                <div class="snaprow"><span class="k">Tariffa cliente</span><span class="v" id="dpBill">€ 35,00/h</span></div>
+              </div>
+              <div style="margin-top:13px">
+                <div class="eyebrow" style="margin-bottom:6px">Note</div>
+                <div style="font-size:13px;color:var(--ink-2)" id="dpNote">Sostituzione cuscinetto pompa e taratura valvola.</div>
+              </div>
+            </div>
+            <div class="dp-f">
+              <button class="btn btn-ghost"><i data-lucide="pencil" style="width:15px;height:15px"></i> Modifica</button>
+              <button class="btn btn-primary"><i data-lucide="check-check" style="width:15px;height:15px"></i> Approva</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+  // toggle densità
+  const split = document.getElementById('split');
+  const tablecard = document.getElementById('tablecard');
+  document.getElementById('dens').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#dens button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('compact', b.dataset.d==='compact');
+  });
+  // master-detail
+  const tbody = document.getElementById('tbody');
+  const statColors = {neutral:'pill--neutral',info:'pill--info',success:'pill--success',danger:'pill--danger',warning:'pill--warning'};
+  tbody.addEventListener('click', e=>{
+    if(e.target.closest('.iaction')||e.target.closest('.cbx')) return;
+    const tr = e.target.closest('tr'); if(!tr) return;
+    document.querySelectorAll('#tbody tr').forEach(x=>x.classList.remove('sel'));
+    tr.classList.add('sel');
+    const d = tr.dataset;
+    split.classList.add('open');
+    document.getElementById('dpCode').textContent = d.code;
+    document.getElementById('dpTitle').textContent = d.job + ' · ' + d.act;
+    document.getElementById('dpSub').textContent = d.res + ' · ' + d.date;
+    document.getElementById('dpTyp').textContent = d.typ;
+    document.getElementById('dpOre').textContent = d.ore;
+    document.getElementById('dpStato2').textContent = d.stato;
+    document.getElementById('dpCost').textContent = '€ ' + d.cost + '/h';
+    document.getElementById('dpBill').textContent = '€ ' + d.bill + '/h';
+    document.getElementById('dpNote').textContent = d.note;
+    const sp = document.getElementById('dpStato');
+    sp.className = 'pill ' + (statColors[d.statc]||'pill--neutral');
+    sp.innerHTML = '<span class="dot"></span>' + d.stato;
+  });
+  function closePanel(){
+    split.classList.remove('open');
+    document.querySelectorAll('#tbody tr').forEach(x=>x.classList.remove('sel'));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+/* nav2.css — AppShellNav2: menù a 2 livelli (mock 43, Blocco A). Prefisso n2-. */
+.n2 { display: flex; height: 100%; position: relative; overflow: hidden; }
+
+/* RAIL L1 */
+.n2-rail { background: var(--sidebar); color: #C9CDD7; display: flex; flex-direction: column; padding: 13px 10px; gap: 1px; width: 212px; flex: 0 0 auto; overflow: auto; transition: width .16s ease; z-index: 30; }
+.n2-rail::-webkit-scrollbar { width: 0; }
+.n2.mini .n2-rail { width: 62px; }
+.n2-brand { display: flex; align-items: center; gap: 9px; padding: 5px 7px 11px; }
+.n2-brand .mark { width: 28px; height: 28px; border-radius: 8px; background: var(--flow-grad); display: grid; place-items: center; color: #fff; flex: 0 0 auto; font-weight: 800; }
+.n2-brand .name { font-family: var(--font-display); font-weight: 800; font-size: 18px; color: #fff; white-space: nowrap; }
+.n2-brand .name em { font-style: normal; color: var(--flow); }
+.n2-brand .cl { margin-left: auto; width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #8A8F9B; background: none; border: 0; cursor: pointer; flex: 0 0 auto; }
+.n2-brand .cl:hover { background: rgba(255,255,255,.08); color: #fff; }
+.n2-rgroup { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #646A7A; padding: 13px 9px 5px; white-space: nowrap; overflow: hidden; }
+.n2-ritem { display: flex; align-items: center; gap: 11px; padding: 9px; border-radius: 10px; font-size: 13.5px; font-weight: 500; color: #C9CDD7; cursor: pointer; white-space: nowrap; background: none; border: 0; width: 100%; text-align: left; }
+.n2-ritem svg { width: 18px; height: 18px; opacity: .85; flex: 0 0 auto; }
+.n2-ritem:hover { background: rgba(255,255,255,.06); color: #fff; }
+.n2-ritem.active { background: var(--brand); color: #fff; }
+.n2-ritem.active svg { opacity: 1; }
+.n2-ritem.fav .lbl { color: #F4D06A; } .n2-ritem.fav svg { color: #F4D06A; opacity: 1; }
+.n2-ritem .chev { margin-left: auto; opacity: .45; }
+.n2.mini .n2-ritem .lbl, .n2.mini .n2-rgroup, .n2.mini .n2-brand .name, .n2.mini .n2-brand .cl, .n2.mini .n2-ritem .chev, .n2.mini .n2-ruser .who { display: none; }
+.n2.mini .n2-ritem { justify-content: center; gap: 0; }
+.n2.mini .n2-brand { justify-content: center; padding: 5px 0 11px; }
+.n2-rsp { flex: 1; }
+.n2-ruser { display: flex; align-items: center; gap: 9px; padding: 9px 7px; margin-top: 6px; border-top: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+.n2-ruser .av { width: 30px; height: 30px; border-radius: 50%; background: #34384a; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+.n2-ruser .nm { font-size: 13px; color: #fff; font-weight: 600; } .n2-ruser .rl { font-size: 11px; color: #8A8F9B; }
+
+/* SUB-PANEL L2 (flyout) */
+.n2-sub { position: absolute; left: 212px; top: 0; bottom: 0; width: 268px; background: var(--card); border-right: 1px solid var(--line); box-shadow: 18px 0 40px rgba(27,29,36,.12); z-index: 25; display: flex; flex-direction: column; }
+.n2.mini .n2-sub { left: 62px; }
+.n2-sub-h { display: flex; align-items: center; gap: 9px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line-2); }
+.n2-sub-h .ti { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--ink); }
+.n2-sub-h .ct { font-size: 11px; color: var(--ink-faint); font-weight: 600; background: var(--neutral-wash); padding: 1px 7px; border-radius: var(--r-pill); }
+.n2-sub-h .x { margin-left: auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-soft); cursor: pointer; background: none; border: 0; }
+.n2-sub-h .x:hover { background: var(--paper); }
+.n2-sub-b { flex: 1; overflow: auto; padding: 6px 8px 16px; }
+.n2-sg { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); padding: 14px 10px 5px; display: flex; align-items: center; gap: 6px; }
+.n2-sg.fav { color: var(--brand); } .n2-sg.link svg { width: 12px; height: 12px; }
+.n2-si { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: var(--ink-2); cursor: pointer; background: none; border: 0; width: 100%; text-align: left; }
+.n2-si svg.li { width: 17px; height: 17px; color: var(--ink-soft); flex: 0 0 auto; }
+.n2-si:hover { background: var(--paper); color: var(--ink); }
+.n2-si.active { background: var(--brand-wash); color: var(--brand-ink); } .n2-si.active svg.li { color: var(--brand-ink); }
+.n2-si .tag { margin-left: auto; font-size: 9.5px; font-weight: 700; color: var(--info); background: var(--info-wash); padding: 2px 7px; border-radius: 5px; letter-spacing: .04em; }
+.n2-si .pin { margin-left: auto; color: var(--ink-faint); opacity: 0; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; flex: 0 0 auto; background: none; border: 0; cursor: pointer; }
+.n2-si .pin svg { width: 14px; height: 14px; }
+.n2-si:hover .pin { opacity: .55; } .n2-si .pin.on { opacity: 1; color: var(--warning); }
+.n2-si.soon { color: var(--ink-faint); cursor: default; } .n2-si.soon svg.li { opacity: .6; }
+.n2-si .badge { margin-left: auto; font-size: 9px; font-weight: 800; letter-spacing: .08em; color: var(--ink-faint); background: var(--neutral-wash); padding: 2px 6px; border-radius: 5px; }
+.n2-si.link svg.li { color: var(--brand); } .n2-si.link .ext { margin-left: auto; color: var(--ink-faint); width: 14px; height: 14px; }
+
+/* MAIN + topbar + sibling tabs */
+.n2-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--paper); min-width: 0; }
+.n2-topbar { height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: var(--card); border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.n2-omni { flex: 1; max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 14px; background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-sm); cursor: text; }
+.n2-omni .sp { color: var(--brand); width: 17px; height: 17px; flex: 0 0 auto; }
+.n2-omni .ph { flex: 1; font-size: 13.5px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n2-omni .two { font-size: 10.5px; color: var(--ink-faint); border-left: 1px solid var(--line); padding-left: 9px; white-space: nowrap; }
+.n2-omni .kbd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.n2-ico { width: 36px; height: 36px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--ink-soft); background: none; border: 0; cursor: pointer; flex: 0 0 auto; }
+.n2-ico:hover { background: var(--paper); color: var(--ink); }
+.n2-siblings { display: flex; gap: 5px; padding: 10px 16px 0; flex-wrap: wrap; background: var(--paper); }
+.n2-sib { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; color: var(--ink-soft); background: var(--card); border: 1px solid var(--line); cursor: pointer; }
+.n2-sib.on { background: var(--ink); color: #fff; border-color: var(--ink); } .n2-sib svg { width: 14px; height: 14px; }
+.n2-outlet { flex: 1; position: relative; overflow: hidden; }
+
+/* OMNIBOX modal */
+.n2-omni-back { position: fixed; inset: 0; background: rgba(20,22,30,.45); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+.n2-omni-modal { width: min(620px, 92vw); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden; }
+.n2-omni-in { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line-2); }
+.n2-omni-in svg { color: var(--brand); flex: 0 0 auto; }
+.n2-omni-in input { flex: 1; border: 0; outline: none; background: none; font-family: inherit; font-size: 15px; color: var(--ink); }
+.n2-omni-res { max-height: 52vh; overflow: auto; padding: 6px; }
+.n2-omni-cap { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); padding: 10px 10px 4px; }
+.n2-omni-row { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 9px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); }
+.n2-omni-row:hover, .n2-omni-row.cur { background: var(--brand-wash); color: var(--brand-ink); }
+.n2-omni-row svg { width: 17px; height: 17px; color: var(--ink-soft); } .n2-omni-row.cur svg { color: var(--brand-ink); }
+.n2-omni-row .sec { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
+.n2-omni-empty { padding: 24px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+
+/* la shell 2-livelli appare da >=768px; sotto resta la tab bar mobile esistente */
+.n2-only { display: none; }
+@media (min-width: 768px) { .n2-only { display: flex; } }
+.n2-subback { position: fixed; inset: 0; z-index: 20; }

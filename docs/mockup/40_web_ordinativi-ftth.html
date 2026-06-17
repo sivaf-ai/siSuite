@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Ordinativi FTTH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-th:11.5px;--fs-eyebrow:10.5px;--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--input-h:38px;--sec-gap:16px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--input-h:34px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--input-h:42px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ok{background:var(--success);color:#fff}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;white-space:nowrap}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+.tag{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-soft);background:var(--neutral-wash);padding:2px 7px;border-radius:6px}
+.privacy{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--warning);background:var(--warning-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.masked{font-family:var(--font-mono);letter-spacing:1px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.app{display:grid;grid-template-columns:230px 1fr;height:780px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.nav-item .badge{margin-left:auto;background:var(--flow);color:#06302e;font-size:10.5px;font-weight:700;border-radius:var(--r-pill);padding:1px 7px}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:var(--ctrl-h);padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:200px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:calc(var(--ctrl-h) - 8px);padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.ibtn{width:var(--ctrl-h);height:var(--ctrl-h);border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}.spacer{flex:1}
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle;white-space:nowrap}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr{cursor:pointer}.t tbody tr:hover{background:var(--paper)}
+.t tr.sel{background:var(--brand-wash)}.t tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft)}.iaction:hover{background:var(--neutral-wash);color:var(--ink)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px}.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+.dp-h{display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid var(--line-2)}
+.dp-h .code{font-family:var(--font-mono);font-size:11.5px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.dp-h .x{margin-left:auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}
+.dp-b{padding:14px 16px}
+.dp-title{font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:3px}
+.kvline{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-2);font-size:13px;gap:12px}
+.kvline:last-child{border-bottom:0}.kvline .k{color:var(--ink-soft);flex:0 0 auto}.kvline .v{font-weight:600;text-align:right}
+.appbox{margin-top:13px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px}
+.appbox .st{font-size:var(--fs-eyebrow);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:7px}
+.approw{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:4px 0}.approw .nm{font-weight:600}.approw .sr{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft)}
+.dp-f{display:flex;gap:8px;padding:13px 16px;border-top:1px solid var(--line-2);background:var(--paper)}.dp-f .btn{flex:1;justify-content:center}
+/* formpage scheda */
+.formpage{max-width:920px;margin:0 auto}
+.formpage-head{display:flex;align-items:center;gap:12px;margin-bottom:var(--sec-gap);flex-wrap:wrap}
+.formpage-head .back{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer}
+.formpage-head h1{font-size:var(--fs-h1);font-weight:800}
+.formpage-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill);font-weight:600}
+.formcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:18px 20px;margin-bottom:14px}
+.formcard > .ct{display:flex;align-items:center;gap:8px;font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:14px}
+.formcard > .ct svg{width:17px;height:17px;color:var(--brand)}.formcard > .ct .spacer{flex:1}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.fgrid.three{grid-template-columns:1fr 1fr 1fr}.f-full{grid-column:1/-1}
+.fld label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+.inp{width:100%;height:var(--input-h);padding:0 12px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:13.5px;color:var(--ink);display:flex;align-items:center;gap:8px}
+.inp.sel{justify-content:space-between}.inp .ph{color:var(--ink-faint)}
+.stepflow{display:flex;align-items:center;margin-bottom:4px}
+.stp{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink-faint)}
+.stp .sd{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--neutral-wash);color:var(--ink-faint);font-size:11px}
+.stp.done .sd{background:var(--success);color:#fff}.stp.done{color:var(--ink-2)}.stp.now .sd{background:var(--brand);color:#fff}.stp.now{color:var(--brand-ink)}
+.stpl{flex:1;height:2px;background:var(--line);margin:0 8px;min-width:18px}.stpl.done{background:var(--success)}
+/* apparati table in scheda */
+.appt{width:100%;border-collapse:collapse}
+.appt th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:8px 10px;border-bottom:1px solid var(--line)}
+.appt td{padding:9px 10px;border-bottom:1px solid var(--line-2);font-size:13px}
+.appt tr:last-child td{border-bottom:0}
+.appt .ser{font-family:var(--font-mono);font-size:12px}
+.addline{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);margin-top:10px;cursor:pointer}
+.formbar{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px 0}
+.formbar .left{margin-right:auto;font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+.hintflow{font-size:11.5px;color:var(--brand-ink);background:var(--brand-wash);padding:9px 12px;border-radius:var(--r-sm);display:flex;gap:8px;align-items:flex-start}
+/* mobile */
+.stage{display:flex;justify-content:center;padding:8px 0}
+.phone{width:362px;height:780px;background:var(--card);border-radius:42px;position:relative;box-shadow:0 0 0 11px #14151b,0 0 0 13px #23252e,var(--shadow-2);overflow:hidden;display:flex;flex-direction:column}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#14151b;border-radius:var(--r-pill);z-index:20}
+.status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 24px 0 28px;font-size:13px;font-weight:600;flex:0 0 auto}
+.screen{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:6px 18px 24px}
+.m-head{display:flex;align-items:center;gap:10px;padding:8px 2px 12px}
+.m-head .bk{width:34px;height:34px;border-radius:10px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--ink-soft)}
+.m-head .ti{font-family:var(--font-display);font-size:17px;font-weight:800}.m-head .su{font-size:11.5px;color:var(--ink-soft)}
+.ordcard{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.ordcard .r{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}.ordcard .r .v{font-weight:600}
+.recwave{display:flex;align-items:center;justify-content:center;gap:3px;height:40px;margin:4px 0}
+.recwave i{width:3px;border-radius:3px;background:var(--flow)}
+.transc{font-size:13px;line-height:1.55;color:var(--ink-2);background:var(--paper);border-radius:12px;padding:11px 13px}
+.transc .hl{background:var(--brand-wash);color:var(--brand-ink);border-radius:5px;padding:0 3px;font-weight:600}
+.aiprop{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:13px}
+.aiprop .ah{display:flex;align-items:center;gap:7px;padding:10px 13px;background:var(--brand-wash);font-size:12px;font-weight:700;color:var(--brand-ink)}
+.kvm{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid var(--line-2);font-size:13px;gap:10px}.kvm:last-child{border-bottom:0}
+.kvm .k{color:var(--ink-soft)}.kvm .v{font-weight:600;display:flex;align-items:center;gap:6px;text-align:right}.kvm .v.ser{font-family:var(--font-mono);font-size:12px}
+.bigbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border-radius:14px;background:var(--success);color:#fff;font-weight:700;font-size:15px;box-shadow:var(--shadow-pop);margin-top:14px}
+.ghostbtn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--ink-soft);font-weight:600;font-size:13.5px;margin-top:9px}
+.wrap{max-width:1280px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:820px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:14px">
+    <h1><em>si</em>Suite — Ordinativi FTTH</h1>
+    <p>Le attivazioni gestite "a pezzi": lista ordinativi, scheda con apparati e seriali installati (dati intestatario mascherati per privacy), e chiusura a voce dal campo con proposta AI. Tutto sulla spina che abbiamo già.</p>
+  </div>
+
+  <!-- 1. LISTA -->
+  <div class="cap"><div class="e">Delivery FTTH · lista</div><div class="t">Ordinativi</div>
+    <div class="d">Volume alto, una riga per attivazione. ID gestore, intestatario mascherato, indirizzo, tipo, squadra e stato pratica. Clic → anteprima a destra; doppio clic → scheda completa.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Delivery</div>
+      <a class="nav-item active"><i data-lucide="list-checks"></i> Ordinativi <span class="badge">38</span></a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="layers"></i> Catture</a>
+      <div class="nav-group">Magazzino & dati</div>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <a class="nav-item"><i data-lucide="box"></i> Apparati (seriali)</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Gestori / clienti</a>
+      <div class="side-user"><div class="av">PC</div><div><div class="nm">POWERCOM</div><div class="rl">Delivery NA</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca per ID, indirizzo, intestatario…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><div><h1>Ordinativi</h1><div class="sub">Gestore Sirti · 38 aperti · 12 da assegnare</div></div>
+          <div style="display:flex;gap:9px"><button class="btn btn-ghost"><i data-lucide="upload" style="width:16px;height:16px"></i> Importa CSV</button><button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuovo ordinativo</button></div>
+        </div>
+        <div class="toolbar">
+          <div class="searchbar"><i data-lucide="search"></i><input placeholder="Cerca…"></div>
+          <div class="seg"><button class="on">Tutti</button><button>Da assegnare</button><button>In corso</button><button>Completati</button><button>KO</button></div>
+          <div class="ibtn"><i data-lucide="sliders-horizontal"></i></div>
+          <div class="spacer"></div>
+          <span class="privacy"><i data-lucide="shield" style="width:12px;height:12px"></i> Dati intestatario mascherati</span>
+        </div>
+        <div class="split">
+          <div class="card" style="overflow:hidden">
+            <div class="tablewrap"><table class="t">
+              <thead><tr><th>ID Fenice</th><th>Intestatario</th><th>Indirizzo · Città</th><th>Tipo</th><th>Squadra</th><th>Stato</th><th style="width:36px"></th></tr></thead>
+              <tbody>
+                <tr class="sel"><td class="mono">1098174829</td><td><span class="masked">C••• R•••</span></td><td>Via M••• 14 · <span class="muted">Napoli</span></td><td><span class="tag">Y4</span></td><td>Squadra A</td><td><span class="pill pill--brand"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+                <tr><td class="mono">1091638341</td><td><span class="masked">A••• P•••</span></td><td>Via P••• 9 · <span class="muted">Napoli</span></td><td><span class="tag">Y4</span></td><td>Squadra A</td><td><span class="pill pill--neutral"><span class="dot"></span>Assegnato</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+                <tr><td class="mono">1098909013</td><td><span class="masked">D••• C•••</span></td><td>C.so V••• 22 · <span class="muted">Cicciano</span></td><td><span class="tag">Y2</span></td><td>Squadra B</td><td><span class="pill pill--success"><span class="dot"></span>Completato</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+                <tr><td class="mono">1088416245</td><td><span class="masked">M••• E•••</span></td><td>Via T••• 3 · <span class="muted">San Giorgio a C.</span></td><td><span class="tag">Y4</span></td><td>Squadra B</td><td><span class="pill pill--info"><span class="dot"></span>Sospeso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+                <tr><td class="mono">1083716223</td><td><span class="masked">G••• S•••</span></td><td>Via O••• 41 · <span class="muted">Napoli</span></td><td><span class="tag">Y4</span></td><td><span class="muted">—</span></td><td><span class="pill pill--neutral"><span class="dot"></span>Da assegnare</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+                <tr><td class="mono">1078661139</td><td><span class="masked">L••• B•••</span></td><td>Via D••• 7 · <span class="muted">Napoli</span></td><td><span class="tag">Y2</span></td><td>Squadra A</td><td><span class="pill pill--danger"><span class="dot"></span>KO · ricontattare</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span></div></td></tr>
+              </tbody>
+            </table></div>
+            <div class="pager"><span>1–6 di 38</span><div class="pgs"><button class="pgbtn on">1</button><button class="pgbtn">2</button><button class="pgbtn">3</button></div></div>
+          </div>
+
+          <div class="card">
+            <div class="dp-h"><span class="code">1098174829</span><span class="pill pill--brand"><span class="dot"></span>In corso</span><button class="x"><i data-lucide="x"></i></button></div>
+            <div class="dp-b">
+              <div class="dp-title">Attivazione FTTH</div>
+              <div style="margin-bottom:10px"><span class="privacy"><i data-lucide="eye-off" style="width:12px;height:12px"></i> Intestatario protetto</span></div>
+              <div class="kvline"><span class="k">Gestore</span><span class="v">Sirti · Y4 (Cluster A+B)</span></div>
+              <div class="kvline"><span class="k">Intestatario</span><span class="v masked">C••• R•••</span></div>
+              <div class="kvline"><span class="k">Indirizzo</span><span class="v">Via M••• 14, Napoli</span></div>
+              <div class="kvline"><span class="k">Telefono</span><span class="v masked">3•• ••• ••42</span></div>
+              <div class="kvline"><span class="k">Squadra</span><span class="v">Squadra A · oggi 09:45</span></div>
+              <div class="appbox">
+                <div class="st">Apparati da installare</div>
+                <div class="approw"><i data-lucide="circle" style="width:13px;height:13px;color:var(--ink-faint)"></i><span class="nm">Borchia ottica</span><span class="sr">da installare</span></div>
+                <div class="approw"><i data-lucide="circle" style="width:13px;height:13px;color:var(--ink-faint)"></i><span class="nm">Splitter</span><span class="sr">da installare</span></div>
+                <div class="approw"><i data-lucide="circle" style="width:13px;height:13px;color:var(--ink-faint)"></i><span class="nm">HUB6</span><span class="sr">da installare</span></div>
+                <div class="approw"><i data-lucide="circle" style="width:13px;height:13px;color:var(--ink-faint)"></i><span class="nm">ONT SKY_OF</span><span class="sr">da installare</span></div>
+              </div>
+            </div>
+            <div class="dp-f"><button class="btn btn-ghost"><i data-lucide="user-plus" style="width:15px;height:15px"></i> Assegna</button><button class="btn btn-primary"><i data-lucide="external-link" style="width:15px;height:15px"></i> Apri scheda</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. SCHEDA ORDINATIVO -->
+  <div class="cap"><div class="e">Ordinativo · scheda</div><div class="t">Scheda ordinativo — pagina intera</div>
+    <div class="d">Dati dal gestore, intestatario protetto (con sblocco a permesso), apparati pianificati vs installati con seriale e password, materiali scaricati dal magazzino, e lo stato pratica.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Delivery</div>
+      <a class="nav-item active"><i data-lucide="list-checks"></i> Ordinativi</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Pianificazione</a>
+      <div class="nav-group">Magazzino & dati</div>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <a class="nav-item"><i data-lucide="box"></i> Apparati (seriali)</a>
+      <div class="side-user"><div class="av">PC</div><div><div class="nm">POWERCOM</div><div class="rl">Delivery NA</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="formpage">
+          <div class="formpage-head">
+            <span class="back"><i data-lucide="chevron-left"></i> Ordinativi</span>
+            <h1>Attivazione FTTH</h1>
+            <span class="code">1098909013</span>
+            <span class="pill pill--success"><span class="dot"></span>Completato</span>
+          </div>
+
+          <div class="formcard" style="padding-top:16px">
+            <div class="stepflow">
+              <div class="stp done"><span class="sd"><i data-lucide="check" style="width:12px;height:12px"></i></span>Assegnato</div><div class="stpl done"></div>
+              <div class="stp done"><span class="sd"><i data-lucide="check" style="width:12px;height:12px"></i></span>In corso</div><div class="stpl done"></div>
+              <div class="stp now"><span class="sd">3</span>Completato</div><div class="stpl"></div>
+              <div class="stp"><span class="sd">4</span>Collaudato</div>
+            </div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="file-text"></i> Dati ordinativo (dal gestore)</div>
+            <div class="fgrid three">
+              <div class="fld"><label>ID univoco gestore</label><div class="inp mono">SRT-Y2-44871</div></div>
+              <div class="fld"><label>ID Fenice</label><div class="inp mono">1098909013</div></div>
+              <div class="fld"><label>Tipo attività</label><div class="inp">Y2 · Cluster AOF</div></div>
+              <div class="fld f-full" style="grid-column:span 2"><label>Indirizzo attivazione</label><div class="inp">C.so Vittorio Emanuele 22, Cicciano (NA)</div></div>
+              <div class="fld"><label>Data ordine</label><div class="inp mono">12/06/2026</div></div>
+            </div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="user-round"></i> Intestatario e recapiti <span class="spacer"></span><span class="privacy"><i data-lucide="eye-off" style="width:12px;height:12px"></i> Protetto · sblocca</span></div>
+            <div class="fgrid">
+              <div class="fld"><label>Intestatario</label><div class="inp masked">D••••• C•••••</div></div>
+              <div class="fld"><label>Telefono</label><div class="inp masked">3•• ••• ••13</div></div>
+            </div>
+            <div class="hintflow" style="margin-top:12px"><i data-lucide="shield" style="width:14px;height:14px;flex:0 0 auto;margin-top:1px"></i> Dati dell'utente finale protetti da RLS e mascheramento; visibili solo ai ruoli abilitati e tracciati nel log accessi. Pensato per i vincoli privacy dei gestori.</div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="box"></i> Apparati <span class="spacer"></span><span class="muted" style="font-size:12px;font-weight:500">pianificato → installato (seriale)</span></div>
+            <table class="appt">
+              <thead><tr><th>Tipologia</th><th>Pianificato</th><th>Seriale installato</th><th>Password</th><th>Stato</th></tr></thead>
+              <tbody>
+                <tr><td>Borchia ottica</td><td>1</td><td class="ser">BRC-8842190</td><td class="muted">—</td><td><span class="pill pill--success"><span class="dot"></span>Installato</span></td></tr>
+                <tr><td>Splitter 1:8</td><td>1</td><td class="ser">SPL-0457-A</td><td class="muted">—</td><td><span class="pill pill--success"><span class="dot"></span>Installato</span></td></tr>
+                <tr><td>HUB6</td><td>1</td><td class="ser">HUB6-22910</td><td class="muted">—</td><td><span class="pill pill--success"><span class="dot"></span>Installato</span></td></tr>
+                <tr><td>ONT SKY_OF</td><td>1</td><td class="ser">ALCL-B19F3A</td><td class="ser">zieioEY9Be</td><td><span class="pill pill--success"><span class="dot"></span>Installato</span></td></tr>
+              </tbody>
+            </table>
+            <div class="addline"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi apparato</div>
+          </div>
+
+          <div class="formcard">
+            <div class="ct"><i data-lucide="warehouse"></i> Materiali scaricati dal magazzino</div>
+            <table class="appt">
+              <thead><tr><th>Articolo</th><th style="text-align:right">Quantità</th><th>Ubicazione di prelievo</th></tr></thead>
+              <tbody>
+                <tr><td>Cavo drop ottico</td><td style="text-align:right;font-family:var(--font-mono)">30 m</td><td class="muted">Furgone Squadra B</td></tr>
+                <tr><td>Connettori SC/APC</td><td style="text-align:right;font-family:var(--font-mono)">2 pz</td><td class="muted">Furgone Squadra B</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="formbar">
+            <span class="left"><i data-lucide="check-circle-2" style="width:14px;height:14px;color:var(--success)"></i> Chiuso da cattura vocale · 5 min fa</span>
+            <button class="btn btn-ghost">Riapri</button>
+            <button class="btn btn-ok"><i data-lucide="badge-check" style="width:16px;height:16px"></i> Invia al gestore</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. CATTURA MOBILE -->
+  <div class="cap"><div class="e">Campo · chiusura a voce</div><div class="t">Cattura mobile — chiusura ordinativo</div>
+    <div class="d">Il tecnico finisce l'attivazione e detta cosa ha montato. L'AI propone la chiusura strutturata (apparati installati con seriali, stato → completato); lui controlla e conferma. Niente form da compilare a mano.</div></div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span class="mono">9:41</span><span style="display:flex;gap:6px"><i data-lucide="signal" style="width:15px;height:15px"></i><i data-lucide="wifi" style="width:15px;height:15px"></i><i data-lucide="battery-full" style="width:17px;height:17px"></i></span></div>
+      <div class="screen">
+        <div class="scroll">
+          <div class="m-head"><div class="bk"><i data-lucide="chevron-left" style="width:18px;height:18px"></i></div><div><div class="ti">Ordinativo 1098909013</div><div class="su">Cicciano · Y2 · Squadra B</div></div></div>
+
+          <div class="ordcard">
+            <div class="r"><span class="muted">Intestatario</span><span class="v masked">D••• C•••</span></div>
+            <div class="r"><span class="muted">Indirizzo</span><span class="v">C.so V••• 22</span></div>
+            <div class="r"><span class="muted">Stato</span><span class="v"><span class="pill pill--brand" style="height:20px"><span class="dot"></span>In corso</span></span></div>
+          </div>
+
+          <div class="recwave">
+            <i style="height:12px"></i><i style="height:24px"></i><i style="height:36px"></i><i style="height:20px"></i><i style="height:40px"></i><i style="height:16px"></i><i style="height:32px"></i><i style="height:26px"></i><i style="height:42px"></i><i style="height:18px"></i><i style="height:30px"></i><i style="height:22px"></i><i style="height:38px"></i><i style="height:14px"></i>
+          </div>
+          <div class="transc">"Attivazione completata. Montati <span class="hl">borchia</span>, <span class="hl">splitter</span>, <span class="hl">HUB6</span> e <span class="hl">ONT seriale ALCL B19F3A</span>. Usati <span class="hl">30 metri di drop</span> e 2 connettori. Segnale ok."</div>
+
+          <div class="aiprop">
+            <div class="ah"><i data-lucide="sparkles" style="width:14px;height:14px"></i> Chiusura proposta — controlla e conferma</div>
+            <div class="kvm"><span class="k">Stato</span><span class="v"><span class="pill pill--success" style="height:20px"><span class="dot"></span>Completato</span></span></div>
+            <div class="kvm"><span class="k">ONT — seriale</span><span class="v ser">ALCL-B19F3A <i data-lucide="pencil" style="width:13px;height:13px;color:var(--ink-faint)"></i></span></div>
+            <div class="kvm"><span class="k">Borchia / Splitter / HUB6</span><span class="v">installati ✓</span></div>
+            <div class="kvm"><span class="k">Materiali</span><span class="v">Drop 30 m · Conn. ×2</span></div>
+          </div>
+          <button class="bigbtn"><i data-lucide="check" style="width:18px;height:18px"></i> Conferma e chiudi</button>
+          <button class="ghostbtn"><i data-lucide="camera" style="width:15px;height:15px"></i> Allega foto borchia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

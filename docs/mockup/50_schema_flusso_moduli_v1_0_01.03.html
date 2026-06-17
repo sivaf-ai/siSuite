@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Schema d'insieme moduli (FTTH / POWERCOM)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#F3F5F8;font-family:"Inter",system-ui,sans-serif;padding:24px;display:flex;justify-content:center}
+  .frame{max-width:1280px;width:100%}
+  svg{width:100%;height:auto;display:block;background:#fff;border:1px solid #E5E8EE;border-radius:20px;box-shadow:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09)}
+  .cap{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:20px;margin:6px 4px 14px;color:#1B1D24}
+  .cap em{font-style:normal;color:#5B4DF0}
+</style>
+</head>
+<body>
+<div class="frame">
+<div class="cap"><em>si</em>Suite — come si incastrano i pezzi (verticale FTTH / POWERCOM)</div>
+<svg viewBox="0 0 1240 860" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5B4DF0"/><stop offset="1" stop-color="#1FC8C2"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8A8F9B"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5B4DF0"/>
+    </marker>
+  </defs>
+
+  <!-- ================= AI LOOP BANNER ================= -->
+  <rect x="30" y="24" width="1180" height="92" rx="16" fill="#ECEAFE" stroke="#D9D4FB"/>
+  <text x="48" y="50" font-family="Bricolage Grotesque" font-weight="800" font-size="15" fill="#3B2EC0">Il ciclo AI bidirezionale — l'AI propone, il deterministico dispone</text>
+  <!-- 4 step chips -->
+  <g font-size="12.5" font-weight="600">
+    <rect x="48" y="64" width="250" height="38" rx="10" fill="#fff" stroke="#D9D4FB"/>
+    <text x="68" y="88" fill="#1B1D24">🎙️  Il tecnico parla o scrive</text>
+    <rect x="330" y="64" width="250" height="38" rx="10" fill="#fff" stroke="#D9D4FB"/>
+    <text x="350" y="88" fill="#1B1D24">✨  L'AI struttura (propone)</text>
+    <rect x="612" y="64" width="270" height="38" rx="10" fill="#fff" stroke="#D9D4FB"/>
+    <text x="632" y="88" fill="#1B1D24">🔒  Il sistema registra (dispone)</text>
+    <rect x="914" y="64" width="248" height="38" rx="10" fill="#fff" stroke="#D9D4FB"/>
+    <text x="934" y="88" fill="#1B1D24">📊  L'AI racconta lo stato</text>
+  </g>
+  <g stroke="#5B4DF0" stroke-width="2" marker-end="url(#arrB)">
+    <line x1="300" y1="83" x2="326" y2="83"/>
+    <line x1="582" y1="83" x2="608" y2="83"/>
+    <line x1="884" y1="83" x2="910" y2="83"/>
+  </g>
+
+  <!-- ================= PIPELINE (5 stage) ================= -->
+  <!-- card geometry: w=210, h=360, gap=33, x start=30, y=170 -->
+  <!-- helper: header band rounded top -->
+
+  <!-- STAGE 1 — Anagrafiche & Listino -->
+  <g>
+    <rect x="30" y="170" width="210" height="360" rx="16" fill="#fff" stroke="#E5E8EE"/>
+    <path d="M30 186 a16 16 0 0 1 16 -16 h178 a16 16 0 0 1 16 16 v26 h-210 z" fill="#5B4DF0"/>
+    <text x="50" y="200" fill="#fff" font-family="Bricolage Grotesque" font-weight="800" font-size="13.5">1 · Anagrafiche &amp; Listino</text>
+    <g font-size="12" fill="#2A2D37">
+      <text x="48" y="238">📇  Gestori (Sirti, Open Fiber…)</text>
+      <text x="48" y="266">📖  Voci di capitolato</text>
+      <text x="64" y="286" fill="#5C616E" font-size="11">prezzo costo + prezzo ricavo</text>
+      <text x="48" y="314">🔧  Ritocchi per gestore/commessa</text>
+      <text x="64" y="334" fill="#5C616E" font-size="11">override del prezzo base</text>
+    </g>
+    <line x1="48" y1="360" x2="222" y2="360" stroke="#EEF0F4"/>
+    <text x="48" y="382" font-size="10" font-weight="700" fill="#8A8F9B">TABELLE</text>
+    <g font-family="JetBrains Mono" font-size="10.5" fill="#3B2EC0">
+      <text x="48" y="404">company</text>
+      <text x="48" y="424">price_list_item</text>
+      <text x="48" y="444">price_list_override</text>
+    </g>
+    <text x="48" y="500" font-size="10.5" fill="#8A8F9B" font-style="italic">Risoluzione prezzo:</text>
+    <text x="48" y="516" font-size="10.5" fill="#5C616E">commessa › gestore › base</text>
+  </g>
+
+  <!-- STAGE 2 — Commessa -->
+  <g>
+    <rect x="273" y="170" width="210" height="360" rx="16" fill="#fff" stroke="#E5E8EE"/>
+    <path d="M273 186 a16 16 0 0 1 16 -16 h178 a16 16 0 0 1 16 16 v26 h-210 z" fill="#4A3DD6"/>
+    <text x="293" y="200" fill="#fff" font-family="Bricolage Grotesque" font-weight="800" font-size="13.5">2 · Commessa</text>
+    <g font-size="12" fill="#2A2D37">
+      <text x="291" y="238">📁  Contratto gestore + area</text>
+      <text x="307" y="258" fill="#5C616E" font-size="11">es. «Sirti — Napoli Est 2026»</text>
+      <text x="291" y="288">🌳  Fasi annidate = WBS</text>
+      <text x="307" y="308" fill="#5C616E" font-size="11">Tratta A › A.1, A.2…</text>
+      <text x="291" y="338">🎯  Budget di commessa</text>
+    </g>
+    <line x1="291" y1="360" x2="465" y2="360" stroke="#EEF0F4"/>
+    <text x="291" y="382" font-size="10" font-weight="700" fill="#8A8F9B">TABELLE</text>
+    <g font-family="JetBrains Mono" font-size="10.5" fill="#3B2EC0">
+      <text x="291" y="404">engagement</text>
+      <text x="291" y="424">phase (wbs_code)</text>
+    </g>
+    <text x="291" y="486" font-size="10.5" fill="#8A8F9B" font-style="italic">1 commessa contiene</text>
+    <text x="291" y="502" font-size="10.5" fill="#5C616E">centinaia di ordinativi →</text>
+  </g>
+
+  <!-- STAGE 3 — Ordinativo -->
+  <g>
+    <rect x="516" y="170" width="210" height="360" rx="16" fill="#fff" stroke="#E5E8EE"/>
+    <path d="M516 186 a16 16 0 0 1 16 -16 h178 a16 16 0 0 1 16 16 v26 h-210 z" fill="#3B2EC0"/>
+    <text x="536" y="200" fill="#fff" font-family="Bricolage Grotesque" font-weight="800" font-size="13.5">3 · Ordinativo FTTH</text>
+    <g font-size="12" fill="#2A2D37">
+      <text x="534" y="238">🔌  1 attivazione (ticket)</text>
+      <text x="550" y="258" fill="#5C616E" font-size="11">ID gestore «Fenice…»</text>
+      <text x="534" y="288">🔒  Intestatario — PII isolata</text>
+      <text x="550" y="308" fill="#5C616E" font-size="11">mascherato, permesso pii.read</text>
+      <text x="534" y="338">📦  Apparati pianificati</text>
+    </g>
+    <line x1="534" y1="360" x2="708" y2="360" stroke="#EEF0F4"/>
+    <text x="534" y="382" font-size="10" font-weight="700" fill="#8A8F9B">TABELLE</text>
+    <g font-family="JetBrains Mono" font-size="10.5" fill="#3B2EC0">
+      <text x="534" y="404">work_order</text>
+      <text x="534" y="424">work_order_subject 🔒</text>
+      <text x="534" y="444">work_order_item</text>
+    </g>
+    <text x="534" y="500" font-size="10.5" fill="#8A8F9B" font-style="italic">La visita è un'attività</text>
+    <text x="534" y="516" font-size="10.5" fill="#5C616E">in agenda (activity)</text>
+  </g>
+
+  <!-- STAGE 4 — Campo -->
+  <g>
+    <rect x="759" y="170" width="210" height="360" rx="16" fill="#fff" stroke="#E5E8EE"/>
+    <path d="M759 186 a16 16 0 0 1 16 -16 h178 a16 16 0 0 1 16 16 v26 h-210 z" fill="#13A06B"/>
+    <text x="779" y="200" fill="#fff" font-family="Bricolage Grotesque" font-weight="800" font-size="13.5">4 · Campo: seriali &amp; rapporto</text>
+    <g font-size="12" fill="#2A2D37">
+      <text x="777" y="236">🏷️  Seriale installato</text>
+      <text x="793" y="256" fill="#5C616E" font-size="11">→ parco installato cliente</text>
+      <text x="777" y="286">📋  Rapportino di giornata</text>
+      <text x="793" y="306" fill="#5C616E" font-size="11">ore · mezzi · materiali · subapp.</text>
+      <text x="777" y="334">📐  Lavorazioni + libretto misure</text>
+    </g>
+    <line x1="777" y1="360" x2="951" y2="360" stroke="#EEF0F4"/>
+    <text x="777" y="382" font-size="10" font-weight="700" fill="#8A8F9B">TABELLE</text>
+    <g font-family="JetBrains Mono" font-size="10.5" fill="#3B2EC0">
+      <text x="777" y="404">stock_serial_unit → asset</text>
+      <text x="777" y="424">time_entry · equipment_usage</text>
+      <text x="777" y="444">work_line (+ measure)</text>
+    </g>
+    <text x="777" y="500" font-size="10.5" fill="#8A8F9B" font-style="italic">Tutto catturabile</text>
+    <text x="777" y="516" font-size="10.5" fill="#5C616E">a voce 🎙️</text>
+  </g>
+
+  <!-- STAGE 5 — Contabilità -->
+  <g>
+    <rect x="1002" y="170" width="208" height="360" rx="16" fill="#fff" stroke="#E5E8EE"/>
+    <path d="M1002 186 a16 16 0 0 1 16 -16 h176 a16 16 0 0 1 16 16 v26 h-208 z" fill="#1B1D24"/>
+    <text x="1022" y="200" fill="#fff" font-family="Bricolage Grotesque" font-weight="800" font-size="13.5">5 · Contabilità &amp; pivot</text>
+    <g font-size="12" fill="#2A2D37">
+      <text x="1020" y="238">📊  Preventivo–consuntivo</text>
+      <text x="1036" y="258" fill="#5C616E" font-size="11">Commessa × WBS × Voce</text>
+      <text x="1020" y="288">💶  Costi · ricavi · margine</text>
+      <text x="1020" y="318">↗️  Export → CPM / Excel</text>
+      <text x="1036" y="338" fill="#5C616E" font-size="11">ponte, non doppio inserimento</text>
+    </g>
+    <line x1="1020" y1="360" x2="1192" y2="360" stroke="#EEF0F4"/>
+    <text x="1020" y="382" font-size="10" font-weight="700" fill="#8A8F9B">VISTA</text>
+    <g font-family="JetBrains Mono" font-size="10.5" fill="#3B2EC0">
+      <text x="1020" y="404">job_cost_ledger</text>
+    </g>
+    <text x="1020" y="450" font-size="10.5" fill="#5C616E">unisce ore, materiali,</text>
+    <text x="1020" y="466" font-size="10.5" fill="#5C616E">mezzi, subappalti e</text>
+    <text x="1020" y="482" font-size="10.5" fill="#5C616E">lavorazioni in 1 griglia</text>
+    <text x="1020" y="506" font-size="10.5" fill="#8A8F9B" font-style="italic">tipo dedotto, non</text>
+    <text x="1020" y="522" font-size="10.5" fill="#8A8F9B" font-style="italic">si compila</text>
+  </g>
+
+  <!-- connettori tra stage -->
+  <g stroke="#8A8F9B" stroke-width="2.5" marker-end="url(#arr)">
+    <line x1="240" y1="350" x2="271" y2="350"/>
+    <line x1="483" y1="350" x2="514" y2="350"/>
+    <line x1="726" y1="350" x2="757" y2="350"/>
+    <line x1="969" y1="350" x2="1000" y2="350"/>
+  </g>
+
+  <!-- ================= FASCIA INFERIORE ================= -->
+  <!-- privacy -->
+  <rect x="30" y="572" width="375" height="120" rx="14" fill="#FBE7E8" stroke="#F3C6CA"/>
+  <text x="50" y="600" font-family="Bricolage Grotesque" font-weight="800" font-size="13" fill="#E04550">🔒  Privacy by design</text>
+  <text x="50" y="624" font-size="11.5" fill="#7A2A30">I dati dell'utente finale stanno in una</text>
+  <text x="50" y="642" font-size="11.5" fill="#7A2A30">tabella separata e mascherata. Visibili solo</text>
+  <text x="50" y="660" font-size="11.5" fill="#7A2A30">con permesso, cancellabili a fine pratica.</text>
+  <text x="50" y="680" font-size="11" fill="#B0555C" font-style="italic">→ leva commerciale verso i gestori</text>
+
+  <!-- thesis center -->
+  <rect x="433" y="572" width="375" height="120" rx="14" fill="url(#grad)"/>
+  <text x="620" y="618" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="16" fill="#fff">«L'AI propone,</text>
+  <text x="620" y="644" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="16" fill="#fff">il deterministico dispone»</text>
+  <text x="620" y="672" text-anchor="middle" font-size="11.5" fill="#EAF7FF">la cattura vocale suggerisce, l'uomo conferma, il DB registra</text>
+
+  <!-- bridge -->
+  <rect x="835" y="572" width="375" height="120" rx="14" fill="#E0F4EC" stroke="#BFE6D4"/>
+  <text x="855" y="600" font-family="Bricolage Grotesque" font-weight="800" font-size="13" fill="#13A06B">↗️  Ponte con CPM</text>
+  <text x="855" y="624" font-size="11.5" fill="#0E6B49">Non cloniamo l'ERP normato (SAL, certificati,</text>
+  <text x="855" y="642" font-size="11.5" fill="#0E6B49">prezzari DEI, BIM): restano a CPM.</text>
+  <text x="855" y="660" font-size="11.5" fill="#0E6B49">Esportiamo i consuntivi in Excel/CPM così</text>
+  <text x="855" y="678" font-size="11.5" fill="#0E6B49">nel frattempo non fanno doppio lavoro.</text>
+
+  <!-- legenda flusso -->
+  <text x="30" y="740" font-size="11" font-weight="700" fill="#8A8F9B">FLUSSO TIPO — attivazione fibra</text>
+  <g font-size="12" fill="#5C616E">
+    <text x="30" y="766">Commessa Sirti → si crea l'<tspan font-weight="700" fill="#3B2EC0">Ordinativo 2026-0042</tspan> (import CSV o a mano) → il tecnico va sul posto, <tspan font-weight="700" fill="#13A06B">detta</tspan> la chiusura →</text>
+    <text x="30" y="788">l'AI propone seriali installati + lavorazioni → si confermano → tutto entra in <tspan font-family="JetBrains Mono" font-weight="600" fill="#3B2EC0">job_cost_ledger</tspan> → la <tspan font-weight="700">pivot</tspan> mostra il margine in tempo reale.</text>
+  </g>
+</svg>
+</div>
+</body>
+</html>

@@ -42,10 +42,20 @@ export const PERMISSION_CATALOG = {
   work_report:          { label: 'Rapportini',        actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   stock:                { label: 'Magazzino',         actions: { read: 'Vedi', move: 'Registra movimento', manage: 'Gestisci (ubicazioni/documenti)' } },
 
+  // --- POWERCOM: ordinativi FTTH, seriali, dati personali intestatario -----
+  work_order: { label: 'Ordinativi (FTTH)', actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina', assign: 'Assegna a squadra', import: 'Importa da CSV/portale' } },
+  serial:     { label: 'Seriali apparati',  actions: { read: 'Vedi', manage: 'Gestisci', secret_read: 'Sblocca password apparato' } },
+  // PII = dati personali dell'intestatario (work_order_subject): lo sblocco del
+  // valore in chiaro e' un asse a sé (brief §3.4), tracciato e non loggato.
+  // 'read' = nome+telefono+CF in chiaro; 'read_contact' = SOLO il recapito
+  // (telefono) in chiaro, nome/CF mascherati — per il Tecnico assegnato (Decisione 6.2).
+  pii:        { label: 'Dati personali',    actions: { read: 'Mostra tutto', read_contact: 'Mostra solo recapito' } },
+
   // --- Anagrafiche / master data -----------------------------------------
   company:  { label: 'Aziende',     actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   contact:  { label: 'Contatti',    actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   asset:    { label: 'Asset',       actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
+  site:     { label: 'Siti / Località', actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   resource: { label: 'Risorse',     actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   material: { label: 'Materiali',   actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
   template: { label: 'Template',    actions: { create: 'Crea', read: 'Vedi', update: 'Modifica', delete: 'Elimina' } },
@@ -110,11 +120,14 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'activity:create', 'activity:read', 'activity:update', 'activity:delete', 'activity:assign',
       'dependency:read', 'dependency:manage',
       'asset:create', 'asset:read', 'asset:update',
+      'site:create', 'site:read', 'site:update', 'site:delete',
       'template:create', 'template:read', 'template:update',
       'capture:read', 'time_entry:read', 'time_entry:approve', 'material_consumption:read',
       'absence:read', 'absence:approve',
       'work_report:create', 'work_report:read', 'work_report:update',
       'stock:read', 'stock:move', 'stock:manage',
+      'work_order:create', 'work_order:read', 'work_order:update', 'work_order:assign', 'work_order:import',
+      'serial:read', 'serial:manage',
       'company:read', 'contact:read', 'resource:read', 'material:read',
       'report:read', 'report:export',
     ],
@@ -131,7 +144,10 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'absence:create', 'absence:read',
       'work_report:create', 'work_report:read',
       'stock:read', 'stock:move',
-      'engagement:read', 'phase:read', 'asset:read', 'material:read',
+      'work_order:read', 'work_order:update',
+      'serial:read',
+      'pii:read_contact',
+      'engagement:read', 'phase:read', 'asset:read', 'site:read', 'material:read',
     ],
   },
   {
@@ -140,8 +156,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
     dataScope: 'tenant',
     permissions: [
       ...reads('engagement', 'phase', 'activity', 'time_entry', 'material_consumption',
-               'absence', 'work_report', 'stock',
-               'material', 'company', 'contact', 'asset', 'resource'),
+               'absence', 'work_report', 'stock', 'work_order', 'serial',
+               'material', 'company', 'contact', 'asset', 'site', 'resource'),
       'report:read', 'report:export',
     ],
   },
@@ -151,8 +167,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
     dataScope: 'tenant',
     permissions: [
       ...reads('engagement', 'phase', 'activity', 'dependency', 'capture', 'time_entry',
-               'material_consumption', 'absence', 'work_report', 'stock',
-               'company', 'contact', 'asset', 'resource',
+               'material_consumption', 'absence', 'work_report', 'stock', 'work_order', 'serial',
+               'company', 'contact', 'asset', 'site', 'resource',
                'material', 'template'),
       'report:read',
     ],

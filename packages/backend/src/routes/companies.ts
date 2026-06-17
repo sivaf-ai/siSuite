@@ -48,6 +48,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
   app.get('/companies', { preHandler: [app.authenticate, requirePermission('company:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
     const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'c.display_name';
+    const role = (request.query as Record<string, unknown>).role as string | undefined;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE c.archived_at IS NULL`;
@@ -55,13 +56,38 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         params.push(`%${q.q}%`);
         where += ` AND (c.display_name ILIKE $${params.length} OR c.attributes->>'vat_number' ILIKE $${params.length} OR c.attributes->>'city' ILIKE $${params.length})`;
       }
+      if (role) {
+        // vista filtrata per ruolo (Clienti/Fornitori/Gestori) — modello Party
+        params.push(role);
+        where += ` AND EXISTS (SELECT 1 FROM company_role crf WHERE crf.company_id = c.id AND crf.role = $${params.length})`;
+      }
       const totalRes = await db.query(`SELECT count(*)::int AS n FROM company c ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(
         `${SELECT} ${where} ${GROUP} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params,
       );
-      return { items: rows.rows.map(toDto), total: totalRes.rows[0].n as number, limit: q.limit, offset: q.offset };
+      // conteggi viste per ruolo (indipendenti dalla vista corrente, rispettano la ricerca)
+      const vParams: unknown[] = [];
+      let vWhere = `WHERE c.archived_at IS NULL`;
+      if (q.q) {
+        vParams.push(`%${q.q}%`);
+        vWhere += ` AND (c.display_name ILIKE $1 OR c.attributes->>'vat_number' ILIKE $1 OR c.attributes->>'city' ILIKE $1)`;
+      }
+      const vRes = await db.query(
+        `SELECT count(*)::int AS all,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM company_role r WHERE r.company_id=c.id AND r.role='customer'))::int AS customer,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM company_role r WHERE r.company_id=c.id AND r.role='supplier'))::int AS supplier,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM company_role r WHERE r.company_id=c.id AND r.role='operator'))::int AS operator,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM company_role r WHERE r.company_id=c.id AND r.role='partner'))::int AS partner
+         FROM company c ${vWhere}`,
+        vParams,
+      );
+      const v = vRes.rows[0];
+      return {
+        items: rows.rows.map(toDto), total: totalRes.rows[0].n as number, limit: q.limit, offset: q.offset,
+        views: { all: v.all as number, customer: v.customer as number, supplier: v.supplier as number, operator: v.operator as number, partner: v.partner as number },
+      };
     });
   });
 

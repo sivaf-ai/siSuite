@@ -26,10 +26,12 @@ const SELECT = `
          a.status_id, s.canonical AS status_canonical,
          a.priority_id, pr.canonical AS priority_canonical,
          a.estimated_minutes, a.scheduled_start, a.scheduled_end, a.earliest_start, a.due_by,
-         a.schedule_mode_id, a.pinned_day, a.checklist, a.created_at
+         a.schedule_mode_id, a.pinned_day, a.checklist, a.created_at,
+         e.code AS engagement_code, e.title AS engagement_title
   FROM activity a
   LEFT JOIN lookup_value s  ON s.id  = a.status_id
   LEFT JOIN lookup_value pr ON pr.id = a.priority_id
+  LEFT JOIN engagement e    ON e.id  = a.engagement_id
 `;
 
 function toDto(r: Record<string, unknown>): ActivityDto {
@@ -46,6 +48,8 @@ function toDto(r: Record<string, unknown>): ActivityDto {
     isFixed: r.scheduled_start != null,
     checklist: (r.checklist as { text: string; done: boolean }[]) ?? [],
     createdAt: r.created_at as string,
+    engagementCode: (r.engagement_code as string) ?? null,
+    engagementTitle: (r.engagement_title as string) ?? null,
   };
 }
 function arDto(r: Record<string, unknown>): ActivityResourceDto {
@@ -144,18 +148,52 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
     });
 
   // LISTA (filtri: engagementId, phaseId)
-  app.get<{ Querystring: { engagementId?: string; phaseId?: string } }>('/activities',
+  app.get<{ Querystring: { engagementId?: string; phaseId?: string; q?: string; status?: string; limit?: string; offset?: string } }>('/activities',
     { preHandler: [app.authenticate, requirePermission('activity:read')] },
     async (request) => {
-      const rows = await withRls(request.ctx, (db) => {
+      const eId = request.query.engagementId;
+      const phId = request.query.phaseId;
+      const qstr = (request.query.q ?? '').trim();
+      const status = request.query.status; // canonical: planned/in_progress/done/blocked
+      const limit = Math.min(Number(request.query.limit) || 50, 200);
+      const offset = Number(request.query.offset) || 0;
+      return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
         const conds: string[] = [];
-        if (request.query.engagementId) { params.push(request.query.engagementId); conds.push(`a.engagement_id = $${params.length}`); }
-        if (request.query.phaseId) { params.push(request.query.phaseId); conds.push(`a.phase_id = $${params.length}`); }
+        if (eId) { params.push(eId); conds.push(`a.engagement_id = $${params.length}`); }
+        if (phId) { params.push(phId); conds.push(`a.phase_id = $${params.length}`); }
+        if (qstr) { params.push(`%${qstr}%`); conds.push(`(a.title ILIKE $${params.length} OR e.code ILIKE $${params.length} OR e.title ILIKE $${params.length})`); }
+        if (status) { params.push(status); conds.push(`s.canonical = $${params.length}`); }
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-        return db.query(`${SELECT} ${where} ORDER BY a.scheduled_start NULLS LAST, a.created_at LIMIT 500`, params).then((r) => r.rows);
+
+        // se filtrato per commessa/fase (uso interno scheda) → comportamento legacy: solo items, no paginazione
+        if (eId || phId) {
+          const rows = await db.query(`${SELECT} ${where} ORDER BY a.scheduled_start NULLS LAST, a.created_at LIMIT 500`, params);
+          return { items: rows.rows.map(toDto) };
+        }
+
+        const totalRes = await db.query(
+          `SELECT count(*)::int AS n FROM activity a LEFT JOIN lookup_value s ON s.id=a.status_id LEFT JOIN engagement e ON e.id=a.engagement_id ${where}`, params);
+        const listParams = [...params, limit, offset];
+        const rows = await db.query(
+          `${SELECT} ${where} ORDER BY a.scheduled_start NULLS LAST, a.created_at DESC LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`, listParams);
+
+        // viste per stato canonico (rispettano q)
+        const vp: unknown[] = [];
+        let vw = '';
+        if (qstr) { vp.push(`%${qstr}%`); vw = `WHERE (a.title ILIKE $1 OR e.code ILIKE $1 OR e.title ILIKE $1)`; }
+        const v = (await db.query(
+          `SELECT count(*)::int AS all,
+                  count(*) FILTER (WHERE s.canonical='planned')::int AS planned,
+                  count(*) FILTER (WHERE s.canonical='in_progress')::int AS in_progress,
+                  count(*) FILTER (WHERE s.canonical='done')::int AS done
+           FROM activity a LEFT JOIN lookup_value s ON s.id=a.status_id LEFT JOIN engagement e ON e.id=a.engagement_id ${vw}`, vp)).rows[0];
+
+        return {
+          items: rows.rows.map(toDto), total: totalRes.rows[0].n as number, limit, offset,
+          views: { all: v.all as number, planned: v.planned as number, in_progress: v.in_progress as number, done: v.done as number },
+        };
       });
-      return { items: rows.map(toDto) };
     });
 
   // OGGI (agenda del tecnico): fisse di oggi + dinamiche non concluse. RLS scope=own filtra al singolo.

@@ -42,7 +42,12 @@ async function applyMigrations(client: pg.Client): Promise<void> {
     await client.query('BEGIN');
     try {
       await client.query(sql);
-      await client.query(`INSERT INTO public.sisuite_migrations (filename) VALUES ($1)`, [file]);
+      // Alcune migrazioni (024+) si auto-tracciano con INSERT ... ON CONFLICT DO NOTHING.
+      // Aggiungiamo ON CONFLICT anche qui per non collidere con quel pattern.
+      await client.query(
+        `INSERT INTO public.sisuite_migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING`,
+        [file],
+      );
       await client.query('COMMIT');
       console.log(`[migrate] ${file} OK`);
     } catch (err) {

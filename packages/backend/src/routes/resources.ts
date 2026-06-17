@@ -33,14 +33,29 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
   app.get('/resources', { preHandler: [app.authenticate, requirePermission('resource:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
     const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'label';
+    const kind = (request.query as { kind?: string }).kind;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE archived_at IS NULL`;
+      if (kind) { params.push(kind); where += ` AND kind = $${params.length}`; }
       if (q.q) { params.push(`%${q.q}%`); where += ` AND label ILIKE $${params.length}`; }
       const total = await db.query(`SELECT count(*)::int AS n FROM resource ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
-      return { items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset };
+      // viste per tipo (rispettano q, non kind)
+      const vp: unknown[] = [];
+      let vw = `WHERE archived_at IS NULL`;
+      if (q.q) { vp.push(`%${q.q}%`); vw += ` AND label ILIKE $1`; }
+      const v = (await db.query(
+        `SELECT count(*)::int AS all,
+                count(*) FILTER (WHERE kind='person')::int AS person,
+                count(*) FILTER (WHERE kind='vehicle')::int AS vehicle,
+                count(*) FILTER (WHERE kind='equipment')::int AS equipment
+         FROM resource ${vw}`, vp)).rows[0];
+      return {
+        items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset,
+        views: { all: v.all as number, person: v.person as number, vehicle: v.vehicle as number, equipment: v.equipment as number },
+      };
     });
   });
 

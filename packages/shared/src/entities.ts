@@ -28,7 +28,8 @@ export interface LookupDto {
 }
 
 /* ── Company ───────────────────────────────────────────────────────── */
-export const companyRoleEnum = z.enum(['customer', 'supplier', 'partner']);
+// modello Party (ADR-0005): un soggetto può avere più ruoli, incluso 'operator' (Gestore FTTH)
+export const companyRoleEnum = z.enum(['customer', 'supplier', 'partner', 'operator']);
 export const createCompanySchema = z.object({
   displayName: z.string().min(1).max(200),
   type: z.enum(['private', 'organization']).default('organization'),
@@ -72,13 +73,15 @@ export const createAssetSchema = z.object({
   companyId: uuid,
   kind: z.string().min(1).max(60),
   label: z.string().min(1).max(200),
+  siteId: uuid.nullable().optional(),
   installedOn: day.optional(),
   attributes: attrs.optional(),
 });
 export const updateAssetSchema = createAssetSchema.partial();
 export interface AssetDto {
   id: string; companyId: string; companyName: string | null; kind: string;
-  label: string; installedOn: string | null; attributes: Record<string, unknown>; createdAt: string;
+  label: string; siteId: string | null; siteName: string | null;
+  installedOn: string | null; attributes: Record<string, unknown>; createdAt: string;
 }
 
 /* ── Resource ──────────────────────────────────────────────────────── */
@@ -126,15 +129,152 @@ export interface ResourceAvailabilityDto {
   id: string; resourceId: string; kind: string; startsAt: string; endsAt: string; reason: string | null;
 }
 
-/* ── Material ──────────────────────────────────────────────────────── */
+/* ── Material (Articoli & seriali, brief Blocco C) ──────────────────── */
 export const createMaterialSchema = z.object({
   name: z.string().min(1).max(200),
   unit: z.string().min(1).max(40),
+  sku: z.string().max(60).nullable().optional(),
+  trackStock: z.boolean().optional(),
+  trackedBySerial: z.boolean().optional(),
+  trackedByLot: z.boolean().optional(),
+  costingMethod: z.enum(['avg', 'fifo', 'standard']).optional(),
+  defaultCost: z.coerce.number().nonnegative().nullable().optional(),
   attributes: attrs.optional(),
 });
 export const updateMaterialSchema = createMaterialSchema.partial();
 export interface MaterialDto {
-  id: string; name: string; unit: string; attributes: Record<string, unknown>;
+  id: string; name: string; unit: string;
+  sku: string | null;
+  trackStock: boolean; trackedBySerial: boolean; trackedByLot: boolean;
+  costingMethod: string; defaultCost: number | null;
+  /** calcolati: giacenza totale e costo medio (da stock_balance). */
+  qtyOnHand: number; avgCost: number | null;
+  /** scorta sotto la minima (attributes.min_stock). */
+  lowStock: boolean;
+  attributes: Record<string, unknown>;
+}
+
+/* ── Unità seriale (stock_serial_unit) — ciclo di vita + parco installato ── */
+export const SERIAL_STATUSES = ['in_stock', 'assigned', 'installed', 'faulty', 'returned', 'retired'] as const;
+export type SerialStatus = typeof SERIAL_STATUSES[number];
+
+export const createSerialSchema = z.object({
+  materialId: uuid,
+  serial: z.string().min(1).max(120),
+  locationId: uuid.nullable().optional(),
+  note: z.string().max(300).nullable().optional(),
+});
+/** Transizione di stato: l'UNICA via ai cambi (audit, validazione transizioni). */
+export const serialTransitionSchema = z.object({
+  to: z.enum(SERIAL_STATUSES),
+  locationId: uuid.nullable().optional(),
+  holderResourceId: uuid.nullable().optional(),
+  workOrderId: uuid.nullable().optional(),
+  installedCompanyId: uuid.nullable().optional(),
+  installedOn: day.nullable().optional(),
+  note: z.string().max(300).nullable().optional(),
+});
+export const serialSecretSchema = z.object({ password: z.string().min(1).max(200) });
+
+export interface SerialUnitDto {
+  id: string; materialId: string; materialName: string | null;
+  serial: string; status: SerialStatus;
+  /** descrizione di "dove si trova / installato presso" (luogo o cliente+indirizzo). */
+  whereLabel: string | null;
+  workOrderCode: string | null;
+  installedOn: string | null;
+  updatedAt: string;
+  hasSecret: boolean;
+}
+
+/* ── Listino voci di capitolato (brief Blocco D · mock 46) ──────────── */
+export interface PriceListDto { id: string; code: string; name: string; currency: string; isDefault: boolean }
+
+export const createPriceListItemSchema = z.object({
+  priceListId: uuid,
+  code: z.string().min(1).max(60),
+  description: z.string().min(1).max(300),
+  unit: z.string().min(1).max(40),
+  category: z.string().max(80).nullable().optional(),
+  costPrice: z.coerce.number().nonnegative().nullable().optional(),
+  revenuePrice: z.coerce.number().nonnegative().nullable().optional(),
+  active: z.boolean().optional(),
+  attributes: attrs.optional(),
+});
+export const updatePriceListItemSchema = createPriceListItemSchema.omit({ priceListId: true }).partial();
+export interface PriceListItemDto {
+  id: string; priceListId: string; code: string; description: string; unit: string;
+  category: string | null; costPrice: number | null; revenuePrice: number | null;
+  marginPct: number | null; overrideCount: number; active: boolean;
+  attributes: Record<string, unknown>;
+}
+
+export const createPriceOverrideSchema = z.object({
+  baseItemId: uuid,
+  scopeType: z.enum(['company', 'engagement']),
+  companyId: uuid.nullable().optional(),
+  engagementId: uuid.nullable().optional(),
+  costPrice: z.coerce.number().nonnegative().nullable().optional(),
+  revenuePrice: z.coerce.number().nonnegative().nullable().optional(),
+  validFrom: day.nullable().optional(),
+  validTo: day.nullable().optional(),
+}).refine((o) => (o.scopeType === 'company' ? !!o.companyId : !!o.engagementId), { message: 'scope e id incoerenti' });
+export interface PriceOverrideDto {
+  id: string; baseItemId: string; scopeType: 'company' | 'engagement';
+  companyId: string | null; companyName: string | null;
+  engagementId: string | null; engagementTitle: string | null;
+  costPrice: number | null; revenuePrice: number | null;
+  validFrom: string | null; validTo: string | null;
+}
+
+/* ── Lavorazioni + libretto misure (brief Blocco E · mock 49) ───────── */
+export const workLineMeasureSchema = z.object({
+  label: z.string().max(200).nullable().optional(),
+  formula: z.string().max(120).nullable().optional(),
+  value: z.coerce.number(),
+});
+export const createWorkLineSchema = z.object({
+  engagementId: uuid,
+  phaseId: uuid.nullable().optional(),
+  workOrderId: uuid.nullable().optional(),
+  priceListItemId: uuid.nullable().optional(),
+  description: z.string().max(300).nullable().optional(),
+  unit: z.string().min(1).max(40),
+  quantity: z.coerce.number().positive().optional(),     // se ci sono misure, la calcola il server
+  occurredOn: day.optional(),
+  resourceId: uuid.nullable().optional(),
+  attributes: attrs.optional(),
+  measures: z.array(workLineMeasureSchema).optional(),
+});
+export const updateWorkLineSchema = createWorkLineSchema.omit({ engagementId: true }).partial();
+export interface WorkLineMeasureDto { id: string; label: string | null; formula: string | null; value: number; seq: number }
+export interface WorkLineDto {
+  id: string; engagementId: string;
+  phaseId: string | null; phaseName: string | null; wbsCode: string | null;
+  priceListItemId: string | null; itemCode: string | null; itemDescription: string | null;
+  description: string | null; quantity: number; unit: string;
+  costPrice: number | null; revenuePrice: number | null; revenue: number;
+  occurredOn: string | null; origin: 'voce' | 'manuale'; fromCapture: boolean;
+  measureCount: number; hasLibretto: boolean;
+  attributes: Record<string, unknown>;
+  measures?: WorkLineMeasureDto[];   // solo nel dettaglio
+}
+
+/* ── Site (Siti/Località, brief Blocco C-bis · ADR-0005) ────────────── */
+export const SITE_KINDS = ['plant', 'building', 'floor', 'room', 'cabinet', 'pop', 'area', 'other'] as const;
+export const createSiteSchema = z.object({
+  companyId: uuid,
+  parentId: uuid.nullable().optional(),
+  name: z.string().min(1).max(200),
+  kind: z.string().min(1).max(40).default('building'),
+  address: z.string().max(300).nullable().optional(),
+  attributes: attrs.optional(),
+});
+export const updateSiteSchema = createSiteSchema.omit({ companyId: true }).partial();
+export interface SiteDto {
+  id: string; companyId: string; parentId: string | null;
+  name: string; kind: string; address: string | null;
+  attributes: Record<string, unknown>;
 }
 
 /* ── Phase ─────────────────────────────────────────────────────────── */
@@ -190,6 +330,9 @@ export interface ActivityDto {
   isFixed: boolean; // scheduled_start valorizzato
   checklist: { text: string; done: boolean }[];
   createdAt: string;
+  /** contesto commessa (popolato nelle viste lista globali). */
+  engagementCode?: string | null;
+  engagementTitle?: string | null;
 }
 
 export const updateChecklistSchema = z.object({ checklist: checklistSchema });
@@ -371,6 +514,7 @@ export interface StockMovementDto {
   id: string; materialId: string; materialName: string | null; locationId: string; locationName: string | null;
   typeId: string; quantity: number; unit: string; unitCost: number | null; unitPrice: number | null;
   currency: string | null; occurredOn: string; engagementId: string | null; activityId: string | null;
+  workOrderId?: string | null; documentRef?: string | null;
   note: string | null; createdAt: string;
 }
 export interface StockBalanceDto {
@@ -401,4 +545,121 @@ export interface StockDocumentDto {
   id: string; typeId: string; number: string | null; docDate: string; status: string;
   sourceLocationId: string | null; destLocationId: string | null; companyId: string | null;
   externalRef: string | null; note: string | null; createdAt: string;
+}
+
+/* ── Work Order (Ordinativo FTTH) — POWERCOM brief §6.1 ─────────────────
+ * Oggetto di prima classe. La PII dell'intestatario (work_order_subject) e'
+ * 1:1 e SEMPRE mascherata di default; va in chiaro solo con permesso pii:read.
+ * `code` lo assegna number_series (key 'work_order') lato server. */
+
+/** Dati personali intestatario (PII): tabella separata, mascherata di default. */
+export const workOrderSubjectSchema = z.object({
+  fullName: z.string().max(200).nullable().optional(),
+  phone: z.string().max(60).nullable().optional(),
+  phoneAlt: z.string().max(60).nullable().optional(),
+  email: z.string().email().nullable().optional().or(z.literal('')),
+  fiscalCode: z.string().max(32).nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+});
+export type WorkOrderSubjectInput = z.infer<typeof workOrderSubjectSchema>;
+
+/** Apparato pianificato su un ordinativo (work_order_item). */
+export const workOrderItemSchema = z.object({
+  materialId: uuid,
+  plannedQty: z.coerce.number().positive().default(1),
+  note: z.string().max(300).nullable().optional(),
+});
+export type WorkOrderItemInput = z.infer<typeof workOrderItemSchema>;
+
+export const createWorkOrderSchema = z.object({
+  engagementId: uuid,
+  principalCompanyId: uuid.nullable().optional(),
+  principalOrderRef: z.string().max(120).nullable().optional(),
+  typeId: uuid.nullable().optional(),        // lookup work_order_type (default canonical 'activation')
+  statusId: uuid.optional(),                 // default: canonical 'assigned'
+  assignedResourceId: uuid.nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+  scheduledOn: day.nullable().optional(),
+  subject: workOrderSubjectSchema.optional(),
+  attributes: attrs.optional(),
+});
+export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
+
+export const updateWorkOrderSchema = z.object({
+  principalCompanyId: uuid.nullable().optional(),
+  principalOrderRef: z.string().max(120).nullable().optional(),
+  typeId: uuid.nullable().optional(),
+  statusId: uuid.optional(),
+  assignedResourceId: uuid.nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+  scheduledOn: day.nullable().optional(),
+  completedOn: day.nullable().optional(),
+  subject: workOrderSubjectSchema.nullable().optional(),
+  attributes: attrs.optional(),
+});
+export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
+
+/** Assegnazione bulk di una squadra a piu' ordinativi. */
+export const assignWorkOrdersSchema = z.object({
+  ids: z.array(uuid).min(1).max(500),
+  assignedResourceId: uuid.nullable(),
+});
+
+/** Una riga del CSV gestore, gia' mappata sui campi interni (mapping FE/config). */
+export const importWorkOrderRowSchema = z.object({
+  principalOrderRef: z.string().min(1).max(120),
+  principalCompanyId: uuid.nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+  scheduledOn: day.nullable().optional(),
+  subject: workOrderSubjectSchema.optional(),
+});
+export const importWorkOrdersSchema = z.object({
+  engagementId: uuid,
+  rows: z.array(importWorkOrderRowSchema).min(1).max(2000),
+});
+export type ImportWorkOrdersInput = z.infer<typeof importWorkOrdersSchema>;
+
+/** DTO dell'intestatario: i valori PII arrivano MASCHERATI salvo pii:read. */
+export interface WorkOrderSubjectDto {
+  fullName: string | null; phone: string | null; phoneAlt: string | null;
+  email: string | null; fiscalCode: string | null; address: string | null;
+  /** true = i valori sopra sono in chiaro (utente con pii:read); false = mascherati. */
+  unmasked: boolean;
+}
+export interface WorkOrderItemDto {
+  id: string; materialId: string; materialName: string | null; unit: string | null;
+  plannedQty: number; note: string | null; trackedBySerial: boolean;
+}
+/** Unita' serializzata collegata a un ordinativo (seriale installato). */
+export interface WorkOrderSerialDto {
+  id: string; materialId: string; materialName: string | null;
+  serial: string; status: string; installedOn: string | null;
+  /** true = esiste un segreto (password apparato); il valore resta gated da serial:secret_read. */
+  hasSecret: boolean;
+}
+export interface WorkOrderDto {
+  id: string;
+  code: string;
+  engagementId: string;
+  engagementTitle: string | null;
+  principalCompanyId: string | null;
+  principalCompanyName: string | null;
+  principalOrderRef: string | null;
+  typeId: string | null;
+  typeLabel: string | null;
+  statusId: string;
+  statusCanonical: string | null;
+  assignedResourceId: string | null;
+  assignedResourceLabel: string | null;
+  address: string | null;
+  scheduledOn: string | null;
+  completedOn: string | null;
+  /** Nome intestatario per la lista: mascherato (es. "M•••• R••••") salvo pii:read. */
+  subjectNameDisplay: string | null;
+  plannedCount: number;     // apparati previsti
+  installedCount: number;   // seriali installati
+  attributes: Record<string, unknown>;
+  subject?: WorkOrderSubjectDto;          // solo nel dettaglio
+  items?: WorkOrderItemDto[];             // solo nel dettaglio
+  serials?: WorkOrderSerialDto[];         // solo nel dettaglio
 }

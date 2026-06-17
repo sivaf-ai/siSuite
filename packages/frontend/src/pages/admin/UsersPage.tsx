@@ -1,60 +1,60 @@
-/** Utenti del tenant (app_user + ruoli). La creazione provisiona l'identità su
- *  GoTrue (email + password); l'eliminazione disattiva (non distrugge). */
-import { UserCircle } from 'lucide-react';
+/**
+ * UsersPage — Utenti del tenant su EntityList v2. Click riga → /admin/users/:id.
+ */
+import { useState } from 'react';
+import { useHistory } from 'react-router';
 import type { UserAdminDto } from '@sisuite/shared';
-import { CrudList, type FkData } from '../../ui/CrudList';
+import { Page } from '../../components/Page';
+import { StatusPill } from '../../components/StatusPill';
+import { EntityList, type ListColumn, type ListAction } from '../../ui/EntityList';
+import { SlidersHorizontal, Columns3, Plus } from '../../ui/icons';
+import { useApi } from '../../api/hooks';
+import { useAuth } from '../../auth/AuthContext';
 
-const userPerm = (a: 'create' | 'read' | 'update' | 'delete') => (a === 'read' ? 'user:read' : 'user:manage');
-
-const LOCALE_OPTIONS = [
-  { value: 'it-IT', label: { 'it-IT': 'Italiano' } },
-  { value: 'en', label: { 'it-IT': 'Inglese' } },
-  { value: 'es-AR', label: { 'it-IT': 'Spagnolo (AR)' } },
-];
+interface ListResp { items: UserAdminDto[]; total: number; limit: number; offset: number }
 
 export function UsersPage() {
+  const { user } = useAuth();
+  const history = useHistory();
+  const canManage = !!user?.permissions.includes('user:manage' as never);
+
+  const [q, setQ] = useState('');
+  const [offset, setOffset] = useState(0);
+  const limit = 25;
+
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'fullName', sortDir: 'asc' });
+  if (q.trim()) params.set('q', q.trim());
+  const { data, loading, error } = useApi<ListResp>(`/users?${params.toString()}`);
+
+  const columns: ListColumn<UserAdminDto>[] = [
+    { key: 'name', header: 'Nome', sub: 'email', render: (r) => (
+      <div className="two"><span className="a">{r.fullName}</span><span className="b">{r.email ?? '—'}</span></div>) },
+    { key: 'roles', header: 'Ruoli', render: (r) => (r.roles.length
+      ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.roles.map((x) => <span key={x.id} className="chip">{x.name}</span>)}</span>
+      : <span className="faint">—</span>) },
+    { key: 'active', header: 'Stato', render: (r) => <StatusPill label={r.active ? 'Attivo' : 'Disattivato'} token={r.active ? 'success' : 'neutral'} /> },
+    { key: 'created', header: 'Creato', num: true, render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+  ];
+
+  const leftActions: ListAction[] = [
+    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
+    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
+  ];
+  const rightActions: ListAction[] = canManage
+    ? [{ key: 'new', icon: Plus, tip: 'Nuovo utente', variant: 'primary' as const, onClick: () => history.push('/admin/users/new') }]
+    : [];
+
   return (
-    <CrudList<UserAdminDto>
-      title="Utenti" icon={UserCircle}
-      endpoint="/users" entityKey="app_user" resource="user"
-      permFor={userPerm}
-      noun="utente" createLabel="Nuovo utente"
-      searchPlaceholder="Cerca per nome o email…" defaultSort="fullName"
-      fkSources={{ roles: { endpoint: '/roles?limit=200', toOption: (r) => ({ id: r.id as string, label: r.name as string }) } }}
-      columns={[
-        { key: 'fullName', header: 'Nome', sortable: true, render: (r) => (
-          <div><div className="cellname">{r.fullName}</div><div className="cellsub">{r.email ?? '—'}</div></div>
-        ) },
-        { key: 'roles', header: 'Ruoli', render: (r) => r.roles.length
-          ? r.roles.map((x) => <span key={x.id} className="chip" style={{ marginRight: 4 }}>{x.name}</span>)
-          : <span style={{ color: 'var(--ink-faint)' }}>—</span> },
-        { key: 'active', header: 'Stato', render: (r) => r.active
-          ? <span className="pill" style={{ color: 'var(--success)', background: 'var(--success-wash)' }}><span className="dot" />Attivo</span>
-          : <span className="pill" style={{ color: 'var(--ink-soft)', background: 'var(--neutral-wash)' }}>Disattivato</span> },
-        { key: 'createdAt', header: 'Creato', sortable: true, render: (r) => new Date(r.createdAt).toLocaleDateString('it-IT') },
-      ]}
-      buildForm={(fk: FkData, isEdit) => {
-        const roleOpts = (fk.roles ?? []).map((r) => ({ value: r.id, label: { 'it-IT': r.label } }));
-        return [{ group: 'Utente', fields: [
-          { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
-          ...(isEdit ? [] : [
-            { key: 'email', label: 'Email', dataType: 'email' as const, required: true },
-            { key: 'password', label: 'Password iniziale', dataType: 'text' as const, required: true,
-              help: 'Minimo 8 caratteri. L\'utente potrà cambiarla.' },
-          ]),
-          { key: 'phone', label: 'Telefono', dataType: 'text' },
-          { key: 'locale', label: 'Lingua', dataType: 'select', options: LOCALE_OPTIONS },
-          ...(isEdit ? [{ key: 'active', label: 'Attivo', dataType: 'boolean' as const }] : []),
-          { key: 'roleIds', label: 'Ruoli', dataType: 'multiselect', options: roleOpts },
-        ] }];
-      }}
-      toFormInitial={(r) => ({
-        fullName: r.fullName, phone: r.phone ?? '', active: r.active,
-        locale: r.locale ?? 'it-IT', roleIds: r.roles.map((x) => x.id),
-      })}
-      toBody={(v, isEdit) => isEdit
-        ? { fullName: v.fullName, phone: (v.phone as string) || null, active: v.active ?? true, locale: v.locale, roleIds: (v.roleIds as string[]) ?? [] }
-        : { fullName: v.fullName, email: v.email, password: v.password, phone: (v.phone as string) || null, locale: v.locale, roleIds: (v.roleIds as string[]) ?? [] }}
-    />
+    <Page title="Utenti">
+      <EntityList<UserAdminDto>
+        title="Utenti" subtitle="Account del tenant e ruoli assegnati"
+        search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome o email…"
+        leftActions={leftActions} rightActions={rightActions}
+        columns={columns} rows={data?.items ?? []} loading={loading} error={error}
+        onRowClick={(r) => history.push(`/admin/users/${r.id}`)}
+        total={data?.total} limit={limit} offset={offset} onPage={setOffset}
+        emptyText="Nessun utente."
+      />
+    </Page>
   );
 }

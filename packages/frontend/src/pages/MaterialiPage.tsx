@@ -1,26 +1,92 @@
-import { Package } from 'lucide-react';
+/**
+ * MaterialiPage — Articoli & seriali, lista (mock 45), sul componente EntityList.
+ * Viste = filtri salvati; righe a 2 livelli; giacenza/costo a destra; stato a pill.
+ */
+import { useState } from 'react';
+import { useHistory } from 'react-router';
 import type { MaterialDto } from '@sisuite/shared';
-import { CrudList } from '../ui/CrudList';
+import { Page } from '../components/Page';
+import { StatusPill } from '../components/StatusPill';
+import { Money } from '../ui/Num';
+import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
+import { SlidersHorizontal, Columns3, Sparkles, Upload, Download, Plus } from '../ui/icons';
+import { useApi } from '../api/hooks';
+import { useAuth } from '../auth/AuthContext';
+
+interface ListResp {
+  items: MaterialDto[]; total: number; limit: number; offset: number;
+  views: { all: number; stock: number; serial: number; service: number; low: number };
+}
+type ViewKey = 'all' | 'stock' | 'serial' | 'service' | 'low';
+const VIEW_LABEL: Record<ViewKey, string> = {
+  all: 'Tutti', stock: 'A magazzino', serial: 'A seriale', service: 'Servizi', low: 'Scorta bassa',
+};
+const attr = (m: MaterialDto, k: string) => (m.attributes as Record<string, unknown>)[k] as string | undefined;
+
+function trackingTag(m: MaterialDto): string {
+  if (attr(m, 'item_type') === 'service') return 'servizio';
+  if (m.trackedBySerial) return 'a seriale';
+  if (m.trackStock) return 'a magazzino';
+  return '—';
+}
+function statusOf(m: MaterialDto): { label: string; token: string } {
+  if (attr(m, 'item_type') === 'service') return { label: 'Servizio', token: 'neutral' };
+  if (m.lowStock) return { label: 'Scorta bassa', token: 'warning' };
+  if (m.qtyOnHand > 0) return { label: 'Disponibile', token: 'success' };
+  return { label: 'Esaurito', token: 'neutral' };
+}
 
 export function MaterialiPage() {
+  const { user } = useAuth();
+  const history = useHistory();
+  const can = (a: string) => !!user?.permissions.includes(`material:${a}` as never);
+
+  const [view, setView] = useState<ViewKey>('all');
+  const [q, setQ] = useState('');
+  const [offset, setOffset] = useState(0);
+  const limit = 25;
+
+  const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
+  if (q.trim()) params.set('q', q.trim());
+  const { data, loading, error } = useApi<ListResp>(`/materials?${params.toString()}`);
+
+  const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
+
+  const columns: ListColumn<MaterialDto>[] = [
+    { key: 'name', header: 'Articolo', sub: 'SKU', render: (m) => (
+      <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>) },
+    { key: 'cat', header: 'Categoria', sub: 'tracciamento', render: (m) => (
+      <div className="two"><span className="a">{attr(m, 'category') ?? '—'}</span><span className="b"><span className="serialtag">{trackingTag(m)}</span></span></div>) },
+    { key: 'qty', header: 'Giacenza', sub: 'unità', num: true, render: (m) => (attr(m, 'item_type') === 'service'
+      ? <span className="faint">—</span>
+      : <div className="two"><span className="a mono">{m.qtyOnHand.toLocaleString('it-IT')}</span><span className="b">{m.unit}</span></div>) },
+    { key: 'cost', header: 'Costo medio', sub: '€ / unità', num: true, render: (m) => <Money value={m.avgCost ?? m.defaultCost} /> },
+    { key: 'st', header: 'Stato', render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
+  ];
+
+  const leftActions: ListAction[] = [
+    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
+    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
+    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
+  ];
+  const rightActions: ListAction[] = [
+    { key: 'import', icon: Upload, tip: 'Importa da CSV (presto)', disabled: true },
+    { key: 'export', icon: Download, tip: 'Esporta (presto)', disabled: true },
+    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo articolo', variant: 'primary' as const, onClick: () => history.push('/materials/new') }] : []),
+  ];
+
   return (
-    <CrudList<MaterialDto>
-      title="Materiali" icon={Package}
-      endpoint="/materials" entityKey="material" resource="material"
-      noun="materiale" createLabel="Nuovo materiale"
-      searchPlaceholder="Cerca materiale…" defaultSort="name"
-      columns={[
-        { key: 'name', header: 'Nome', sortable: true, render: (r) => <span className="cellname">{r.name}</span> },
-        { key: 'unit', header: 'Unità', sortable: true, render: (r) => <span className="chip">{r.unit}</span> },
-        { key: 'brand', header: 'Marca', render: (r) => (r.attributes as Record<string, unknown>).brand as string ?? <span style={{ color: 'var(--ink-faint)' }}>—</span> },
-      ]}
-      buildForm={() => [{ group: 'Principale', fields: [
-        { key: 'name', label: 'Nome', dataType: 'text', required: true },
-        { key: 'unit', label: 'Unità (pezzo, sacco, m³, ora…)', dataType: 'text', required: true },
-        { key: 'unit_cost', label: 'Costo unitario', dataType: 'money', unit: '€' },
-      ] }]}
-      toFormInitial={(r) => ({ name: r.name, unit: r.unit, unit_cost: (r.attributes as Record<string, unknown>)?.unit_cost, attributes: r.attributes })}
-      toBody={(v) => ({ name: v.name, unit: v.unit, attributes: { ...(v.attributes as Record<string, unknown>), unit_cost: v.unit_cost ?? null } })}
-    />
+    <Page title="Articoli & seriali">
+      <EntityList<MaterialDto>
+        title="Articoli & seriali" subtitle="Catalogo magazzino & servizi"
+        views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
+        search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, SKU, categoria…"
+        leftActions={leftActions} rightActions={rightActions}
+        columns={columns} rows={data?.items ?? []} loading={loading} error={error}
+        onRowClick={(m) => history.push(`/materials/${m.id}`)}
+        total={data?.total} limit={limit} offset={offset} onPage={setOffset}
+        emptyText="Nessun articolo in questa vista."
+      />
+    </Page>
   );
 }

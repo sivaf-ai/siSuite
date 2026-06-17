@@ -30,6 +30,13 @@ export interface DemoPack {
   resource_availability?: any[];
   materials?: any[];
   engagements?: any[];
+  // POWERCOM (brief v2.2): entità dei nuovi moduli
+  price_lists?: any[];
+  serials?: any[];
+  work_orders?: any[];
+  stock?: { locations?: any[]; documents?: any[]; movements?: any[] };
+  absences?: any[];
+  sites?: any[];
 }
 export interface PackUser { key: string; full_name: string; email: string; role: string; password: string; locale?: string }
 

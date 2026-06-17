@@ -74,6 +74,14 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  app.get<{ Params: { id: string } }>('/users/:id',
+    { preHandler: [app.authenticate, requirePermission('user:read')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, (db) => loadOne(db, request.params.id));
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Utente non trovato', statusCode: 404 });
+      return dto;
+    });
+
   app.post('/users', { preHandler: [app.authenticate, requirePermission('user:manage')] },
     async (request, reply) => {
       const input = createUserSchema.parse(request.body);

@@ -67,6 +67,14 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  app.get<{ Params: { id: string } }>('/roles/:id',
+    { preHandler: [app.authenticate, requirePermission('role:read')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, (db) => loadOne(db, request.params.id));
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Ruolo non trovato', statusCode: 404 });
+      return dto;
+    });
+
   app.post('/roles', { preHandler: [app.authenticate, requirePermission('role:manage')] },
     async (request, reply) => {
       const input = createRoleSchema.parse(request.body);

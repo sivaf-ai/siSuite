@@ -10,6 +10,12 @@
     { "key": "davide",  "full_name": "Davide Conti",   "email": "davide@fibra.demo",  "role": "Tecnico", "password": "Demo123!" }
   ],
   "companies": [
+    { "key": "sirti", "display_name": "Sirti S.p.A.", "type": "organization", "address": "Via Stamira d'Ancona 9, Milano",
+      "roles": [{ "role": "operator" }],
+      "contacts": [{ "full_name": "Coordinamento appalti FTTH", "role_title": "Project Office", "email": "appalti@sirti.demo", "phone": "02-3700100", "is_primary": true }] },
+    { "key": "openfiber", "display_name": "Open Fiber S.p.A.", "type": "organization", "address": "Viale Certosa 2, Milano",
+      "roles": [{ "role": "operator" }],
+      "contacts": [{ "full_name": "Gestione cantieri", "phone": "02-8200200", "is_primary": true }] },
     { "key": "distributore", "display_name": "FibraItalia Distribuzione SpA", "type": "organization", "address": "Viale del Lavoro 20, Milano",
       "roles": [{ "role": "customer", "customer_nature": "recurring" }],
       "contacts": [{ "full_name": "Responsabile Cantieri", "role_title": "Coordinamento installazioni", "phone": "02-1234567", "is_primary": true }] },
@@ -18,7 +24,13 @@
       "contacts": [{ "full_name": "Amministratore di condominio", "phone": "02-7654321", "is_primary": true }] },
     { "key": "azienda_beta", "display_name": "Beta Logistica Srl", "type": "organization", "address": "Via delle Industrie 5, Sesto San Giovanni",
       "roles": [{ "role": "customer", "customer_nature": "recurring" }],
-      "contacts": [{ "full_name": "Ufficio IT", "email": "it@betalogistica.demo", "phone": "02-9001122", "is_primary": true }] }
+      "contacts": [{ "full_name": "Ufficio IT", "email": "it@betalogistica.demo", "phone": "02-9001122", "is_primary": true }] },
+    { "key": "scavi_sud", "display_name": "Scavi Sud Srl", "type": "organization", "address": "Via Argine 112, Napoli",
+      "roles": [{ "role": "supplier" }],
+      "contacts": [{ "full_name": "Geom. Esposito", "phone": "081-5512233", "is_primary": true }] },
+    { "key": "fornitore_ottica", "display_name": "Fibre & Connettori SpA", "type": "organization", "address": "Via Meucci 30, Bologna",
+      "roles": [{ "role": "supplier" }],
+      "contacts": [{ "full_name": "Ufficio vendite", "email": "ordini@fibreconnettori.demo", "phone": "051-441122", "is_primary": true }] }
   ],
   "assets": [
     { "key": "borchia_dante_int5", "company": "cond_dante", "kind": "connection_point", "label": "Borchia Via Dante 8 int.5", "installed_on": "2026-06-10",
@@ -29,7 +41,9 @@
   "resources": [
     { "key": "marco_r",   "kind": "person",    "label": "Marco Gallo",  "user": "marco",  "attributes": { "hourly_cost": 32, "role": "giuntista" } },
     { "key": "davide_r",  "kind": "person",    "label": "Davide Conti", "user": "davide", "attributes": { "hourly_cost": 30, "role": "installatore" } },
-    { "key": "furgone",     "kind": "vehicle",   "label": "Furgone attrezzato" },
+    { "key": "squadra_na1", "kind": "person",  "label": "Squadra Napoli 1", "attributes": { "role": "squadra" } },
+    { "key": "squadra_na2", "kind": "person",  "label": "Squadra Napoli 2", "attributes": { "role": "squadra" } },
+    { "key": "furgone",     "kind": "vehicle",   "label": "Furgone attrezzato NA-1", "attributes": { "plate": "GA420XK" } },
     { "key": "giuntatrice", "kind": "equipment", "label": "Giuntatrice a fusione" },
     { "key": "otdr",        "kind": "equipment", "label": "OTDR + power meter" },
     { "key": "soffiacavo",  "kind": "equipment", "label": "Macchina soffiacavo" }
@@ -38,57 +52,256 @@
     { "resource": "davide_r", "kind": "unavailable", "starts_at": "2026-06-22T00:00:00+02:00", "ends_at": "2026-06-27T00:00:00+02:00", "reason": "Ferie" }
   ],
   "materials": [
-    { "key": "cavo",     "name": "Cavo fibra ottica drop", "unit": "m",  "attributes": { "unit_cost": 1.2 } },
-    { "key": "borchia",  "name": "Borchia ottica",         "unit": "pz", "attributes": { "unit_cost": 18 } },
-    { "key": "pigtail",  "name": "Pigtail SC/APC",         "unit": "pz", "attributes": { "unit_cost": 3 } },
-    { "key": "soc",      "name": "Connettore SOC",         "unit": "pz", "attributes": { "unit_cost": 2.5 } },
-    { "key": "bretella", "name": "Bretella ottica",        "unit": "pz", "attributes": { "unit_cost": 4 } },
-    { "key": "muffola",  "name": "Muffola di giunzione",   "unit": "pz", "attributes": { "unit_cost": 35 } }
+    { "key": "ont_skyof", "name": "ONT SKY_OF",        "unit": "pz", "sku": "ONT-SKYOF", "tracked_by_serial": true, "track_stock": true, "default_cost": 28, "attributes": { "category": "Apparati", "item_type": "article", "min_stock": 5 } },
+    { "key": "hub6",      "name": "HUB6",              "unit": "pz", "sku": "HUB6",      "tracked_by_serial": true, "track_stock": true, "default_cost": 35, "attributes": { "category": "Apparati", "item_type": "article", "min_stock": 4 } },
+    { "key": "borchia",   "name": "Borchia ottica",   "unit": "pz", "sku": "BORCH-OT", "tracked_by_serial": true, "track_stock": true, "default_cost": 18, "attributes": { "category": "Apparati", "item_type": "article", "min_stock": 10 } },
+    { "key": "splitter",  "name": "Splitter 1:8",     "unit": "pz", "sku": "SPL-1-8",  "tracked_by_serial": true, "track_stock": true, "default_cost": 22, "attributes": { "category": "Apparati", "item_type": "article", "min_stock": 12 } },
+    { "key": "cavo",      "name": "Cavo fibra ottica drop", "unit": "m", "sku": "CAVO-DROP", "track_stock": true, "default_cost": 1.2, "attributes": { "category": "Cavi", "item_type": "article", "min_stock": 500 } },
+    { "key": "pigtail",   "name": "Pigtail SC/APC",   "unit": "pz", "sku": "PIG-SCAPC", "track_stock": true, "default_cost": 3, "attributes": { "category": "Accessori", "item_type": "article", "min_stock": 50 } },
+    { "key": "soc",       "name": "Connettore SOC",   "unit": "pz", "sku": "CONN-SOC", "track_stock": true, "default_cost": 2.5, "attributes": { "category": "Accessori", "item_type": "article", "min_stock": 50 } },
+    { "key": "bretella",  "name": "Bretella ottica",  "unit": "pz", "sku": "BRET-OT",  "track_stock": true, "default_cost": 4, "attributes": { "category": "Accessori", "item_type": "article", "min_stock": 30 } },
+    { "key": "muffola",   "name": "Muffola di giunzione", "unit": "pz", "sku": "MUF-GIU", "track_stock": true, "default_cost": 35, "attributes": { "category": "Accessori", "item_type": "article", "min_stock": 8 } },
+    { "key": "attivazione", "name": "Attivazione e collaudo linea", "unit": "cad", "sku": "SRV-ATT", "track_stock": false, "default_cost": 0, "attributes": { "category": "Servizi", "item_type": "service" } }
+  ],
+  "price_lists": [
+    {
+      "key": "base", "code": "LB-FTTH", "name": "Listino base FTTH", "currency": "EUR", "is_default": true,
+      "items": [
+        { "key": "v_scavo",    "code": "B-1.1", "description": "Scavo a sezione obbligata su marciapiede", "unit": "m",   "category": "Opere civili", "cost_price": 12, "revenue_price": 39 },
+        { "key": "v_ripristino","code": "B-1.2","description": "Ripristino pavimentazione",                "unit": "m",   "category": "Opere civili", "cost_price": 9,  "revenue_price": 28 },
+        { "key": "v_posa",     "code": "B-2.1", "description": "Posa/soffiaggio cavo ottico drop",          "unit": "m",   "category": "Posa",         "cost_price": 0.9,"revenue_price": 3.2 },
+        { "key": "v_giunzione","code": "B-3.1", "description": "Giunzione a fusione (per fibra)",            "unit": "cad", "category": "Giunzioni",    "cost_price": 4,  "revenue_price": 14 },
+        { "key": "v_borchia",  "code": "B-4.1", "description": "Installazione borchia ottica",              "unit": "cad", "category": "Attivazioni",  "cost_price": 8,  "revenue_price": 32 },
+        { "key": "v_ont",      "code": "B-4.2", "description": "Installazione e configurazione ONT",        "unit": "cad", "category": "Attivazioni",  "cost_price": 10, "revenue_price": 38 },
+        { "key": "v_collaudo", "code": "B-5.1", "description": "Collaudo OTDR e certificazione tratta",     "unit": "cad", "category": "Collaudo",     "cost_price": 6,  "revenue_price": 25 },
+        { "key": "v_attiv",    "code": "B-5.2", "description": "Attivazione linea e consegna al cliente",   "unit": "cad", "category": "Attivazioni",  "cost_price": 5,  "revenue_price": 22 }
+      ],
+      "overrides": [
+        { "base_item": "v_scavo",  "scope_type": "company", "company": "sirti", "cost_price": 11, "revenue_price": 36, "valid_from": "2026-01-01" },
+        { "base_item": "v_giunzione", "scope_type": "company", "company": "sirti", "revenue_price": 13, "valid_from": "2026-01-01" },
+        { "base_item": "v_ont", "scope_type": "engagement", "engagement": "comm_napoli", "revenue_price": 41 }
+      ]
+    }
   ],
   "engagements": [
+    {
+      "key": "comm_napoli", "company": "sirti", "type": "build",
+      "title": "Napoli Est 2026", "manager": "planner", "status": "active", "started_on": "2026-04-01",
+      "attributes": { "work_order_ref": "SIRTI-NA-EST-26", "budget": 240000 },
+      "phases": [
+        { "key": "wbs_scavi",  "name": "Opere civili (scavi e ripristini)", "wbs_code": "A.1", "seq": 1, "status": "active" },
+        { "key": "wbs_posa",   "name": "Posa e giunzioni",                  "wbs_code": "A.2", "seq": 2, "status": "active" },
+        { "key": "wbs_attiv",  "name": "Attivazioni e collaudi",            "wbs_code": "A.3", "seq": 3, "status": "active" }
+      ],
+      "work_lines": [
+        { "item": "v_scavo", "phase": "wbs_scavi", "quantity": 120, "unit": "m", "cost_price": 11, "revenue_price": 36, "occurred_on": "2026-06-09", "resource": "squadra_na1",
+          "measures": [ { "label": "Via Roma lato dx", "formula": "80 × 1,00", "value": 80 }, { "label": "Via Roma lato sx", "formula": "40 × 1,00", "value": 40 } ] },
+        { "item": "v_posa", "phase": "wbs_posa", "quantity": 240, "unit": "m", "cost_price": 0.9, "revenue_price": 3.2, "occurred_on": "2026-06-10", "resource": "davide_r",
+          "measures": [ { "label": "Tratta A", "formula": "150 × 1,00", "value": 150 }, { "label": "Tratta B", "formula": "90 × 1,00", "value": 90 } ] },
+        { "item": "v_giunzione", "phase": "wbs_posa", "quantity": 18, "unit": "cad", "cost_price": 4, "revenue_price": 13, "occurred_on": "2026-06-11", "resource": "marco_r",
+          "measures": [ { "label": "Muffola MF-12", "formula": "12", "value": 12 }, { "label": "Borchie", "formula": "6", "value": 6 } ] },
+        { "item": "v_ont", "phase": "wbs_attiv", "quantity": 9, "unit": "cad", "cost_price": 10, "revenue_price": 41, "occurred_on": "2026-06-13", "resource": "marco_r",
+          "measures": [ { "label": "Attivazioni settimana 24", "formula": "9", "value": 9 } ] }
+      ],
+      "equipment_usage": [
+        { "resource": "giuntatrice", "phase": "wbs_posa",  "quantity": 14, "unit": "h", "unit_cost": 12, "occurred_on": "2026-06-11", "note": "Giunzioni tratta A/B" },
+        { "resource": "soffiacavo",  "phase": "wbs_posa",  "quantity": 8,  "unit": "h", "unit_cost": 18, "occurred_on": "2026-06-10" },
+        { "resource": "furgone",     "phase": "wbs_attiv", "quantity": 6,  "unit": "gg", "unit_cost": 45, "occurred_on": "2026-06-13" }
+      ],
+      "subcontracts": [
+        { "company": "scavi_sud", "phase": "wbs_scavi", "description": "Scavi meccanizzati Via Roma e Via Lecco", "amount": 2400, "occurred_on": "2026-06-09" },
+        { "company": "scavi_sud", "phase": "wbs_scavi", "description": "Ripristini bitumati", "amount": 1100, "occurred_on": "2026-06-12" }
+      ],
+      "work_reports": [
+        { "audience": "internal", "status": "confirmed", "raw_text": "Giornata 13/06: completate 9 attivazioni ONT, collaudi OTDR ok.", "final_text": "Rapportino del 13/06/2026 — 9 attivazioni completate sulla tratta Napoli Est, collaudi OTDR conformi." }
+      ],
+      "time_entries": [
+        { "resource": "marco_r",  "typology": "giunzione",     "minutes": 480, "occurred_on": "2026-06-11", "cost_rate": 32, "bill_rate": 58 },
+        { "resource": "davide_r", "typology": "installazione", "minutes": 420, "occurred_on": "2026-06-10", "cost_rate": 30, "bill_rate": 55 },
+        { "resource": "marco_r",  "typology": "attivazione",   "minutes": 510, "occurred_on": "2026-06-13", "cost_rate": 32, "bill_rate": 58 },
+        { "resource": "davide_r", "typology": "posa",          "minutes": 480, "occurred_on": "2026-06-09", "cost_rate": 30, "bill_rate": 55 },
+        { "resource": "marco_r",  "typology": "collaudo",      "minutes": 240, "occurred_on": "2026-06-13", "cost_rate": 32, "bill_rate": 58 }
+      ]
+    },
     {
       "key": "comm_dante", "company": "cond_dante", "asset": "borchia_dante_int5", "type": "build",
       "title": "Allaccio FTTH Via Dante 8", "manager": "planner", "status": "active", "started_on": "2026-06-08",
       "attributes": { "work_order_ref": "WO-2026-7781", "budget": 1200 },
-      "phases": [{ "key": "allaccio", "name": "Allaccio", "seq": 1, "status": "active" }],
+      "phases": [{ "key": "allaccio", "name": "Allaccio", "wbs_code": "1", "seq": 1, "status": "active" }],
       "activities": [
         { "key": "sopr",        "phase": "allaccio", "title": "Sopralluogo",                  "status": "done",        "estimated_minutes": 60,  "resources": ["davide_r"] },
         { "key": "posa",        "phase": "allaccio", "title": "Posa/soffiaggio cavo drop",    "status": "done",        "estimated_minutes": 120, "after": [{ "act": "sopr", "lag_days": 0 }],         "resources": ["davide_r", "soffiacavo"] },
         { "key": "giunz",       "phase": "allaccio", "title": "Giunzione (splicing)",         "status": "in_progress", "estimated_minutes": 90,  "after": [{ "act": "posa", "lag_days": 0 }],         "resources": ["marco_r", "giuntatrice"] },
         { "key": "borchia_act", "phase": "allaccio", "title": "Installazione borchia + ONT",  "status": "planned",     "estimated_minutes": 60,  "after": [{ "act": "giunz", "lag_days": 0 }] },
-        { "key": "collaudo",    "phase": "allaccio", "title": "Collaudo OTDR",                "status": "planned",     "estimated_minutes": 45,  "after": [{ "act": "borchia_act", "lag_days": 0 }],  "resources": ["marco_r", "otdr"] },
-        { "key": "attiv",       "phase": "allaccio", "title": "Attivazione linea",            "status": "planned",     "estimated_minutes": 30,  "after": [{ "act": "collaudo", "lag_days": 0 }] }
+        { "key": "collaudo",    "phase": "allaccio", "title": "Collaudo OTDR",                "status": "planned",     "estimated_minutes": 45,  "after": [{ "act": "borchia_act", "lag_days": 0 }],  "resources": ["marco_r", "otdr"] }
       ],
       "time_entries": [
-        { "activity": "sopr",  "resource": "davide_r", "typology": "installazione", "minutes": 60,  "occurred_on": "2026-06-08" },
-        { "activity": "posa",  "resource": "davide_r", "typology": "installazione", "minutes": 120, "occurred_on": "2026-06-09" },
-        { "activity": "giunz", "resource": "marco_r",  "typology": "giunzione",     "minutes": 45,  "occurred_on": "2026-06-10" }
+        { "activity": "sopr",  "resource": "davide_r", "typology": "installazione", "minutes": 60,  "occurred_on": "2026-06-08", "cost_rate": 30, "bill_rate": 55 },
+        { "activity": "posa",  "resource": "davide_r", "typology": "installazione", "minutes": 120, "occurred_on": "2026-06-09", "cost_rate": 30, "bill_rate": 55 },
+        { "activity": "giunz", "resource": "marco_r",  "typology": "giunzione",     "minutes": 45,  "occurred_on": "2026-06-10", "cost_rate": 32, "bill_rate": 58 }
       ],
       "material_consumption": [
         { "activity": "posa",        "material": "cavo",    "quantity": 25, "unit": "m",  "occurred_on": "2026-06-09" },
         { "activity": "borchia_act", "material": "borchia", "quantity": 1,  "unit": "pz", "occurred_on": "2026-06-10" }
       ],
       "captures": [
-        { "user": "davide", "channel": "text", "status": "applied", "raw_text": "posato 25 metri di cavo al civico 8 interno 5, due ore" },
-        { "user": "marco",  "channel": "text", "status": "applied", "raw_text": "giunzione fatta su via Dante, 45 minuti" }
+        { "user": "davide", "channel": "text", "status": "applied", "raw_text": "posato 25 metri di cavo al civico 8 interno 5, due ore" }
       ]
     },
     {
       "key": "comm_beta", "company": "azienda_beta", "asset": "borchia_beta", "type": "maintenance",
       "title": "Guasto linea Beta Logistica", "manager": "planner", "status": "active", "started_on": "2026-06-15",
       "attributes": { "work_order_ref": "WO-2026-7799", "budget": 800 },
-      "phases": [{ "key": "intervento", "name": "Intervento su guasto", "seq": 1, "status": "active" }],
+      "phases": [{ "key": "intervento", "name": "Intervento su guasto", "wbs_code": "1", "seq": 1, "status": "active" }],
       "activities": [
         { "key": "diagnosi",   "phase": "intervento", "title": "Diagnosi guasto",   "status": "in_progress", "estimated_minutes": 45, "scheduled_start": "2026-06-16T09:00:00+02:00", "resources": ["marco_r", "otdr"] },
-        { "key": "rigiunz",    "phase": "intervento", "title": "Ri-giunzione",      "status": "planned",     "estimated_minutes": 60, "after": [{ "act": "diagnosi", "lag_days": 0 }], "resources": ["marco_r", "giuntatrice"] },
-        { "key": "ricollaudo", "phase": "intervento", "title": "Ricollaudo OTDR",   "status": "planned",     "estimated_minutes": 30, "after": [{ "act": "rigiunz", "lag_days": 0 }], "resources": ["marco_r", "otdr"] }
+        { "key": "rigiunz",    "phase": "intervento", "title": "Ri-giunzione",      "status": "planned",     "estimated_minutes": 60, "after": [{ "act": "diagnosi", "lag_days": 0 }], "resources": ["marco_r", "giuntatrice"] }
       ],
       "time_entries": [
-        { "activity": "diagnosi", "resource": "marco_r", "typology": "manutenzione", "minutes": 30, "occurred_on": "2026-06-16" }
+        { "activity": "diagnosi", "resource": "marco_r", "typology": "manutenzione", "minutes": 30, "occurred_on": "2026-06-16", "cost_rate": 32, "bill_rate": 58 }
+      ],
+      "work_reports": [
+        { "audience": "customer", "status": "ai_proposed", "raw_text": "controllata la linea Beta, guasto su giunzione in muffola, ri-giunzione programmata", "generated_by_ai": true }
       ],
       "captures": [
         { "user": "marco", "channel": "text", "status": "pending", "raw_text": "controllata la linea Beta, sembra un guasto sulla giunzione in muffola" }
       ]
     }
+  ],
+  "serials": [
+    { "material": "ont_skyof", "serial": "ON22A-9001", "status": "in_stock" },
+    { "material": "ont_skyof", "serial": "ON22A-9002", "status": "in_stock" },
+    { "material": "ont_skyof", "serial": "ON22A-9003", "status": "assigned", "holder": "furgone", "note": "Caricato sul furgone NA-1" },
+    { "material": "hub6",      "serial": "HUB6-22011", "status": "in_stock" },
+    { "material": "borchia",   "serial": "BR91-330001", "status": "in_stock" },
+    { "material": "borchia",   "serial": "BR91-330002", "status": "assigned", "holder": "furgone" },
+    { "material": "splitter",  "serial": "SPL8-770010", "status": "in_stock" },
+    { "material": "splitter",  "serial": "SPL8-770011", "status": "faulty", "note": "Rientrato difettoso, da rendere" }
+  ],
+  "work_orders": [
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10892013", "status": "in_progress", "assigned": "squadra_na2",
+      "address": "Via Roma 14, int. 3 — Napoli", "scheduled_on": "2026-06-15",
+      "attributes": { "connection_type": "FTTH", "socket_id": "ROE-NA-10044", "ont_serial": "ON22A-7741" },
+      "subject": { "full_name": "Mario Rossi", "phone": "3331234567", "email": "mario.rossi@example.com", "fiscal_code": "RSSMRA80A01F839X", "address": "Via Roma 14, int. 3 — Napoli 80142" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 }, { "material": "splitter", "planned_qty": 1 } ],
+      "serials": [ { "material": "ont_skyof", "serial": "ON22A-7741", "secret": "ChangeMe!7741", "installed_on": "2026-06-15" } ],
+      "consumed": [ { "material": "cavo", "quantity": 28, "unit": "m" }, { "material": "soc", "quantity": 2, "unit": "pz" } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10892140", "status": "assigned",
+      "address": "Via Lecco 7 — Napoli", "scheduled_on": "2026-06-16",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Giulia Ferrari", "phone": "3398887766", "fiscal_code": "FRRGLI85M41F839Y", "address": "Via Lecco 7 — Napoli 80142" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "openfiber", "operator_order_id": "OF-77A1209", "status": "done", "assigned": "squadra_na1",
+      "address": "Corso Italia 220 — Cicciano", "scheduled_on": "2026-06-12", "completed_on": "2026-06-12",
+      "attributes": { "connection_type": "FTTH", "attenuation_db": 0.38 },
+      "subject": { "full_name": "Antonio Carbone", "phone": "3401122334", "fiscal_code": "CRBNTN77H12F839Z", "address": "Corso Italia 220 — Cicciano 80033" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ],
+      "serials": [ { "material": "ont_skyof", "serial": "ON22A-6620", "secret": "Of6620!pwd", "installed_on": "2026-06-12" }, { "material": "borchia", "serial": "BR91-220714", "installed_on": "2026-06-12" } ],
+      "consumed": [ { "material": "cavo", "quantity": 35, "unit": "m" }, { "material": "pigtail", "quantity": 2, "unit": "pz" }, { "material": "soc", "quantity": 2, "unit": "pz" } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10880921", "status": "ko", "assigned": "squadra_na2",
+      "address": "Via Tuoro 12 — San Giorgio a Cremano", "scheduled_on": "2026-06-13",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Lucia Napolitano", "phone": "3387654321", "fiscal_code": "NPLLCU90D55F839K", "address": "Via Tuoro 12 — San Giorgio a Cremano 80046" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "hub6", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891055", "status": "done", "assigned": "squadra_na1",
+      "address": "Via Argine 88 — Napoli", "scheduled_on": "2026-06-11", "completed_on": "2026-06-11",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Salvatore Esposito", "phone": "3491239876", "fiscal_code": "SPSSVT82L20F839A", "address": "Via Argine 88 — Napoli 80147" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ],
+      "serials": [ { "material": "ont_skyof", "serial": "ON22A-6601", "secret": "Esp6601!", "installed_on": "2026-06-11" } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891200", "status": "in_progress", "assigned": "squadra_na1",
+      "address": "Piazza Garibaldi 4 — Napoli", "scheduled_on": "2026-06-16",
+      "attributes": { "connection_type": "FTTB" },
+      "subject": { "full_name": "Francesca De Luca", "phone": "3356677889", "fiscal_code": "DLCFNC88T45F839B", "address": "Piazza Garibaldi 4 — Napoli 80142" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "splitter", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "openfiber", "operator_order_id": "OF-77A1310", "status": "assigned",
+      "address": "Via Manzoni 33 — Pomigliano d'Arco", "scheduled_on": "2026-06-17",
+      "subject": { "full_name": "Giuseppe Russo", "phone": "3312223344", "fiscal_code": "RSSGPP79P03F839C", "address": "Via Manzoni 33 — Pomigliano d'Arco 80038" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891402", "status": "done", "assigned": "squadra_na2",
+      "address": "Via Vesuvio 10 — Portici", "scheduled_on": "2026-06-10", "completed_on": "2026-06-10",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Anna Coppola", "phone": "3399001122", "fiscal_code": "CPPNNA83C61F839D", "address": "Via Vesuvio 10 — Portici 80055" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ],
+      "serials": [ { "material": "ont_skyof", "serial": "ON22A-6588", "installed_on": "2026-06-10" } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891507", "status": "assigned",
+      "address": "Via Diaz 21 — Casoria", "scheduled_on": "2026-06-18",
+      "subject": { "full_name": "Roberto Marino", "phone": "3471234500", "fiscal_code": "MRNRRT75E18F839E", "address": "Via Diaz 21 — Casoria 80026" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891610", "status": "ko", "assigned": "squadra_na1",
+      "address": "Via San Carlo 2 — Napoli", "scheduled_on": "2026-06-09",
+      "subject": { "full_name": "Elena Greco", "phone": "3385544332", "fiscal_code": "GRCLNE91S52F839F", "address": "Via San Carlo 2 — Napoli 80132" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "openfiber", "operator_order_id": "OF-77A1455", "status": "in_progress", "assigned": "squadra_na2",
+      "address": "Via Toledo 156 — Napoli", "scheduled_on": "2026-06-16",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Davide Romano", "phone": "3401239988", "fiscal_code": "RMNDVD86A11F839G", "address": "Via Toledo 156 — Napoli 80134" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "splitter", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891733", "status": "done", "assigned": "squadra_na1",
+      "address": "Via Foria 99 — Napoli", "scheduled_on": "2026-06-08", "completed_on": "2026-06-08",
+      "subject": { "full_name": "Paola Ferraro", "phone": "3392345671", "fiscal_code": "FRRPLA80D44F839H", "address": "Via Foria 99 — Napoli 80137" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ],
+      "serials": [ { "material": "ont_skyof", "serial": "ON22A-6570", "installed_on": "2026-06-08" } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891840", "status": "assigned",
+      "address": "Via Chiaia 12 — Napoli", "scheduled_on": "2026-06-19",
+      "subject": { "full_name": "Vincenzo Sorrentino", "phone": "3478765432", "fiscal_code": "SRRVCN77M22F839L", "address": "Via Chiaia 12 — Napoli 80121" },
+      "items": [ { "material": "ont_skyof", "planned_qty": 1 } ] },
+
+    { "engagement": "comm_napoli", "operator": "sirti", "operator_order_id": "FEN-10891999", "status": "in_progress", "assigned": "squadra_na2",
+      "address": "Corso Umberto 240 — Napoli", "scheduled_on": "2026-06-16",
+      "attributes": { "connection_type": "FTTH" },
+      "subject": { "full_name": "Chiara Barbato", "phone": "3331100220", "fiscal_code": "BRBCHR93H67F839M", "address": "Corso Umberto 240 — Napoli 80138" },
+      "items": [ { "material": "hub6", "planned_qty": 1 }, { "material": "borchia", "planned_qty": 1 } ] }
+  ],
+  "stock": {
+    "locations": [
+      { "key": "mag",     "name": "Magazzino centrale Napoli", "kind": "warehouse", "holds_stock": true, "is_default": true },
+      { "key": "furgone_loc", "name": "Furgone NA-1 (Marco/Davide)", "kind": "van", "resource": "furgone", "holds_stock": true }
+    ],
+    "documents": [
+      { "type": "receipt", "number": "DDT-2026-0014", "doc_date": "2026-06-05", "dest_location": "mag", "company": "fornitore_ottica", "status": "confirmed", "external_ref": "Ns. ordine OA-118",
+        "lines": [
+          { "material": "ont_skyof", "quantity": 20, "unit": "pz", "unit_cost": 28 },
+          { "material": "hub6",      "quantity": 8,  "unit": "pz", "unit_cost": 35 },
+          { "material": "borchia",   "quantity": 50, "unit": "pz", "unit_cost": 18 },
+          { "material": "splitter",  "quantity": 15, "unit": "pz", "unit_cost": 22 },
+          { "material": "cavo",      "quantity": 2000, "unit": "m", "unit_cost": 1.2 },
+          { "material": "pigtail",   "quantity": 100, "unit": "pz", "unit_cost": 3 },
+          { "material": "soc",       "quantity": 120, "unit": "pz", "unit_cost": 2.5 },
+          { "material": "muffola",   "quantity": 10, "unit": "pz", "unit_cost": 35 }
+        ] }
+    ],
+    "movements": [
+      { "material": "cavo",     "location": "mag", "type": "out", "quantity": 240, "unit": "m",  "unit_cost": 1.2, "occurred_on": "2026-06-10", "engagement": "comm_napoli", "note": "Posa tratta A/B" },
+      { "material": "ont_skyof","location": "mag", "type": "out", "quantity": 6,   "unit": "pz", "unit_cost": 28,  "occurred_on": "2026-06-13", "engagement": "comm_napoli", "note": "Attivazioni settimana 24" },
+      { "material": "borchia",  "location": "mag", "type": "out", "quantity": 6,   "unit": "pz", "unit_cost": 18,  "occurred_on": "2026-06-13", "engagement": "comm_napoli" },
+      { "material": "ont_skyof","location": "mag", "type": "transfer", "quantity": 3, "unit": "pz", "occurred_on": "2026-06-09", "note": "Carico furgone NA-1" },
+      { "material": "splitter", "location": "mag", "type": "adjust", "quantity": -1, "unit": "pz", "occurred_on": "2026-06-14", "note": "Rettifica inventario: 1 difettoso" }
+    ]
+  },
+  "absences": [
+    { "resource": "davide_r", "type": "vacation",   "starts_on": "2026-06-22", "ends_on": "2026-06-27", "note": "Ferie programmate" },
+    { "resource": "marco_r",  "type": "leave_paid",  "starts_on": "2026-06-18", "ends_on": "2026-06-18", "hours": 4, "half_day": true, "note": "Permesso visita medica" }
+  ],
+  "sites": [
+    { "key": "beta_sede",   "company": "azienda_beta", "name": "Sede di Sesto San Giovanni", "kind": "plant",    "address": "Via delle Industrie 5, Sesto San Giovanni" },
+    { "key": "beta_ed_a",   "company": "azienda_beta", "parent": "beta_sede", "name": "Edificio A — Uffici",     "kind": "building" },
+    { "key": "beta_ed_a_p1","company": "azienda_beta", "parent": "beta_ed_a", "name": "Piano 1",                 "kind": "floor" },
+    { "key": "beta_ed_a_ced","company": "azienda_beta","parent": "beta_ed_a_p1", "name": "CED / Sala rack",      "kind": "room" },
+    { "key": "beta_ed_a_rack","company": "azienda_beta","parent": "beta_ed_a_ced", "name": "Rack R1 — POP fibra","kind": "pop" },
+    { "key": "beta_ed_b",   "company": "azienda_beta", "parent": "beta_sede", "name": "Edificio B — Magazzino",  "kind": "building" },
+    { "key": "beta_dr",     "company": "azienda_beta", "name": "Sito di disaster recovery — Milano", "kind": "plant", "address": "Via Mecenate 90, Milano" }
   ]
 }

@@ -1,14 +1,16 @@
-/** RisorsaDetailPage (mock 20) — dettaglio risorsa con la striscia .avail per
- *  EDITARE l'orario per-risorsa (resource.working_hours, override dell'azienda)
- *  e le INDISPONIBILITÀ (resource_availability). Entrambi alimentano il motore
- *  di pianificazione (scheduleResources). Completa la FASE 2. */
+/** RisorsaDetailPage (mock 20) su ObjectPage v2 (<Page bleed>): Anagrafica editabile
+ *  (tipo/nome/costo orario/attiva) + tab Disponibilità (orario per-risorsa
+ *  resource.working_hours + indisponibilità resource_availability), Assegnazioni, Ore.
+ *  Crea+vedi+modifica nella stessa pagina; header sticky con Salva/Annulla. */
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
-import { Plus, Trash2, CalendarClock, Clock, Briefcase } from 'lucide-react';
+import { useParams, useHistory } from 'react-router';
+import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash } from 'lucide-react';
 import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
+import { StatusPill } from '../components/StatusPill';
+import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { useApi, mutate } from '../api/hooks';
-import { ApiError } from '../api/client';
+import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { WorkingHoursEditor, whHasErrors, type WH } from '../ui/WorkingHoursEditor';
@@ -24,12 +26,23 @@ const fmtRange = (a: string, b: string) => `${new Date(a).toLocaleDateString('it
 
 export function RisorsaDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const isNew = id === 'new';
   const { user } = useAuth();
   const toast = useToast();
+  const history = useHistory();
   const canManage = !!user?.permissions.includes('resource:update' as never);
-  const { data: res, loading, error, reload } = useApi<ResourceDto>(`/resources/${id}`);
+  const canCreate = !!user?.permissions.includes('resource:create' as never);
+
+  const { data: res, loading, error, reload } = useApi<ResourceDto>(isNew ? null : `/resources/${id}`);
   const { data: settings } = useApi<TenantSettingsDto>('/settings');
-  const { data: avail, reload: reloadAvail } = useApi<ResourceAvailabilityDto[]>(`/resources/${id}/availability`);
+  const { data: avail, reload: reloadAvail } = useApi<ResourceAvailabilityDto[]>(isNew ? null : `/resources/${id}/availability`);
+
+  // Anagrafica editabile
+  const [form, setForm] = useState({ kind: 'person', label: '', hourlyCost: '', active: true });
+  const [savingHead, setSavingHead] = useState(false);
+  useEffect(() => {
+    if (res) setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active });
+  }, [res]);
 
   const [tab, setTab] = useState<'avail' | 'assign' | 'hours'>('avail');
   const [editing, setEditing] = useState(false);
@@ -46,6 +59,21 @@ export function RisorsaDetailPage() {
     if (res) { setUseCustom(!!res.workingHours); setDraft((res.workingHours ?? settings?.workingHours ?? {}) as WH); }
   }, [res, settings]);
 
+  async function saveHead() {
+    if (!form.label.trim()) { toast('Il nome è obbligatorio', 'error'); return; }
+    setSavingHead(true);
+    const body = {
+      ...(isNew ? { kind: form.kind } : {}),
+      label: form.label.trim(), active: form.active,
+      attributes: { hourly_cost: form.hourlyCost === '' ? null : Number(form.hourlyCost) },
+    };
+    try {
+      if (isNew) { const c = await apiFetch<ResourceDto>('/resources', { method: 'POST', body: JSON.stringify({ kind: form.kind, ...body }) }); toast('Risorsa creata'); history.replace(`/resources/${c.id}`); }
+      else { await mutate('PATCH', `/resources/${id}`, body); toast('Modifiche salvate'); void reload(); }
+    } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error'); }
+    finally { setSavingHead(false); }
+  }
+
   async function saveHours() {
     if (useCustom && whHasErrors(draft)) { toast('Correggi gli intervalli (fine dopo inizio, niente sovrapposizioni)', 'error'); return; }
     setBusy(true);
@@ -53,9 +81,7 @@ export function RisorsaDetailPage() {
       const cleaned: WH = {};
       for (const k of WEEK) cleaned[k] = draft[k] ?? [];
       await mutate('PATCH', `/resources/${id}/working-hours`, { workingHours: useCustom ? cleaned : null });
-      toast('Orario della risorsa salvato');
-      setEditing(false);
-      void reload();
+      toast('Orario della risorsa salvato'); setEditing(false); void reload();
     } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Errore') : (e as Error).message, 'error'); }
     finally { setBusy(false); }
   }
@@ -69,9 +95,7 @@ export function RisorsaDetailPage() {
         startsAt: new Date(newAv.startsAt).toISOString(), endsAt: new Date(newAv.endsAt).toISOString(),
         reason: newAv.reason || null, kind: 'unavailable',
       });
-      toast('Indisponibilità aggiunta');
-      setAddOpen(false); setNewAv({ startsAt: '', endsAt: '', reason: '' });
-      void reloadAvail();
+      toast('Indisponibilità aggiunta'); setAddOpen(false); setNewAv({ startsAt: '', endsAt: '', reason: '' }); void reloadAvail();
     } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Errore') : (e as Error).message, 'error'); }
     finally { setBusy(false); }
   }
@@ -81,120 +105,127 @@ export function RisorsaDetailPage() {
     catch (e) { toast((e as Error).message, 'error'); }
   }
 
-  return (
-    <Page title={res?.label ?? 'Risorsa'} back="/resources">
-      {loading && <Loading />}
-      {error && <ErrorBox message={error} />}
-      {res && (
-        <>
-          <div className="detail-head">
-            <span className="code">RISORSA</span>
-            <h1>{res.label}</h1>
-            <div className="sub">{KIND_LABEL[res.kind]}{res.userName ? ` · ${res.userName}` : ''}</div>
-            <div className="kv">
-              <div><div className="k">Tipo</div><div className="v">{KIND_LABEL[res.kind]}</div></div>
-              <div><div className="k">Orario</div><div className="v">{res.workingHours ? 'Personalizzato' : 'Orario azienda'}</div></div>
-              <div><div className="k">Indisponibilità</div><div className="v mono">{avail?.length ?? 0}</div></div>
-              <div><div className="k">Stato</div><div className="v">{res.active ? 'Attiva' : 'Disattivata'}</div></div>
+  if (!isNew && loading) return <Page title="Risorsa"><Loading /></Page>;
+  if (!isNew && error) return <Page title="Risorsa"><ErrorBox message={error} /></Page>;
+
+  const availContent = (
+    <>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="ph">
+          <h3>Orario settimanale</h3>
+          {canManage && (editing
+            ? <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setEditing(false); setUseCustom(!!res?.workingHours); setDraft((res?.workingHours ?? tenantWH)); }}>Annulla</button>
+                <button className="btn btn-primary btn-sm" disabled={busy} onClick={saveHours}>Salva orario</button>
+              </div>
+            : <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}><Clock size={16} />Modifica orario</button>)}
+        </div>
+        <div className="pb" style={{ paddingTop: 16 }}>
+          {editing && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, marginBottom: 14, cursor: 'pointer' }}>
+              <div className={`switch${useCustom ? ' on' : ''}`} role="switch" aria-checked={useCustom} onClick={() => setUseCustom((x) => !x)}>
+                <span className="track"><span className="knob" /></span>
+              </div>
+              Orario personalizzato (override dell'azienda)
+            </label>
+          )}
+          {editing && useCustom
+            ? <WorkingHoursEditor value={draft} onChange={setDraft} />
+            : (
+              <div className="avail">
+                {DAYS.map((d) => {
+                  const iv = (editing ? tenantWH : effective)[d.key];
+                  const off = !iv || iv.length === 0;
+                  return (
+                    <div key={d.key} className={`avday${off ? ' off' : ''}`}>
+                      <div className="dn">{d.label}</div>
+                      <div className="hh">{fmtHH(iv)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          <p className="faint" style={{ fontSize: 12.5, marginTop: 12, color: 'var(--ink-faint)' }}>
+            {editing && !useCustom
+              ? 'Usa l\'orario standard dell\'azienda (sopra). Attiva "Orario personalizzato" per sovrascriverlo.'
+              : res?.workingHours ? 'Orario personalizzato per questa risorsa (override dell\'azienda).' : 'Usa l\'orario standard dell\'azienda.'}
+            {' '}Le fasce, meno le indisponibilità, definiscono quando il motore può collocare le attività.
+          </p>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="ph">
+          <h3>Indisponibilità</h3>
+          {canManage && <button className="btn btn-ghost btn-sm" onClick={() => setAddOpen((x) => !x)}><Plus size={16} />Indisponibilità</button>}
+        </div>
+        <div className="pb">
+          {addOpen && (
+            <div className="row-li" style={{ gap: 10, flexWrap: 'wrap' }}>
+              <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.startsAt} onChange={(e) => setNewAv((s) => ({ ...s, startsAt: e.target.value }))} />
+              <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.endsAt} onChange={(e) => setNewAv((s) => ({ ...s, endsAt: e.target.value }))} />
+              <input className="txt" placeholder="Motivo (es. ferie)" style={{ height: 38, flex: 1, minWidth: 140 }} value={newAv.reason} onChange={(e) => setNewAv((s) => ({ ...s, reason: e.target.value }))} />
+              <button className="btn btn-primary btn-sm" disabled={busy} onClick={addAvailability}>Aggiungi</button>
             </div>
-          </div>
-
-          <div className="tabs">
-            <a className={tab === 'avail' ? 'on' : ''} onClick={() => setTab('avail')}>Disponibilità</a>
-            <a className={tab === 'assign' ? 'on' : ''} onClick={() => setTab('assign')}>Assegnazioni</a>
-            <a className={tab === 'hours' ? 'on' : ''} onClick={() => setTab('hours')}>Ore</a>
-          </div>
-
-          {tab === 'avail' && (
-            <>
-              <div className="panel" style={{ marginBottom: 16 }}>
-                <div className="ph">
-                  <h3>Orario settimanale</h3>
-                  {canManage && (editing
-                    ? <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setEditing(false); setUseCustom(!!res.workingHours); setDraft((res.workingHours ?? tenantWH)); }}>Annulla</button>
-                        <button className="btn btn-primary btn-sm" disabled={busy} onClick={saveHours}>Salva orario</button>
-                      </div>
-                    : <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}><Clock size={16} />Modifica orario</button>)}
-                </div>
-                <div className="pb" style={{ paddingTop: 16 }}>
-                  {editing && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, marginBottom: 14, cursor: 'pointer' }}>
-                      <div className={`switch${useCustom ? ' on' : ''}`} role="switch" aria-checked={useCustom} onClick={() => setUseCustom((x) => !x)}>
-                        <span className="track"><span className="knob" /></span>
-                      </div>
-                      Orario personalizzato (override dell'azienda)
-                    </label>
-                  )}
-                  {editing && useCustom
-                    ? <WorkingHoursEditor value={draft} onChange={setDraft} />
-                    : (
-                      <div className="avail">
-                        {DAYS.map((d) => {
-                          const iv = (editing ? tenantWH : effective)[d.key];
-                          const off = !iv || iv.length === 0;
-                          return (
-                            <div key={d.key} className={`avday${off ? ' off' : ''}`}>
-                              <div className="dn">{d.label}</div>
-                              <div className="hh">{fmtHH(iv)}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  <p className="faint" style={{ fontSize: 12.5, marginTop: 12, color: 'var(--ink-faint)' }}>
-                    {editing && !useCustom
-                      ? 'Usa l\'orario standard dell\'azienda (sopra). Attiva "Orario personalizzato" per sovrascriverlo.'
-                      : res.workingHours
-                        ? 'Orario personalizzato per questa risorsa (override dell\'azienda).'
-                        : 'Usa l\'orario standard dell\'azienda.'}
-                    {' '}Le fasce, meno le indisponibilità, definiscono quando il motore può collocare le attività.
-                  </p>
-                </div>
-              </div>
-
-              <div className="panel">
-                <div className="ph">
-                  <h3>Indisponibilità</h3>
-                  {canManage && <button className="btn btn-ghost btn-sm" onClick={() => setAddOpen((x) => !x)}><Plus size={16} />Indisponibilità</button>}
-                </div>
-                <div className="pb">
-                  {addOpen && (
-                    <div className="row-li" style={{ gap: 10, flexWrap: 'wrap' }}>
-                      <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.startsAt} onChange={(e) => setNewAv((s) => ({ ...s, startsAt: e.target.value }))} />
-                      <input className="txt" type="datetime-local" step={900} style={{ height: 38, maxWidth: 200 }} value={newAv.endsAt} onChange={(e) => setNewAv((s) => ({ ...s, endsAt: e.target.value }))} />
-                      <input className="txt" placeholder="Motivo (es. ferie)" style={{ height: 38, flex: 1, minWidth: 140 }} value={newAv.reason} onChange={(e) => setNewAv((s) => ({ ...s, reason: e.target.value }))} />
-                      <button className="btn btn-primary btn-sm" disabled={busy} onClick={addAvailability}>Aggiungi</button>
-                    </div>
-                  )}
-                  {(avail ?? []).length === 0 && !addOpen && <p className="faint" style={{ fontSize: 13, color: 'var(--ink-faint)', padding: '6px 0' }}>Nessuna indisponibilità registrata.</p>}
-                  {(avail ?? []).map((a) => (
-                    <div className="row-li" key={a.id}>
-                      <div style={{ flex: 1 }}>
-                        <b>{a.reason || 'Indisponibile'}</b>
-                        <div className="cellsub mono">{fmtRange(a.startsAt, a.endsAt)}</div>
-                      </div>
-                      <span className="pill pill--neutral"><span className="dot" />{a.kind === 'unavailable' ? 'Non disponibile' : 'Disponibile'}</span>
-                      {canManage && <button className="act-icon danger" aria-label="Rimuovi" onClick={() => delAvailability(a.id)}><Trash2 size={16} /></button>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
           )}
+          {(avail ?? []).length === 0 && !addOpen && <p className="faint" style={{ fontSize: 13, color: 'var(--ink-faint)', padding: '6px 0' }}>Nessuna indisponibilità registrata.</p>}
+          {(avail ?? []).map((a) => (
+            <div className="row-li" key={a.id}>
+              <div style={{ flex: 1 }}><b>{a.reason || 'Indisponibile'}</b><div className="cellsub mono">{fmtRange(a.startsAt, a.endsAt)}</div></div>
+              <span className="pill pill--neutral"><span className="dot" />{a.kind === 'unavailable' ? 'Non disponibile' : 'Disponibile'}</span>
+              {canManage && <button className="act-icon danger" aria-label="Rimuovi" onClick={() => delAvailability(a.id)}><Trash size={16} /></button>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 
-          {tab === 'assign' && <AssignmentsTab resourceId={res.id} />}
+  const tabs: RelTab[] = [
+    { key: 'avail', label: 'Disponibilità', icon: CalendarOff, content: availContent },
+    { key: 'assign', label: 'Assegnazioni', icon: CalendarClock, content: res ? <AssignmentsTab resourceId={res.id} /> : null },
+    { key: 'hours', label: 'Ore', icon: Briefcase, content: (
+      <div className="panel"><div className="pb" style={{ paddingTop: 16 }}>
+        <p className="faint" style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>
+          <Briefcase size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+          Riepilogo ore rendicontate dalla risorsa — in arrivo (le ore si registrano dal dettaglio attività).
+        </p>
+      </div></div>
+    ) },
+  ];
 
-          {tab === 'hours' && (
-            <div className="panel"><div className="pb" style={{ paddingTop: 16 }}>
-              <p className="faint" style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>
-                <Briefcase size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-                Riepilogo ore rendicontate dalla risorsa — in arrivo (le ore si registrano dal dettaglio attività).
-              </p>
-            </div></div>
-          )}
-        </>
-      )}
+  const title = isNew ? 'Nuova risorsa' : (form.label || 'Risorsa');
+
+  return (
+    <Page title={title} bleed>
+      <ObjectPage
+        backLabel="Risorse" onBack={() => history.push('/resources')}
+        title={title} code={!isNew ? KIND_LABEL[form.kind]?.toUpperCase() : undefined}
+        status={!isNew ? <StatusPill label={form.active ? 'Attiva' : 'Disattivata'} token={form.active ? 'success' : 'neutral'} /> : undefined}
+        onSave={(isNew ? canCreate : canManage) ? saveHead : undefined}
+        onCancel={() => history.push('/resources')} saving={savingHead}
+      >
+        <ObjectBox icon={UserRound} title="Anagrafica risorsa">
+          <div className="bgrid">
+            <div className="bf"><span className="bl">Tipo</span>
+              {isNew
+                ? <select className="bi" value={form.kind} onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}>
+                    <option value="person">Persona</option><option value="vehicle">Mezzo</option><option value="equipment">Attrezzatura</option>
+                  </select>
+                : <div className="bi">{KIND_LABEL[form.kind]}</div>}</div>
+            <div className="bf c2"><span className="bl">Nome / Etichetta <span className="req">*</span></span>
+              <input className="bi" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} /></div>
+            <div className="bf"><span className="bl">Costo orario (€/h)</span>
+              <input className="bi mono" style={{ textAlign: 'right' }} type="number" value={form.hourlyCost} onChange={(e) => setForm((f) => ({ ...f, hourlyCost: e.target.value }))} /></div>
+            <div className="bf"><span className="bl">Attiva</span>
+              <label className="bi" style={{ justifyContent: 'space-between', cursor: 'pointer' }}>{form.active ? 'Sì' : 'No'}
+                <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /></label></div>
+          </div>
+        </ObjectBox>
+
+        {isNew ? <div className="dsx-empty" style={{ marginTop: 4 }}>Salva la risorsa per gestire orario, indisponibilità e assegnazioni.</div>
+          : <RelatedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as typeof tab)} />}
+      </ObjectPage>
     </Page>
   );
 }

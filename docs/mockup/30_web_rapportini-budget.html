@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Rapportini · Budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-h2:16px;--fs-card:15px;--fs-body:13px;--fs-label:12px;--fs-th:11.5px;--fs-eyebrow:10.5px;
+--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--input-h:38px;--pill-h:22px;--sec-gap:16px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--input-h:34px;--pill-h:21px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--input-h:42px;--pill-h:24px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:var(--fs-body);-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1;letter-spacing:-.01em}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn-ghost:hover{border-color:var(--ink-faint)}
+.btn-flow{background:var(--flow-grad);color:#fff;box-shadow:var(--shadow-pop)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:var(--pill-h);padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.eyebrow{font-size:var(--fs-eyebrow);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+.app{display:grid;grid-template-columns:230px 1fr;height:760px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);position:relative}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}.ico-btn:hover{background:var(--paper)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:var(--ctrl-h);padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:210px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:calc(var(--ctrl-h) - 8px);padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.ibtn{width:var(--ctrl-h);height:var(--ctrl-h);border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}.ibtn:hover{background:var(--paper);color:var(--ink)}
+.spacer{flex:1}
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr{cursor:pointer}.t tbody tr:hover{background:var(--paper)}
+.t tr.sel{background:var(--brand-wash)}.t tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.money{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--font-mono);font-feature-settings:"tnum" 1;white-space:nowrap}
+.money .sym{color:var(--ink-faint);flex:0 0 auto}.money .val{text-align:right;flex:1}.money.negative .val,.money.negative .sym{color:var(--danger)}
+.money.pos .val,.money.pos .sym{color:var(--success)}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}.iaction:hover{background:var(--neutral-wash);color:var(--ink)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px}.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* split master-detail */
+.split{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;align-items:start}
+.dp-h{display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid var(--line-2)}
+.dp-h .code{font-family:var(--font-mono);font-size:11.5px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.dp-h .x{margin-left:auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}.dp-h .x:hover{background:var(--neutral-wash)}
+.dp-b{padding:14px 16px;overflow:auto}
+.dp-title{font-size:var(--fs-card);font-weight:700;font-family:var(--font-display);margin-bottom:3px}
+.dp-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px}
+.dp-f{display:flex;gap:8px;padding:13px 16px;border-top:1px solid var(--line-2);background:var(--paper)}.dp-f .btn{flex:1;justify-content:center}
+/* stepper */
+.stepper{display:flex;align-items:center;margin-bottom:16px}
+.step{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--ink-faint)}
+.step .sd{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--neutral-wash);color:var(--ink-faint);font-size:11px}
+.step.done .sd{background:var(--success);color:#fff}.step.done{color:var(--ink-2)}
+.step.now .sd{background:var(--brand);color:#fff}.step.now{color:var(--brand-ink)}
+.stepline{flex:1;height:2px;background:var(--line);margin:0 7px;min-width:14px}
+.stepline.done{background:var(--success)}
+/* aibox */
+.aibox{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:4px}
+.aibox .ah{display:flex;align-items:center;gap:7px;padding:9px 12px;background:var(--brand-wash);font-size:12px;font-weight:600;color:var(--brand-ink)}
+.aibox .ab{padding:12px 13px;font-size:12.5px;line-height:1.65;color:var(--ink-2)}
+/* budget */
+.detail-head{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-1);margin-bottom:14px}
+.detail-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.detail-head h1{font-size:var(--fs-h1);font-weight:800;margin:9px 0 5px}.detail-head .sub{color:var(--ink-soft);font-size:13.5px}
+.kv{display:flex;gap:24px;margin-top:14px;flex-wrap:wrap}.kv .k{font-size:var(--fs-eyebrow);color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.kv .v{font-size:14px;font-weight:600;margin-top:3px}
+.tabsbar{display:flex;gap:8px;margin-bottom:var(--sec-gap);border-bottom:1px solid var(--line);padding-bottom:0}
+.tabu{padding:9px 4px;margin-bottom:-1px;font-size:13.5px;font-weight:600;color:var(--ink-soft);border-bottom:2px solid transparent;cursor:pointer}
+.tabu.on{color:var(--brand-ink);border-bottom-color:var(--brand)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 15px;box-shadow:var(--shadow-1)}
+.kpi .kl{font-size:11px;color:var(--ink-faint);font-weight:600}
+.kpi .kvv{font-family:var(--font-mono);font-size:20px;font-weight:700;margin-top:6px;font-feature-settings:"tnum" 1;display:flex;justify-content:space-between;gap:6px}
+.kpi .kvv .sym{color:var(--ink-faint)}
+.kpi.good .kvv{color:var(--success)}
+.budgetwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:16px 18px;margin-bottom:16px}
+.bbar-h{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:8px}
+.bbar-h b{font-family:var(--font-mono)}
+.budgetbar{height:10px;border-radius:999px;background:var(--line-2);overflow:hidden}
+.budgetbar i{display:block;height:100%;border-radius:999px;background:var(--brand)}
+.budgetbar i.warn{background:var(--warning)}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:800px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:800px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:14px">
+    <h1><em>si</em>Suite — Rapportini e Budget</h1>
+    <p>Sul nuovo design system. Rapportini con il flusso AI (l'AI propone, l'uomo conferma) in master-detail; Budget come scheda del dettaglio commessa, con valori in formato contabile.</p>
+  </div>
+
+  <!-- ====================== RAPPORTINI ====================== -->
+  <div class="cap"><div class="e">Modulo rapportini</div><div class="t">Rapportini — flusso AI in master-detail</div>
+    <div class="d">Lista a sinistra, dettaglio a destra che cambia cliccando le righe. Stato grezzo → proposto dall'AI → confermato → firmato. La versione cliente non mostra mai i costi.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item active"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item"><i data-lucide="palmtree"></i> Assenze</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><div><h1>Rapportini</h1><div class="sub">Giugno 2026 · 12 rapportini</div></div>
+          <button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuovo rapportino</button>
+        </div>
+        <div class="toolbar">
+          <div class="searchbar"><i data-lucide="search"></i><input placeholder="Cerca…"></div>
+          <div class="seg"><button class="on">Tutti</button><button>Da generare</button><button>Da confermare</button><button>Firmati</button></div>
+          <div class="spacer"></div>
+        </div>
+        <div class="split">
+          <div class="card" style="overflow:hidden">
+            <div class="tablewrap"><table class="t">
+              <thead><tr><th>Commessa · periodo</th><th>Destinatario</th><th class="num">Ore</th><th>Stato</th><th style="width:40px"></th></tr></thead>
+              <tbody>
+                <tr class="sel"><td>Piscina Rossi · <span class="muted">9–13 giu</span></td><td><span class="pill pill--info"><span class="dot"></span>Cliente</span></td><td class="num">23:30</td><td><span class="pill pill--brand"><span class="dot"></span>Proposto AI</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right"></i></span></div></td></tr>
+                <tr><td>Fibra Via Dante · <span class="muted">9–13 giu</span></td><td><span class="pill pill--info"><span class="dot"></span>Cliente</span></td><td class="num">31:00</td><td><span class="pill pill--neutral"><span class="dot"></span>Grezzo</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right"></i></span></div></td></tr>
+                <tr><td>Fotovoltaico Bianchi · <span class="muted">2–6 giu</span></td><td><span class="pill pill--neutral"><span class="dot"></span>Interno</span></td><td class="num">18:15</td><td><span class="pill pill--success"><span class="dot"></span>Firmato</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right"></i></span></div></td></tr>
+                <tr><td>Piscina Verdi · <span class="muted">2–6 giu</span></td><td><span class="pill pill--info"><span class="dot"></span>Cliente</span></td><td class="num">27:45</td><td><span class="pill pill--warning"><span class="dot"></span>Confermato</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="chevron-right"></i></span></div></td></tr>
+              </tbody>
+            </table></div>
+            <div class="pager"><span>1–4 di 12</span><div class="pgs"><button class="pgbtn on">1</button><button class="pgbtn">2</button><button class="pgbtn">3</button></div></div>
+          </div>
+
+          <div class="card">
+            <div class="dp-h"><span class="code">RAP-2026-0007</span><span class="pill pill--brand"><span class="dot"></span>Proposto AI</span><button class="x"><i data-lucide="x"></i></button></div>
+            <div class="dp-b">
+              <div class="dp-title">Piscina Rossi — settimana 9–13 giu</div>
+              <div class="dp-sub">Cliente Rossi · 23:30 ore · a corpo</div>
+              <div class="stepper">
+                <div class="step done"><span class="sd"><i data-lucide="check" style="width:12px;height:12px"></i></span>Grezzo</div>
+                <div class="stepline done"></div>
+                <div class="step now"><span class="sd">2</span>Proposto AI</div>
+                <div class="stepline"></div>
+                <div class="step"><span class="sd">3</span>Confermato</div>
+                <div class="stepline"></div>
+                <div class="step"><span class="sd">4</span>Firmato</div>
+              </div>
+              <div class="seg" style="margin-bottom:12px"><button class="on">Cliente</button><button>Interno</button></div>
+              <div class="aibox">
+                <div class="ah"><i data-lucide="sparkles" style="width:14px;height:14px"></i> Testo proposto dall'AI · versione cliente</div>
+                <div class="ab">Nella settimana sono stati eseguiti lo scavo e la predisposizione della vasca di compensazione, il montaggio del gruppo di filtraggio e la posa delle tubazioni idrauliche principali. Completata la taratura della valvola di sfioro. I lavori procedono secondo il programma concordato.</div>
+              </div>
+              <div class="fhint flow" style="font-size:11.5px;color:var(--brand-ink);background:var(--brand-wash);padding:8px 11px;border-radius:var(--r-sm);display:flex;gap:7px;margin-top:10px"><i data-lucide="shield-check" style="width:14px;height:14px;flex:0 0 auto;margin-top:1px"></i> Versione cliente: nessun costo mostrato. Commessa a corpo: niente ore. L'AI propone, tu confermi.</div>
+            </div>
+            <div class="dp-f">
+              <button class="btn btn-ghost"><i data-lucide="pencil" style="width:15px;height:15px"></i> Modifica</button>
+              <button class="btn btn-primary"><i data-lucide="check" style="width:15px;height:15px"></i> Conferma</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== BUDGET ====================== -->
+  <div class="cap"><div class="e">Budget / margine · scheda del dettaglio commessa</div><div class="t">Budget e margine</div>
+    <div class="d">Quattro indicatori (previsto, fatto, margine, rimane) in formato contabile, barra di avanzamento con allarme oltre l'85%, e ripartizione per fase con interruttore Costo / Ricavo / Margine.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item active"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="detail-head">
+          <span class="code">2026-0042</span>
+          <h1>Piscina Rossi — Costruzione</h1>
+          <div class="sub">Cliente Rossi · a corpo</div>
+          <div class="kv">
+            <div><div class="k">Stato</div><div class="v"><span class="pill pill--info"><span class="dot"></span>In corso</span></div></div>
+            <div><div class="k">Responsabile</div><div class="v">Marco Rossi</div></div>
+            <div><div class="k">Inizio</div><div class="v mono">02/06/2026</div></div>
+            <div><div class="k">Consegna</div><div class="v mono">15/07/2026</div></div>
+          </div>
+        </div>
+        <div class="tabsbar">
+          <span class="tabu">Panoramica</span><span class="tabu">Albero attività</span><span class="tabu on">Budget</span><span class="tabu">Rapportini</span><span class="tabu">Documenti</span>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Previsto (ricavo)</div><div class="kvv"><span class="sym">€</span><span>12.500,00</span></div></div>
+          <div class="kpi"><div class="kl">Fatto (ricavo)</div><div class="kvv"><span class="sym">€</span><span>8.940,00</span></div></div>
+          <div class="kpi good"><div class="kl">Margine</div><div class="kvv"><span class="sym">€</span><span>2.760,00</span></div></div>
+          <div class="kpi"><div class="kl">Rimane</div><div class="kvv"><span class="sym">€</span><span>3.560,00</span></div></div>
+        </div>
+
+        <div class="budgetwrap">
+          <div class="bbar-h"><span class="muted">Avanzamento sul previsto</span><span><b>71%</b> · <span class="muted">€ 8.940,00 / € 12.500,00</span></span></div>
+          <div class="budgetbar"><i style="width:71%"></i></div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:7px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px"></i> Allarme automatico oltre l'85% del previsto.</div>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line-2)">
+            <b style="font-size:13.5px">Ripartizione per fase</b>
+            <div class="seg"><button>Costo</button><button class="on">Ricavo</button><button>Margine</button></div>
+          </div>
+          <div class="tablewrap"><table class="t">
+            <thead><tr><th>Fase</th><th class="num">Previsto</th><th class="num">Fatto</th><th class="num">Rimane</th><th class="num">Margine</th></tr></thead>
+            <tbody>
+              <tr><td style="font-weight:700">Scavo e sbancamento</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2.000,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2.150,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">−150,00</span></span></td>
+                <td><span class="money pos"><span class="sym">€</span><span class="val">430,00</span></span></td></tr>
+              <tr><td style="font-weight:700">Strutture</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">4.500,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">3.900,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">600,00</span></span></td>
+                <td><span class="money pos"><span class="sym">€</span><span class="val">980,00</span></span></td></tr>
+              <tr><td style="font-weight:700">Idraulica</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">3.500,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2.890,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">610,00</span></span></td>
+                <td><span class="money pos"><span class="sym">€</span><span class="val">870,00</span></span></td></tr>
+              <tr><td style="font-weight:700">Finiture</td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2.500,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">0,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">2.500,00</span></span></td>
+                <td><span class="money"><span class="sym">€</span><span class="val">480,00</span></span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

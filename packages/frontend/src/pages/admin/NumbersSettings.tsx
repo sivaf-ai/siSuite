@@ -1,7 +1,7 @@
 /** NumbersSettings — "Numerazioni" fedele al mock 16: tabella serie/formati con
  *  anteprima del prossimo codice. Aggiungi/modifica/elimina. Riusa /number-series. */
 import { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { NumberSeriesDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { Drawer } from '../../ui/Drawer';
@@ -54,23 +54,17 @@ export function NumbersSettings() {
     <>
       <div className="table-wrap">
         <table className="t">
-          <thead><tr><th>Numerazione</th><th>Formato</th><th>Azzeramento</th><th>Anteprima</th><th>Ultimo</th>{canManage && <th />}</tr></thead>
+          <thead><tr><th>Numerazione</th><th>Formato</th><th>Azzeramento</th><th>Anteprima</th><th>Ultimo</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={6}><Loading /></td></tr>
-              : error ? <tr><td colSpan={6}><ErrorBox message={error} /></td></tr>
+            {loading ? <tr><td colSpan={5}><Loading /></td></tr>
+              : error ? <tr><td colSpan={5}><ErrorBox message={error} /></td></tr>
                 : rows.map((r) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} style={canManage ? { cursor: 'pointer' } : undefined} onClick={canManage ? () => setEditing(r) : undefined}>
                     <td><div className="cellname">{keyLabel(r.key)}</div><div className="cellsub mono">{r.key}</div></td>
                     <td><span className="mono">{r.format}</span></td>
                     <td>{RESET[r.resetPeriod] ?? r.resetPeriod}</td>
                     <td><span className="mono" style={{ color: 'var(--brand-ink)' }}>{preview(r.format, r.lastNumber)}</span></td>
                     <td className="mono cellsub">{r.lastNumber}</td>
-                    {canManage && <td onClick={(e) => e.stopPropagation()}>
-                      <div className="row-actions">
-                        <div className="act-icon" title="Modifica" onClick={() => setEditing(r)}><Pencil size={15} /></div>
-                        <div className="act-icon danger" title="Elimina" onClick={() => setConfirm(r)}><Trash2 size={15} /></div>
-                      </div>
-                    </td>}
                   </tr>
                 ))}
           </tbody>
@@ -82,7 +76,8 @@ export function NumbersSettings() {
       </p>
 
       {editing !== undefined && (
-        <NumberDrawer editing={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }} toast={toast} />
+        <NumberDrawer editing={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
+          onDelete={editing ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined} toast={toast} />
       )}
       <ConfirmDialog open={!!confirm} danger title="Eliminare il numeratore?"
         message={`“${confirm?.key}” verrà rimosso.`} confirmLabel="Elimina" busy={busy} onConfirm={doDelete} onCancel={() => setConfirm(null)} />
@@ -90,8 +85,8 @@ export function NumbersSettings() {
   );
 }
 
-function NumberDrawer({ editing, onClose, onSaved, toast }: {
-  editing: NumberSeriesDto | null; onClose: () => void; onSaved: () => void; toast: (m: string, t?: 'error') => void;
+function NumberDrawer({ editing, onClose, onSaved, onDelete, toast }: {
+  editing: NumberSeriesDto | null; onClose: () => void; onSaved: () => void; onDelete?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({ key: editing?.key ?? '', format: editing?.format ?? '{YYYY}-{SEQ:4}', resetPeriod: editing?.resetPeriod ?? 'yearly' }));
   const [busy, setBusy] = useState(false);
@@ -119,6 +114,7 @@ function NumberDrawer({ editing, onClose, onSaved, toast }: {
   return (
     <Drawer open title={editing ? 'Modifica numeratore' : 'Nuovo numeratore'} onClose={onClose}
       footer={<>
+        {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>

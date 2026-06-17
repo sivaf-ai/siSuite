@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Cronometro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-th:11.5px;--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--pill-h:22px;--sec-gap:16px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--pill-h:21px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--pill-h:24px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:var(--pill-h);padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.app{display:grid;grid-template-columns:230px 1fr;height:720px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{margin-bottom:var(--sec-gap)}.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+/* timer attivo */
+.timercard{border:1.5px solid transparent;border-radius:var(--r-lg);background-image:linear-gradient(var(--card),var(--card)),var(--flow-grad);background-origin:border-box;background-clip:padding-box,border-box;box-shadow:var(--shadow-1);padding:22px 24px;margin-bottom:18px;display:flex;align-items:center;gap:26px}
+.timercard .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--success)}
+.timercard .live .b{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 0 0 rgba(19,160,107,.5);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(19,160,107,.45)}70%{box-shadow:0 0 0 9px rgba(19,160,107,0)}100%{box-shadow:0 0 0 0 rgba(19,160,107,0)}}
+.timercard .act{font-family:var(--font-display);font-size:18px;font-weight:700;margin-top:7px}
+.timercard .actsub{font-size:13px;color:var(--ink-soft);margin-top:2px}
+.timerbig{margin-left:auto;font-family:var(--font-mono);font-weight:700;font-size:50px;letter-spacing:-.02em;font-feature-settings:"tnum" 1}
+.timerctrls{display:flex;gap:9px}
+.cbtn{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;border:1px solid var(--line);background:var(--card);color:var(--ink-2)}
+.cbtn.stop{background:var(--danger);color:#fff;border-color:var(--danger)}
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr:hover{background:var(--paper)}
+.time,.dur{font-family:var(--font-mono);font-feature-settings:"tnum" 1;text-align:right;white-space:nowrap}
+.sectit{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line-2)}
+.sectit b{font-size:13.5px}
+.stage{display:flex;flex-wrap:wrap;gap:42px;align-items:flex-start;justify-content:center;padding:10px 0 0}
+.phone{width:360px;height:760px;background:var(--card);border-radius:42px;position:relative;box-shadow:0 0 0 11px #14151b,0 0 0 13px #23252e,var(--shadow-2);overflow:hidden;display:flex;flex-direction:column}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#14151b;border-radius:var(--r-pill);z-index:20}
+.status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 24px 0 28px;font-size:13px;font-weight:600;flex:0 0 auto}
+.screen{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow:auto;padding:4px 18px 96px}
+.m-head{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 14px}
+.m-head .hi{font-family:var(--font-display);font-size:21px;font-weight:800}.m-head .day{font-size:12.5px;color:var(--ink-soft)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--flow-grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.mtimer{border-radius:24px;background:var(--ink);color:#fff;padding:24px 22px;text-align:center;position:relative;overflow:hidden}
+.mtimer::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 200px at 50% -30%,rgba(31,200,194,.34),transparent)}
+.mtimer .live{position:relative;display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--flow)}
+.mtimer .live .b{width:8px;height:8px;border-radius:50%;background:var(--flow)}
+.mtimer .big{position:relative;font-family:var(--font-mono);font-weight:700;font-size:52px;letter-spacing:-.02em;margin:12px 0 4px;font-feature-settings:"tnum" 1}
+.mtimer .ac{position:relative;font-size:14px;font-weight:600}.mtimer .acs{position:relative;font-size:12.5px;color:#aeb3c2;margin-top:2px}
+.mctrls{position:relative;display:flex;gap:12px;justify-content:center;margin-top:18px}
+.mc{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);color:#fff}
+.mc.stop{width:64px;height:64px;background:var(--danger)}
+.mc.pause{background:#fff;color:var(--ink)}
+.seclbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:20px 2px 9px}
+.msession{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
+.msession .ic{width:34px;height:34px;border-radius:10px;background:var(--brand-wash);color:var(--brand-ink);display:grid;place-items:center;flex:0 0 auto}
+.msession .nm{font-size:13.5px;font-weight:600}.msession .or{font-size:11.5px;color:var(--ink-faint);font-family:var(--font-mono)}
+.msession .du{margin-left:auto;font-family:var(--font-mono);font-weight:700;font-size:15px}
+.capture-bar{position:absolute;left:16px;right:16px;bottom:96px;display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:18px;background:var(--card);border:1.5px solid transparent;background-image:linear-gradient(var(--card),var(--card)),var(--flow-grad);background-origin:border-box;background-clip:padding-box,border-box;box-shadow:var(--shadow-2)}
+.capture-bar .txt{flex:1}.capture-bar .txt b{display:block;font-size:13.5px}.capture-bar .txt span{font-size:11.5px;color:var(--ink-soft)}
+.mic{width:42px;height:42px;border-radius:12px;background:var(--flow-grad);color:#fff;display:grid;place-items:center;flex:0 0 auto;box-shadow:var(--shadow-pop)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:74px;background:rgba(255,255,255,.9);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-around;padding-top:10px;z-index:10}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--ink-faint);width:58px}.tab.active{color:var(--brand)}.tab svg{width:21px;height:21px}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:800px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:800px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:14px">
+    <h1><em>si</em>Suite — Cronometro</h1>
+    <p>Il cronometro misura inizio e fine: per questo le sessioni mostrano la colonna "Orario" (ora del giorno) oltre a "Ore (h:mm)" (durata). Negli inserimenti manuali del foglio ore resta solo la durata.</p>
+  </div>
+
+  <!-- DESKTOP -->
+  <div class="cap"><div class="e">Cronometro · desktop</div><div class="t">Cronometro</div>
+    <div class="d">Timer attivo con attività in corso e comandi. Sotto, le sessioni di oggi: "Orario" come 09:45 → 10:42, "Ore (h:mm)" come durata.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="file-text"></i> Rapportini</a>
+      <a class="nav-item active"><i data-lucide="timer"></i> Cronometro</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Agenda</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">MR</div><div><div class="nm">Marco Rossi</div><div class="rl">Tecnico</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><h1>Cronometro</h1><div class="sub">Mercoledì 15 giugno · 3 sessioni oggi</div></div>
+
+        <div class="timercard">
+          <div>
+            <span class="live"><span class="b"></span> In corso</span>
+            <div class="act">Piscina Rossi · Idraulica</div>
+            <div class="actsub">Avviato alle 14:02 · pausa 0:12</div>
+          </div>
+          <div class="timerbig">00:42:15</div>
+          <div class="timerctrls">
+            <button class="cbtn"><i data-lucide="pause" style="width:22px;height:22px"></i></button>
+            <button class="cbtn stop"><i data-lucide="square" style="width:20px;height:20px"></i></button>
+          </div>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <div class="sectit"><b>Sessioni di oggi</b><span class="pill pill--neutral">3 sessioni · 4:18</span></div>
+          <div class="tablewrap"><table class="t">
+            <thead><tr><th>Attività</th><th>Commessa</th><th class="num">Orario</th><th class="num">Ore (h:mm)</th><th style="width:40px"></th></tr></thead>
+            <tbody>
+              <tr><td>Idraulica</td><td class="muted">Piscina Rossi</td><td class="time">14:02 → in corso</td><td class="dur">0:42</td><td></td></tr>
+              <tr><td>Sopralluogo</td><td class="muted">Piscina Verdi</td><td class="time">11:20 → 12:35</td><td class="dur">1:15</td><td><i data-lucide="pencil" style="width:15px;height:15px;color:var(--ink-faint)"></i></td></tr>
+              <tr><td>Scavo</td><td class="muted">Piscina Rossi</td><td class="time">09:45 → 11:06</td><td class="dur">1:21</td><td><i data-lucide="pencil" style="width:15px;height:15px;color:var(--ink-faint)"></i></td></tr>
+              <tr><td>Trasferta</td><td class="muted">Piscina Verdi</td><td class="time">08:30 → 09:30</td><td class="dur">1:00</td><td><i data-lucide="pencil" style="width:15px;height:15px;color:var(--ink-faint)"></i></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE -->
+  <div class="cap"><div class="e">Cronometro · mobile (capture-first)</div><div class="t">Widget timer mobile</div>
+    <div class="d">La schermata principale del tecnico in campo: timer grande, comandi a portata di pollice, e la barra di cattura vocale per registrare a voce (voce → trascrizione → estrazione → conferma).</div></div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span class="mono">9:41</span><span style="display:flex;gap:6px;align-items:center"><i data-lucide="signal" style="width:15px;height:15px"></i><i data-lucide="wifi" style="width:15px;height:15px"></i><i data-lucide="battery-full" style="width:17px;height:17px"></i></span></div>
+      <div class="screen">
+        <div class="scroll">
+          <div class="m-head"><div><div class="hi">Ciao, Marco</div><div class="day">Mercoledì 15 giugno</div></div><div class="avatar">MR</div></div>
+
+          <div class="mtimer">
+            <span class="live"><span class="b"></span> In corso</span>
+            <div class="big">00:42:15</div>
+            <div class="ac">Piscina Rossi</div>
+            <div class="acs">Idraulica · avviato 14:02</div>
+            <div class="mctrls">
+              <button class="mc pause"><i data-lucide="pause" style="width:24px;height:24px"></i></button>
+              <button class="mc stop"><i data-lucide="square" style="width:26px;height:26px"></i></button>
+            </div>
+          </div>
+
+          <div class="seclbl">Sessioni di oggi</div>
+          <div class="msession"><div class="ic"><i data-lucide="waves" style="width:17px;height:17px"></i></div><div><div class="nm">Sopralluogo</div><div class="or">11:20 → 12:35</div></div><div class="du">1:15</div></div>
+          <div class="msession"><div class="ic"><i data-lucide="shovel" style="width:17px;height:17px"></i></div><div><div class="nm">Scavo</div><div class="or">09:45 → 11:06</div></div><div class="du">1:21</div></div>
+          <div class="msession"><div class="ic"><i data-lucide="car" style="width:17px;height:17px"></i></div><div><div class="nm">Trasferta</div><div class="or">08:30 → 09:30</div></div><div class="du">1:00</div></div>
+        </div>
+
+        <div class="capture-bar">
+          <div class="txt"><b>Registra a voce</b><span>"Ho finito l'idraulica, 2 ore…"</span></div>
+          <button class="mic"><i data-lucide="mic" style="width:20px;height:20px"></i></button>
+        </div>
+        <div class="tabbar">
+          <div class="tab active"><i data-lucide="timer"></i> Timer</div>
+          <div class="tab"><i data-lucide="calendar"></i> Agenda</div>
+          <div class="tab"><i data-lucide="file-text"></i> Rapporti</div>
+          <div class="tab"><i data-lucide="user"></i> Profilo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,14 +1,15 @@
 import { useState, type CSSProperties } from 'react';
 import {
-  IonButton, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonTextarea,
+  IonButton, IonItem, IonSelect, IonSelectOption, IonTextarea,
   IonSpinner, IonText, IonNote, IonCheckbox,
 } from '@ionic/react';
 import {
   Sparkles, Mic, StopCircle, Clock, Package, Flag, CheckSquare, HelpCircle, type LucideIcon,
 } from 'lucide-react';
 import { OPERATION_LABEL, type CaptureDto, type ProposedOperation, type OperationType, type EngagementDto } from '@sisuite/shared';
-import { Page, Loading, Empty } from '../components/Page';
+import { Page, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
+import { EntityList, type ListColumn, type ListView } from '../ui/EntityList';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, apiUpload } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -83,6 +84,8 @@ export function CaptureContent() {
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [histView, setHistView] = useState<string>('all');
+  const [histQ, setHistQ] = useState('');
   const voice = useVoiceCapture();
 
   function loadProposal(cap: CaptureDto) {
@@ -219,23 +222,44 @@ export function CaptureContent() {
         </div>
       )}
 
-      <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 22 }}>Storico catture</h3>
-      {inbox.loading ? <Loading /> : (inbox.data?.items.length ? (
-        <IonList>
-          {inbox.data.items.map((c) => {
-            const s = STATUS_LABEL[c.status] ?? STATUS_LABEL.pending;
-            return (
-              <IonItem key={c.id} button onClick={() => openCapture(c.id)}>
-                <IonLabel className="ion-text-wrap">
-                  <h2 style={{ fontSize: 15 }}>{c.rawText}</h2>
-                  <p><IonNote>{new Date(c.createdAt).toLocaleString('it-IT')}</IonNote></p>
-                </IonLabel>
-                <StatusPill label={s!.label} token={s!.token} />
-              </IonItem>
-            );
-          })}
-        </IonList>
-      ) : <Empty text="Nessuna cattura ancora." />)}
+      <div style={{ marginTop: 22 }}>
+        <CaptureHistory items={inbox.data?.items ?? []} loading={inbox.loading} error={inbox.error}
+          view={histView} onView={setHistView} q={histQ} onQ={setHistQ} onOpen={openCapture} />
+      </div>
     </>
+  );
+}
+
+/** Storico catture su EntityList v2: viste per stato (filtro client-side), righe
+ *  pulite senza icone-azione, click riga → riapre la proposta. */
+function CaptureHistory({ items, loading, error, view, onView, q, onQ, onOpen }: {
+  items: CaptureDto[]; loading: boolean; error: string | null;
+  view: string; onView: (k: string) => void; q: string; onQ: (v: string) => void; onOpen: (id: string) => void;
+}) {
+  const counts = items.reduce((m, c) => { m.all = (m.all ?? 0) + 1; m[c.status] = (m[c.status] ?? 0) + 1; return m; }, {} as Record<string, number>);
+  const VIEWS: { key: string; label: string }[] = [
+    { key: 'all', label: 'Tutte' }, { key: 'pending', label: 'In attesa' }, { key: 'proposed', label: 'Proposte' },
+    { key: 'applied', label: 'Applicate' }, { key: 'rejected', label: 'Rifiutate' },
+  ];
+  const views: ListView[] = VIEWS.map((v) => ({ key: v.key, label: v.label, count: counts[v.key] ?? 0 }));
+  const ql = q.trim().toLowerCase();
+  const rows = items.filter((c) => (view === 'all' || c.status === view) && (!ql || (c.rawText ?? '').toLowerCase().includes(ql)));
+
+  const columns: ListColumn<CaptureDto>[] = [
+    { key: 'text', header: 'Cattura', sub: 'testo', render: (c) => (
+      <div className="two"><span className="a" style={{ whiteSpace: 'normal' }}>{c.rawText || '—'}</span><span className="b">{c.operations?.length ? `${c.operations.length} operazioni proposte` : ''}</span></div>) },
+    { key: 'when', header: 'Quando', num: true, render: (c) => <span className="mono faint">{new Date(c.createdAt).toLocaleString('it-IT')}</span> },
+    { key: 'status', header: 'Stato', render: (c) => { const s = STATUS_LABEL[c.status] ?? STATUS_LABEL.pending!; return <StatusPill label={s.label} token={s.token} />; } },
+  ];
+
+  return (
+    <EntityList<CaptureDto>
+      title="Storico catture" subtitle="Catture in linguaggio naturale e loro stato"
+      views={views} activeView={view} onView={onView}
+      search={q} onSearch={onQ} searchPlaceholder="Cerca nel testo della cattura…"
+      columns={columns} rows={rows} loading={loading} error={error}
+      onRowClick={(c) => onOpen(c.id)}
+      emptyText="Nessuna cattura in questa vista."
+    />
   );
 }

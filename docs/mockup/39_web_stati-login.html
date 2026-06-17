@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Stati/etichette · Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-eyebrow:10.5px;--input-h:38px;--ctrl-h:36px;--sec-gap:16px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.app{display:grid;grid-template-columns:230px 1fr;height:720px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+/* editor stati */
+.cfgsplit{display:grid;grid-template-columns:236px 1fr;gap:16px;align-items:start}
+.catlist{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.catrow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-2);font-size:13.5px;font-weight:600;cursor:pointer}
+.catrow:last-child{border-bottom:0}.catrow:hover{background:var(--paper)}.catrow.on{background:var(--brand-wash);color:var(--brand-ink);box-shadow:inset 3px 0 0 var(--brand)}
+.catrow .c{margin-left:auto;font-size:11.5px;color:var(--ink-faint);font-family:var(--font-mono);font-weight:600}
+.editcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.eh{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-2)}
+.eh .t{font-size:var(--fs-card);font-weight:700;font-family:var(--font-display)}.eh .spacer{flex:1}
+.lblhead,.lblrow{display:grid;grid-template-columns:26px 1.4fr 1.2fr 70px 64px 60px;gap:12px;align-items:center;padding:0 16px}
+.lblhead{font-size:var(--fs-eyebrow);font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);height:34px;border-bottom:1px solid var(--line-2)}
+.lblrow{height:52px;border-bottom:1px solid var(--line-2)}.lblrow:hover{background:var(--paper)}
+.drag{color:var(--ink-faint);cursor:grab;display:grid;place-items:center}
+.lblname{display:flex;align-items:center;gap:9px;font-weight:600;font-size:13.5px}
+.swatch{width:16px;height:16px;border-radius:5px;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.canon{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);background:var(--neutral-wash);padding:3px 8px;border-radius:6px;display:inline-block}
+.sigla{font-family:var(--font-mono);font-weight:700;font-size:12px;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:3px 0}
+.switch{width:40px;height:22px;border-radius:999px;background:var(--brand);position:relative;cursor:pointer}
+.switch::after{content:"";position:absolute;top:2px;left:20px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:var(--shadow-1)}
+.switch.off{background:var(--line)}.switch.off::after{left:2px}
+.addrow{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--brand-ink);padding:13px 16px;cursor:pointer}
+.hintbar{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:var(--ink-faint);padding:12px 16px;background:var(--paper);border-top:1px solid var(--line-2)}
+/* login */
+.loginwrap{display:grid;grid-template-columns:1.05fr 1fr;height:680px;border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.lbrand{background:var(--ink);position:relative;overflow:hidden;padding:40px;display:flex;flex-direction:column;color:#fff}
+.lbrand::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 320px at 20% 0%,rgba(91,77,240,.5),transparent),radial-gradient(520px 320px at 90% 100%,rgba(31,200,194,.4),transparent)}
+.lbrand .lg{position:relative;display:flex;align-items:center;gap:10px}.lbrand .lg .mk{width:34px;height:34px;border-radius:10px;background:var(--flow-grad);display:grid;place-items:center}
+.lbrand .lg .nm{font-family:var(--font-display);font-weight:800;font-size:22px}.lbrand .lg .nm em{font-style:normal;color:var(--flow)}
+.lbrand .mid{position:relative;margin-top:auto}
+.lbrand .mid h2{font-family:var(--font-display);font-size:30px;font-weight:800;line-height:1.15;letter-spacing:-.02em}
+.lbrand .mid p{font-size:14.5px;color:#C9CDD7;margin-top:12px;max-width:380px;line-height:1.55}
+.lbrand .feat{position:relative;display:flex;gap:18px;margin-top:24px}
+.lbrand .feat .f{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#E7E9F0}.lbrand .feat .f svg{width:15px;height:15px;color:var(--flow)}
+.lform{background:var(--card);display:flex;flex-direction:column;justify-content:center;padding:48px 56px}
+.lform h1{font-size:24px;font-weight:800}.lform .s{font-size:13.5px;color:var(--ink-soft);margin-top:6px;margin-bottom:24px}
+.fld{margin-bottom:14px}.fld label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+.inp{width:100%;height:44px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:9px}
+.inp.focus{border-color:var(--brand);background:var(--card);box-shadow:0 0 0 3px var(--brand-wash)}.inp input{border:0;background:none;outline:none;flex:1;font-family:inherit;font-size:14px}
+.inp .ic{color:var(--ink-faint)}
+.lrow{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;margin:4px 0 20px}
+.lrow .rm{display:flex;align-items:center;gap:7px;color:var(--ink-soft)}
+.lrow .rm .box{width:16px;height:16px;border-radius:5px;background:var(--brand);display:grid;place-items:center;color:#fff}
+.lrow a{color:var(--brand-ink);font-weight:600}
+.bigbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:46px;border-radius:var(--r-sm);background:var(--brand);color:#fff;font-weight:700;font-size:15px;box-shadow:var(--shadow-pop)}
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--ink-faint);font-size:12px}.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.ssobtn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:44px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--line);font-weight:600;font-size:13.5px;color:var(--ink-2)}
+.lfoot{font-size:12.5px;color:var(--ink-soft);text-align:center;margin-top:22px}.lfoot a{color:var(--brand-ink);font-weight:600}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:820px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:14px">
+    <h1><em>si</em>Suite — Stati/etichette e Login</h1>
+    <p>L'editor di <code>lookup_value</code> (etichette configurabili mappate sugli stati canonici) e la schermata di accesso sul brand.</p>
+  </div>
+
+  <!-- STATI / ETICHETTE -->
+  <div class="cap"><div class="e">Configurazione · stati ed etichette</div><div class="t">Stati ed etichette</div>
+    <div class="d">Ogni etichetta visibile è configurabile (nome per-lingua, colore, sigla, ordine) ma <b>mappata obbligatoriamente</b> a uno stato canonico, immutabile, su cui gira la logica.</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Configurazione</div>
+      <a class="nav-item active"><i data-lucide="tags"></i> Stati ed etichette</a>
+      <a class="nav-item"><i data-lucide="hash"></i> Numerazioni</a>
+      <a class="nav-item"><i data-lucide="sliders-horizontal"></i> Campi (field_definition)</a>
+      <a class="nav-item"><i data-lucide="users"></i> Utenti e ruoli</a>
+      <a class="nav-item"><i data-lucide="settings"></i> Impostazioni</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><div><h1>Stati ed etichette</h1><div class="sub">Etichette per stato, per entità · lingua it-IT</div></div></div>
+        <div class="cfgsplit">
+          <div class="catlist">
+            <div class="catrow on">Commessa <span class="c">5</span></div>
+            <div class="catrow">Attività <span class="c">4</span></div>
+            <div class="catrow">Foglio ore <span class="c">5</span></div>
+            <div class="catrow">Cattura <span class="c">3</span></div>
+            <div class="catrow">Assenza <span class="c">3</span></div>
+            <div class="catrow">Documento magazzino <span class="c">2</span></div>
+          </div>
+
+          <div class="editcard">
+            <div class="eh"><span class="t">Stati — Commessa</span><span class="spacer"></span>
+              <button class="btn btn-ghost" style="height:32px"><i data-lucide="globe" style="width:15px;height:15px"></i> it-IT</button></div>
+            <div class="lblhead"><span></span><span>Etichetta</span><span>Stato canonico</span><span style="text-align:center">Sigla</span><span style="text-align:center">Colore</span><span style="text-align:center">Attiva</span></div>
+
+            <div class="lblrow"><span class="drag"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span>
+              <span class="lblname"><span class="swatch" style="background:var(--neutral)"></span> Bozza</span>
+              <span><span class="canon">draft</span></span><span class="sigla">BZ</span>
+              <span style="text-align:center"><span class="swatch" style="background:var(--neutral);margin:0 auto"></span></span>
+              <span style="display:flex;justify-content:center"><span class="switch"></span></span></div>
+
+            <div class="lblrow"><span class="drag"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span>
+              <span class="lblname"><span class="swatch" style="background:var(--info)"></span> In corso</span>
+              <span><span class="canon">active</span></span><span class="sigla">IC</span>
+              <span style="text-align:center"><span class="swatch" style="background:var(--info);margin:0 auto"></span></span>
+              <span style="display:flex;justify-content:center"><span class="switch"></span></span></div>
+
+            <div class="lblrow"><span class="drag"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span>
+              <span class="lblname"><span class="swatch" style="background:var(--warning)"></span> In chiusura</span>
+              <span><span class="canon">active</span></span><span class="sigla">CH</span>
+              <span style="text-align:center"><span class="swatch" style="background:var(--warning);margin:0 auto"></span></span>
+              <span style="display:flex;justify-content:center"><span class="switch"></span></span></div>
+
+            <div class="lblrow"><span class="drag"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span>
+              <span class="lblname"><span class="swatch" style="background:var(--success)"></span> Conclusa</span>
+              <span><span class="canon">done</span></span><span class="sigla">CO</span>
+              <span style="text-align:center"><span class="swatch" style="background:var(--success);margin:0 auto"></span></span>
+              <span style="display:flex;justify-content:center"><span class="switch"></span></span></div>
+
+            <div class="lblrow"><span class="drag"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span>
+              <span class="lblname"><span class="swatch" style="background:var(--danger)"></span> Annullata</span>
+              <span><span class="canon">cancelled</span></span><span class="sigla">AN</span>
+              <span style="text-align:center"><span class="swatch" style="background:var(--danger);margin:0 auto"></span></span>
+              <span style="display:flex;justify-content:center"><span class="switch off"></span></span></div>
+
+            <div class="addrow"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi etichetta</div>
+            <div class="hintbar"><i data-lucide="shield" style="width:14px;height:14px;flex:0 0 auto;margin-top:1px"></i> Lo <b>stato canonico</b> è di sistema e guida la logica (cosa è bloccato, fatturabile, completato). L'etichetta è solo come la chiami e la mostri tu.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="cap"><div class="e">Accesso</div><div class="t">Login</div>
+    <div class="d">Autenticazione via Supabase Auth (GoTrue): email/password + OAuth. La porta d'ingresso sul brand.</div></div>
+
+  <div class="loginwrap">
+    <div class="lbrand">
+      <div class="lg"><div class="mk"><i data-lucide="layout-grid" style="width:18px;height:18px;color:#fff"></i></div><div class="nm"><em>si</em>Suite</div></div>
+      <div class="mid">
+        <h2>Il campo e l'ufficio,<br>nella stessa app.</h2>
+        <p>Cattura a voce dal cantiere, l'AI propone, tu confermi. Commesse, ore, magazzino e margini sempre allineati.</p>
+        <div class="feat">
+          <div class="f"><i data-lucide="mic"></i> Cattura vocale</div>
+          <div class="f"><i data-lucide="sparkles"></i> AI assistita</div>
+          <div class="f"><i data-lucide="wifi-off"></i> Offline-ready</div>
+        </div>
+      </div>
+    </div>
+    <div class="lform">
+      <h1>Bentornato</h1>
+      <div class="s">Accedi al tuo spazio di lavoro</div>
+      <div class="fld"><label>Email</label><div class="inp focus"><i data-lucide="mail" class="ic" style="width:17px;height:17px"></i><input value="sivaf@sisuite.it"></div></div>
+      <div class="fld"><label>Password</label><div class="inp"><i data-lucide="lock" class="ic" style="width:17px;height:17px"></i><input type="password" value="••••••••••"><i data-lucide="eye" class="ic" style="width:17px;height:17px"></i></div></div>
+      <div class="lrow"><span class="rm"><span class="box"><i data-lucide="check" style="width:11px;height:11px"></i></span> Ricordami</span><a href="#">Password dimenticata?</a></div>
+      <button class="bigbtn"><i data-lucide="log-in" style="width:18px;height:18px"></i> Accedi</button>
+      <div class="divider">oppure</div>
+      <button class="ssobtn"><i data-lucide="chrome" style="width:17px;height:17px"></i> Accedi con Google</button>
+      <div class="lfoot">Non hai un account? <a href="#">Contatta l'amministratore</a></div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

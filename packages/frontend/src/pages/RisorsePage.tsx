@@ -1,38 +1,69 @@
-import { Users } from 'lucide-react';
+/**
+ * RisorsePage — Risorse (persone/mezzi/attrezzature) su EntityList v2.
+ * Viste per tipo; click riga → /resources/:id (ObjectPage).
+ */
+import { useState } from 'react';
+import { useHistory } from 'react-router';
 import type { ResourceDto } from '@sisuite/shared';
-import { CrudList } from '../ui/CrudList';
+import { Page } from '../components/Page';
+import { StatusPill } from '../components/StatusPill';
+import { Money } from '../ui/Num';
+import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
+import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
+import { useApi } from '../api/hooks';
+import { useAuth } from '../auth/AuthContext';
 
 const KIND_LABEL: Record<string, string> = { person: 'Persona', vehicle: 'Mezzo', equipment: 'Attrezzatura' };
+type ViewKey = 'all' | 'person' | 'vehicle' | 'equipment';
+const VIEW_LABEL: Record<ViewKey, string> = { all: 'Tutte', person: 'Persone', vehicle: 'Mezzi', equipment: 'Attrezzature' };
+
+interface ListResp { items: ResourceDto[]; total: number; limit: number; offset: number; views: Record<ViewKey, number> }
 
 export function RisorsePage() {
+  const { user } = useAuth();
+  const history = useHistory();
+  const can = (a: string) => !!user?.permissions.includes(`resource:${a}` as never);
+
+  const [view, setView] = useState<ViewKey>('all');
+  const [q, setQ] = useState('');
+  const [offset, setOffset] = useState(0);
+  const limit = 25;
+
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
+  if (view !== 'all') params.set('kind', view);
+  if (q.trim()) params.set('q', q.trim());
+  const { data, loading, error } = useApi<ListResp>(`/resources?${params.toString()}`);
+
+  const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));
+
+  const columns: ListColumn<ResourceDto>[] = [
+    { key: 'label', header: 'Nome', sub: 'tipo', render: (r) => (
+      <div className="two"><span className="a">{r.label}</span><span className="b">{KIND_LABEL[r.kind]}</span></div>) },
+    { key: 'cost', header: 'Costo orario', sub: '€ / h', num: true, render: (r) => <Money value={(r.attributes as Record<string, unknown>)?.hourly_cost as number ?? null} /> },
+    { key: 'active', header: 'Stato', render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
+  ];
+
+  const leftActions: ListAction[] = [
+    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
+    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
+    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
+  ];
+  const rightActions: ListAction[] = [
+    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova risorsa', variant: 'primary' as const, onClick: () => history.push('/resources/new') }] : []),
+  ];
+
   return (
-    <CrudList<ResourceDto>
-      title="Risorse" icon={Users}
-      endpoint="/resources" entityKey="resource" resource="resource"
-      noun="risorsa" createLabel="Nuova risorsa"
-      searchPlaceholder="Cerca risorsa…" defaultSort="label"
-      columns={[
-        { key: 'label', header: 'Nome', sortable: true, render: (r) => (
-          <div><div className="cellname">{r.label}</div><div className="cellsub">{KIND_LABEL[r.kind]}</div></div>
-        ) },
-        { key: 'kind', header: 'Tipo', sortable: true, render: (r) => <span className="chip">{KIND_LABEL[r.kind]}</span> },
-        { key: 'active', header: 'Attiva', render: (r) => r.active
-          ? <span className="pill" style={{ color: 'var(--success)', background: 'var(--success-wash)' }}><span className="dot" />Sì</span>
-          : <span className="pill" style={{ color: 'var(--ink-soft)', background: 'var(--neutral-wash)' }}>No</span> },
-      ]}
-      buildForm={() => [{ group: 'Principale', fields: [
-        { key: 'kind', label: 'Tipo', dataType: 'select', required: true, options: [
-          { value: 'person', label: { 'it-IT': 'Persona' } },
-          { value: 'vehicle', label: { 'it-IT': 'Mezzo' } },
-          { value: 'equipment', label: { 'it-IT': 'Attrezzatura' } },
-        ] },
-        { key: 'label', label: 'Nome / Etichetta', dataType: 'text', required: true },
-        { key: 'hourly_cost', label: 'Costo orario', dataType: 'money', unit: '€/h' },
-        { key: 'active', label: 'Attiva', dataType: 'boolean' },
-      ] }]}
-      toFormInitial={(r) => ({ kind: r.kind, label: r.label, active: r.active, hourly_cost: (r.attributes as Record<string, unknown>)?.hourly_cost, attributes: r.attributes })}
-      toBody={(v) => ({ kind: v.kind, label: v.label, active: v.active ?? true, attributes: { ...(v.attributes as Record<string, unknown>), hourly_cost: v.hourly_cost ?? null } })}
-      detailPath={(r) => `/resources/${r.id}`}
-    />
+    <Page title="Risorse">
+      <EntityList<ResourceDto>
+        title="Risorse" subtitle="Persone, mezzi e attrezzature"
+        views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
+        search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome…"
+        leftActions={leftActions} rightActions={rightActions}
+        columns={columns} rows={data?.items ?? []} loading={loading} error={error}
+        onRowClick={(r) => history.push(`/resources/${r.id}`)}
+        total={data?.total} limit={limit} offset={offset} onPage={setOffset}
+        emptyText="Nessuna risorsa in questa vista."
+      />
+    </Page>
   );
 }

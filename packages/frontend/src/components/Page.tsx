@@ -1,9 +1,15 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   IonButtons, IonContent, IonHeader, IonMenuButton, IonPage, IonTitle, IonToolbar, IonBackButton, IonSpinner, IonText,
 } from '@ionic/react';
 
-export function Page({ title, action, children, back }: { title: string; action?: ReactNode; children: ReactNode; back?: string }) {
+/**
+ * `bleed`: per le schede con header sticky (ObjectPage) — azzera il padding-top
+ * del contenuto scrollabile così la barra Salva/Annulla resta A FILO del titolo,
+ * senza il buco dove altrimenti scorrono i dati (regola tassativa, vedi memory).
+ */
+export function Page({ title, action, children, back, bleed }: { title: string; action?: ReactNode; children: ReactNode; back?: string; bleed?: boolean }) {
+  const bleedStyle = { '--padding-top': '0px', '--padding-bottom': '16px', '--padding-start': '16px', '--padding-end': '16px' } as CSSProperties;
   return (
     <IonPage>
       <IonHeader>
@@ -15,7 +21,9 @@ export function Page({ title, action, children, back }: { title: string; action?
           {action && <IonButtons slot="end">{action}</IonButtons>}
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding"><div className="page-container">{children}</div></IonContent>
+      <IonContent className={bleed ? undefined : 'ion-padding'} style={bleed ? bleedStyle : undefined}>
+        <div className="page-container">{children}</div>
+      </IonContent>
     </IonPage>
   );
 }

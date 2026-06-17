@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Commesse · Albero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-card:15px;--fs-th:11.5px;--fs-eyebrow:10.5px;--row-pad:9px 14px;--cell-fs:13px;--ctrl-h:36px;--sec-gap:16px;}
+html[data-density="compact"]{--row-pad:5px 12px;--cell-fs:12.5px;--ctrl-h:32px;--sec-gap:12px;}
+html[data-density="spacious"]{--row-pad:13px 16px;--cell-fs:13.5px;--ctrl-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;white-space:nowrap}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.app{display:grid;grid-template-columns:230px 1fr;height:760px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.toolbar{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.searchbar{display:flex;align-items:center;gap:8px;height:var(--ctrl-h);padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:220px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-family:inherit;font-size:13px;flex:1;color:var(--ink)}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:calc(var(--ctrl-h) - 8px);padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.ibtn{width:var(--ctrl-h);height:var(--ctrl-h);border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}.spacer{flex:1}
+.tablewrap{overflow-x:auto}table.t{width:100%;border-collapse:collapse}
+.t thead th{text-align:left;font-size:var(--fs-th);font-weight:600;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+.t thead th.num{text-align:right}
+.t td{padding:var(--row-pad);border-bottom:1px solid var(--line-2);font-size:var(--cell-fs);vertical-align:middle;white-space:nowrap}
+.t tbody tr:last-child td{border-bottom:0}.t tbody tr{cursor:pointer}.t tbody tr:hover{background:var(--paper)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.prog{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+.prog .bar{width:78px;height:6px;border-radius:999px;background:var(--line-2);overflow:hidden}.prog .bar i{display:block;height:100%;border-radius:999px;background:var(--success)}
+.prog .pc{font-family:var(--font-mono);font-size:12px;font-weight:600;width:34px;text-align:right}
+.rowact{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:.12s}.t tbody tr:hover .rowact{opacity:1}
+.iaction{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-soft)}.iaction:hover{background:var(--neutral-wash);color:var(--ink)}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-soft)}
+.pgs{display:flex;gap:4px}.pgbtn{min-width:30px;height:30px;padding:0 7px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card)}.pgbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* dettaglio + albero */
+.detail-head{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-1);margin-bottom:14px}
+.detail-head .top{display:flex;align-items:center;gap:10px}
+.detail-head .back{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer}
+.detail-head .code{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.detail-head h1{font-size:var(--fs-h1);font-weight:800;margin:9px 0 5px}.detail-head .sub{color:var(--ink-soft);font-size:13.5px}
+.kv{display:flex;gap:24px;margin-top:14px;flex-wrap:wrap}.kv .k{font-size:var(--fs-eyebrow);color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.kv .v{font-size:14px;font-weight:600;margin-top:3px}
+.tabsbar{display:flex;gap:16px;margin-bottom:var(--sec-gap);border-bottom:1px solid var(--line)}
+.tabu{padding:9px 2px;margin-bottom:-1px;font-size:13.5px;font-weight:600;color:var(--ink-soft);border-bottom:2px solid transparent;cursor:pointer}.tabu.on{color:var(--brand-ink);border-bottom-color:var(--brand)}
+.treetools{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.xtree{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.tnode{display:flex;align-items:center;gap:10px;height:46px;padding:0 16px;border-bottom:1px solid var(--line-2)}
+.tnode:last-child{border-bottom:0}.tnode:hover{background:var(--paper)}
+.tindent{flex:0 0 auto}
+.tchev{width:20px;height:20px;display:grid;place-items:center;color:var(--ink-faint);cursor:pointer;flex:0 0 auto}.tchev.empty{visibility:hidden}
+.ticon{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:0 0 auto}
+.tname{font-weight:700;font-size:13.5px}
+.tnode.leaf .tname{font-weight:500;font-size:13px}
+.tnode.leaf .ticon{background:var(--neutral-wash);color:var(--ink-soft);width:22px;height:22px;border-radius:6px}
+.tmeta{display:flex;align-items:center;gap:12px;margin-left:auto;flex:0 0 auto}
+.troll{font-size:12px;color:var(--ink-faint);font-family:var(--font-mono)}
+.dep{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-soft);background:var(--neutral-wash);padding:2px 7px;border-radius:var(--r-pill)}
+.tactions{display:flex;gap:2px;opacity:0;transition:.12s}.tnode:hover .tactions{opacity:1}
+.guide{border-left:2px solid var(--line-2);align-self:stretch;margin-left:9px}
+.wrap{max-width:1280px;margin:0 auto;padding:34px 20px 70px}
+.cap{margin:40px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:820px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:14px">
+    <h1><em>si</em>Suite — Commesse e Albero</h1>
+    <p>Lista commesse con avanzamento e margine, e il dettaglio con la struttura ad albero engagement → fase → sotto-fase → attività. Solo le foglie (attività) portano ore, risorse e materiali.</p>
+  </div>
+
+  <!-- LISTA -->
+  <div class="cap"><div class="e">Commesse · lista</div><div class="t">Commesse</div>
+    <div class="d">Codice da numerazione, tipo contratto come pill, avanzamento a barra e margine % a destra. Cliccando una riga si apre il dettaglio (pagina).</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item active"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="calendar"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><div><h1>Commesse</h1><div class="sub">12 attive · 3 in chiusura</div></div>
+          <button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuova commessa</button>
+        </div>
+        <div class="toolbar">
+          <div class="searchbar"><i data-lucide="search"></i><input placeholder="Cerca commessa o cliente…"></div>
+          <div class="seg"><button class="on">Tutte</button><button>In corso</button><button>In chiusura</button><button>Concluse</button></div>
+          <button class="ibtn"><i data-lucide="sliders-horizontal"></i></button>
+          <div class="spacer"></div>
+          <button class="ibtn"><i data-lucide="download"></i></button>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <div class="tablewrap"><table class="t">
+            <thead><tr><th>Codice</th><th>Commessa</th><th>Cliente</th><th>Tipo</th><th>Responsabile</th><th class="num">Avanzamento</th><th class="num">Margine</th><th>Stato</th><th style="width:60px"></th></tr></thead>
+            <tbody>
+              <tr><td class="mono">2026-0042</td><td style="font-weight:600">Piscina Rossi — Costruzione</td><td class="muted">Rossi Piscine</td><td><span class="pill pill--neutral">A corpo</span></td><td>Marco Rossi</td><td><div class="prog"><div class="bar"><i style="width:71%"></i></div><span class="pc">71%</span></div></td><td class="num">34%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0041</td><td style="font-weight:600">Fibra Via Dante</td><td class="muted">Open Fiber</td><td><span class="pill pill--neutral">A misura</span></td><td>Marco Gallo</td><td><div class="prog"><div class="bar"><i style="width:45%"></i></div><span class="pc">45%</span></div></td><td class="num">29%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0039</td><td style="font-weight:600">Fotovoltaico Bianchi</td><td class="muted">Bianchi SRL</td><td><span class="pill pill--neutral">A corpo</span></td><td>Marco Rossi</td><td><div class="prog"><div class="bar"><i style="width:88%;background:var(--warning)"></i></div><span class="pc">88%</span></div></td><td class="num" style="color:var(--warning);font-weight:700">16%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0038</td><td style="font-weight:600">Catalogo software v2</td><td class="muted">Interno</td><td><span class="pill pill--neutral">A corpo</span></td><td>Ahmed Rossi</td><td><div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="pc">60%</span></div></td><td class="num">41%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0035</td><td style="font-weight:600">Piscina Verdi</td><td class="muted">Verdi</td><td><span class="pill pill--neutral">A misura</span></td><td>Gino Acqua</td><td><div class="prog"><div class="bar"><i style="width:20%"></i></div><span class="pc">20%</span></div></td><td class="num" style="color:var(--danger);font-weight:700">6%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0030</td><td style="font-weight:600">Manutenzione Comune</td><td class="muted">Comune di Stezzano</td><td><span class="pill pill--neutral">A canone</span></td><td>Luca Bianchi</td><td><div class="prog"><div class="bar"><i style="width:50%"></i></div><span class="pc">50%</span></div></td><td class="num">31%</td><td><span class="pill pill--info"><span class="dot"></span>In corso</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+              <tr><td class="mono">2026-0028</td><td style="font-weight:600">Piscina Neri</td><td class="muted">Neri</td><td><span class="pill pill--neutral">A corpo</span></td><td>Marco Rossi</td><td><div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="pc">100%</span></div></td><td class="num">33%</td><td><span class="pill pill--warning"><span class="dot"></span>In chiusura</span></td><td><div class="rowact"><span class="iaction"><i data-lucide="pencil"></i></span></div></td></tr>
+            </tbody>
+          </table></div>
+          <div class="pager"><span>1–7 di 12</span><div class="pgs"><button class="pgbtn on">1</button><button class="pgbtn">2</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALBERO -->
+  <div class="cap"><div class="e">Commessa · scheda Albero attività</div><div class="t">Dettaglio commessa — albero</div>
+    <div class="d">Rami e sotto-rami espandibili con rollup (attività completate, ore stim./cons.); sulle foglie: durata, dipendenze, priorità. Azioni inline in hover (aggiungi fase/attività, modifica, elimina).</div></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item active"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="users"></i> Risorse</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item"><i data-lucide="calendar"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="detail-head">
+          <div class="top"><span class="back"><i data-lucide="chevron-left"></i> Commesse</span></div>
+          <span class="code" style="margin-top:8px;display:inline-block">2026-0042</span>
+          <h1>Piscina Rossi — Costruzione</h1>
+          <div class="sub">Rossi Piscine · a corpo · vasca 8×4 m</div>
+          <div class="kv">
+            <div><div class="k">Stato</div><div class="v"><span class="pill pill--info"><span class="dot"></span>In corso</span></div></div>
+            <div><div class="k">Responsabile</div><div class="v">Marco Rossi</div></div>
+            <div><div class="k">Avanzamento</div><div class="v mono">71%</div></div>
+            <div><div class="k">Consegna</div><div class="v mono">15/07/2026</div></div>
+          </div>
+        </div>
+        <div class="tabsbar"><span class="tabu">Panoramica</span><span class="tabu on">Albero attività</span><span class="tabu">Budget</span><span class="tabu">Rapportini</span><span class="tabu">Documenti</span></div>
+
+        <div class="treetools">
+          <button class="btn btn-ghost" style="height:32px"><i data-lucide="plus" style="width:15px;height:15px"></i> Aggiungi fase</button>
+          <button class="ibtn" style="width:32px;height:32px"><i data-lucide="chevrons-down-up" style="width:16px;height:16px"></i></button>
+          <div class="spacer"></div>
+          <span class="troll">3/4 fasi avviate · 24:00 / 68:00</span>
+        </div>
+
+        <div class="xtree">
+          <!-- Fase 1: Scavo -->
+          <div class="tnode">
+            <span class="tchev"><i data-lucide="chevron-down" style="width:16px;height:16px"></i></span>
+            <span class="ticon" style="background:var(--info-wash);color:var(--info)"><i data-lucide="folder-open" style="width:15px;height:15px"></i></span>
+            <span class="tname">Scavo e sbancamento</span>
+            <span class="tmeta"><span class="troll">2/3 · 24:00/30:00</span><span class="pill pill--info"><span class="dot"></span>In corso</span>
+              <span class="tactions"><span class="iaction"><i data-lucide="plus"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></span></span>
+          </div>
+          <div class="tnode leaf"><span class="tindent" style="width:24px"></span><span class="guide"></span><span class="tchev empty"></span><span class="ticon"><i data-lucide="check" style="width:13px;height:13px"></i></span><span class="tname">Tracciamento</span>
+            <span class="tmeta"><span class="troll">4:00</span><span class="pill pill--success"><span class="dot"></span>Completata</span><span class="tactions"><span class="iaction"><i data-lucide="pencil"></i></span></span></span></div>
+          <div class="tnode leaf"><span class="tindent" style="width:24px"></span><span class="guide"></span><span class="tchev empty"></span><span class="ticon"><i data-lucide="shovel" style="width:13px;height:13px"></i></span><span class="tname">Scavo vasca</span>
+            <span class="tmeta"><span class="dep"><i data-lucide="link" style="width:11px;height:11px"></i> dopo Tracciamento</span><span class="troll">16:00/20:00</span><span class="pill pill--info"><span class="dot"></span>In corso</span><span class="tactions"><span class="iaction"><i data-lucide="pencil"></i></span></span></span></div>
+          <div class="tnode leaf"><span class="tindent" style="width:24px"></span><span class="guide"></span><span class="tchev empty"></span><span class="ticon"><i data-lucide="shovel" style="width:13px;height:13px"></i></span><span class="tname">Sbancamento bordi</span>
+            <span class="tmeta"><span class="troll">—/6:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="pencil"></i></span></span></span></div>
+
+          <!-- Fase 2: Strutture (collassata) -->
+          <div class="tnode">
+            <span class="tchev"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span>
+            <span class="ticon" style="background:var(--neutral-wash);color:var(--ink-soft)"><i data-lucide="folder" style="width:15px;height:15px"></i></span>
+            <span class="tname">Strutture</span>
+            <span class="tmeta"><span class="troll">0/4 · —/22:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="plus"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></span></span>
+          </div>
+
+          <!-- Fase 3: Idraulica (espansa con 1 sotto-fase) -->
+          <div class="tnode">
+            <span class="tchev"><i data-lucide="chevron-down" style="width:16px;height:16px"></i></span>
+            <span class="ticon" style="background:var(--flow-wash);color:var(--flow)"><i data-lucide="folder-open" style="width:15px;height:15px"></i></span>
+            <span class="tname">Idraulica</span>
+            <span class="tmeta"><span class="troll">0/2 · —/12:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="plus"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></span></span>
+          </div>
+          <div class="tnode leaf"><span class="tindent" style="width:24px"></span><span class="guide"></span><span class="tchev empty"></span><span class="ticon"><i data-lucide="waves" style="width:13px;height:13px"></i></span><span class="tname">Posa tubazioni</span>
+            <span class="tmeta"><span class="troll">—/7:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="pencil"></i></span></span></span></div>
+          <div class="tnode leaf"><span class="tindent" style="width:24px"></span><span class="guide"></span><span class="tchev empty"></span><span class="ticon"><i data-lucide="filter" style="width:13px;height:13px"></i></span><span class="tname">Gruppo filtraggio</span>
+            <span class="tmeta"><span class="dep"><i data-lucide="link" style="width:11px;height:11px"></i> dopo Posa tubazioni</span><span class="troll">—/5:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="pencil"></i></span></span></span></div>
+
+          <!-- Fase 4: Finiture (collassata) -->
+          <div class="tnode">
+            <span class="tchev"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></span>
+            <span class="ticon" style="background:var(--neutral-wash);color:var(--ink-soft)"><i data-lucide="folder" style="width:15px;height:15px"></i></span>
+            <span class="tname">Finiture</span>
+            <span class="tmeta"><span class="troll">0/3 · —/4:00</span><span class="pill pill--neutral"><span class="dot"></span>Da fare</span><span class="tactions"><span class="iaction"><i data-lucide="plus"></i></span><span class="iaction"><i data-lucide="pencil"></i></span></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

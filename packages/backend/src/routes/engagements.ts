@@ -85,7 +85,22 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
           `${SELECT_DTO} ${where} ORDER BY ${sortCol} ${sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,
           params,
         );
-        return { items: (res.rows as DbRow[]).map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset };
+        // conteggi viste per tipo (rispettano la ricerca q, non il filtro tipo)
+        const vParams: unknown[] = [];
+        let vWhere = `WHERE e.archived_at IS NULL`;
+        if (q.q) { vParams.push(`%${q.q}%`); vWhere += ` AND (e.title ILIKE $1 OR e.code ILIKE $1)`; }
+        const vRes = await db.query(
+          `SELECT count(*)::int AS all,
+                  count(*) FILTER (WHERE e.type='build')::int AS build,
+                  count(*) FILTER (WHERE e.type='maintenance')::int AS maintenance
+           FROM engagement e ${vWhere}`,
+          vParams,
+        );
+        const v = vRes.rows[0];
+        return {
+          items: (res.rows as DbRow[]).map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset,
+          views: { all: v.all as number, build: v.build as number, maintenance: v.maintenance as number },
+        };
       });
     },
   );

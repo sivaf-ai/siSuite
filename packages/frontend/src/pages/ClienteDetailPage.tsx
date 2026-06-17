@@ -1,17 +1,19 @@
 /**
- * ClienteDetailPage — pagina-form ricca (mock 33), il METRO delle entità complesse.
- * Crea (/companies/new) e modifica/dettaglio (/companies/:id) nella stessa maschera:
- * Anagrafica (campi tipizzati) + sezioni da field_definition (Indirizzo/Dati fiscali/Note)
- * + Contatti (sub-CRUD) + elimina con conferma. Layout pagina intera, barra azioni fissa.
+ * ClienteDetailPage — scheda Soggetto (modello Party) su ObjectPage/ObjectBox v2.
+ * Crea+vedi+modifica in una sola pagina (<Page bleed>, header sticky Salva/Annulla).
+ * Anagrafica + box da field_definition (Dati fiscali/Indirizzo/Note) + tab Contatti
+ * (sub-CRUD via drawer) e Località/Siti (SiteTree).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
-import { Building2, Contact, Star, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
-import type { CompanyDto, ContactDto } from '@sisuite/shared';
+import { Building2, Contact, Receipt, MapPin, StickyNote, Plus, Pencil, Trash2, Star } from 'lucide-react';
+import type { CompanyDto, ContactDto, FieldDefinitionDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
-import { FormPage, FormCard } from '../ui/FormPage';
-import { EntityForm, type TypedGroup } from '../ui/EntityForm';
+import { StatusPill } from '../components/StatusPill';
+import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
+import { AttrBoxes } from '../ui/AttrFields';
 import { Drawer } from '../ui/Drawer';
+import { SiteTree } from '../ui/SiteTree';
 import { Field, type RenderableField } from '../ui/Field';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
@@ -20,20 +22,9 @@ import { apiFetch, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
 type CompanyDetail = CompanyDto & { contacts: ContactDto[] };
-const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'Fornitore', partner: 'Partner' };
-
-const TYPED: TypedGroup[] = [{
-  group: 'Anagrafica',
-  icon: Building2,
-  fields: [
-    { key: 'displayName', label: 'Ragione sociale', dataType: 'text', required: true },
-    { key: 'type', label: 'Tipo cliente', dataType: 'select', options: [
-      { value: 'organization', label: { 'it-IT': 'Azienda' } },
-      { value: 'private', label: { 'it-IT': 'Privato' } },
-    ] },
-    { key: 'roles', label: 'Ruoli', dataType: 'roles' },
-  ],
-}];
+const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'Fornitore', partner: 'Partner', operator: 'Gestore' };
+const ALL_ROLES = ['customer', 'supplier', 'operator', 'partner'] as const;
+const GROUP_ICON = { fiscal: Receipt, registry: MapPin, notes: StickyNote };
 
 const CONTACT_FIELDS: RenderableField[] = [
   { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
@@ -43,8 +34,6 @@ const CONTACT_FIELDS: RenderableField[] = [
   { key: 'isPrimary', label: 'Contatto principale', dataType: 'boolean' },
 ];
 
-const GROUP_LABEL = (k: string) => (k === 'registry' ? 'Indirizzo e recapiti' : undefined);
-
 export function ClienteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const isNew = id === 'new';
@@ -53,29 +42,40 @@ export function ClienteDetailPage() {
   const history = useHistory();
   const can = (p: string) => !!user?.permissions.includes(p as never);
 
-  const { data, loading, error, reload } = useApi<CompanyDetail>(isNew ? '' : `/companies/${id}`);
+  const detail = useApi<CompanyDetail>(isNew ? null : `/companies/${id}`);
+  const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=company');
+
+  const [form, setForm] = useState<{ displayName: string; type: string; roles: string[] }>({ displayName: '', type: 'organization', roles: [] });
+  const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
-  const [editing, setEditing] = useState<ContactDto | null | undefined>(undefined); // undefined chiuso, null nuovo
+  const [tab, setTab] = useState('contacts');
+  const [editing, setEditing] = useState<ContactDto | null | undefined>(undefined);
   const [delContact, setDelContact] = useState<ContactDto | null>(null);
   const [delCompany, setDelCompany] = useState(false);
 
-  async function saveCompany(values: Record<string, unknown>) {
+  const d = detail.data;
+  useEffect(() => {
+    if (!d) return;
+    setForm({ displayName: d.displayName, type: d.type, roles: d.roles });
+    setAttrs(d.attributes ?? {});
+  }, [d]);
+
+  const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
+  const toggleRole = (r: string) => setForm((f) => ({ ...f, roles: f.roles.includes(r) ? f.roles.filter((x) => x !== r) : [...f.roles, r] }));
+
+  async function save() {
+    if (!form.displayName.trim()) { toast('La ragione sociale è obbligatoria', 'error'); return; }
     setBusy(true);
     const body = {
-      displayName: values.displayName,
-      type: (values.type as string) ?? 'organization',
-      roles: ((values.roles as string[]) ?? []).map((role) => ({ role })),
-      attributes: values.attributes,
+      displayName: form.displayName.trim(), type: form.type,
+      roles: form.roles.map((role) => ({ role })), attributes: attrs,
     };
     try {
       if (isNew) {
-        const created = await apiFetch<CompanyDto>('/companies', { method: 'POST', body: JSON.stringify(body) });
-        toast('Cliente creato');
-        history.replace(`/companies/${created.id}`);
+        const c = await apiFetch<CompanyDto>('/companies', { method: 'POST', body: JSON.stringify(body) });
+        toast('Soggetto creato'); history.replace(`/companies/${c.id}`);
       } else {
-        await mutate('PATCH', `/companies/${id}`, body);
-        toast('Modifiche salvate');
-        void reload();
+        await mutate('PATCH', `/companies/${id}`, body); toast('Modifiche salvate'); void detail.reload();
       }
     } catch (e) {
       toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error');
@@ -85,117 +85,112 @@ export function ClienteDetailPage() {
   async function doDeleteContact() {
     if (!delContact) return;
     setBusy(true);
-    try {
-      await mutate('DELETE', `/contacts/${delContact.id}`);
-      toast('Contatto eliminato'); setDelContact(null); void reload();
-    } catch (e) { toast((e as Error).message || 'Impossibile eliminare', 'error'); setDelContact(null); }
+    try { await mutate('DELETE', `/contacts/${delContact.id}`); toast('Contatto eliminato'); setDelContact(null); void detail.reload(); }
+    catch (e) { toast((e as Error).message || 'Impossibile eliminare', 'error'); setDelContact(null); }
+    finally { setBusy(false); }
+  }
+  async function doDeleteCompany() {
+    setBusy(true);
+    try { await mutate('DELETE', `/companies/${id}`); toast('Soggetto archiviato'); history.replace('/companies'); }
+    catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Impossibile eliminare') : (e as Error).message, 'error'); setDelCompany(false); }
     finally { setBusy(false); }
   }
 
-  async function doDeleteCompany() {
-    setBusy(true);
-    try {
-      await mutate('DELETE', `/companies/${id}`);
-      toast('Cliente archiviato'); history.replace('/companies');
-    } catch (e) {
-      toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Impossibile eliminare') : (e as Error).message, 'error');
-      setDelCompany(false);
-    } finally { setBusy(false); }
-  }
+  if (!isNew && detail.loading) return <Page title="Soggetto"><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title="Soggetto"><ErrorBox message={detail.error} /></Page>;
 
-  // sezione Contatti (mock 33) — solo in modifica (serve l'id azienda)
-  const contactsCard = data && (
-    <FormCard icon={<Contact />} title="Contatti">
-      {data.contacts.length > 0 && (
-        <div className="chead"><span>Nome</span><span>Ruolo</span><span>Email</span><span>Telefono</span><span /></div>
-      )}
-      {data.contacts.map((c) => (
-        <div className="crow" key={c.id}>
-          <div className="inp" style={{ display: 'flex', alignItems: 'center' }}>
-            {c.fullName}{c.isPrimary && <Star className="star" size={14} style={{ marginLeft: 'auto' }} />}
-          </div>
-          <div className="inp">{c.roleTitle ?? '—'}</div>
-          <div className="inp" style={{ fontSize: 12.5 }}>{c.email ?? '—'}</div>
-          <div className="inp mono">{c.phone ?? '—'}</div>
-          <div style={{ display: 'flex', gap: 2 }}>
-            {can('contact:update') && <button className="xbtn" title="Modifica" onClick={() => setEditing(c)} style={{ color: 'var(--ink-soft)' }}><Pencil size={15} /></button>}
-            {can('contact:delete') && <button className="xbtn" title="Elimina" onClick={() => setDelContact(c)}><Trash2 size={15} /></button>}
-          </div>
+  const defs = fieldDefs.data?.items ?? [];
+  const contacts = d?.contacts ?? [];
+
+  const contactsTable = (
+    <table className="subt">
+      <thead><tr><th>Nome</th><th>Ruolo / Mansione</th><th>Email</th><th>Telefono</th><th /></tr></thead>
+      <tbody>
+        {contacts.map((c) => (
+          <tr key={c.id}>
+            <td>{c.fullName}{c.isPrimary && <Star size={13} style={{ marginLeft: 6, color: 'var(--warning)' }} />}</td>
+            <td>{c.roleTitle ?? '—'}</td>
+            <td style={{ fontSize: 12.5 }}>{c.email ?? '—'}</td>
+            <td className="mono">{c.phone ?? '—'}</td>
+            <td className="num" style={{ whiteSpace: 'nowrap' }}>
+              {can('contact:update') && <button className="xbtn" title="Modifica" onClick={() => setEditing(c)}><Pencil size={15} /></button>}
+              {can('contact:delete') && <button className="xbtn" title="Elimina" onClick={() => setDelContact(c)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>}
+            </td>
+          </tr>
+        ))}
+        {contacts.length === 0 && <tr><td colSpan={5}><div className="dsx-empty">Nessun contatto.</div></td></tr>}
+      </tbody>
+    </table>
+  );
+
+  const tabs: RelTab[] = [
+    {
+      key: 'contacts', label: 'Contatti', icon: Contact, count: contacts.length,
+      content: (
+        <div>
+          {contactsTable}
+          {can('contact:create') && <button className="addline" onClick={() => setEditing(null)} style={{ marginTop: 8 }}><Plus size={15} /> Aggiungi contatto</button>}
         </div>
-      ))}
-      {data.contacts.length === 0 && <div className="fhint" style={{ marginBottom: 8 }}>Nessun contatto.</div>}
-      {can('contact:create') && (
-        <button className="addline" onClick={() => setEditing(null)}><Plus size={15} /> Aggiungi contatto</button>
-      )}
-    </FormCard>
-  );
+      ),
+    },
+    {
+      key: 'sites', label: 'Località e siti', icon: MapPin,
+      content: id && !isNew ? <SiteTree companyId={id} canEdit={can('site:create')} /> : <div className="dsx-empty">Salva il soggetto per gestire i siti.</div>,
+    },
+  ];
 
-  const newContactHint = isNew && (
-    <FormCard icon={<Contact />} title="Contatti">
-      <div className="fhint">Salva prima il cliente per aggiungere i contatti.</div>
-    </FormCard>
-  );
-
-  const title = isNew ? 'Nuovo cliente' : (data?.displayName ?? 'Cliente');
-  const roles = data?.roles ?? [];
+  const title = isNew ? 'Nuovo soggetto' : (form.displayName || 'Soggetto');
 
   return (
-    <Page title={title} back="/companies">
-      {!isNew && loading && <Loading />}
-      {!isNew && error && <ErrorBox message={error} />}
-      {(isNew || data) && (
-        <FormPage
-          back={() => history.push('/companies')} backLabel="Clienti"
-          title={title}
-          code={!isNew && data ? data.id.slice(0, 8).toUpperCase() : undefined}
-          status={roles.map((r) => <span key={r} className="chip" style={{ marginLeft: 4 }}>{ROLE_LABEL[r] ?? r}</span>)}
-        >
-          <EntityForm
-            entityKey="company"
-            layout="page"
-            typedGroups={TYPED}
-            groupLabel={GROUP_LABEL}
-            initial={isNew ? undefined : data ? { displayName: data.displayName, type: data.type, roles: data.roles, attributes: data.attributes } : undefined}
-            busy={busy}
-            submitLabel={isNew ? 'Crea cliente' : 'Salva cliente'}
-            onSubmit={saveCompany}
-            onCancel={() => history.push('/companies')}
-            extraSections={<>{contactsCard}{newContactHint}</>}
-            barLeft={!isNew && can('company:delete') ? (
-              <button type="button" className="btn btn-ghost" onClick={() => setDelCompany(true)} style={{ color: 'var(--danger)' }}>
-                <Trash2 size={15} /> Elimina
-              </button>
-            ) : (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} style={{ color: 'var(--success)' }} /> {isNew ? 'Compila e crea' : ''}</span>
-            )}
-          />
-        </FormPage>
+    <Page title={title} bleed>
+      <ObjectPage
+        backLabel="Soggetti" onBack={() => history.push('/companies')}
+        title={title} code={!isNew && d ? d.id.slice(0, 8).toUpperCase() : undefined}
+        status={!isNew ? <span style={{ display: 'flex', gap: 4 }}>{form.roles.map((r) => <StatusPill key={r} label={ROLE_LABEL[r] ?? r} token="brand" />)}</span> : undefined}
+        onSave={(isNew ? can('company:create') : can('company:update')) ? save : undefined}
+        onCancel={() => history.push('/companies')} saving={busy}
+      >
+        <ObjectBox icon={Building2} title="Anagrafica">
+          <div className="bgrid">
+            <div className="bf c2"><span className="bl">Ragione sociale <span className="req">*</span></span>
+              <input className="bi" value={form.displayName} onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} /></div>
+            <div className="bf"><span className="bl">Tipo</span>
+              <select className="bi" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                <option value="organization">Organizzazione</option><option value="private">Privato</option>
+              </select></div>
+            <div className="bf"><span className="bl">Ruoli</span>
+              <div className="bi" style={{ flexWrap: 'wrap', gap: 6, height: 'auto', minHeight: 38, padding: 6 }}>
+                {ALL_ROLES.map((r) => {
+                  const on = form.roles.includes(r);
+                  return <span key={r} className="chip" style={{ cursor: 'pointer', opacity: on ? 1 : 0.5, background: on ? 'var(--brand-wash)' : undefined }} onClick={() => toggleRole(r)}>{ROLE_LABEL[r]}</span>;
+                })}
+              </div></div>
+          </div>
+        </ObjectBox>
+
+        <AttrBoxes defs={defs} attrs={attrs} setAttr={setAttr} icons={GROUP_ICON} fullKeys={['street', 'website']} />
+
+        {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
+
+        {!isNew && can('company:delete') && (
+          <div style={{ padding: '6px 2px 4px' }}>
+            <button className="btn btn-ghost" onClick={() => setDelCompany(true)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /> Archivia soggetto</button>
+          </div>
+        )}
+      </ObjectPage>
+
+      {editing !== undefined && d && (
+        <ContactDrawer companyId={d.id} editing={editing} busy={busy} setBusy={setBusy}
+          onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void detail.reload(); }}
+          toastError={(m) => toast(m, 'error')} toastOk={(m) => toast(m)} />
       )}
 
-      {editing !== undefined && data && (
-        <ContactDrawer
-          companyId={data.id} editing={editing}
-          busy={busy} setBusy={setBusy}
-          onClose={() => setEditing(undefined)}
-          onSaved={() => { setEditing(undefined); void reload(); }}
-          toastError={(m) => toast(m, 'error')} toastOk={(m) => toast(m)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={!!delContact} danger
-        title="Eliminare il contatto?"
-        message={`“${delContact?.fullName}” verrà rimosso da questo cliente.`}
-        confirmLabel="Elimina" busy={busy}
-        onConfirm={doDeleteContact} onCancel={() => setDelContact(null)}
-      />
-      <ConfirmDialog
-        open={delCompany} danger
-        title="Archiviare il cliente?"
-        message="Il cliente verrà archiviato. Le voci legate a storia fatturabile restano protette."
-        confirmLabel="Archivia" busy={busy}
-        onConfirm={doDeleteCompany} onCancel={() => setDelCompany(false)}
-      />
+      <ConfirmDialog open={!!delContact} danger title="Eliminare il contatto?"
+        message={`“${delContact?.fullName}” verrà rimosso da questo soggetto.`}
+        confirmLabel="Elimina" busy={busy} onConfirm={doDeleteContact} onCancel={() => setDelContact(null)} />
+      <ConfirmDialog open={delCompany} danger title="Archiviare il soggetto?"
+        message="Il soggetto verrà archiviato. Le voci legate a storia fatturabile restano protette."
+        confirmLabel="Archivia" busy={busy} onConfirm={doDeleteCompany} onCancel={() => setDelCompany(false)} />
     </Page>
   );
 }
@@ -214,37 +209,27 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
     if (!String(v.fullName ?? '').trim()) { setErrors({ fullName: 'Campo obbligatorio' }); return; }
     setBusy(true);
     const body: Record<string, unknown> = {
-      fullName: String(v.fullName).trim(),
-      roleTitle: (v.roleTitle as string) || undefined,
-      email: (v.email as string) || undefined,
-      phone: (v.phone as string) || undefined,
-      isPrimary: !!v.isPrimary,
+      fullName: String(v.fullName).trim(), roleTitle: (v.roleTitle as string) || undefined,
+      email: (v.email as string) || undefined, phone: (v.phone as string) || undefined, isPrimary: !!v.isPrimary,
     };
     try {
       if (editing) await mutate('PATCH', `/contacts/${editing.id}`, body);
       else await mutate('POST', '/contacts', { companyId, ...body });
-      toastOk(editing ? 'Contatto aggiornato' : 'Contatto creato');
-      onSaved();
+      toastOk(editing ? 'Contatto aggiornato' : 'Contatto creato'); onSaved();
     } catch (e) {
-      const msg = e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message;
-      toastError(msg);
+      toastError(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
     } finally { setBusy(false); }
   }
 
   return (
-    <Drawer
-      open title={editing ? 'Modifica contatto' : 'Nuovo contatto'} onClose={onClose}
-      footer={
-        <>
-          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
-          <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva modifiche' : 'Crea'}</button>
-        </>
-      }
-    >
+    <Drawer open title={editing ? 'Modifica contatto' : 'Nuovo contatto'} onClose={onClose}
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
+        <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva modifiche' : 'Crea'}</button>
+      </>}>
       <div className="form-group">
         {CONTACT_FIELDS.map((f) => (
-          <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]}
-            onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />
+          <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />
         ))}
       </div>
     </Drawer>

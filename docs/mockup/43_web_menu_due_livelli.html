@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Menu a 2 livelli (standard Si.Va.F.)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);--shadow-flyout:18px 0 40px rgba(27,29,36,.12);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--fs-th:11.5px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono)}.muted{color:var(--ink-soft)}.faint{color:var(--ink-faint)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+/* shell */
+.app{position:relative;display:grid;grid-template-columns:214px 1fr;height:760px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line);transition:grid-template-columns .18s ease}
+.app.mini{grid-template-columns:62px 1fr}
+/* ---- LIVELLO 1 — RAIL ---- */
+.rail{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:13px 10px;gap:1px;overflow:auto;z-index:4}
+.rail::-webkit-scrollbar{width:0}
+.r-brand{display:flex;align-items:center;gap:9px;padding:5px 7px 11px}
+.r-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.r-brand .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff;white-space:nowrap}.r-brand .name em{font-style:normal;color:var(--flow)}
+.r-brand .cl{margin-left:auto;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:#8A8F9B;flex:0 0 auto}.r-brand .cl:hover{background:rgba(255,255,255,.08);color:#fff}
+.r-group{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#646A7A;padding:13px 9px 5px;white-space:nowrap;overflow:hidden}
+.r-item{display:flex;align-items:center;gap:11px;padding:9px 9px;border-radius:10px;font-size:13.5px;font-weight:500;color:#C9CDD7;cursor:pointer;white-space:nowrap;position:relative}
+.r-item svg{width:18px;height:18px;opacity:.85;flex:0 0 auto}
+.r-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.r-item.active{background:var(--brand);color:#fff}.r-item.active svg{opacity:1}
+.r-item.fav .lbl{color:#F4D06A}.r-item.fav svg{color:#F4D06A;opacity:1}
+.r-item .chev{margin-left:auto;opacity:.45}.r-item .chev svg{width:14px;height:14px}
+.r-sp{flex:1}
+.r-user{display:flex;align-items:center;gap:9px;padding:9px 7px;margin-top:6px;border-top:1px solid rgba(255,255,255,.08);white-space:nowrap}
+.r-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:0 0 auto}
+.r-user .nm{font-size:13px;color:#fff;font-weight:600}.r-user .rl{font-size:11px;color:#8A8F9B}
+.app.mini .r-item .lbl,.app.mini .r-group,.app.mini .r-brand .name,.app.mini .r-brand .cl,.app.mini .r-item .chev,.app.mini .r-user .nm,.app.mini .r-user .rl{display:none}
+.app.mini .r-item{justify-content:center;gap:0}.app.mini .r-brand{justify-content:center;padding:5px 0 11px}.app.mini .r-user{justify-content:center}
+.app.mini .expander{display:flex}
+.expander{display:none;align-items:center;justify-content:center;margin:4px auto 0;width:30px;height:30px;border-radius:8px;color:#9AA0AD}.expander:hover{background:rgba(255,255,255,.08);color:#fff}
+/* ---- LIVELLO 2 — SUB-PANEL (flyout) ---- */
+.sub{position:absolute;left:214px;top:0;bottom:0;width:268px;background:var(--card);border-right:1px solid var(--line);box-shadow:var(--shadow-flyout);z-index:3;display:flex;flex-direction:column;transition:left .18s ease}
+.app.mini .sub{left:62px}
+.sub.closed{display:none}
+.sub-h{display:flex;align-items:center;gap:9px;padding:16px 16px 12px;border-bottom:1px solid var(--line-2)}
+.sub-h .ti{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--ink)}
+.sub-h .ct{font-size:11px;color:var(--ink-faint);font-weight:600;background:var(--neutral-wash);padding:1px 7px;border-radius:var(--r-pill)}
+.sub-h .x{margin-left:auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer}.sub-h .x:hover{background:var(--paper)}
+.sub-b{flex:1;overflow:auto;padding:6px 8px 16px}
+.sg{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding:14px 10px 5px;display:flex;align-items:center;gap:6px}
+.sg.fav{color:var(--brand)}.sg.fav svg{width:13px;height:13px}
+.sg.link svg{width:12px;height:12px}
+.si{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.si svg.li{width:17px;height:17px;color:var(--ink-soft);flex:0 0 auto}
+.si:hover{background:var(--paper);color:var(--ink)}
+.si.active{background:var(--brand-wash);color:var(--brand-ink)}.si.active svg.li{color:var(--brand-ink)}
+.si .pin{margin-left:auto;color:var(--ink-faint);opacity:0;width:15px;height:15px;flex:0 0 auto}.si:hover .pin{opacity:.6}
+.si .pin.on{opacity:1;color:var(--warning)}
+.si .from{margin-left:auto;font-size:10.5px;color:var(--ink-faint);font-weight:500}
+.si .tag{margin-left:auto;font-size:9.5px;font-weight:700;color:var(--info);background:var(--info-wash);padding:2px 7px;border-radius:5px;letter-spacing:.04em}
+.si.soon{color:var(--ink-faint);cursor:default}.si.soon svg.li{opacity:.6}
+.si.soon .badge{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--ink-faint);background:var(--neutral-wash);padding:2px 6px;border-radius:5px}
+.si.link svg.li{color:var(--brand)}.si.link .ext{margin-left:auto;color:var(--ink-faint);width:14px;height:14px}
+/* ---- MAIN / pagina di esempio ---- */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:56px;display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.omni{flex:1;max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.omni .sp{color:var(--brand)}.omni input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.omni .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.omni .two{font-size:10.5px;color:var(--ink-faint);border-left:1px solid var(--line);padding-left:9px;white-space:nowrap}
+.ico{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:16px 22px}
+.siblings{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+.sib{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 13px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--card);border:1px solid var(--line)}
+.sib.on{background:var(--ink);color:#fff;border-color:var(--ink)}.sib svg{width:14px;height:14px}
+.ph-head{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.ph-head h1{font-size:var(--fs-h1);font-weight:800}
+.ph-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:16px 18px;margin-bottom:13px}
+.ph-row{height:13px;border-radius:6px;background:var(--line-2);margin:11px 0}
+.ph-row.w1{width:36%}.ph-row.w2{width:62%}.ph-row.w3{width:48%}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-soft);background:var(--brand-wash);border:1px solid #D9D4FB;border-radius:var(--r-sm);padding:10px 13px;margin-bottom:13px}
+.hint svg{width:15px;height:15px;color:var(--brand-ink);flex:0 0 auto;margin-top:1px}
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--ink);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:7px;white-space:nowrap;z-index:80;pointer-events:none}
+/* full map */
+.mapgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px}
+.mapcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:13px 14px}
+.mapcard .mh{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:800;font-size:15px;margin-bottom:9px}
+.mapcard .mh svg{width:17px;height:17px;color:var(--brand)}
+.mapcard .mh .mc{margin-left:auto;font-size:10.5px;color:var(--ink-faint);font-weight:600;background:var(--neutral-wash);padding:1px 7px;border-radius:var(--r-pill)}
+.mapcard .mg{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:9px 0 4px}
+.mapcard .ml{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);padding:2px 0}
+.mapcard .ml svg{width:14px;height:14px;color:var(--ink-faint)}
+.mapcard .ml .s{margin-left:auto;font-size:8.5px;font-weight:800;color:var(--ink-faint);background:var(--neutral-wash);padding:1px 5px;border-radius:4px}
+.mapcard .ml.lk svg{color:var(--brand)}.mapcard .ml .st{color:var(--warning);margin-left:auto;width:13px;height:13px}
+/* page scaffolding */
+.wrap{max-width:1320px;margin:0 auto;padding:34px 20px 80px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:920px}
+.cap{margin:42px 0 14px}.cap .e{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--brand)}
+.cap .t{font-family:var(--font-display);font-weight:800;font-size:20px;margin-top:4px}.cap .d{font-size:13.5px;color:var(--ink-soft);margin-top:5px;max-width:920px}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px;margin-top:12px}
+.note svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;margin-top:1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:6px">
+    <h1><em>si</em>Suite — Menu a <em>2 livelli</em> (standard Si.Va.F.)</h1>
+    <p>Costruito sullo standard normativo <b>02_navigation_menu</b> (modello SAP Fiori, scalabile a 200+ voci): <b>Rail (L1)</b> con le sezioni principali, collassabile a icone; <b>Sub-panel (L2)</b> con le voci della sezione, raggruppate, con <b>preferiti (pin ★)</b>, <b>Collegamenti</b> (↪ alla route canonica) e badge <b>PRESTO</b>. Massimo 2 click per qualunque voce. Clicca una sezione del rail per aprire il pannello; ✕ o il pulsante «riduci» per dare il massimo spazio alla maschera.</p>
+  </div>
+
+  <!-- ============ 1 — MENU LIVE ============ -->
+  <div class="cap"><div class="e">1 · Navigazione a 2 livelli</div><div class="t">Rail + Sub-panel (interattivo)</div>
+    <div class="d">Clicca le voci del rail a sinistra: il sub-panel mostra le funzioni di quella sezione. Le entità trasversali (Aziende, Articoli, Materiali, Risorse) vivono nell'hub <b>Anagrafiche</b>; dagli altri moduli si raggiungono come <b>Collegamenti</b> alla stessa route. Il pulsante «riduci» collassa il rail a icone.</div></div>
+
+  <div class="app" id="app">
+    <!-- RAIL -->
+    <aside class="rail">
+      <div class="r-brand">
+        <div class="mark"><i data-lucide="layout-grid"></i></div>
+        <div class="name"><em>si</em>Suite</div>
+        <button class="cl" id="collapseBtn" data-tip="Riduci il menu"><i data-lucide="chevrons-left"></i></button>
+      </div>
+      <button class="expander" id="expandBtn" data-tip="Espandi il menu"><i data-lucide="chevrons-right"></i></button>
+
+      <div class="r-item fav" data-sec="preferiti" data-tip="Preferiti"><i data-lucide="star"></i><span class="lbl">Preferiti</span></div>
+
+      <div class="r-group">Lavoro</div>
+      <div class="r-item" data-sec="cruscotto" data-tip="Cruscotto"><i data-lucide="layout-dashboard"></i><span class="lbl">Cruscotto</span></div>
+      <div class="r-item active" data-sec="commesse" data-tip="Commesse"><i data-lucide="folder-kanban"></i><span class="lbl">Commesse</span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+      <div class="r-item" data-sec="campo" data-tip="Campo"><i data-lucide="hard-hat"></i><span class="lbl">Campo</span></div>
+      <div class="r-item" data-sec="magazzino" data-tip="Magazzino"><i data-lucide="warehouse"></i><span class="lbl">Magazzino</span></div>
+      <div class="r-item" data-sec="finanza" data-tip="Finanza & Budget"><i data-lucide="wallet"></i><span class="lbl">Finanza &amp; Budget</span></div>
+
+      <div class="r-group">Dati</div>
+      <div class="r-item" data-sec="anagrafiche" data-tip="Anagrafiche"><i data-lucide="contact-2"></i><span class="lbl">Anagrafiche</span></div>
+
+      <div class="r-sp"></div>
+
+      <div class="r-group">Sistema</div>
+      <div class="r-item" data-sec="impostazioni" data-tip="Impostazioni"><i data-lucide="settings"></i><span class="lbl">Impostazioni</span></div>
+      <div class="r-item" data-sec="amministrazione" data-tip="Amministrazione"><i data-lucide="shield"></i><span class="lbl">Amministrazione</span></div>
+      <div class="r-item" data-sec="superusers" data-tip="SuperUsers"><i data-lucide="key-round"></i><span class="lbl">SuperUsers</span></div>
+
+      <div class="r-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Amministratore</div></div></div>
+    </aside>
+
+    <!-- SUB-PANEL (riempito da JS) -->
+    <div class="sub" id="sub"></div>
+
+    <!-- PAGINA DI ESEMPIO -->
+    <div class="main">
+      <div class="topbar">
+        <div style="width:36px"></div>
+        <div class="omni"><i data-lucide="sparkles" class="sp"></i><input placeholder="Cerca o chiedi all'AI…"><span class="two">cerca + comando AI</span><span class="kbd">⌘K</span></div>
+        <button class="ico"><i data-lucide="bell"></i></button>
+        <button class="ico"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="hint"><i data-lucide="info"></i><div>La maschera occupa tutto lo spazio: il sub-panel è un <b>overlay</b> che si chiude dopo la scelta (o col pulsante «riduci»). In cima alla pagina, la <b>sibling tab bar</b> permette di saltare tra entità "sorelle" senza riaprire il menu.</div></div>
+        <div class="siblings">
+          <span class="sib on"><i data-lucide="folder-kanban"></i> Elenco commesse</span>
+          <span class="sib"><i data-lucide="list-tree"></i> Struttura</span>
+          <span class="sib"><i data-lucide="calendar-range"></i> Pianificazione</span>
+          <span class="sib"><i data-lucide="check-square"></i> Attività</span>
+        </div>
+        <div class="ph-head"><h1>Commesse</h1></div>
+        <div class="ph-card"><div class="ph-row w2"></div><div class="ph-row w1"></div><div class="ph-row w3"></div><div class="ph-row w2"></div></div>
+        <div class="ph-card"><div class="ph-row w1"></div><div class="ph-row w3"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 — STRUTTURA COMPLETA ============ -->
+  <div class="cap"><div class="e">2 · Mappa completa</div><div class="t">Tutte le voci di siSuite, raggruppate</div>
+    <div class="d">L'albero completo da dare a Claude Code: ogni sezione (L1) con le sue voci (L2). ★ = preferibile/pin · <span style="color:var(--brand)">↪</span> = Collegamento alla route canonica di un'altra sezione · PRESTO = in arrivo. Generato dalla stessa sorgente del menu live qui sopra.</div></div>
+  <div class="mapgrid" id="mapgrid"></div>
+
+  <div class="note"><i data-lucide="book-marked"></i><div>Conforme allo standard <b>Si.Va.F. 02_navigation_menu</b>: 2 livelli puri (niente 3° livello — gli aspetti di un'entità complessa stanno <b>dentro</b> la pagina via tab/pillbar), una <b>route canonica per entità</b>, collocazione via <b>Regola del 10%</b> (entità trasversali nell'hub Anagrafiche), <b>omnibox ⌘K</b> (ricerca + comando AI), <b>preferiti</b> per-utente. Il menu <b>nasconde</b> per licenza/RBAC ma non è la barriera di sicurezza (quella è il backend).</div></div>
+</div>
+
+<script>
+const SEC = {
+  preferiti:{title:'Preferiti', icon:'star', blocks:[
+    {h:'I tuoi preferiti', g:'fav', items:[
+      {i:'building-2',t:'Aziende',from:'Anagrafiche'},
+      {i:'calendar-range',t:'Pianificazione & Agenda',from:'Commesse'},
+      {i:'inbox',t:'Inbox catture (AI)',from:'Commesse'},
+      {i:'file-input',t:'DDT di carico',from:'Magazzino'},
+    ]},
+  ]},
+  cruscotto:{title:'Cruscotto', icon:'layout-dashboard', blocks:[
+    {h:'Viste', items:[{i:'gauge',t:'Panoramica'},{i:'trending-up',t:'Margini per commessa'},{i:'calendar-clock',t:'Carico di lavoro'}]},
+    {h:'Avvisi', items:[{i:'inbox',t:'Catture da elaborare'},{i:'alarm-clock',t:'Scadenze'}]},
+  ]},
+  commesse:{title:'Commesse', icon:'folder-kanban', blocks:[
+    {h:'Preferiti in questa sezione', g:'fav', items:[{i:'calendar-range',t:'Pianificazione & Agenda',pin:1},{i:'inbox',t:'Inbox catture (AI)',pin:1}]},
+    {h:'Gestione', items:[{i:'folder-kanban',t:'Elenco commesse'},{i:'list-tree',t:'Struttura (fasi · attività)'},{i:'check-square',t:'Attività'}]},
+    {h:'Pianificazione', items:[{i:'users',t:'Carico risorse'}]},
+    {h:'Catture', items:[{i:'mic',t:'Nuova cattura vocale'}]},
+    {h:'Avanzato', items:[{i:'git-branch',t:'Gantt & dipendenze',soon:1}]},
+    {h:'Collegamenti', g:'link', items:[{i:'package',t:'Articoli'},{i:'users',t:'Risorse'},{i:'building-2',t:'Aziende'}]},
+  ]},
+  campo:{title:'Campo', icon:'hard-hat', blocks:[
+    {h:'Esecuzione', items:[{i:'sun',t:'Oggi (tecnico)'},{i:'calendar-days',t:'Agenda tecnico'},{i:'clipboard-list',t:'Rapportini'}]},
+    {h:'Tempi & presenze', items:[{i:'table-2',t:'Foglio ore'},{i:'timer',t:'Cronometro'},{i:'plane',t:'Assenze'}]},
+    {h:'Moduli verticali', items:[{i:'cable',t:'Ordinativi (FTTH)',tag:'fibra'}]},
+    {h:'Collegamenti', g:'link', items:[{i:'folder-kanban',t:'Commesse'}]},
+  ]},
+  magazzino:{title:'Magazzino', icon:'warehouse', blocks:[
+    {h:'Preferiti in questa sezione', g:'fav', items:[{i:'file-input',t:'DDT di carico',pin:1}]},
+    {h:'Giacenze', items:[{i:'layers',t:'Giacenze & disponibilità'},{i:'arrow-left-right',t:'Movimenti'},{i:'clipboard-check',t:'Inventario'}]},
+    {h:'Documenti', items:[{i:'file-output',t:'Scarico'},{i:'repeat',t:'Trasferimento'},{i:'sliders-horizontal',t:'Rettifiche'}]},
+    {h:'Avanzato', items:[{i:'map-pin',t:'Ubicazioni & lotti',soon:1},{i:'wrench',t:'Manutenzione asset',soon:1}]},
+    {h:'Collegamenti', g:'link', items:[{i:'package',t:'Articoli'},{i:'box',t:'Materiali'}]},
+  ]},
+  finanza:{title:'Finanza & Budget', icon:'wallet', blocks:[
+    {h:'Budget', items:[{i:'piggy-bank',t:'Budget commessa'},{i:'scale',t:'Preventivo–consuntivo'},{i:'percent',t:'Margini'}]},
+    {h:'Avanzato', items:[{i:'calculator',t:'Contabilità di commessa',soon:1},{i:'receipt',t:'Fatturazione',soon:1}]},
+    {h:'Collegamenti', g:'link', items:[{i:'folder-kanban',t:'Commesse'}]},
+  ]},
+  anagrafiche:{title:'Anagrafiche', icon:'contact-2', blocks:[
+    {h:'Preferiti in questa sezione', g:'fav', items:[{i:'building-2',t:'Aziende',pin:1}]},
+    {h:'Entità', items:[{i:'users',t:'Risorse'},{i:'package',t:'Articoli'},{i:'box',t:'Materiali'}]},
+    {h:'Viste', items:[{i:'user-round',t:'Clienti'},{i:'truck',t:'Fornitori'}]},
+    {h:'Asset', items:[{i:'cpu',t:'Asset & libretto'}]},
+    {h:'Avanzato', items:[{i:'tags',t:'Listini',soon:1}]},
+  ]},
+  impostazioni:{title:'Impostazioni', icon:'settings', blocks:[
+    {h:'Configurazione', items:[{i:'palette',t:'Stati & etichette'},{i:'hash',t:'Numerazioni'},{i:'sliders-horizontal',t:'Generali (densità · lingua)'}]},
+    {h:'Personalizzazione', items:[{i:'list-plus',t:'Verticali & campi'},{i:'bookmark',t:'Viste salvate'}]},
+  ]},
+  amministrazione:{title:'Amministrazione', icon:'shield', blocks:[
+    {h:'Accessi', items:[{i:'user-cog',t:'Utenti'},{i:'key-round',t:'Ruoli & permessi'}]},
+    {h:'Organizzazione', items:[{i:'network',t:'Organizzazione / Tenant'},{i:'shield-check',t:'Sicurezza (RLS)'}]},
+    {h:'Avanzato', items:[{i:'scroll-text',t:'Audit log',soon:1},{i:'log-in',t:'SSO (Keycloak)',soon:1}]},
+  ]},
+  superusers:{title:'SuperUsers', icon:'key-round', blocks:[
+    {h:'Sistema', items:[{i:'building',t:'Tenant'},{i:'flag',t:'Feature flags'},{i:'activity',t:'Diagnostica'}]},
+  ]},
+};
+const ic = n => `<i data-lucide="${n}"></i>`;
+const countVoci = s => s.blocks.filter(b=>b.g!=='link').reduce((a,b)=>a+b.items.length,0);
+
+function renderSub(id){
+  const s = SEC[id]; if(!s) return;
+  let html = `<div class="sub-h"><div class="ti">${s.title}</div><div class="ct">${countVoci(s)} voci</div><button class="x" id="closeSub" data-tip="Riduci">${ic('x')}</button></div><div class="sub-b">`;
+  s.blocks.forEach(b=>{
+    const gc = b.g==='fav'?' fav':(b.g==='link'?' link':'');
+    const gi = b.g==='fav'?ic('star'):(b.g==='link'?ic('corner-down-right'):'');
+    html += `<div class="sg${gc}">${gi}${b.h}</div>`;
+    b.items.forEach(it=>{
+      if(it.soon){ html += `<div class="si soon"><i class="li" data-lucide="${it.i}"></i><span>${it.t}</span><span class="badge">PRESTO</span></div>`; return; }
+      if(b.g==='link'){ html += `<div class="si link"><i class="li" data-lucide="${it.i}"></i><span>${it.t}</span><i class="ext" data-lucide="external-link"></i></div>`; return; }
+      let right = '';
+      if(it.from) right = `<span class="from">${it.from}</span>`;
+      else if(it.tag) right = `<span class="tag">${it.tag}</span>`;
+      else right = `<i class="pin ${it.pin?'on':''}" data-lucide="star"></i>`;
+      html += `<div class="si"><i class="li" data-lucide="${it.i}"></i><span>${it.t}</span>${right}</div>`;
+    });
+  });
+  html += `</div>`;
+  const sub = document.getElementById('sub');
+  sub.innerHTML = html; sub.classList.remove('closed');
+  document.getElementById('closeSub').onclick = ()=> sub.classList.add('closed');
+  lucide.createIcons();
+}
+
+document.querySelectorAll('.rail .r-item').forEach(el=>{
+  el.onclick = ()=>{
+    document.querySelectorAll('.rail .r-item').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    renderSub(el.dataset.sec);
+  };
+});
+document.getElementById('collapseBtn').onclick = ()=> document.getElementById('app').classList.add('mini');
+document.getElementById('expandBtn').onclick = ()=> document.getElementById('app').classList.remove('mini');
+
+// full map
+function renderMap(){
+  let html='';
+  Object.values(SEC).forEach(s=>{
+    html += `<div class="mapcard"><div class="mh">${ic(s.icon)} ${s.title}<span class="mc">${countVoci(s)} voci</span></div>`;
+    s.blocks.forEach(b=>{
+      html += `<div class="mg">${b.h}</div>`;
+      b.items.forEach(it=>{
+        const cls = b.g==='link'?'ml lk':'ml';
+        let right = it.soon?'<span class="s">PRESTO</span>':(it.pin?`<i class="st" data-lucide="star"></i>`:(it.tag?`<span class="s">${it.tag}</span>`:(it.from?`<span class="s">${it.from}</span>`:'')));
+        const ext = b.g==='link'?ic('external-link'):ic(it.i);
+        html += `<div class="${cls}">${b.g==='link'?ic('corner-down-right'):ic(it.i)}<span>${it.t}</span>${right}</div>`;
+      });
+    });
+    html += `</div>`;
+  });
+  document.getElementById('mapgrid').innerHTML = html;
+  lucide.createIcons();
+}
+
+renderSub('commesse');
+renderMap();
+lucide.createIcons();
+</script>
+</body>
+</html>

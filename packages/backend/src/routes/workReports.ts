@@ -114,6 +114,93 @@ export async function workReportRoutes(app: FastifyInstance): Promise<void> {
       return { items: rows.map(toDto) };
     });
 
+  // DOCUMENTO: testata + 6 sezioni righe (manodopera/attrezzature/materiali/subappalti/lavorazioni/foto) + totali.
+  // Le righe sono quelle della commessa del rapportino (filtrate al periodo se valorizzato).
+  app.get<{ Params: { id: string } }>('/work-reports/:id/document',
+    { preHandler: [app.authenticate, requirePermission('work_report:read')] },
+    async (request, reply) => {
+      return withRls(request.ctx, async (db) => {
+        const wr = (await db.query(`${SELECT} WHERE id = $1`, [request.params.id])).rows[0];
+        if (!wr) return reply.code(404).send({ error: 'not_found', message: 'Rapportino inesistente', statusCode: 404 });
+        const engId = wr.engagement_id as string;
+        // filtro periodo opzionale (occurred_on tra period_start e period_end)
+        const ps = wr.period_start as string | null;
+        const pe = wr.period_end as string | null;
+        const dateClause = (col: string) => {
+          const parts: string[] = [];
+          if (ps) parts.push(`${col} >= '${ps}'`);
+          if (pe) parts.push(`${col} <= '${pe}'`);
+          return parts.length ? `AND ${parts.join(' AND ')}` : '';
+        };
+
+        const head = (await db.query(
+          `SELECT e.code, e.title, c.display_name AS company FROM engagement e LEFT JOIN company c ON c.id=e.company_id WHERE e.id=$1`, [engId])).rows[0] ?? {};
+
+        const labor = (await db.query(
+          `SELECT COALESCE(lv.canonical, te.typology, 'manodopera') AS label, te.occurred_on,
+                  te.minutes, te.cost_rate, te.bill_rate, te.billable
+           FROM time_entry te LEFT JOIN lookup_value lv ON lv.id=te.typology_id
+           WHERE te.engagement_id=$1 ${dateClause('te.occurred_on')} ORDER BY te.occurred_on`, [engId])).rows
+          .map((r) => ({
+            label: r.label as string, date: r.occurred_on as string, qty: Number(r.minutes), unit: 'min',
+            cost: Math.round((Number(r.minutes) / 60) * Number(r.cost_rate ?? 0) * 100) / 100,
+            revenue: r.billable ? Math.round((Number(r.minutes) / 60) * Number(r.bill_rate ?? 0) * 100) / 100 : 0,
+          }));
+
+        const equip = (await db.query(
+          `SELECT COALESCE(r.label, eu.note, 'attrezzatura') AS label, eu.occurred_on, eu.quantity, eu.unit, eu.unit_cost
+           FROM equipment_usage eu LEFT JOIN resource r ON r.id=eu.resource_id
+           WHERE eu.engagement_id=$1 ${dateClause('eu.occurred_on')} ORDER BY eu.occurred_on`, [engId])).rows
+          .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: Number(r.quantity), unit: (r.unit as string) ?? '', cost: Math.round(Number(r.quantity) * Number(r.unit_cost ?? 0) * 100) / 100, revenue: 0 }));
+
+        const materials = (await db.query(
+          `SELECT m.name AS label, mc.occurred_on, mc.quantity, m.unit, m.default_cost
+           FROM material_consumption mc
+           JOIN material m ON m.id=mc.material_id
+           LEFT JOIN activity a ON a.id=mc.activity_id
+           LEFT JOIN work_order wo ON wo.id=mc.work_order_id
+           WHERE (a.engagement_id=$1 OR wo.engagement_id=$1) ${dateClause('mc.occurred_on')} ORDER BY mc.occurred_on`, [engId])).rows
+          .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: Number(r.quantity), unit: (r.unit as string) ?? '', cost: Math.round(Number(r.quantity) * Number(r.default_cost ?? 0) * 100) / 100, revenue: 0 }));
+
+        const subs = (await db.query(
+          `SELECT COALESCE(sl.description, c.display_name, 'subappalto') AS label, sl.occurred_on, sl.amount
+           FROM subcontract_line sl LEFT JOIN company c ON c.id=sl.company_id
+           WHERE sl.engagement_id=$1 ${dateClause('sl.occurred_on')} ORDER BY sl.occurred_on`, [engId])).rows
+          .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: 1, unit: '', cost: Number(r.amount ?? 0), revenue: 0 }));
+
+        const works = (await db.query(
+          `SELECT COALESCE(wl.description, 'lavorazione') AS label, wl.occurred_on, wl.quantity, wl.unit, wl.cost_price, wl.revenue_price
+           FROM work_line wl WHERE wl.engagement_id=$1 ${dateClause('wl.occurred_on')} ORDER BY wl.occurred_on`, [engId])).rows
+          .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: Number(r.quantity), unit: (r.unit as string) ?? '', cost: Math.round(Number(r.quantity) * Number(r.cost_price ?? 0) * 100) / 100, revenue: Math.round(Number(r.quantity) * Number(r.revenue_price ?? 0) * 100) / 100 }));
+
+        const photos = (await db.query(
+          `SELECT id, media_url, raw_text, created_at FROM capture
+           WHERE media_url IS NOT NULL ${dateClause('created_at::date')} ORDER BY created_at DESC LIMIT 50`, [])).rows
+          .map((r) => ({ id: r.id as string, mediaUrl: r.media_url as string, caption: (r.raw_text as string) ?? null, createdAt: r.created_at as string }));
+
+        const sum = (rows: { cost: number; revenue: number }[]) => rows.reduce((a, r) => ({ cost: a.cost + r.cost, revenue: a.revenue + r.revenue }), { cost: 0, revenue: 0 });
+        const sections = [
+          { key: 'labor', label: 'Manodopera', kind: 'both', rows: labor, ...sum(labor) },
+          { key: 'equipment', label: 'Attrezzature', kind: 'cost', rows: equip, ...sum(equip) },
+          { key: 'materials', label: 'Materiali', kind: 'cost', rows: materials, ...sum(materials) },
+          { key: 'subcontract', label: 'Subappalti', kind: 'cost', rows: subs, ...sum(subs) },
+          { key: 'worklines', label: 'Lavorazioni', kind: 'both', rows: works, ...sum(works) },
+        ].map((s) => ({ ...s, cost: Math.round(s.cost * 100) / 100, revenue: Math.round(s.revenue * 100) / 100 }));
+
+        const totalCost = Math.round(sections.reduce((a, s) => a + s.cost, 0) * 100) / 100;
+        const totalRevenue = Math.round(sections.reduce((a, s) => a + s.revenue, 0) * 100) / 100;
+        const margin = Math.round((totalRevenue - totalCost) * 100) / 100;
+        const marginPct = totalRevenue > 0 ? Math.round((margin / totalRevenue) * 1000) / 10 : null;
+
+        return {
+          report: toDto(wr),
+          engagement: { code: head.code ?? '', title: head.title ?? '', company: head.company ?? null },
+          sections, photos,
+          totals: { cost: totalCost, revenue: totalRevenue, margin, marginPct },
+        };
+      });
+    });
+
   app.post('/work-reports', { preHandler: [app.authenticate, requirePermission('work_report:create')] },
     async (request, reply) => {
       const input = createWorkReportSchema.parse(request.body);

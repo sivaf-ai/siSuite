@@ -28,6 +28,8 @@ export interface FieldDefinitionDto {
   sequence: number;
   /** true = riga di SISTEMA (tenant_id NULL): sola lettura per il tenant. */
   isSystem?: boolean;
+  /** attivo nei form (il Field Builder può disattivare i campi del tenant). */
+  active?: boolean;
 }
 
 /* ── Campi personalizzati: schemi create/update (admin tenant) ──────────── */
@@ -46,8 +48,10 @@ export const createFieldDefinitionSchema = z.object({
   options: z.array(fieldOption).nullable().optional(),
   unit: z.string().max(20).nullable().optional(),
   help: i18nLabel.nullable().optional(),
+  placeholder: i18nLabel.nullable().optional(),
   groupKey: z.string().max(40).nullable().optional(),
   sequence: z.number().int().min(0).optional(),
+  active: z.boolean().optional(),
 });
 // in modifica non si cambiano entity/key (chiave logica del campo)
 export const updateFieldDefinitionSchema = createFieldDefinitionSchema.omit({ entity: true, key: true }).partial();

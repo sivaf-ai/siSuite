@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--fs-h1:22px;--ctrl-h:36px;--sec-gap:16px;}
+html[data-density="compact"]{--ctrl-h:32px;--sec-gap:12px;}html[data-density="spacious"]{--ctrl-h:40px;--sec-gap:20px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+.app{display:grid;grid-template-columns:230px 1fr;height:840px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.brand-logo{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.8}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+.nav-item .badge{margin-left:auto;background:var(--flow);color:#06302e;font-size:10.5px;font-weight:700;border-radius:var(--r-pill);padding:1px 7px}
+.side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600}.side-user .rl{font-size:11px;color:#8A8F9B}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.topbar{height:60px;display:flex;align-items:center;gap:16px;padding:0 22px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .spark{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .kbd{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.work{flex:1;overflow:auto;padding:20px 22px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--sec-gap)}
+.page-head h1{font-size:var(--fs-h1);font-weight:800}.page-head .sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+/* kpi */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 16px;box-shadow:var(--shadow-1)}
+.kpi .top{display:flex;align-items:center;justify-content:space-between}
+.kpi .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center}
+.kpi .kl{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin-top:11px}
+.kpi .kv{font-family:var(--font-mono);font-size:24px;font-weight:700;margin-top:3px;font-feature-settings:"tnum" 1}
+.kpi .delta{font-size:11.5px;font-weight:600;margin-top:4px}.delta.up{color:var(--success)}.delta.down{color:var(--danger)}
+/* widgets */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.widget{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.wh{display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--line-2)}
+.wh .wt{font-size:14px;font-weight:700;font-family:var(--font-display)}
+.wh .more{margin-left:auto;font-size:12.5px;color:var(--brand-ink);font-weight:600}
+.wh .cnt{margin-left:auto;font-size:11.5px;color:var(--ink-faint);font-weight:600}
+.li{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line-2)}
+.li:last-child{border-bottom:0}.li:hover{background:var(--paper)}
+.li .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto}
+.li .nm{font-size:13px;font-weight:600}.li .me{font-size:11.5px;color:var(--ink-soft);margin-top:1px}
+.li .rt{margin-left:auto;text-align:right;white-space:nowrap}
+.li .time{font-family:var(--font-mono);font-size:12.5px;font-weight:600}
+.money{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-feature-settings:"tnum" 1;font-weight:600}
+.money .sym{color:var(--ink-faint)}
+/* margine per commessa: barre */
+.mrow{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line-2)}.mrow:last-child{border-bottom:0}
+.mrow .nm{font-size:13px;font-weight:600;width:150px;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{flex:1;height:8px;border-radius:999px;background:var(--line-2);overflow:hidden}.bar i{display:block;height:100%;border-radius:999px;background:var(--success)}.bar i.warn{background:var(--warning)}.bar i.bad{background:var(--danger)}
+.mrow .pc{width:46px;text-align:right;font-family:var(--font-mono);font-weight:700;font-size:13px}
+/* avvisi */
+.alert{display:flex;align-items:flex-start;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line-2)}.alert:last-child{border-bottom:0}
+.alert .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto}
+.alert .tx{font-size:12.5px;line-height:1.45}.alert .tx b{font-weight:700}
+.wrap{max-width:1280px;margin:0 auto;padding:34px 20px 70px}
+.intro h1{font-size:26px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:14px;margin:7px 0 0;max-width:820px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro" style="margin-bottom:16px">
+    <h1><em>si</em>Suite — Dashboard</h1>
+    <p>La home rifatta su v5: KPI in alto (numeri tabellari, valuta contabile), poi i widget operativi — prossime attività, catture da elaborare, margine per commessa e avvisi.</p>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand-logo"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <a class="nav-item"><i data-lucide="calendar"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="layers"></i> Catture <span class="badge">6</span></a>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <div class="nav-group">Anagrafiche</div>
+      <a class="nav-item"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="building-2"></i> Clienti</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="spark"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="kbd">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="page-head"><div><h1>Buongiorno, Sivaf</h1><div class="sub">Lunedì 15 giugno 2026 · ecco la situazione di oggi</div></div>
+          <button class="btn btn-primary"><i data-lucide="plus" style="width:16px;height:16px"></i> Nuova commessa</button>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="top"><div class="ic" style="background:var(--brand-wash);color:var(--brand-ink)"><i data-lucide="briefcase" style="width:17px;height:17px"></i></div></div>
+            <div class="kl">Commesse attive</div><div class="kv">12</div><div class="delta up">+2 questo mese</div></div>
+          <div class="kpi"><div class="top"><div class="ic" style="background:var(--info-wash);color:var(--info)"><i data-lucide="clock" style="width:17px;height:17px"></i></div></div>
+            <div class="kl">Ore questa settimana</div><div class="kv">254:00</div><div class="delta up">+18:30 vs scorsa</div></div>
+          <div class="kpi"><div class="top"><div class="ic" style="background:var(--success-wash);color:var(--success)"><i data-lucide="trending-up" style="width:17px;height:17px"></i></div></div>
+            <div class="kl">Margine medio</div><div class="kv">28%</div><div class="delta down">−2% vs target</div></div>
+          <div class="kpi"><div class="top"><div class="ic" style="background:var(--warning-wash);color:var(--warning)"><i data-lucide="alert-triangle" style="width:17px;height:17px"></i></div></div>
+            <div class="kl">Scadenze entro 7 gg</div><div class="kv">4</div><div class="delta" style="color:var(--ink-faint)">2 commesse, 2 attività</div></div>
+        </div>
+
+        <div class="cols">
+          <div class="widget">
+            <div class="wh"><i data-lucide="list-checks" style="width:18px;height:18px;color:var(--brand)"></i><span class="wt">Prossime attività</span><span class="more">Vedi agenda</span></div>
+            <div class="li"><div class="ic" style="background:var(--info-wash);color:var(--info)"><i data-lucide="waves" style="width:16px;height:16px"></i></div><div><div class="nm">Collaudo OTDR</div><div class="me">Fibra Via Dante · Marco Gallo</div></div><div class="rt"><div class="time">Oggi 09:45</div></div></div>
+            <div class="li"><div class="ic" style="background:var(--flow-wash);color:var(--flow)"><i data-lucide="hammer" style="width:16px;height:16px"></i></div><div><div class="nm">Cassero e getto</div><div class="me">Piscina Rossi · Gino Acqua</div></div><div class="rt"><div class="time">Oggi 09:45</div></div></div>
+            <div class="li"><div class="ic" style="background:var(--brand-wash);color:var(--brand-ink)"><i data-lucide="code" style="width:16px;height:16px"></i></div><div><div class="nm">Diagnosi rallentamenti</div><div class="me">Catalogo · Ahmed Rossi</div></div><div class="rt"><div class="time">Mar 08:00</div></div></div>
+            <div class="li"><div class="ic" style="background:var(--warning-wash);color:var(--warning)"><i data-lucide="sun" style="width:16px;height:16px"></i></div><div><div class="nm">Verifica stringhe</div><div class="me">Fotovoltaico Bianchi · Marco R.</div></div><div class="rt"><div class="time">Mer 14:00</div></div></div>
+          </div>
+
+          <div class="widget">
+            <div class="wh"><i data-lucide="layers" style="width:18px;height:18px;color:var(--brand)"></i><span class="wt">Catture da elaborare</span><span class="cnt">6 in attesa</span></div>
+            <div class="li"><div class="ic" style="background:var(--brand-wash);color:var(--brand-ink)"><i data-lucide="mic" style="width:16px;height:16px"></i></div><div><div class="nm">"Finito idraulica, 2 ore…"</div><div class="me">Marco Rossi · 5 min fa</div></div><div class="rt"><span class="pill pill--brand"><span class="dot"></span>AI pronta</span></div></div>
+            <div class="li"><div class="ic" style="background:var(--brand-wash);color:var(--brand-ink)"><i data-lucide="mic" style="width:16px;height:16px"></i></div><div><div class="nm">"Servono 3 raccordi da 1/2…"</div><div class="me">Gino Acqua · 22 min fa</div></div><div class="rt"><span class="pill pill--brand"><span class="dot"></span>AI pronta</span></div></div>
+            <div class="li"><div class="ic" style="background:var(--neutral-wash);color:var(--ink-soft)"><i data-lucide="camera" style="width:16px;height:16px"></i></div><div><div class="nm">Foto contatore</div><div class="me">Marco Gallo · 1 ora fa</div></div><div class="rt"><span class="pill pill--info"><span class="dot"></span>Da leggere</span></div></div>
+            <div class="li"><div class="ic" style="background:var(--neutral-wash);color:var(--ink-soft)"><i data-lucide="mic" style="width:16px;height:16px"></i></div><div><div class="nm">"Rimandato sopralluogo…"</div><div class="me">Ahmed Rossi · 2 ore fa</div></div><div class="rt"><span class="pill pill--info"><span class="dot"></span>Da leggere</span></div></div>
+          </div>
+
+          <div class="widget">
+            <div class="wh"><i data-lucide="bar-chart-3" style="width:18px;height:18px;color:var(--brand)"></i><span class="wt">Margine per commessa</span><span class="more">Vedi tutte</span></div>
+            <div class="mrow"><span class="nm">Piscina Rossi</span><div class="bar"><i style="width:34%"></i></div><span class="pc">34%</span></div>
+            <div class="mrow"><span class="nm">Fibra Via Dante</span><div class="bar"><i style="width:29%"></i></div><span class="pc">29%</span></div>
+            <div class="mrow"><span class="nm">Fotovoltaico Bianchi</span><div class="bar"><i class="warn" style="width:16%"></i></div><span class="pc">16%</span></div>
+            <div class="mrow"><span class="nm">Catalogo software</span><div class="bar"><i style="width:41%"></i></div><span class="pc">41%</span></div>
+            <div class="mrow"><span class="nm">Piscina Verdi</span><div class="bar"><i class="bad" style="width:6%"></i></div><span class="pc" style="color:var(--danger)">6%</span></div>
+          </div>
+
+          <div class="widget">
+            <div class="wh"><i data-lucide="bell-ring" style="width:18px;height:18px;color:var(--brand)"></i><span class="wt">Avvisi</span></div>
+            <div class="alert"><div class="ic" style="background:var(--warning-wash);color:var(--warning)"><i data-lucide="alert-triangle" style="width:16px;height:16px"></i></div><div class="tx"><b>Budget oltre l'85%</b> — Fotovoltaico Bianchi è al 92% del previsto. Margine in calo.</div></div>
+            <div class="alert"><div class="ic" style="background:var(--danger-wash);color:var(--danger)"><i data-lucide="package-x" style="width:16px;height:16px"></i></div><div class="tx"><b>Giacenza negativa</b> — Valvola sfioro 40 (VAL-S40): −2 pz. Da regolarizzare con un carico.</div></div>
+            <div class="alert"><div class="ic" style="background:var(--info-wash);color:var(--info)"><i data-lucide="palmtree" style="width:16px;height:16px"></i></div><div class="tx"><b>Ferie residue basse</b> — Gino Acqua ha 3,00 gg residui e una richiesta in attesa.</div></div>
+            <div class="alert"><div class="ic" style="background:var(--neutral-wash);color:var(--ink-soft)"><i data-lucide="file-text" style="width:16px;height:16px"></i></div><div class="tx"><b>2 rapportini da confermare</b> — settimana 9–13 giugno.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

@@ -22,7 +22,21 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
     groupKey: (r.group_key as string) ?? null,
     sequence: (r.sequence as number) ?? 0,
     isSystem: (r.is_system as boolean) ?? false,
+    active: (r.active as boolean) ?? true,
   };
+}
+
+/** Tutte le definizioni (anche inattive) per il Field Builder admin. */
+export async function loadAllFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
+  const { rows } = await db.query(
+    `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
+            active, tenant_id IS NULL AS is_system
+     FROM field_definition
+     WHERE entity = $1 AND (vertical IS NULL OR vertical = $2)
+     ORDER BY group_key NULLS FIRST, sequence`,
+    [entity, vertical],
+  );
+  return rows.map(mapRow);
 }
 
 export async function tenantVertical(db: PoolClient, tenantId: string): Promise<string> {
