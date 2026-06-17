@@ -22,5 +22,5 @@ Data: 17/06/2026.
 ## Test (curl, owner@fibra.demo)
 - `/stock/balance?materialId=` → 1 riga; `/stock/movements?materialId=` → 2 movimenti (uno con `documentRef=DDT-2026-0014`). `/stock/movements?workOrderId=` → filtro funziona (0 nel seed: la demo non ha scarichi legati a ordini). Typecheck shared+backend+frontend puliti; backend riavviato.
 
-## Note / debiti
-- Il **seed** non contiene `stock_movement.work_order_id` valorizzati → il tab "Materiali scaricati" dell'ordine è vuoto in demo (il wiring è completo). Per popolarlo: aggiungere al loader scarichi (`typeCode out`) con `work_order_id`, oppure registrarne uno da UI quando si introdurrà l'azione "scarica su ordine".
+## Seed scarichi su ordine (aggiunto 17/06)
+- `demo/runner.ts`: per ogni materiale `consumed` di un work_order ora viene inserito anche un **`stock_movement` 'out'** (segno negativo) con `work_order_id`, sull'ubicazione predefinita. Così il tab "Materiali scaricati" mostra dati in demo. Verificato dopo wipe+load: 5 scarichi su ordini (es. Cavo drop −28m, Connettore SOC −2pz). Demo ricaricata.

@@ -236,6 +236,9 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
 
     // ── ORDINATIVI FTTH (work_order + intestatario PII + apparati + seriali) ──
     let nWo = 0;
+    // scarichi di magazzino legati all'ordine (movimenti out con work_order_id): raccolti qui,
+    // inseriti dopo la creazione delle ubicazioni (Blocco H — tab "Materiali scaricati").
+    const woIssues: { woId: string; mid: string; qty: number; unit: string; on: string | null }[] = [];
     for (const w of pack.work_orders ?? []) {
       const engId = engagementId.get(w.engagement); if (!engId) throw new Error(`work_order ${w.code ?? ''}: engagement '${w.engagement}' non trovato`);
       const woCode = await nextWoCode(db, tenantId);
@@ -259,8 +262,10 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
       // materiali scaricati sull'ordinativo (consumi → costo materiali nella pivot)
       for (const mc of w.consumed ?? []) {
         const mid = materialId.get(mc.material); if (!mid) throw new Error(`consumo WO: materiale '${mc.material}' non trovato`);
+        const on = mc.occurred_on ?? w.completed_on ?? w.scheduled_on ?? null;
         await db.query(`INSERT INTO material_consumption (tenant_id, material_id, quantity, unit, occurred_on, work_order_id) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [tenantId, mid, mc.quantity, mc.unit, mc.occurred_on ?? w.completed_on ?? w.scheduled_on ?? null, woId]);
+          [tenantId, mid, mc.quantity, mc.unit, on, woId]);
+        woIssues.push({ woId, mid, qty: mc.quantity, unit: mc.unit, on });
       }
     }
 
@@ -294,6 +299,15 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
       const qty = t === 'in' ? Math.abs(mv.quantity) : t === 'adjust' ? mv.quantity : -Math.abs(mv.quantity);
       await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, unit_cost, occurred_on, note, engagement_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [tenantId, mid, lid, moveType(t), qty, mv.unit, mv.unit_cost ?? null, mv.occurred_on, mv.note ?? null, mv.engagement ? engagementId.get(mv.engagement) ?? null : null]);
+    }
+    // scarichi su ordine di lavoro: movimento 'out' (segno negativo) con work_order_id, sull'ubicazione predefinita
+    const defLocKey = (pack.stock?.locations ?? []).find((l) => l.is_default)?.key ?? (pack.stock?.locations ?? [])[0]?.key;
+    const defLoc = defLocKey ? locationId.get(defLocKey) : undefined;
+    if (defLoc) {
+      for (const is of woIssues) {
+        await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, occurred_on, work_order_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [tenantId, is.mid, defLoc, moveType('out'), -Math.abs(is.qty), is.unit, is.on, is.woId]);
+      }
     }
 
     // ── ASSENZE ──
