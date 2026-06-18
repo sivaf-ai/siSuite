@@ -35,6 +35,15 @@
 - **Aperto Blocco 5**: QBE type-aware (date-picker/enum-select + chip operatore), multi-sort (ORDER BY multiplo + mascherina), indici GIN trigram, gating PII filtro, conteggi viste col filtro. → `docs/DONE_5_filtri_viste.md`.
 - **Resta**: Blocco 6 (dedup AI Soggetti, 9 FK, pattern CaptureBarAI).
 
+## 2026-06-18 (5) — PIANO Blocco 6: deduplica Soggetti (Claude Code + agente)
+- **FK verso company: sono 11** (non 8 del piano né 9 del Blocco 0): mancavano `site.company_id` e `stock_document.company_id` (verificato su DB live).
+- Backend `routes/companyDedup.ts`: `POST /companies/dedup/scan` (proposta deterministica, no AI, gate company:read) + `POST /companies/merge` (transazionale, ri-punta 11 FK, gestisce UNIQUE company_role/work_order, archivia assorbiti, idempotente, gate company:delete). DTO in shared.
+- Test `test/companyMerge.test.ts` DB-backed: **PASS 2/2** (re-point senza orfani + idempotenza).
+- Frontend `ui/DedupDialog.tsx` (review: superstite/assorbiti per gruppo → fondi) wired su Soggetti (ClientiPage).
+- Backend riavviato; route 401 (registrate). Typecheck BE+shared+FE pulito.
+- Proposta AI-assistita + arricchimento = fast-follow. → `docs/DONE_6_dedup_soggetti.md`.
+- **PIANO 0→6 completato** (Blocco 5 resta con coda: QBE type-aware + multi-sort; Blocco 2 retrofit generico incrementale).
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

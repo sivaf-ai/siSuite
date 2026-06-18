@@ -53,6 +53,41 @@ export interface CompanyDto {
   createdAt: string;
 }
 
+/* ── Deduplica Soggetti (merge company) ────────────────────────────────
+ * Proposta DETERMINISTICA (normalizzazione nome, nessuna AI) + fusione
+ * transazionale che ri-punta le FK e ARCHIVIA (mai cancella) gli assorbiti. */
+export interface DedupCandidateDto {
+  id: string;
+  displayName: string;
+  createdAt: string;
+  /** quanti record collegati (ruoli + relazioni) → euristica per scegliere il superstite */
+  relations: number;
+}
+export interface DedupGroupDto {
+  /** chiave normalizzata condivisa dal gruppo (lowercase, no punteggiatura, no suffissi societari) */
+  normalizedKey: string;
+  /** superstite suggerito (deterministico): più relazioni, a parità il più vecchio */
+  suggestedSurvivorId: string;
+  /** membri assorbibili (tutti tranne il superstite suggerito) */
+  absorbedIds: string[];
+  /** tutti i membri del gruppo (incluso il superstite) */
+  members: DedupCandidateDto[];
+  /** motivazione testuale della proposta (no PII oltre al nome già visibile in lista) */
+  reason: string;
+}
+export const mergeCompaniesSchema = z.object({
+  survivorId: uuid,
+  absorbedIds: z.array(uuid).min(1).max(100),
+});
+export type MergeCompaniesInput = z.infer<typeof mergeCompaniesSchema>;
+export interface MergeResultDto {
+  survivorId: string;
+  /** quanti soggetti sono stati archiviati (assorbiti effettivamente fusi in questa esecuzione) */
+  absorbed: number;
+  /** righe ri-puntate per tabella (le colonne FK verso company) */
+  repointed: Record<string, number>;
+}
+
 /* ── Company contact ───────────────────────────────────────────────── */
 export const createContactSchema = z.object({
   companyId: uuid,

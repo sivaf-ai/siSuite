@@ -16,6 +16,7 @@ import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { engagementRoutes } from './routes/engagements.js';
 import { companyRoutes } from './routes/companies.js';
+import { companyDedupRoutes } from './routes/companyDedup.js';
 import { assetRoutes } from './routes/assets.js';
 import { resourceRoutes } from './routes/resources.js';
 import { materialRoutes } from './routes/materials.js';
@@ -90,6 +91,7 @@ async function build() {
   await app.register(lookupRoutes);
   await app.register(engagementRoutes);
   await app.register(companyRoutes);
+  await app.register(companyDedupRoutes);
   await app.register(assetRoutes);
   await app.register(resourceRoutes);
   await app.register(materialRoutes);

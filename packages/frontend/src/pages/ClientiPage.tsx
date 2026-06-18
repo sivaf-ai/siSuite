@@ -10,7 +10,8 @@ import type { CompanyDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
+import { DedupDialog } from '../ui/DedupDialog';
+import { Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
@@ -96,10 +97,9 @@ export function ClientiPage() {
     { key: 'createdAt', label: 'Creato il', value: (r: CompanyDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];
 
+  const [dedupOpen, setDedupOpen] = useState(false);
   const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
+    ...(can('delete') ? [{ key: 'dedup', icon: Sparkles, tip: 'Trova doppioni', variant: 'ai' as const, onClick: () => setDedupOpen(true) }] : []),
   ];
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo soggetto', variant: 'primary' as const, onClick: () => history.push('/companies/new') }] : []),
@@ -121,6 +121,7 @@ export function ClientiPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."
       />
+      <DedupDialog open={dedupOpen} onClose={() => setDedupOpen(false)} onMerged={() => void reload()} />
     </Page>
   );
 }
