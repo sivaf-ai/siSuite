@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import type { ActivityDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -24,6 +25,7 @@ export function AttivitaPage() {
   const history = useHistory();
   const lk = useLookups();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`activity:${a}` as never);
 
   const [view, setView] = useState<ViewKey>('all');
@@ -73,7 +75,7 @@ export function AttivitaPage() {
   return (
     <Page>
       <EntityList<ActivityDto>
-        title="Attività" subtitle="Tutte le attività delle commesse"
+        title={t('terms.activity_plural')} subtitle="Tutte le attività delle commesse"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca attività o commessa…"
         leftActions={leftActions}

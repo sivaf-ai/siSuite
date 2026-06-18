@@ -39,10 +39,19 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+const BUNDLED: Record<string, { terms?: Record<string, string> }> = { 'it-IT': itIT, en, 'es-AR': esAR };
+
 /** Carica gli override di terminologia del tenant per la lingua corrente e li
- *  inietta nel namespace `terms` (sovrascrivono i default). Non bloccante. */
+ *  inietta nel namespace `terms` (sovrascrivono i default). Non bloccante.
+ *  Le label di dominio (menu, titoli) referenziano `terms.*` via nesting `$t(...)`,
+ *  quindi l'override si propaga ovunque al re-render. */
 export async function refreshTerminology(): Promise<void> {
   const lng = i18n.language || 'it-IT';
+  // 1) ripristina i default bundled per TUTTI i terms.* (così la rimozione di un
+  //    override torna al default senza ricaricare la pagina).
+  const defaults = BUNDLED[lng]?.terms ?? {};
+  for (const [k, v] of Object.entries(defaults)) i18n.addResource(lng, 'translation', `terms.${k}`, v);
+  // 2) applica gli override del tenant (vincono sul default).
   try {
     const res = await apiFetch<{ items: TermOverrideDto[] }>(`/settings/terminology?locale=${lng}`);
     for (const t of res.items) {
@@ -50,6 +59,8 @@ export async function refreshTerminology(): Promise<void> {
       if (t.valuePlural) i18n.addResource(lng, 'translation', `terms.${t.termKey}_plural`, t.valuePlural);
     }
   } catch { /* override assenti o non autenticato: si usano i default */ }
+  // 3) forza il re-render dei componenti (i `$t(terms.*)` annidati si ricalcolano).
+  i18n.emit('languageChanged', lng);
 }
 
 /** Cambia lingua, PERSISTE la scelta (localStorage) e ricarica gli override. */

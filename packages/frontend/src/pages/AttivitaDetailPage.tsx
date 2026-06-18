@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import {
   IonList, IonItem, IonLabel, IonCheckbox, IonButton, IonSelect, IonSelectOption, IonInput,
   IonChip, IonNote, IonSpinner, IonText,
@@ -19,6 +20,7 @@ export function AttivitaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const lk = useLookups();
+  const { t } = useTranslation();
   const act = useApi<ActivityDetail>(`/activities/${id}`);
   const [checklist, setChecklist] = useState<{ text: string; done: boolean }[]>([]);
   const [savingCk, setSavingCk] = useState(false);
@@ -40,7 +42,7 @@ export function AttivitaDetailPage() {
   }
 
   return (
-    <Page title="Attività" back="/today">
+    <Page title={t('terms.activity')} back="/today">
       {act.loading && <Loading />}
       {act.error && <ErrorBox message={act.error} />}
       {act.data && (

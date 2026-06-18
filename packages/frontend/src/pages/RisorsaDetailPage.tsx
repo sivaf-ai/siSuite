@@ -4,6 +4,7 @@
  *  Crea+vedi+modifica nella stessa pagina; header sticky con Salva/Annulla. */
 import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash } from 'lucide-react';
 import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -30,6 +31,7 @@ export function RisorsaDetailPage() {
   const { user } = useAuth();
   const toast = useToast();
   const history = useHistory();
+  const { t } = useTranslation();
   const canManage = !!user?.permissions.includes('resource:update' as never);
   const canCreate = !!user?.permissions.includes('resource:create' as never);
 
@@ -105,8 +107,8 @@ export function RisorsaDetailPage() {
     catch (e) { toast((e as Error).message, 'error'); }
   }
 
-  if (!isNew && loading) return <Page title="Risorsa"><Loading /></Page>;
-  if (!isNew && error) return <Page title="Risorsa"><ErrorBox message={error} /></Page>;
+  if (!isNew && loading) return <Page title={t('terms.resource')}><Loading /></Page>;
+  if (!isNew && error) return <Page title={t('terms.resource')}><ErrorBox message={error} /></Page>;
 
   const availContent = (
     <>
@@ -194,12 +196,12 @@ export function RisorsaDetailPage() {
     ) },
   ];
 
-  const title = isNew ? 'Nuova risorsa' : (form.label || 'Risorsa');
+  const title = isNew ? `Nuova ${t('terms.resource')}` : (form.label || t('terms.resource'));
 
   return (
     <Page title={title} bleed>
       <ObjectPage
-        backLabel="Risorse" onBack={() => history.push('/resources')}
+        backLabel={t('terms.resource_plural')} onBack={() => history.push('/resources')}
         title={title} code={!isNew ? KIND_LABEL[form.kind]?.toUpperCase() : undefined}
         status={!isNew ? <StatusPill label={form.active ? 'Attiva' : 'Disattivata'} token={form.active ? 'success' : 'neutral'} /> : undefined}
         onSave={(isNew ? canCreate : canManage) ? saveHead : undefined}

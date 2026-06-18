@@ -11,6 +11,14 @@
 - **Restano (pesanti, multi-sessione)**: Blocco 2 (retrofit i18n + propagazione glossario — il cuore), Blocco 3 (liste legacy: Foglio ore/Assenze/Magazzino), Blocco 5 (QBE type-aware + multi-sort + saved_view mig 036), Blocco 6 (dedup AI Soggetti — apply su **9** FK, incl. `subcontract_line.company_id` non nel piano).
 - Typecheck frontend/shared: pulito.
 
+## 2026-06-18 (2) — PIANO Blocco 2: i18n propagazione glossario (Claude Code)
+- **Meccanismo**: label di dominio → `terms.*` via nesting i18next `$t(...)` nei 3 cataloghi (it/en/es). `i18n/index.ts` `refreshTerminology`: reset default bundled → applica override → emette `languageChanged` (re-render). Propagazione provata a runtime (engagement→Progetti).
+- **Glossario**: `shared/admin.ts` TERM_KEYS 18→28 (+party/customer/supplier/operator/partner/masterdata/work_order/work_line/site) + `TERM_GROUPS`. Aggiunti termini `work_order`/`work_line`/`masterdata_plural` ai cataloghi.
+- **UI**: `TerminologySettings.tsx` rifatta (raggruppamento + ↺ ripristina default per-termine + anteprima live).
+- **Retrofit flagship** (titoli lista + label scheda → t('terms.*')): Soggetti, Commesse, Ordini di lavoro, Articoli, Risorse, Asset, Attività, Lavorazioni (lista+detail). Via 2 agenti paralleli su file disgiunti.
+- **Aperto**: retrofit generico residuo (header colonne, tooltip EntityList, dialoghi, schermate minori) — incrementale, non blocca il DoD core. → `docs/DONE_2_i18n_glossario.md`.
+- Migrazioni: nessuna nuova (term_override già 007). Prossima libera resta **036**.
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

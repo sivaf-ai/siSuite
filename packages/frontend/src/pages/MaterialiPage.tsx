@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import type { MaterialDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -40,6 +41,7 @@ function statusOf(m: MaterialDto): { label: string; token: string } {
 export function MaterialiPage() {
   const { user } = useAuth();
   const history = useHistory();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`material:${a}` as never);
 
   const [view, setView] = useState<ViewKey>('all');
@@ -99,7 +101,7 @@ export function MaterialiPage() {
   return (
     <Page>
       <EntityList<MaterialDto>
-        title="Articoli & seriali" subtitle="Catalogo magazzino & servizi"
+        title={t('terms.material_plural')} subtitle="Catalogo magazzino & servizi"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, SKU, categoria…"
         leftActions={leftActions} rightActions={rightActions}

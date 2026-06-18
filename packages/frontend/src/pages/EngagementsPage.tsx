@@ -3,6 +3,7 @@
  * Manutenzione). Click riga → scheda /engagements/:id (ObjectPage). Nessuna icona-azione.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHistory } from 'react-router';
 import type { EngagementDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
@@ -23,6 +24,7 @@ interface ListResp {
 }
 
 export function EngagementsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const lk = useLookups();
@@ -41,7 +43,7 @@ export function EngagementsPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/engagements?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
-    basePath: '/engagements', reload, noun: 'commessa',
+    basePath: '/engagements', reload, noun: t('terms.engagement'),
     duplicateBody: (e) => ({ companyId: e.companyId, type: e.type, title: `${e.title} (copia)` }),
   });
 
@@ -80,7 +82,7 @@ export function EngagementsPage() {
   return (
     <Page>
       <EntityList<EngagementDto>
-        title="Commesse" subtitle="Lavori di realizzazione e manutenzione"
+        title={t('terms.engagement_plural')} subtitle="Lavori di realizzazione e manutenzione"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per codice o titolo…"
         leftActions={leftActions} rightActions={rightActions}

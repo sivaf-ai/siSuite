@@ -4,6 +4,7 @@
  * Niente master-detail né icone-azione: click riga → scheda /companies/:id.
  */
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHistory, useLocation } from 'react-router';
 import type { CompanyDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
@@ -17,9 +18,7 @@ const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'For
 const attr = (r: CompanyDto, k: string) => (r.attributes as Record<string, unknown>)[k] as string | undefined;
 
 type ViewKey = 'all' | 'customer' | 'supplier' | 'operator' | 'partner';
-const VIEW_LABEL: Record<ViewKey, string> = {
-  all: 'Tutti', customer: 'Clienti', supplier: 'Fornitori', operator: 'Gestori', partner: 'Partner',
-};
+const VIEW_KEYS: ViewKey[] = ['all', 'customer', 'supplier', 'operator', 'partner'];
 
 interface ListResp {
   items: CompanyDto[]; total: number; limit: number; offset: number;
@@ -27,9 +26,20 @@ interface ListResp {
 }
 
 export function ClientiPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const can = (a: string) => !!user?.permissions.includes(`company:${a}` as never);
+
+  const viewLabel = (k: ViewKey): string => {
+    switch (k) {
+      case 'all': return 'Tutti';
+      case 'customer': return t('terms.customer_plural');
+      case 'supplier': return t('terms.supplier_plural');
+      case 'operator': return t('terms.operator_plural');
+      case 'partner': return t('terms.partner_plural');
+    }
+  };
 
   // la vista iniziale arriva dal menu (?role=customer/supplier/operator/partner)
   const search = useLocation().search;
@@ -49,11 +59,11 @@ export function ClientiPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/companies?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
-    basePath: '/companies', reload, noun: 'soggetto',
+    basePath: '/companies', reload, noun: t('terms.party'),
     duplicateBody: (r) => ({ displayName: `${r.displayName} (copia)`, type: r.type, roles: r.roles.map((role) => ({ role })), attributes: r.attributes }),
   });
 
-  const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));
+  const views: ListView[] = VIEW_KEYS.map((k) => ({ key: k, label: viewLabel(k), count: data?.views?.[k] ?? 0 }));
 
   const columns: ListColumn<CompanyDto>[] = [
     { key: 'name', header: 'Nome', sub: 'tipo', value: (r) => r.displayName, render: (r) => (
@@ -98,7 +108,7 @@ export function ClientiPage() {
   return (
     <Page>
       <EntityList<CompanyDto>
-        title="Soggetti" subtitle="Anagrafica unica: clienti, fornitori, gestori, partner"
+        title={t('terms.party_plural')} subtitle="Anagrafica unica: clienti, fornitori, gestori, partner"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, P.IVA, città…"
         leftActions={leftActions} rightActions={rightActions}

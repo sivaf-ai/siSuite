@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useHistory, useParams, useLocation } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { Wrench, Ruler, Plus, Trash2 } from 'lucide-react';
 import type { WorkLineDto, PriceListItemDto, PhaseDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -25,6 +26,7 @@ export function LavorazioneDetailPage() {
   const history = useHistory();
   const toast = useToast();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const canWrite = !!user?.permissions.includes('engagement:update' as never);
   const engFromQuery = new URLSearchParams(useLocation().search).get('engagement') ?? '';
 
@@ -79,8 +81,8 @@ export function LavorazioneDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Lavorazione"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Lavorazione"><ErrorBox message={detail.error} /></Page>;
+  if (!isNew && detail.loading) return <Page title={t('terms.work_line')}><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title={t('terms.work_line')}><ErrorBox message={detail.error} /></Page>;
 
   const libretto = (
     <>
@@ -106,10 +108,10 @@ export function LavorazioneDetailPage() {
   ];
 
   return (
-    <Page title={isNew ? 'Nuova lavorazione' : 'Lavorazione'} bleed>
+    <Page title={isNew ? `Nuova ${t('terms.work_line')}` : t('terms.work_line')} bleed>
       <ObjectPage
-        backLabel="Lavorazioni" onBack={() => history.push('/work-lines')}
-        title={selItem?.description || d?.itemDescription || form.description || 'Lavorazione'}
+        backLabel={t('terms.work_line_plural')} onBack={() => history.push('/work-lines')}
+        title={selItem?.description || d?.itemDescription || form.description || t('terms.work_line')}
         code={!isNew ? (d?.itemCode ?? undefined) : undefined}
         onSave={canWrite ? save : undefined} onCancel={() => history.push('/work-lines')} saving={busy}
       >

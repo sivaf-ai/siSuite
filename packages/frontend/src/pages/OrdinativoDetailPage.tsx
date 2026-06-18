@@ -5,6 +5,7 @@
  * da field_definition. Tabelle correlate in fondo.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHistory, useParams } from 'react-router';
 import {
   Cable, ShieldCheck, MapPin, Boxes, Mic, ShieldAlert, Sparkles,
@@ -27,6 +28,7 @@ interface ListItem { id: string; title?: string; code?: string }
 interface ListResp<T> { items: T[] }
 
 export function OrdinativoDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const isNew = id === 'new';
   const history = useHistory();
@@ -98,8 +100,8 @@ export function OrdinativoDetailPage() {
     } finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Ordine di lavoro"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Ordine di lavoro"><ErrorBox message={detail.error} /></Page>;
+  if (!isNew && detail.loading) return <Page title={t('terms.work_order')}><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title={t('terms.work_order')}><ErrorBox message={detail.error} /></Page>;
 
   const companyOpts = companies.data?.items ?? [];
   const engOpts = engagements.data?.items ?? [];
@@ -132,10 +134,10 @@ export function OrdinativoDetailPage() {
   ];
 
   return (
-    <Page title={isNew ? 'Nuovo ordine di lavoro' : 'Ordine di lavoro'} bleed>
+    <Page title={isNew ? `${t('terms.work_order')} — nuovo` : t('terms.work_order')} bleed>
       <ObjectPage
-        backLabel="Ordini di lavoro" onBack={() => history.push('/work-orders')}
-        title={(!isNew && d?.typeLabel) || "Ordine di lavoro"} code={!isNew && d ? d.code : undefined}
+        backLabel={t('terms.work_order_plural')} onBack={() => history.push('/work-orders')}
+        title={(!isNew && d?.typeLabel) || t('terms.work_order')} code={!isNew && d ? d.code : undefined}
         status={!isNew ? <StatusPill label={lookups.labelOf(form.statusId) || 'Nuovo'} token={statusToken} /> : undefined}
         onSave={(isNew ? can('create') : can('update')) ? save : undefined}
         onCancel={() => history.push('/work-orders')} saving={busy}

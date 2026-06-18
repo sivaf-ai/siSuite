@@ -3,6 +3,7 @@
  */
 import { useState } from 'react';
 import { useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import type { AssetDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
@@ -16,6 +17,7 @@ interface ListResp { items: AssetDto[]; total: number; limit: number; offset: nu
 export function AssetPage() {
   const { user } = useAuth();
   const history = useHistory();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`asset:${a}` as never);
 
   const [q, setQ] = useState('');
@@ -61,7 +63,7 @@ export function AssetPage() {
   return (
     <Page>
       <EntityList<AssetDto>
-        title="Asset" subtitle="Oggetti gestiti: impianti, sistemi, apparati"
+        title={t('terms.asset_plural')} subtitle="Oggetti gestiti: impianti, sistemi, apparati"
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca etichetta o tipo…"
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}

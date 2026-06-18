@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import type { ResourceDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -23,6 +24,7 @@ interface ListResp { items: ResourceDto[]; total: number; limit: number; offset:
 export function RisorsePage() {
   const { user } = useAuth();
   const history = useHistory();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`resource:${a}` as never);
 
   const [view, setView] = useState<ViewKey>('all');
@@ -71,7 +73,7 @@ export function RisorsePage() {
   return (
     <Page>
       <EntityList<ResourceDto>
-        title="Risorse" subtitle="Persone, mezzi e attrezzature"
+        title={t('terms.resource_plural')} subtitle="Persone, mezzi e attrezzature"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome…"
         leftActions={leftActions} rightActions={rightActions}

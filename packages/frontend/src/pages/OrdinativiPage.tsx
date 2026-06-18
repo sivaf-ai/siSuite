@@ -4,6 +4,7 @@
  * + import CSV con editor di mapping colonna→campo (POST /work-orders/import).
  */
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHistory } from 'react-router';
 import { Lock } from 'lucide-react';
 import type { WorkOrderDto, EngagementDto, ResourceDto } from '@sisuite/shared';
@@ -32,6 +33,7 @@ function fmtDate(iso: string | null): string {
 }
 
 export function OrdinativiPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const lookups = useLookups();
@@ -53,7 +55,7 @@ export function OrdinativiPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/work-orders?${params.toString()}`);
   const rows = data?.items ?? [];
 
-  const { onDelete } = useEntityActions<WorkOrderDto>({ basePath: '/work-orders', reload, noun: 'ordine' });
+  const { onDelete } = useEntityActions<WorkOrderDto>({ basePath: '/work-orders', reload, noun: t('terms.work_order') });
 
   const statusOf = (wo: WorkOrderDto) => ({
     label: lookups.labelOf(wo.statusId) || (wo.statusCanonical ?? '—'),
@@ -106,7 +108,7 @@ export function OrdinativiPage() {
   return (
     <Page>
       <EntityList<WorkOrderDto>
-        title="Ordini di lavoro" subtitle="Ordini di lavoro · gestione a pezzi"
+        title={t('terms.work_order_plural')} subtitle="Ordini di lavoro · gestione a pezzi"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca rif. esterno, indirizzo, seriale…"
         leftActions={leftActions} rightActions={rightActions}

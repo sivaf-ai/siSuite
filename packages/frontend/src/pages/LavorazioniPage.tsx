@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import type { WorkLineDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { Money } from '../ui/Num';
@@ -26,6 +27,7 @@ const fmtDate = (iso: string | null) => { if (!iso) return '—'; const [y, m, d
 export function LavorazioniPage() {
   const { user } = useAuth();
   const history = useHistory();
+  const { t } = useTranslation();
   const canWrite = !!user?.permissions.includes('engagement:update' as never);
 
   const engs = useApi<{ items: Eng[] }>('/engagements');
@@ -78,7 +80,7 @@ export function LavorazioniPage() {
     <Page>
       <div className="dsx" style={{ marginBottom: 4 }}>
         <div className="lhrow">
-          <div className="lh"><h1>Lavorazioni</h1><span className="sub">Contabilità lavori · ricavo per voce di capitolato</span></div>
+          <div className="lh"><h1>{t('terms.work_line_plural')}</h1><span className="sub">Contabilità lavori · ricavo per voce di capitolato</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="faint" style={{ fontSize: 12.5 }}>Commessa</span>
             <select className="bi" style={{ minHeight: 34, maxWidth: 380 }} value={eng} onChange={(e) => { setEng(e.target.value); setOffset(0); }}>

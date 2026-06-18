@@ -5,6 +5,7 @@
  * (sub-CRUD via drawer) e Località/Siti (SiteTree).
  */
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useHistory } from 'react-router';
 import { Building2, Contact, Receipt, MapPin, StickyNote, Plus, Pencil, Trash2, Star } from 'lucide-react';
 import type { CompanyDto, ContactDto, FieldDefinitionDto } from '@sisuite/shared';
@@ -35,6 +36,7 @@ const CONTACT_FIELDS: RenderableField[] = [
 ];
 
 export function ClienteDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const isNew = id === 'new';
   const { user } = useAuth();
@@ -96,8 +98,8 @@ export function ClienteDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Soggetto"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Soggetto"><ErrorBox message={detail.error} /></Page>;
+  if (!isNew && detail.loading) return <Page title={t('terms.party')}><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title={t('terms.party')}><ErrorBox message={detail.error} /></Page>;
 
   const defs = fieldDefs.data?.items ?? [];
   const contacts = d?.contacts ?? [];
@@ -139,12 +141,12 @@ export function ClienteDetailPage() {
     },
   ];
 
-  const title = isNew ? 'Nuovo soggetto' : (form.displayName || 'Soggetto');
+  const title = isNew ? `${t('terms.party')} — nuovo` : (form.displayName || t('terms.party'));
 
   return (
     <Page title={title} bleed>
       <ObjectPage
-        backLabel="Soggetti" onBack={() => history.push('/companies')}
+        backLabel={t('terms.party_plural')} onBack={() => history.push('/companies')}
         title={title} code={!isNew && d ? d.id.slice(0, 8).toUpperCase() : undefined}
         status={!isNew ? <span style={{ display: 'flex', gap: 4 }}>{form.roles.map((r) => <StatusPill key={r} label={ROLE_LABEL[r] ?? r} token="brand" />)}</span> : undefined}
         onSave={(isNew ? can('company:create') : can('company:update')) ? save : undefined}

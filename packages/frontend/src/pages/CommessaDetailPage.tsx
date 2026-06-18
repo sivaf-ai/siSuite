@@ -6,6 +6,7 @@
  * Il "Racconto AI" è una CARD sotto la testata, non un tab.
  */
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useHistory } from 'react-router';
 import {
   IonButton, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
@@ -47,6 +48,7 @@ function hoursLabel(min: number | null, fixed: boolean): string {
 }
 
 export function CommessaDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const isNew = id === 'new';
   const { user } = useAuth();
@@ -231,8 +233,8 @@ export function CommessaDetailPage() {
 
   const empty = phaseList.length + actList.length === 0;
 
-  if (!isNew && eng.loading) return <Page title="Commessa" bleed><Loading /></Page>;
-  if (!isNew && eng.error) return <Page title="Commessa" bleed><ErrorBox message={eng.error} /></Page>;
+  if (!isNew && eng.loading) return <Page title={t('terms.engagement')} bleed><Loading /></Page>;
+  if (!isNew && eng.error) return <Page title={t('terms.engagement')} bleed><ErrorBox message={eng.error} /></Page>;
 
   const e = eng.data;
   const statusOpts = lk.byCategory('engagement_status');
@@ -240,15 +242,15 @@ export function CommessaDetailPage() {
   const canEdit = isNew ? can('engagement:create') : can('engagement:update');
 
   return (
-    <Page title={isNew ? 'Nuova commessa' : (e ? e.code : 'Commessa')} bleed>
+    <Page title={isNew ? `${t('terms.engagement')} — nuova` : (e ? e.code : t('terms.engagement'))} bleed>
       <ObjectPage
-        backLabel="Commesse" onBack={() => history.push('/engagements')}
-        title={isNew ? 'Nuova commessa' : (head.title || e?.title || 'Commessa')}
+        backLabel={t('terms.engagement_plural')} onBack={() => history.push('/engagements')}
+        title={isNew ? `${t('terms.engagement')} — nuova` : (head.title || e?.title || t('terms.engagement'))}
         code={!isNew && e ? e.code : undefined}
         status={!isNew && e ? pill(e.statusId, e.statusCanonical) : undefined}
         onSave={canEdit ? saveHead : undefined} onCancel={() => history.push('/engagements')} saving={busy}
       >
-        <ObjectBox icon={Briefcase} title="Anagrafica commessa">
+        <ObjectBox icon={Briefcase} title={`Anagrafica ${t('terms.engagement').toLowerCase()}`}>
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Titolo <span className="req">*</span></span>
               <input className="bi" value={head.title} onChange={(ev) => setH('title', ev.target.value)} /></div>

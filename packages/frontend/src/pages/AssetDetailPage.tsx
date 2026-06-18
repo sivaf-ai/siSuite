@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { Box, Trash2 } from 'lucide-react';
 import type { AssetDto, FieldDefinitionDto, SiteDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -22,6 +23,7 @@ export function AssetDetailPage() {
   const { user } = useAuth();
   const toast = useToast();
   const history = useHistory();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`asset:${a}` as never);
 
   const detail = useApi<AssetDto>(isNew ? null : `/assets/${id}`);
@@ -66,17 +68,17 @@ export function AssetDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Asset"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Asset"><ErrorBox message={detail.error} /></Page>;
+  if (!isNew && detail.loading) return <Page title={t('terms.asset')}><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title={t('terms.asset')}><ErrorBox message={detail.error} /></Page>;
 
   const companyOpts = companies.data?.items ?? [];
   const siteOpts = sites.data?.items ?? [];
-  const title = isNew ? 'Nuovo asset' : (form.label || 'Asset');
+  const title = isNew ? `Nuovo ${t('terms.asset')}` : (form.label || t('terms.asset'));
 
   return (
     <Page title={title} bleed>
       <ObjectPage
-        backLabel="Asset" onBack={() => history.push('/assets')}
+        backLabel={t('terms.asset_plural')} onBack={() => history.push('/assets')}
         title={title} code={!isNew && d ? d.id.slice(0, 8).toUpperCase() : undefined}
         onSave={(isNew ? can('create') : can('update')) ? save : undefined}
         onCancel={() => history.push('/assets')} saving={busy}

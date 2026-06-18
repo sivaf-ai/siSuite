@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { Package, Settings2, ScanLine, Layers, ArrowLeftRight, FileText, Eye, Lock } from 'lucide-react';
 import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto } from '@sisuite/shared';
 import { useLookups } from '../context/Lookups';
@@ -48,6 +49,7 @@ export function MaterialeDetailPage() {
   const history = useHistory();
   const toast = useToast();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(a as never);
 
   const detail = useApi<MaterialDto>(isNew ? null : `/materials/${id}`);
@@ -87,8 +89,8 @@ export function MaterialeDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Articolo"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Articolo"><ErrorBox message={detail.error} /></Page>;
+  if (!isNew && detail.loading) return <Page title={t('terms.material')}><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title={t('terms.material')}><ErrorBox message={detail.error} /></Page>;
 
   const itemType = (attrs.item_type as string) ?? 'article';
   const trackTag = itemType === 'service' ? { label: 'Servizio', token: 'neutral' } : form.trackedBySerial ? { label: 'A seriale', token: 'brand' } : { label: 'A magazzino', token: 'neutral' };
@@ -120,10 +122,10 @@ export function MaterialeDetailPage() {
   ];
 
   return (
-    <Page title={isNew ? 'Nuovo articolo' : 'Articolo'} bleed>
+    <Page title={isNew ? `Nuovo ${t('terms.material')}` : t('terms.material')} bleed>
       <ObjectPage
-        backLabel="Articoli" onBack={() => history.push('/materials')}
-        title={form.name as string || 'Nuovo articolo'} code={!isNew ? (d?.sku ?? undefined) : undefined}
+        backLabel={t('terms.material_plural')} onBack={() => history.push('/materials')}
+        title={form.name as string || `Nuovo ${t('terms.material')}`} code={!isNew ? (d?.sku ?? undefined) : undefined}
         status={!isNew ? <StatusPill label={trackTag.label} token={trackTag.token} /> : undefined}
         onSave={(isNew ? can('material:create') : can('material:update')) ? save : undefined}
         onCancel={() => history.push('/materials')} saving={busy}

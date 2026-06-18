@@ -124,12 +124,27 @@ export interface TenantSettingsDto {
 }
 
 /* ── Terminologia per-tenant (glossario di dominio, parte 8 §1) ─────────── */
-// Insieme CURATO di termini di dominio sovrascrivibili dal tenant (~20).
+// Insieme CURATO di termini di dominio sovrascrivibili dal tenant (~28).
+// L'ordine guida la UI del Glossario (raggruppato in TERM_GROUPS).
 export const TERM_KEYS = [
-  'engagement', 'phase', 'activity', 'resource', 'asset', 'material', 'customer',
-  'contact', 'capture', 'dependency', 'time_entry', 'consumption', 'checklist',
+  // anagrafiche / soggetti
+  'party', 'customer', 'supplier', 'operator', 'partner', 'contact', 'masterdata',
+  // lavoro
+  'engagement', 'phase', 'activity', 'work_order', 'work_line', 'site',
+  // risorse / catalogo
+  'resource', 'asset', 'material',
+  // operativo / AI
+  'capture', 'dependency', 'time_entry', 'consumption', 'checklist',
   'planning', 'dashboard', 'template', 'priority', 'status',
 ] as const;
+
+/** Raggruppamento dei termini per la UI del Glossario (Impostazioni › Terminologia). */
+export const TERM_GROUPS: { group: string; label: string; keys: TermKey[] }[] = [
+  { group: 'parties', label: 'Anagrafiche', keys: ['party', 'customer', 'supplier', 'operator', 'partner', 'contact', 'masterdata'] },
+  { group: 'work', label: 'Lavoro', keys: ['engagement', 'phase', 'activity', 'work_order', 'work_line', 'site'] },
+  { group: 'catalog', label: 'Risorse e catalogo', keys: ['resource', 'asset', 'material'] },
+  { group: 'ops', label: 'Operativo e AI', keys: ['capture', 'dependency', 'time_entry', 'consumption', 'checklist', 'planning', 'dashboard', 'template', 'priority', 'status'] },
+];
 export type TermKey = (typeof TERM_KEYS)[number];
 
 export interface TermOverrideDto { termKey: string; valueSingular: string; valuePlural: string | null }
