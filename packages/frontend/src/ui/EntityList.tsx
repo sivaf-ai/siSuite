@@ -19,7 +19,7 @@ import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
 import { ExportDialog } from './ExportDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { AiFilterPanel } from './AiFilterPanel';
-import { matchConditions, type FilterCondition } from '../lib/listFilter';
+import { matchConditions, type FilterCondition, type FilterMode } from '../lib/listFilter';
 import '../theme/datapages.css';
 
 export interface ListView { key: string; label: string; count?: number }
@@ -104,11 +104,12 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   // ── Filtro AI (client-side su TUTTI i campi) ──
   const [aiFilterOpen, setAiFilterOpen] = useState(false);
   const [filterConds, setFilterConds] = useState<FilterCondition[]>([]);
+  const [filterMode, setFilterMode] = useState<FilterMode>('and');
   const [filterDesc, setFilterDesc] = useState('');
   const colVal = (field: string, row: T) => exportSource.find((f) => f.key === field)?.value(row);
   const allVals = (row: T) => exportSource.map((f) => f.value(row));
   const viewRows = filterConds.length
-    ? p.rows.filter((row) => matchConditions(filterConds, (f) => colVal(f, row), () => allVals(row)))
+    ? p.rows.filter((row) => matchConditions(filterConds, (f) => colVal(f, row), () => allVals(row), filterMode))
     : p.rows;
 
   // selezione interna (solo 'manage'); nelle modalità pick è controllata dal padre.
@@ -319,8 +320,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       {aiFilterOpen && (
         <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}
           fields={exportFields}
-          initial={{ query: '', conditions: filterConds }}
-          onApply={(conds, d) => { setFilterConds(conds); setFilterDesc(d); }}
+          initial={{ query: '', conditions: filterConds, mode: filterMode }}
+          onApply={(conds, d, m) => { setFilterConds(conds); setFilterDesc(d); setFilterMode(m); }}
           onClose={() => setAiFilterOpen(false)} />
       )}
     </div>

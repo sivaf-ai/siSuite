@@ -30,23 +30,40 @@ function evalOne(op: string, raw: unknown, value: FilterCondition['value']): boo
   }
 }
 
+export type FilterMode = 'and' | 'or';
+
 /**
- * Tutte le condizioni in AND. `getValue(field)` ritorna il valore grezzo della
- * colonna; per il campo speciale `__any` cerca su TUTTI i valori forniti.
+ * Valuta le condizioni in AND (tutte) o OR (almeno una). `getValue(field)` ritorna
+ * il valore grezzo del campo; per il campo speciale `__any` cerca su tutti i valori.
  */
 export function matchConditions(
   conditions: FilterCondition[],
   getValue: (field: string) => unknown,
   allValues: () => unknown[],
+  mode: FilterMode = 'and',
 ): boolean {
-  return conditions.every((c) => {
-    if (c.field === '__any') {
-      const q = low(c.value);
-      return allValues().some((v) => low(v).includes(q));
-    }
+  if (!conditions.length) return true;
+  const test = (c: FilterCondition) => {
+    if (c.field === '__any') { const q = low(c.value); return allValues().some((v) => low(v).includes(q)); }
     return evalOne(c.op, getValue(c.field), c.value);
-  });
+  };
+  return mode === 'or' ? conditions.some(test) : conditions.every(test);
 }
+
+/** operatori disponibili nel builder manuale, con etichetta IT e se richiedono un valore. */
+export const FILTER_OPS: { op: string; label: string; noValue?: boolean }[] = [
+  { op: 'contains', label: 'contiene' },
+  { op: 'equals', label: 'uguale a' },
+  { op: 'not_equals', label: 'diverso da' },
+  { op: 'gt', label: 'maggiore di' },
+  { op: 'gte', label: 'maggiore o uguale' },
+  { op: 'lt', label: 'minore di' },
+  { op: 'lte', label: 'minore o uguale' },
+  { op: 'empty', label: 'è vuoto', noValue: true },
+  { op: 'not_empty', label: 'è valorizzato', noValue: true },
+  { op: 'is_true', label: 'è sì/vero', noValue: true },
+  { op: 'is_false', label: 'è no/falso', noValue: true },
+];
 
 const OP_LABEL: Record<string, string> = {
   contains: 'contiene', equals: '=', not_equals: '≠', empty: 'è vuoto', not_empty: 'valorizzato',

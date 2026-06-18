@@ -20,5 +20,11 @@ Data: 18/06/2026. Nuovo standard per TUTTE le liste `EntityList`. Si attiva dal 
 ## Test (reale, ANTHROPIC_API_KEY presente)
 - `POST /ai/list-filter` «clienti di Milano senza piva» → `[{city contains Milano},{vat empty}]` (l'AI ha mappato correttamente "senza piva" → vat vuoto). `filter-presets` save/list/delete OK. Typecheck shared+backend+frontend puliti.
 
+## Builder manuale (oltre all'AI) — aggiunto 18/06
+Il pannello (pulsante ✨) ora ha DUE livelli:
+1. **AI** in alto (NL + voce) — invariato.
+2. **Builder manuale**: righe **campo · operatore · valore** su TUTTI i campi dell'entità; operatori: contiene/uguale/diverso/>/≥/</≤/è vuoto/valorizzato/sì/no; **logica E (tutte) / O (almeno una)**; «Aggiungi condizione». L'AI **precompila** le stesse righe, che l'utente può rifinire a mano.
+Il set salvato (`filter_preset.payload`) contiene `query`, `conditions`, `mode`. `lib/listFilter.matchConditions(..., mode)` valuta in AND/OR.
+
 ## Nota / evoluzione
-- Il filtro è **client-side** sulle righe caricate (pagina corrente). Per dataset grandi conviene poi portarlo **server-side** (tradurre le condizioni in query): l'`op`/`field` sono già strutturati per farlo. I **Filtri manuali** (pulsante imbuto) restano disabilitati per scelta, da definire in seguito.
+- Il filtro è **client-side** sulle righe caricate (pagina corrente). Per dataset grandi conviene poi portarlo **server-side** (le condizioni `field/op/value`+`mode` sono già strutturate). Il pulsante imbuto resta scorciatoia futura; il builder vive nel pannello ✨.
