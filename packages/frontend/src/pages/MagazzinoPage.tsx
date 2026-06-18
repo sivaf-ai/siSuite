@@ -7,19 +7,19 @@
  * Le scritture passano dagli endpoint /stock/* (RLS+RBAC lato API).
  */
 import { useMemo, useState } from 'react';
-import { Warehouse, Plus, CheckCircle2, Trash2, MapPin } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2, Download } from 'lucide-react';
 import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, PermissionKey,
 } from '@sisuite/shared';
-import { Page, Loading, ErrorBox } from '../components/Page';
+import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
-import { DataTable, type Column } from '../ui/DataTable';
-import { EmptyState } from '../ui/EmptyState';
+import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { Drawer } from '../ui/Drawer';
 import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+import { downloadXlsx } from '../lib/xlsx';
 
 type Tab = 'balance' | 'movements' | 'documents' | 'locations';
 const TABS: { key: Tab; label: string }[] = [
@@ -30,6 +30,16 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 const num = (v: unknown) => (v == null ? '' : Number(v).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
 const eur = (v: number | null) => (v == null ? '—' : `€ ${Number(v).toFixed(2)}`);
+
+/** Esporta TUTTE le righe della lista (export-all, indipendente dalla selezione). */
+async function exportAll<T>(name: string, sheet: string, fields: ExportField<T>[], rows: T[]) {
+  if (!rows.length) return;
+  await downloadXlsx(name, [{
+    name: sheet.slice(0, 28),
+    columns: fields.map((f) => ({ header: f.label, key: f.key, width: 20 })),
+    rows: rows.map((r) => Object.fromEntries(fields.map((f) => [f.key, f.value(r) ?? '']))),
+  }]);
+}
 
 export function MagazzinoPage() {
   const lk = useLookups();
@@ -56,22 +66,26 @@ export function MagazzinoPage() {
 }
 
 /* ── Giacenze ──────────────────────────────────────────────────────── */
+type BalanceRow = StockBalanceDto & { id: string };
 function BalanceTab() {
   const locs = useApi<{ items: StockLocationDto[] }>('/stock/locations');
   const [loc, setLoc] = useState('');
   const bal = useApi<{ items: StockBalanceDto[] }>(`/stock/balance${loc ? `?locationId=${loc}` : ''}`);
-  const cols: Column<StockBalanceDto & { id: string }>[] = [
-    { key: 'material', header: 'Articolo', render: (r) => <span className="cellname">{r.materialName ?? '—'}</span> },
-    { key: 'location', header: 'Ubicazione', render: (r) => <span className="cellsub">{r.locationName ?? '—'}</span> },
-    { key: 'qty', header: 'Giacenza', align: 'right', render: (r) => (
+  const cols: ListColumn<BalanceRow>[] = [
+    { key: 'material', header: 'Articolo', value: (r) => r.materialName ?? '', render: (r) => <span className="cellname">{r.materialName ?? '—'}</span> },
+    { key: 'location', header: 'Ubicazione', value: (r) => r.locationName ?? '', render: (r) => <span className="cellsub">{r.locationName ?? '—'}</span> },
+    { key: 'qty', header: 'Giacenza', num: true, value: (r) => `${num(r.qtyOnHand)} ${r.unit ?? ''}`.trim(), render: (r) => (
       <span className="mono" style={r.qtyOnHand <= 0 ? { color: 'var(--c-danger, #c0392b)', fontWeight: 700 } : undefined}>
         {num(r.qtyOnHand)} {r.unit ?? ''}</span>
     ) },
-    { key: 'avg', header: 'Costo medio', align: 'right', render: (r) => <span className="mono">{eur(r.avgCost)}</span> },
-    { key: 'value', header: 'Valore', align: 'right', render: (r) => <span className="mono">{eur(r.valueOnHand)}</span> },
+    { key: 'avg', header: 'Costo medio', num: true, value: (r) => eur(r.avgCost), render: (r) => <span className="mono">{eur(r.avgCost)}</span> },
+    { key: 'value', header: 'Valore', num: true, value: (r) => eur(r.valueOnHand), render: (r) => <span className="mono">{eur(r.valueOnHand)}</span> },
   ];
-  const rows = (bal.data?.items ?? []).map((r) => ({ ...r, id: `${r.materialId}_${r.locationId}` }));
-  if (bal.error) return <ErrorBox message={bal.error} />;
+  const exportFields: ExportField<BalanceRow>[] = cols.map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  const rows: BalanceRow[] = (bal.data?.items ?? []).map((r) => ({ ...r, id: `${r.materialId}_${r.locationId}` }));
+  const rightActions: ListAction[] = [
+    { key: 'export', icon: Download, tip: 'Esporta tutto', onClick: () => void exportAll('giacenze', 'Giacenze', exportFields, rows) },
+  ];
   return (
     <>
       <div className="toolbar" style={{ marginBottom: 10 }}>
@@ -80,8 +94,10 @@ function BalanceTab() {
           {(locs.data?.items ?? []).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
       </div>
-      {bal.loading ? <Loading /> : <DataTable columns={cols} rows={rows}
-        empty={<EmptyState icon={Warehouse} title="Nessuna giacenza" hint="Registra un carico per popolare il magazzino." />} />}
+      <EntityList<BalanceRow>
+        columns={cols} rows={rows} loading={bal.loading} error={bal.error}
+        exportName="giacenze" exportFields={exportFields} rightActions={rightActions}
+        emptyText="Nessuna giacenza. Registra un carico per popolare il magazzino." />
     </>
   );
 }
@@ -89,22 +105,31 @@ function BalanceTab() {
 /* ── Movimenti ─────────────────────────────────────────────────────── */
 function MovementsTab({ lk }: { lk: ReturnType<typeof useLookups> }) {
   const mv = useApi<{ items: StockMovementDto[] }>('/stock/movements');
-  const cols: Column<StockMovementDto>[] = [
-    { key: 'date', header: 'Data', render: (r) => <span className="cellsub">{new Date(r.occurredOn).toLocaleDateString('it-IT')}</span> },
-    { key: 'type', header: 'Tipo', render: (r) => {
+  const cols: ListColumn<StockMovementDto>[] = [
+    { key: 'date', header: 'Data', value: (r) => new Date(r.occurredOn).toLocaleDateString('it-IT'), render: (r) => <span className="cellsub">{new Date(r.occurredOn).toLocaleDateString('it-IT')}</span> },
+    { key: 'type', header: 'Tipo', value: (r) => lk.labelOf(r.typeId), render: (r) => {
       const l = lk.byId(r.typeId);
       return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : '—';
     } },
-    { key: 'material', header: 'Articolo', render: (r) => <span className="cellname">{r.materialName ?? '—'}</span> },
-    { key: 'location', header: 'Ubicazione', render: (r) => <span className="cellsub">{r.locationName ?? '—'}</span> },
-    { key: 'qty', header: 'Qtà', align: 'right', render: (r) => (
+    { key: 'material', header: 'Articolo', value: (r) => r.materialName ?? '', render: (r) => <span className="cellname">{r.materialName ?? '—'}</span> },
+    { key: 'location', header: 'Ubicazione', value: (r) => r.locationName ?? '', render: (r) => <span className="cellsub">{r.locationName ?? '—'}</span> },
+    { key: 'qty', header: 'Qtà', num: true, value: (r) => `${num(r.quantity)} ${r.unit}`.trim(), render: (r) => (
       <span className="mono" style={{ color: r.quantity < 0 ? 'var(--ink)' : undefined }}>{num(r.quantity)} {r.unit}</span>
     ) },
-    { key: 'cost', header: 'Costo unit.', align: 'right', render: (r) => <span className="mono">{eur(r.unitCost)}</span> },
+    { key: 'cost', header: 'Costo unit.', num: true, value: (r) => eur(r.unitCost), render: (r) => <span className="mono">{eur(r.unitCost)}</span> },
   ];
-  if (mv.error) return <ErrorBox message={mv.error} />;
-  return mv.loading ? <Loading /> : <DataTable columns={cols} rows={mv.data?.items ?? []}
-    empty={<EmptyState icon={Warehouse} title="Nessun movimento" hint="I carichi/scarichi compaiono qui." />} />;
+  const exportFields: ExportField<StockMovementDto>[] = cols.map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  const rows = mv.data?.items ?? [];
+  const rightActions: ListAction[] = [
+    { key: 'export', icon: Download, tip: 'Esporta tutto', onClick: () => void exportAll('movimenti', 'Movimenti', exportFields, rows) },
+  ];
+  return (
+    <EntityList<StockMovementDto>
+      columns={cols} rows={rows} loading={mv.loading} error={mv.error}
+      selectable={false}
+      exportName="movimenti" exportFields={exportFields} rightActions={rightActions}
+      emptyText="Nessun movimento. I carichi/scarichi compaiono qui." />
+  );
 }
 
 /* ── Documenti ─────────────────────────────────────────────────────── */
@@ -172,19 +197,26 @@ function DocumentsTab({ lk, canManage }: { lk: ReturnType<typeof useLookups>; ca
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
 
-  const cols: Column<StockDocumentDto>[] = [
-    { key: 'number', header: 'Numero', render: (r) => <span className="cellname">{r.number ?? <em style={{ color: 'var(--ink-faint)' }}>bozza</em>}</span> },
-    { key: 'type', header: 'Tipo', render: (r) => { const l = lk.byId(r.typeId); return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : '—'; } },
-    { key: 'date', header: 'Data', render: (r) => <span className="cellsub">{new Date(r.docDate).toLocaleDateString('it-IT')}</span> },
-    { key: 'status', header: 'Stato', render: (r) => <span className="chip">{r.status}</span> },
-    { key: 'act', header: '', align: 'right', render: (r) => (
+  const cols: ListColumn<StockDocumentDto>[] = [
+    { key: 'number', header: 'Numero', value: (r) => r.number ?? 'bozza', render: (r) => <span className="cellname">{r.number ?? <em style={{ color: 'var(--ink-faint)' }}>bozza</em>}</span> },
+    { key: 'type', header: 'Tipo', value: (r) => lk.labelOf(r.typeId), render: (r) => { const l = lk.byId(r.typeId); return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : '—'; } },
+    { key: 'date', header: 'Data', value: (r) => new Date(r.docDate).toLocaleDateString('it-IT'), render: (r) => <span className="cellsub">{new Date(r.docDate).toLocaleDateString('it-IT')}</span> },
+    { key: 'status', header: 'Stato', value: (r) => r.status, render: (r) => <span className="chip">{r.status}</span> },
+    // Azione-riga preservata (gate stock:manage, stessa POST /stock/documents/:id/confirm): render custom, niente value → fuori dall'export.
+    { key: 'act', header: 'Azioni', render: (r) => (
       r.status === 'draft' && canManage
-        ? <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => confirmDoc(r.id)}><CheckCircle2 size={15} /> Conferma</button>
+        ? <button className="btn btn-primary btn-sm" disabled={busy} onClick={(e) => { e.stopPropagation(); confirmDoc(r.id); }}><CheckCircle2 size={15} /> Conferma</button>
         : null
     ) },
   ];
+  const exportFields: ExportField<StockDocumentDto>[] = cols
+    .filter((c) => c.value)
+    .map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  const rows = docs.data?.items ?? [];
   const locOpts = locs.data?.items ?? [];
-  if (docs.error) return <ErrorBox message={docs.error} />;
+  const rightActions: ListAction[] = [
+    { key: 'export', icon: Download, tip: 'Esporta tutto', onClick: () => void exportAll('documenti', 'Documenti', exportFields, rows) },
+  ];
   return (
     <>
       {canManage && (
@@ -193,8 +225,11 @@ function DocumentsTab({ lk, canManage }: { lk: ReturnType<typeof useLookups>; ca
           <button className="btn btn-primary btn-sm" onClick={() => { reset(); setOpen(true); }}><Plus size={16} /> Nuovo documento</button>
         </div>
       )}
-      {docs.loading ? <Loading /> : <DataTable columns={cols} rows={docs.data?.items ?? []}
-        empty={<EmptyState icon={Warehouse} title="Nessun documento" hint="Crea un carico, un trasferimento o una rettifica." />} />}
+      <EntityList<StockDocumentDto>
+        columns={cols} rows={rows} loading={docs.loading} error={docs.error}
+        selectable={false}
+        exportName="documenti" exportFields={exportFields} rightActions={rightActions}
+        emptyText="Nessun documento. Crea un carico, un trasferimento o una rettifica." />
 
       <Drawer open={open} title="Nuovo documento" onClose={() => setOpen(false)} footer={
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -273,12 +308,16 @@ function LocationsTab({ canManage }: { canManage: boolean }) {
   }
 
   const KIND_LABEL: Record<string, string> = { warehouse: 'Magazzino', sub_location: 'Sotto-ubicazione', van: 'Furgone' };
-  const cols: Column<StockLocationDto>[] = [
-    { key: 'name', header: 'Nome', render: (r) => <span className="cellname">{r.name}</span> },
-    { key: 'kind', header: 'Tipo', render: (r) => <span className="chip">{KIND_LABEL[r.kind] ?? r.kind}</span> },
-    { key: 'default', header: 'Default', render: (r) => (r.isDefault ? <span className="chip">predefinito</span> : '') },
+  const cols: ListColumn<StockLocationDto>[] = [
+    { key: 'name', header: 'Nome', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
+    { key: 'kind', header: 'Tipo', value: (r) => KIND_LABEL[r.kind] ?? r.kind, render: (r) => <span className="chip">{KIND_LABEL[r.kind] ?? r.kind}</span> },
+    { key: 'default', header: 'Default', value: (r) => (r.isDefault ? 'predefinito' : ''), render: (r) => (r.isDefault ? <span className="chip">predefinito</span> : '') },
   ];
-  if (locs.error) return <ErrorBox message={locs.error} />;
+  const exportFields: ExportField<StockLocationDto>[] = cols.map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  const rows = locs.data?.items ?? [];
+  const rightActions: ListAction[] = [
+    { key: 'export', icon: Download, tip: 'Esporta tutto', onClick: () => void exportAll('ubicazioni', 'Ubicazioni', exportFields, rows) },
+  ];
   return (
     <>
       {canManage && (
@@ -287,8 +326,10 @@ function LocationsTab({ canManage }: { canManage: boolean }) {
           <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}><Plus size={16} /> Nuova ubicazione</button>
         </div>
       )}
-      {locs.loading ? <Loading /> : <DataTable columns={cols} rows={locs.data?.items ?? []}
-        empty={<EmptyState icon={MapPin} title="Nessuna ubicazione" hint="Crea il primo magazzino." />} />}
+      <EntityList<StockLocationDto>
+        columns={cols} rows={rows} loading={locs.loading} error={locs.error}
+        exportName="ubicazioni" exportFields={exportFields} rightActions={rightActions}
+        emptyText="Nessuna ubicazione. Crea il primo magazzino." />
 
       <Drawer open={open} title="Nuova ubicazione" onClose={() => setOpen(false)} footer={
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

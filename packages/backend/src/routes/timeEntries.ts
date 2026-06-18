@@ -51,6 +51,15 @@ export async function timeEntryRoutes(app: FastifyInstance): Promise<void> {
       return { items: rows.map(toDto) };
     });
 
+  app.get<{ Params: { id: string } }>('/time-entries/:id',
+    { preHandler: [app.authenticate, requirePermission('time_entry:read')] },
+    async (request, reply) => {
+      const row = await withRls(request.ctx, (db) =>
+        db.query(`${SELECT} WHERE id = $1`, [request.params.id]).then((r) => r.rows[0]));
+      if (!row) return reply.code(404).send({ message: 'Registrazione ore non trovata' });
+      return toDto(row);
+    });
+
   app.post('/time-entries', { preHandler: [app.authenticate, requirePermission('time_entry:create')] },
     async (request, reply) => {
       const input = createTimeEntrySchema.parse(request.body);

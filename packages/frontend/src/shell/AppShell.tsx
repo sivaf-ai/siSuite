@@ -48,9 +48,11 @@ import { LavorazioneDetailPage } from '../pages/LavorazioneDetailPage';
 import { OrdinativiPage } from '../pages/OrdinativiPage';
 import { OrdinativoDetailPage } from '../pages/OrdinativoDetailPage';
 import { TimeEntriesPage } from '../pages/TimeEntriesPage';
+import { TimeEntryDetailPage } from '../pages/TimeEntryDetailPage';
 import { MagazzinoPage } from '../pages/MagazzinoPage';
 import { RapportiniPage } from '../pages/RapportiniPage';
 import { AssenzePage } from '../pages/AssenzePage';
+import { AbsenceDetailPage } from '../pages/AbsenceDetailPage';
 import { CronometroPage } from '../pages/CronometroPage';
 import { AssetPage } from '../pages/AssetPage';
 import { PianificazionePage } from '../pages/PianificazionePage';
@@ -77,10 +79,12 @@ const ROUTES: RouteDef[] = [
   { path: '/planning', render: () => <PianificazionePage />, perm: 'activity:read' },
   { path: '/engagements', render: () => <EngagementsPage />, perm: 'engagement:read' },
   { path: '/time-entries', render: () => <TimeEntriesPage />, perm: 'time_entry:read' },
+  { path: '/time-entries/:id', render: () => <TimeEntryDetailPage />, perm: 'time_entry:read' },
   { path: '/work-reports', render: () => <RapportiniPage />, perm: 'work_report:read' },
   { path: '/work-reports/:id', render: () => <RapportinoDetailPage />, perm: 'work_report:read' },
   { path: '/timer', render: () => <CronometroPage />, perm: 'time_entry:read' },
   { path: '/absences', render: () => <AssenzePage />, perm: 'absence:read' },
+  { path: '/absences/:id', render: () => <AbsenceDetailPage />, perm: 'absence:read' },
   { path: '/engagements/:id', render: () => <CommessaDetailPage />, perm: 'engagement:read' },
   { path: '/activities', render: () => <AttivitaPage />, perm: 'activity:read' },
   { path: '/activities/:id', render: () => <AttivitaDetailPage />, perm: 'activity:read' },

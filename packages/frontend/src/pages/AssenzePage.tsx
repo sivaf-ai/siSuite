@@ -1,15 +1,17 @@
 /**
- * AssenzePage — MODULO ORE §4.4: assenze e saldi. Due schede:
- *  - Richieste: lista + crea + approva (l'approvazione imputa il saldo).
- *  - Saldi: maturato/goduto/residuo per risorsa+tipo+anno (carico manuale).
+ * AssenzePage — MODULO ORE §4.4: assenze e saldi, su EntityList v2. Due schede:
+ *  - Richieste: lista (EntityList) + crea (Drawer) ; click riga → scheda /absences/:id.
+ *    Viste "Tutte/In attesa/Approvate" (filtro client sul canonical dell'approvazione).
+ *  - Saldi: EntityList in sola lettura (maturato/goduto/residuo per risorsa+tipo+anno).
+ * L'approvazione e l'eliminazione vivono nella scheda; la creazione resta nel Drawer.
  */
 import { useMemo, useState } from 'react';
-import { CalendarOff, Plus, Check, Trash2 } from 'lucide-react';
+import { useHistory } from 'react-router';
+import { Plus } from 'lucide-react';
 import type { AbsenceDto, AbsenceBalanceDto, ResourceDto, PermissionKey } from '@sisuite/shared';
-import { Page, Loading, ErrorBox } from '../components/Page';
+import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
-import { DataTable, type Column } from '../ui/DataTable';
-import { EmptyState } from '../ui/EmptyState';
+import { EntityList, type ListColumn, type ListView, type ListAction, type ExportField } from '../ui/EntityList';
 import { Drawer } from '../ui/Drawer';
 import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
@@ -17,15 +19,18 @@ import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 
 type Tab = 'requests' | 'balances';
+type ReqView = 'all' | 'pending' | 'approved';
+type BalRow = AbsenceBalanceDto & { id: string };
 
 export function AssenzePage() {
   const lk = useLookups();
   const toast = useToast();
+  const history = useHistory();
   const { user } = useAuth();
   const perms = new Set<PermissionKey>((user?.permissions ?? []) as PermissionKey[]);
   const canCreate = perms.has('absence:create');
-  const canApprove = perms.has('absence:approve');
   const [tab, setTab] = useState<Tab>('requests');
+  const [view, setView] = useState<ReqView>('all');
 
   const abs = useApi<{ items: AbsenceDto[] }>('/absences');
   const bal = useApi<{ items: AbsenceBalanceDto[] }>('/absence-balances');
@@ -34,7 +39,7 @@ export function AssenzePage() {
   const types = lk.byCategory('absence_type');
 
   const [busy, setBusy] = useState(false);
-  // crea richiesta
+  // crea richiesta (Drawer preservato)
   const [open, setOpen] = useState(false);
   const [rRes, setRRes] = useState('');
   const [rType, setRType] = useState('');
@@ -57,59 +62,93 @@ export function AssenzePage() {
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
 
-  async function approve(id: string) {
-    setBusy(true);
-    try { await mutate('POST', `/absences/${id}/approve`); toast('Approvata', 'success'); await abs.reload(); await bal.reload(); }
-    catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
-  }
-  async function remove(id: string) {
-    setBusy(true);
-    try { await mutate('DELETE', `/absences/${id}`); toast('Eliminata', 'success'); await abs.reload(); }
-    catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
-  }
+  const resLabel = (r: AbsenceDto | BalRow) => resById.get(r.resourceId)?.label ?? '—';
+  const isApproved = (r: AbsenceDto) => lk.byId(r.approvalStatusId)?.canonical === 'approved';
 
-  const reqCols: Column<AbsenceDto>[] = [
-    { key: 'res', header: 'Risorsa', render: (r) => <span className="cellname">{resById.get(r.resourceId)?.label ?? '—'}</span> },
-    { key: 'type', header: 'Tipo', render: (r) => { const l = lk.byId(r.typeId); return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : '—'; } },
-    { key: 'period', header: 'Periodo', render: (r) => <span className="cellsub">{r.startsOn} → {r.endsOn}{r.halfDay ? ' (½)' : ''}</span> },
-    { key: 'amount', header: 'Quantità', align: 'right', render: (r) => <span className="mono">{r.hours != null ? `${r.hours}h` : '—'}</span> },
-    { key: 'status', header: 'Stato', render: (r) => { const l = lk.byId(r.approvalStatusId); return l ? <StatusPill label={lk.labelOf(r.approvalStatusId)} token={l.colorToken} /> : <span className="chip">bozza</span>; } },
-  ];
-  const reqActions = [
-    ...(canApprove ? [{ icon: Check, label: 'Approva', onClick: (r: AbsenceDto) => approve(r.id) }] : []),
-    ...(perms.has('absence:delete') ? [{ icon: Trash2, label: 'Elimina', danger: true, onClick: (r: AbsenceDto) => remove(r.id) }] : []),
+  // ── Tab Richieste ──────────────────────────────────────────────────────
+  const allReq = abs.data?.items ?? [];
+  const viewReq = view === 'pending' ? allReq.filter((r) => !isApproved(r))
+    : view === 'approved' ? allReq.filter(isApproved) : allReq;
+  const reqViews: ListView[] = [
+    { key: 'all', label: 'Tutte', count: allReq.length },
+    { key: 'pending', label: 'In attesa', count: allReq.filter((r) => !isApproved(r)).length },
+    { key: 'approved', label: 'Approvate', count: allReq.filter(isApproved).length },
   ];
 
-  const balCols: Column<AbsenceBalanceDto & { id: string }>[] = [
-    { key: 'res', header: 'Risorsa', render: (r) => <span className="cellname">{resById.get(r.resourceId)?.label ?? '—'}</span> },
-    { key: 'type', header: 'Tipo', render: (r) => lk.labelOf(r.typeId) || '—' },
-    { key: 'year', header: 'Anno', render: (r) => r.year },
-    { key: 'accrued', header: 'Maturato', align: 'right', render: (r) => <span className="mono">{r.accrued}</span> },
-    { key: 'used', header: 'Goduto', align: 'right', render: (r) => <span className="mono">{r.used}</span> },
-    { key: 'res2', header: 'Residuo', align: 'right', render: (r) => <span className="mono" style={{ fontWeight: 700, color: r.residual < 0 ? 'var(--c-danger, #c0392b)' : 'var(--c-success, #1e8e4e)' }}>{r.residual}</span> },
+  const reqColumns: ListColumn<AbsenceDto>[] = [
+    { key: 'res', header: 'Risorsa', value: (r) => resLabel(r), render: (r) => <span className="cellname">{resLabel(r)}</span> },
+    { key: 'type', header: 'Tipo', value: (r) => lk.labelOf(r.typeId), render: (r) => {
+      const l = lk.byId(r.typeId); return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : <span className="faint">—</span>;
+    } },
+    { key: 'period', header: 'Periodo', value: (r) => `${r.startsOn} → ${r.endsOn}${r.halfDay ? ' (½)' : ''}`,
+      render: (r) => <span className="cellsub">{r.startsOn} → {r.endsOn}{r.halfDay ? ' (½)' : ''}</span> },
+    { key: 'amount', header: 'Quantità', num: true, value: (r) => (r.hours != null ? `${r.hours}h` : ''),
+      render: (r) => <span className="mono">{r.hours != null ? `${r.hours}h` : '—'}</span> },
+    { key: 'status', header: 'Stato', value: (r) => lk.labelOf(r.approvalStatusId) || 'bozza', render: (r) => {
+      const l = lk.byId(r.approvalStatusId);
+      return l ? <StatusPill label={lk.labelOf(r.approvalStatusId)} token={l.colorToken} /> : <span className="chip">bozza</span>;
+    } },
   ];
-  const balRows = (bal.data?.items ?? []).map((r) => ({ ...r, id: `${r.resourceId}_${r.typeId}_${r.year}` }));
 
-  if (abs.error) return <Page title="Assenze"><ErrorBox message={abs.error} /></Page>;
+  const reqExportFields: ExportField<AbsenceDto>[] = [
+    { key: 'res', label: 'Risorsa', value: (r) => resLabel(r) },
+    { key: 'type', label: 'Tipo', value: (r) => lk.labelOf(r.typeId) },
+    { key: 'startsOn', label: 'Dal', value: (r) => r.startsOn },
+    { key: 'endsOn', label: 'Al', value: (r) => r.endsOn },
+    { key: 'halfDay', label: 'Mezza giornata', value: (r) => (r.halfDay ? 'Sì' : 'No') },
+    { key: 'hours', label: 'Ore', value: (r) => (r.hours != null ? r.hours : '') },
+    { key: 'status', label: 'Stato', value: (r) => lk.labelOf(r.approvalStatusId) || 'bozza' },
+    { key: 'note', label: 'Note', value: (r) => r.note ?? '' },
+    { key: 'createdAt', label: 'Creata il', value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT') },
+  ];
+
+  const reqRight: ListAction[] = canCreate
+    ? [{ key: 'new', icon: Plus, tip: 'Nuova richiesta', variant: 'primary' as const, onClick: () => setOpen(true) }]
+    : [];
+
+  // ── Tab Saldi (sola lettura) ───────────────────────────────────────────
+  const balRows: BalRow[] = (bal.data?.items ?? []).map((r) => ({ ...r, id: `${r.resourceId}_${r.typeId}_${r.year}` }));
+  const balColumns: ListColumn<BalRow>[] = [
+    { key: 'res', header: 'Risorsa', value: (r) => resLabel(r), render: (r) => <span className="cellname">{resLabel(r)}</span> },
+    { key: 'type', header: 'Tipo', value: (r) => lk.labelOf(r.typeId), render: (r) => lk.labelOf(r.typeId) || '—' },
+    { key: 'year', header: 'Anno', num: true, value: (r) => r.year, render: (r) => <span className="mono">{r.year}</span> },
+    { key: 'accrued', header: 'Maturato', num: true, value: (r) => r.accrued, render: (r) => <span className="mono">{r.accrued}</span> },
+    { key: 'used', header: 'Goduto', num: true, value: (r) => r.used, render: (r) => <span className="mono">{r.used}</span> },
+    { key: 'residual', header: 'Residuo', num: true, value: (r) => r.residual, render: (r) => (
+      <span className="mono" style={{ fontWeight: 700, color: r.residual < 0 ? 'var(--c-danger, #c0392b)' : 'var(--c-success, #1e8e4e)' }}>{r.residual}</span>) },
+  ];
 
   return (
-    <Page title="Assenze">
-      <div className="toolbar" style={{ marginBottom: 12 }}>
-        <div className="seg">
+    <Page>
+      <div className="dsx" style={{ marginBottom: 4 }}>
+        <div className="seg" style={{ display: 'inline-flex' }}>
           <button className={tab === 'requests' ? 'on' : ''} onClick={() => setTab('requests')}>Richieste</button>
           <button className={tab === 'balances' ? 'on' : ''} onClick={() => setTab('balances')}>Saldi</button>
         </div>
-        <span style={{ flex: 1 }} />
-        {tab === 'requests' && canCreate && <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}><Plus size={16} /> Nuova richiesta</button>}
       </div>
 
-      {tab === 'requests' && (abs.loading ? <Loading /> :
-        <DataTable columns={reqCols} rows={abs.data?.items ?? []} actions={reqActions.length ? reqActions : undefined}
-          empty={<EmptyState icon={CalendarOff} title="Nessuna assenza" hint="Crea una richiesta di ferie/permesso." />} />)}
+      {tab === 'requests' && (
+        <EntityList<AbsenceDto>
+          title="Assenze" subtitle="Richieste di ferie e permessi"
+          views={reqViews} activeView={view} onView={(k) => setView(k as ReqView)}
+          columns={reqColumns} rows={viewReq} loading={abs.loading} error={abs.error}
+          onRowClick={(r) => history.push(`/absences/${r.id}`)}
+          rightActions={reqRight}
+          selectable={false}
+          exportName="assenze" exportFields={reqExportFields}
+          emptyText="Nessuna assenza in questa vista."
+        />
+      )}
 
-      {tab === 'balances' && (bal.loading ? <Loading /> :
-        <DataTable columns={balCols} rows={balRows}
-          empty={<EmptyState icon={CalendarOff} title="Nessun saldo" hint="I saldi si popolano approvando le assenze o caricando il maturato." />} />)}
+      {tab === 'balances' && (
+        <EntityList<BalRow>
+          title="Saldi assenze" subtitle="Maturato, goduto e residuo per risorsa, tipo e anno"
+          columns={balColumns} rows={balRows} loading={bal.loading} error={bal.error}
+          selectable={false}
+          exportName="saldi-assenze"
+          emptyText="Nessun saldo. I saldi si popolano approvando le assenze o caricando il maturato."
+        />
+      )}
 
       <Drawer open={open} title="Nuova richiesta di assenza" onClose={() => setOpen(false)} footer={
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

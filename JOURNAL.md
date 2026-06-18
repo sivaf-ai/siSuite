@@ -19,6 +19,14 @@
 - **Aperto**: retrofit generico residuo (header colonne, tooltip EntityList, dialoghi, schermate minori) — incrementale, non blocca il DoD core. → `docs/DONE_2_i18n_glossario.md`.
 - Migrazioni: nessuna nuova (term_override già 007). Prossima libera resta **036**.
 
+## 2026-06-18 (3) — PIANO Blocco 3: liste legacy → EntityList v2 (Claude Code, 3 agenti paralleli)
+- **Foglio ore**: `TimeEntriesPage` → EntityList + nuovo `TimeEntryDetailPage`; backend `GET /time-entries/:id`. Barra bulk approvazioni preservata.
+- **Assenze**: `AssenzePage` → EntityList (Richieste + Saldi sola lettura) + nuovo `AbsenceDetailPage`; backend `GET /absences/:id`. Drawer creazione preservato. Backlog: DELETE approvata non ripristina saldo.
+- **Magazzino**: `MagazzinoPage` 4 tab → EntityList; conferma documenti + drawer + transizioni stato PRESERVATI (azione in colonna custom).
+- **AppShell**: route `/time-entries/:id`, `/absences/:id`. Backend riavviato (route nuove), health 200.
+- Typecheck FE+BE pulito. → `docs/DONE_3_liste_legacy.md`. Nessuna migrazione.
+- **Restano**: Blocco 5 (QBE type-aware + multi-sort + saved_view mig 036), Blocco 6 (dedup AI Soggetti, 9 FK).
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

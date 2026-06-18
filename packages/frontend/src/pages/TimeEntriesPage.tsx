@@ -1,17 +1,20 @@
 /**
- * TimeEntriesPage — "Foglio ore" (Modulo Ore §4.3): lista delle ore con
- * filtro per stato di approvazione, multi-selezione e azioni IN BLOCCO
- * (invia / approva / respingi / blocca / sblocca). Le azioni sono gated dai
- * permessi (time_entry:create per l'invio, time_entry:approve per il resto);
- * la sicurezza vera è API+RLS.
+ * TimeEntriesPage — "Foglio ore" (Modulo Ore §4.3) su EntityList v2.
+ * Lista delle ore con viste per stato di approvazione, selezione a checkbox
+ * standard (solo conteggio) e azioni IN BLOCCO custom (invia / approva /
+ * respingi / blocca / sblocca). Le azioni sono gated dai permessi
+ * (time_entry:create per l'invio, time_entry:approve per il resto;
+ * time_entry:delete per l'eliminazione); la sicurezza vera è API+RLS.
+ * Click riga → scheda /time-entries/:id.
  */
 import { useMemo, useState } from 'react';
-import { Clock, Send, Check, X, Lock, Unlock, Lock as LockIcon } from 'lucide-react';
-import type { TimeEntryDto, EngagementDto, ResourceDto, PermissionKey } from '@sisuite/shared';
-import { Page, Loading, ErrorBox } from '../components/Page';
+import { useTranslation } from 'react-i18next';
+import { useHistory } from 'react-router';
+import { Send, Check, X, Lock, Unlock, Lock as LockIcon, Plus } from 'lucide-react';
+import type { TimeEntryDto, EngagementDto, ResourceDto, ActivityDto, PermissionKey } from '@sisuite/shared';
+import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
-import { DataTable, type Column } from '../ui/DataTable';
-import { EmptyState } from '../ui/EmptyState';
+import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useApi, mutate } from '../api/hooks';
 import { PromptDialog } from '../ui/PromptDialog';
 import { useLookups } from '../context/Lookups';
@@ -19,14 +22,11 @@ import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { hhmm } from '../lib/time';
 
-type StatusFilter = 'all' | 'draft' | 'submitted' | 'approved' | 'rejected';
-const FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: 'Tutte' },
-  { key: 'draft', label: 'Bozze' },
-  { key: 'submitted', label: 'Inviate' },
-  { key: 'approved', label: 'Approvate' },
-  { key: 'rejected', label: 'Respinte' },
-];
+type ViewKey = 'all' | 'submitted' | 'approved' | 'draft';
+const VIEW_KEYS: ViewKey[] = ['all', 'submitted', 'approved', 'draft'];
+const VIEW_CANONICAL: Record<Exclude<ViewKey, 'all'>, string> = {
+  submitted: 'submitted', approved: 'approved', draft: 'draft',
+};
 
 function dateIt(s: string): string {
   // occurredOn arriva come 'YYYY-MM-DD' o ISO: mostra gg/mm/aaaa
@@ -35,45 +35,136 @@ function dateIt(s: string): string {
 }
 
 export function TimeEntriesPage() {
+  const { t } = useTranslation();
   const lk = useLookups();
   const toast = useToast();
+  const history = useHistory();
   const { user } = useAuth();
   const perms = new Set<PermissionKey>((user?.permissions ?? []) as PermissionKey[]);
   const canApprove = perms.has('time_entry:approve');
   const canSubmit = perms.has('time_entry:create');
+  const canDelete = perms.has('time_entry:delete');
 
   const te = useApi<{ items: TimeEntryDto[] }>('/time-entries');
   const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const ress = useApi<{ items: ResourceDto[] }>('/resources');
+  const acts = useApi<{ items: ActivityDto[] }>('/activities');
 
-  const [filter, setFilter] = useState<StatusFilter>('all');
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<ViewKey>('all');
+  const [q, setQ] = useState('');
+  const [selRows, setSelRows] = useState<TimeEntryDto[]>([]);
+  const [clearTok, setClearTok] = useState(0);
   const [busy, setBusy] = useState(false);
   const [reasonFor, setReasonFor] = useState<'reject' | 'lock' | null>(null);
 
   const engById = useMemo(() => new Map((engs.data?.items ?? []).map((e) => [e.id, e])), [engs.data]);
   const resById = useMemo(() => new Map((ress.data?.items ?? []).map((r) => [r.id, r])), [ress.data]);
+  const actById = useMemo(() => new Map((acts.data?.items ?? []).map((a) => [a.id, a])), [acts.data]);
 
-  // canonical dello stato per il filtro
   const canonicalOf = (statusId: string | null): string | null => lk.byId(statusId)?.canonical ?? null;
 
+  // viste per stato di approvazione (filtro client-side sulle righe caricate)
+  const items = te.data?.items ?? [];
   const rows = useMemo(() => {
-    const items = te.data?.items ?? [];
-    if (filter === 'all') return items;
-    return items.filter((r) => canonicalOf(r.approvalStatusId) === filter);
+    if (view === 'all') return items;
+    return items.filter((r) => canonicalOf(r.approvalStatusId) === VIEW_CANONICAL[view]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [te.data, filter, lk.all]);
+  }, [items, view, lk.all]);
 
-  const allSelected = rows.length > 0 && rows.every((r) => sel.has(r.id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const countByCanonical = (canonical: string) =>
+    items.filter((r) => canonicalOf(r.approvalStatusId) === canonical).length;
+  const views: ListView[] = [
+    { key: 'all', label: 'Tutte', count: items.length },
+    { key: 'submitted', label: 'Da approvare', count: countByCanonical('submitted') },
+    { key: 'approved', label: 'Approvate', count: countByCanonical('approved') },
+    { key: 'draft', label: 'Bozze', count: countByCanonical('draft') },
+  ];
 
+  const engLabel = (r: TimeEntryDto) => (r.engagementId ? engById.get(r.engagementId)?.code ?? '' : '');
+  const actLabel = (r: TimeEntryDto) => (r.activityId ? actById.get(r.activityId)?.title ?? '' : '');
+  const resLabel = (r: TimeEntryDto) => (r.resourceId ? resById.get(r.resourceId)?.label ?? '' : '');
+
+  const columns: ListColumn<TimeEntryDto>[] = [
+    {
+      key: 'occurredOn', header: 'Data', value: (r) => dateIt(r.occurredOn),
+      render: (r) => <span className="mono">{dateIt(r.occurredOn)}</span>,
+    },
+    {
+      key: 'engagement', header: 'Commessa', sub: 'fase / attività',
+      value: (r) => [engLabel(r), actLabel(r)].filter(Boolean).join(' · '),
+      render: (r) => {
+        const code = engLabel(r); const act = actLabel(r);
+        return code || act
+          ? <div className="two"><span className="a">{code || '—'}</span><span className="b">{act || ''}</span></div>
+          : <span className="faint">—</span>;
+      },
+    },
+    {
+      key: 'resource', header: 'Risorsa', value: (r) => resLabel(r),
+      render: (r) => (resLabel(r) ? <span>{resLabel(r)}</span> : <span className="faint">—</span>),
+    },
+    {
+      key: 'typology', header: 'Tipologia',
+      value: (r) => lk.labelOf(r.typologyId) || r.typology,
+      render: (r) => {
+        const l = lk.byId(r.typologyId);
+        return l ? <StatusPill label={lk.labelOf(r.typologyId)} token={l.colorToken} /> : <span className="chip">{r.typology}</span>;
+      },
+    },
+    {
+      key: 'minutes', header: 'Durata', sub: 'h:mm', num: true,
+      value: (r) => hhmm(r.minutes),
+      render: (r) => <span className="mono">{hhmm(r.minutes)}</span>,
+    },
+    {
+      key: 'bill', header: 'Tariffa', num: true,
+      value: (r) => (r.billRate != null ? r.billRate : ''),
+      render: (r) => r.billRate != null
+        ? <span className="mono">€ {r.billRate.toFixed(2)}/h</span>
+        : <span className="faint">—</span>,
+    },
+    {
+      key: 'status', header: 'Stato',
+      value: (r) => lk.labelOf(r.approvalStatusId) + (r.isLocked ? ' (bloccata)' : ''),
+      render: (r) => {
+        const l = lk.byId(r.approvalStatusId);
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {l ? <StatusPill label={lk.labelOf(r.approvalStatusId)} token={l.colorToken} /> : <span className="faint">—</span>}
+            {r.isLocked && <LockIcon size={14} style={{ color: 'var(--ink-faint)' }} aria-label={`bloccata (${r.lockReason ?? ''})`} />}
+          </span>
+        );
+      },
+    },
+  ];
+
+  // export: TUTTI i campi della registrazione ore
+  const exportFields = [
+    { key: 'occurredOn', label: 'Data', value: (r: TimeEntryDto) => dateIt(r.occurredOn) },
+    { key: 'engagement', label: 'Commessa', value: (r: TimeEntryDto) => engLabel(r) },
+    { key: 'activity', label: 'Fase / attività', value: (r: TimeEntryDto) => actLabel(r) },
+    { key: 'resource', label: 'Risorsa', value: (r: TimeEntryDto) => resLabel(r) },
+    { key: 'typology', label: 'Tipologia', value: (r: TimeEntryDto) => lk.labelOf(r.typologyId) || r.typology },
+    { key: 'minutes', label: 'Durata (h:mm)', value: (r: TimeEntryDto) => hhmm(r.minutes) },
+    { key: 'minutesRaw', label: 'Minuti', value: (r: TimeEntryDto) => r.minutes },
+    { key: 'costRate', label: 'Costo (€/h)', value: (r: TimeEntryDto) => (r.costRate != null ? r.costRate.toFixed(2) : '') },
+    { key: 'billRate', label: 'Tariffa (€/h)', value: (r: TimeEntryDto) => (r.billRate != null ? r.billRate.toFixed(2) : '') },
+    { key: 'currency', label: 'Valuta', value: (r: TimeEntryDto) => r.currency ?? '' },
+    { key: 'billable', label: 'Fatturabile', value: (r: TimeEntryDto) => (r.billable ? 'Sì' : 'No') },
+    { key: 'status', label: 'Stato approvazione', value: (r: TimeEntryDto) => lk.labelOf(r.approvalStatusId) },
+    { key: 'isLocked', label: 'Bloccata', value: (r: TimeEntryDto) => (r.isLocked ? 'Sì' : 'No') },
+    { key: 'lockReason', label: 'Motivo blocco', value: (r: TimeEntryDto) => r.lockReason ?? '' },
+    { key: 'notes', label: 'Note', value: (r: TimeEntryDto) => r.notes ?? '' },
+    { key: 'createdAt', label: 'Creata il', value: (r: TimeEntryDto) => dateIt(r.createdAt) },
+  ];
+
+  // ── azioni in blocco (preservate dalla versione legacy DataTable) ──
   async function exec(action: 'submit' | 'approve' | 'reject' | 'lock' | 'unlock', body: Record<string, unknown>) {
     setBusy(true);
     try {
       const res = await mutate<{ updated: number }>('POST', `/time-entries/${action}`, body);
       toast(`${res.updated ?? 0} righe aggiornate`, 'success');
-      setSel(new Set());
+      setClearTok((n) => n + 1); // azzera la selezione di EntityList
       await te.reload();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -83,90 +174,33 @@ export function TimeEntriesPage() {
   }
 
   function run(action: 'submit' | 'approve' | 'reject' | 'lock' | 'unlock') {
-    const ids = [...sel];
+    const ids = selRows.map((r) => r.id);
     if (!ids.length) return;
     if (action === 'reject' || action === 'lock') { setReasonFor(action); return; } // chiede il motivo via popup in-app
     void exec(action, { ids });
   }
   function onReasonConfirm(value: string) {
     const action = reasonFor; if (!action) return;
-    const ids = [...sel]; setReasonFor(null);
+    const ids = selRows.map((r) => r.id); setReasonFor(null);
     if (action === 'reject') { void exec('reject', { ids, reason: value || undefined }); return; }
     const reason = (value || 'MANUAL').toUpperCase();
     void exec('lock', { ids, reason: ['PAYROLL', 'INVOICED', 'PERIOD_CLOSE', 'MANUAL'].includes(reason) ? reason : 'MANUAL' });
   }
 
-  const columns: Column<TimeEntryDto>[] = [
-    {
-      key: 'sel', header: '', render: (r) => (
-        <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)}
-          onClick={(e) => e.stopPropagation()} aria-label="seleziona riga" />
-      ),
-    },
-    { key: 'occurredOn', header: 'Data', sortable: false, render: (r) => <span className="cellsub">{dateIt(r.occurredOn)}</span> },
-    {
-      key: 'engagement', header: 'Commessa', render: (r) => {
-        const e = r.engagementId ? engById.get(r.engagementId) : undefined;
-        return e ? <span className="cellname">{e.code}</span> : <span style={{ color: 'var(--ink-faint)' }}>—</span>;
-      },
-    },
-    {
-      key: 'resource', header: 'Risorsa', render: (r) => {
-        const res = r.resourceId ? resById.get(r.resourceId) : undefined;
-        return res ? res.label : <span style={{ color: 'var(--ink-faint)' }}>—</span>;
-      },
-    },
-    {
-      key: 'typology', header: 'Tipologia', render: (r) => {
-        const l = lk.byId(r.typologyId);
-        return l ? <StatusPill label={lk.labelOf(r.typologyId)} token={l.colorToken} /> : <span className="chip">{r.typology}</span>;
-      },
-    },
-    { key: 'minutes', header: 'Ore (hh:mm)', align: 'right', render: (r) => <span className="mono">{hhmm(r.minutes)}</span> },
-    {
-      key: 'bill', header: 'Tariffa', align: 'right', render: (r) =>
-        r.billRate != null ? <span className="mono">€ {r.billRate.toFixed(2)}/h</span> : <span style={{ color: 'var(--ink-faint)' }}>—</span>,
-    },
-    {
-      key: 'status', header: 'Stato', render: (r) => {
-        const l = lk.byId(r.approvalStatusId);
-        return (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {l ? <StatusPill label={lk.labelOf(r.approvalStatusId)} token={l.colorToken} /> : <span className="cellsub">—</span>}
-            {r.isLocked && <LockIcon size={14} style={{ color: 'var(--ink-faint)' }} aria-label={`bloccata (${r.lockReason ?? ''})`} />}
-          </span>
-        );
-      },
-    },
+  const selCount = selRows.length;
+  const rightActions: ListAction[] = [
+    ...(canSubmit ? [{ key: 'new', icon: Plus, tip: 'Nuova registrazione ore', variant: 'primary' as const, onClick: () => history.push('/time-entries/new') }] : []),
   ];
 
-  if (te.error) return <Page title="Foglio ore"><ErrorBox message={te.error} /></Page>;
-
   return (
-    <Page title="Foglio ore">
-      {/* filtro stato */}
-      <div className="toolbar" style={{ marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
-        <div className="seg">
-          {FILTERS.map((f) => (
-            <button key={f.key} className={filter === f.key ? 'on' : ''}
-              onClick={() => { setFilter(f.key); setSel(new Set()); }}>{f.label}</button>
-          ))}
-        </div>
-        <div style={{ flex: 1 }} />
-        {rows.length > 0 && (
-          <button className="btn btn-ghost btn-sm" onClick={toggleAll}>
-            {allSelected ? 'Deseleziona' : 'Seleziona tutto'}
-          </button>
-        )}
-      </div>
-
-      {/* barra azioni in blocco */}
-      {sel.size > 0 && (
+    <Page>
+      {/* barra azioni in blocco: appare quando ci sono righe selezionate */}
+      {selCount > 0 && (
         <div className="toolbar" style={{
           marginBottom: 12, gap: 8, alignItems: 'center', padding: '8px 12px',
           background: 'var(--surface-2, var(--card))', borderRadius: 'var(--r-md, 10px)', border: '1px solid var(--line)',
         }}>
-          <strong>{sel.size} selezionate</strong>
+          <strong>{selCount} selezionate</strong>
           <div style={{ flex: 1 }} />
           {canSubmit && <button className="btn btn-sm" disabled={busy} onClick={() => run('submit')}><Send size={15} /> Invia</button>}
           {canApprove && <>
@@ -178,12 +212,19 @@ export function TimeEntriesPage() {
         </div>
       )}
 
-      {te.loading || engs.loading || ress.loading
-        ? <Loading />
-        : <DataTable<TimeEntryDto>
-          columns={columns} rows={rows}
-          empty={<EmptyState icon={Clock} title="Nessuna riga ore" hint="Le ore registrate dai tecnici compaiono qui." />}
-        />}
+      <EntityList<TimeEntryDto>
+        title={t('terms.time_entry_plural')} subtitle="Ore registrate: invio, approvazione e blocco"
+        views={views} activeView={view} onView={(k) => setView(k as ViewKey)}
+        search={q} onSearch={setQ} searchPlaceholder="Cerca commessa, risorsa, tipologia…"
+        columns={columns} rows={rows}
+        loading={te.loading || engs.loading || ress.loading || acts.loading} error={te.error}
+        onRowClick={(r) => history.push(`/time-entries/${r.id}`)}
+        onDelete={canDelete ? deleteRows : undefined}
+        exportName="foglio-ore" exportFields={exportFields}
+        onSelectionChange={setSelRows} clearSelectionToken={clearTok}
+        rightActions={rightActions}
+        emptyText="Nessuna riga ore in questa vista."
+      />
 
       <PromptDialog open={reasonFor === 'reject'} title="Respingi le ore"
         message="Puoi indicare un motivo per il rifiuto (facoltativo)." label="Motivo del rifiuto"
@@ -195,4 +236,16 @@ export function TimeEntriesPage() {
         onConfirm={onReasonConfirm} onCancel={() => setReasonFor(null)} />
     </Page>
   );
+
+  // elimina in blocco le righe selezionate (gate time_entry:delete; il DELETE
+  // lato API rifiuta le righe bloccate). EntityList chiede conferma in-app.
+  async function deleteRows(toDel: TimeEntryDto[]) {
+    let ok = 0;
+    for (const r of toDel) {
+      try { await mutate('DELETE', `/time-entries/${r.id}`); ok += 1; }
+      catch { /* riga bloccata o non eliminabile: la saltiamo */ }
+    }
+    toast(`${ok} righe eliminate`, ok ? 'success' : 'error');
+    await te.reload();
+  }
 }

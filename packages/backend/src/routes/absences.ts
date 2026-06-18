@@ -42,6 +42,18 @@ export async function absenceRoutes(app: FastifyInstance): Promise<void> {
       return { items: rows.map(toDto) };
     });
 
+  app.get<{ Params: { id: string } }>('/absences/:id',
+    { preHandler: [app.authenticate, requirePermission('absence:read')] },
+    async (request, reply) => {
+      const row = await withRls(request.ctx, (db) =>
+        db.query(
+          `SELECT id, resource_id, type_id, starts_on, ends_on, hours, half_day, note, attachment_url,
+                  approval_status_id, created_at FROM absence_entry WHERE id = $1`, [request.params.id])
+          .then((r) => r.rows[0]));
+      if (!row) return reply.code(404).send({ error: 'not_found', message: 'Assenza inesistente', statusCode: 404 });
+      return toDto(row);
+    });
+
   app.post('/absences', { preHandler: [app.authenticate, requirePermission('absence:create')] },
     async (request, reply) => {
       const input = createAbsenceSchema.parse(request.body);
