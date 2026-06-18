@@ -11,10 +11,12 @@
  * Stili: datapages.css (scope .dsx).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Search, Pencil, Copy, Download, Trash2 } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { Loading, ErrorBox } from '../components/Page';
 import { downloadXlsx } from '../lib/xlsx';
+import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
+import { ExportDialog } from './ExportDialog';
 import '../theme/datapages.css';
 
 export interface ListView { key: string; label: string; count?: number }
@@ -111,7 +113,24 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
 
   const page = p.limit ? Math.floor((p.offset ?? 0) / p.limit) + 1 : 1;
   const pages = p.total && p.limit ? Math.max(1, Math.ceil(p.total / p.limit)) : 1;
-  const colSpan = p.columns.length + (pick || selectable ? 1 : 0);
+
+  // ── colonne: visibilità + ordine, persistite per-utente (localStorage per entità) ──
+  const lsKey = `sisuite.cols.${p.exportName ?? p.title ?? 'list'}`;
+  const [colState, setColState] = useState<{ order: string[]; hidden: string[] }>(() => {
+    try { const r = localStorage.getItem(lsKey); if (r) return JSON.parse(r) as { order: string[]; hidden: string[] }; } catch { /* ignore */ }
+    return { order: [], hidden: [] };
+  });
+  const colKeys = p.columns.map((c) => c.key);
+  const orderedKeys = [...colState.order.filter((k) => colKeys.includes(k)), ...colKeys.filter((k) => !colState.order.includes(k))];
+  const hiddenSet = new Set(colState.hidden);
+  const effColumns = orderedKeys.map((k) => p.columns.find((c) => c.key === k)).filter((c): c is ListColumn<T> => !!c && !hiddenSet.has(c.key));
+  const colSpan = effColumns.length + (pick || selectable ? 1 : 0);
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  function saveCols(state: { order: string[]; hidden: string[] }) {
+    setColState(state); try { localStorage.setItem(lsKey, JSON.stringify(state)); } catch { /* ignore */ }
+  }
 
   const allOn = selectable && p.rows.length > 0 && count === p.rows.length;
   const someOn = selectable && count > 0 && count < p.rows.length;
@@ -121,9 +140,12 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const toggleRow = (row: T) => setSel((s) => { const n = new Set(s); n.has(row.id) ? n.delete(row.id) : n.add(row.id); return n; });
   const toggleAll = () => setSel(() => (allOn ? new Set() : new Set(p.rows.map((r) => r.id))));
 
-  async function doExport() {
+  const exportableCols = p.columns.filter((c) => c.value);
+  const exportFields: FieldOpt[] = exportableCols.map((c) => ({ key: c.key, label: c.header }));
+  async function runExport(orderedKeys: string[]) {
+    setExportOpen(false);
     if (p.onExport) { await p.onExport(selectedRows); return; }
-    const cols = p.columns.filter((c) => c.value);
+    const cols = orderedKeys.map((k) => exportableCols.find((c) => c.key === k)).filter((c): c is ListColumn<T> => !!c);
     if (!cols.length) return;
     await downloadXlsx(p.exportName ?? (p.title ?? 'export'), [{
       name: (p.title ?? 'Dati').slice(0, 28),
@@ -144,11 +166,21 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   if (selectable) {
     if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: 'Modifica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
     if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: 'Duplica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-    if (p.onExport || p.columns.some((c) => c.value)) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? `Esporta ${count} selezionati` : 'Esporta', disabled: count < 1, onClick: () => void doExport() });
+    if (p.onExport || exportableCols.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? `Esporta ${count} selezionati` : 'Esporta', disabled: count < 1, onClick: () => setExportOpen(true) });
     if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? `Elimina ${count} selezionati` : 'Elimina', variant: 'danger', disabled: count < 1, onClick: () => void doDelete() });
   }
 
-  const hasToolbar = p.onSearch || p.leftActions || stdActions.length > 0 || p.rightActions;
+  // azioni "di sinistra": built-in standard (Filtri/Colonne/AI) + eventuali custom della pagina.
+  // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
+  const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
+  const builtinLeft: ListAction[] = pick ? [] : [
+    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri (in arrivo)', disabled: true },
+    { key: 'cols', icon: Columns3, tip: 'Colonne (mostra/nascondi e ordina)', onClick: () => setColumnsOpen(true) },
+    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (in arrivo)', variant: 'ai', disabled: true },
+  ];
+  const leftAll = [...builtinLeft, ...customLeft];
+
+  const hasToolbar = p.onSearch || leftAll.length > 0 || stdActions.length > 0 || p.rightActions;
 
   return (
     <div className="dsx">
@@ -170,12 +202,14 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       {hasToolbar && (
         <div className="dsx-toolbar">
           {p.onSearch && (
-            <div className="dsx-search">
+            <div className="dsx-search grow">
               <Search size={16} />
               <input placeholder={p.searchPlaceholder ?? 'Cerca…'} value={p.search ?? ''} onChange={(e) => p.onSearch?.(e.target.value)} />
             </div>
           )}
-          {(p.leftActions ?? []).map((a) => <Tib key={a.key} a={a} />)}
+          {/* tutto a destra: ricerca larga a sinistra, azioni a destra con il "+" per ultimo */}
+          <div className="spacer" />
+          {leftAll.map((a) => <Tib key={a.key} a={a} />)}
           {pick && pickSelected.size > 0 && <span className="chip" style={{ marginLeft: 6 }}>{pickSelected.size} selezionati</span>}
           {stdActions.length > 0 && (
             <>
@@ -184,13 +218,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
               {stdActions.map((a) => <Tib key={a.key} a={a} />)}
             </>
           )}
-          <div className="spacer" />
-          {(p.rightActions ?? []).map((a, i) => (
-            <span key={a.key} style={{ display: 'contents' }}>
-              {i === (p.rightActions ?? []).length - 1 && (p.rightActions ?? []).length > 1 && <span className="tdiv" />}
-              <Tib a={a} />
-            </span>
-          ))}
+          {(p.rightActions ?? []).length > 0 && <span className="tdiv" />}
+          {(p.rightActions ?? []).map((a) => <Tib key={a.key} a={a} />)}
         </div>
       )}
 
@@ -200,7 +229,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
             <thead><tr>
               {pick && <th style={{ width: 40 }} />}
               {selectable && <th className="chk"><input ref={headRef} type="checkbox" checked={allOn} onChange={toggleAll} aria-label="Seleziona tutti" /></th>}
-              {p.columns.map((c) => (
+              {effColumns.map((c) => (
                 <th key={c.key} className={c.num ? 'num' : undefined}>{c.header}{c.sub && <span className="h2">{c.sub}</span>}</th>
               ))}
             </tr></thead>
@@ -212,7 +241,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                     onClick={() => (pick ? p.onToggleSelect?.(row) : p.onRowClick?.(row))}>
                     {pick && <td style={{ width: 40 }}><input type={mode === 'pick-multi' ? 'checkbox' : 'radio'} checked={isSel} readOnly /></td>}
                     {selectable && <td className="chk" onClick={(e) => { e.stopPropagation(); toggleRow(row); }}><input type="checkbox" checked={isSel} readOnly aria-label="Seleziona riga" /></td>}
-                    {p.columns.map((c) => <td key={c.key} className={c.num ? 'num' : undefined}>{c.render(row)}</td>)}
+                    {effColumns.map((c) => <td key={c.key} className={c.num ? 'num' : undefined}>{c.render(row)}</td>)}
                   </tr>
                 );
               })}
@@ -231,6 +260,26 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           )}
         </div>
       )}
+
+      {/* Esporta: scelta+ordine campi + preset per-utente */}
+      {exportOpen && (
+        <ExportDialog open entity={p.exportName ?? p.title ?? 'lista'} fields={exportFields}
+          onCancel={() => setExportOpen(false)} onExport={(keys) => void runExport(keys)} />
+      )}
+      {/* Colonne: mostra/nascondi e riordina (persistito per-utente) */}
+      {columnsOpen && (
+        <FieldPicker open title="Colonne — mostra/nascondi e ordina"
+          fields={p.columns.map((c) => ({ key: c.key, label: c.header }))}
+          value={effColumns.map((c) => c.key)} confirmLabel="Applica"
+          onCancel={() => setColumnsOpen(false)}
+          onConfirm={(visible) => {
+            const order = [...visible, ...colKeys.filter((k) => !visible.includes(k))];
+            const hidden = colKeys.filter((k) => !visible.includes(k));
+            saveCols({ order, hidden });
+            setColumnsOpen(false);
+          }} />
+      )}
+      {(exportOpen || columnsOpen) && <FieldPickerStyles />}
     </div>
   );
 }
