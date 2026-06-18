@@ -5,12 +5,14 @@
 
 .dsx { --lblw: 128px; }
 
-/* header lista */
-.dsx .lh { display: flex; align-items: baseline; gap: 11px; margin-bottom: 11px; }
+/* header lista — UNA riga: titolo+sottotitolo a sinistra, viste a destra */
+.dsx .lhrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 11px; }
+.dsx .lh { display: flex; align-items: baseline; gap: 11px; margin-bottom: 0; }
 .dsx .lh h1 { font-size: var(--fs-h1); font-weight: 800; margin: 0; font-family: var(--font-display); letter-spacing: -.02em; }
 .dsx .lh .sub { font-size: 12.5px; color: var(--ink-soft); }
 
-/* viste (filtri salvati) */
+/* viste (filtri salvati) — a destra della riga titolo */
+.dsx .lhrow .views { margin-bottom: 0; }
 .dsx .views { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
 .dsx .viewchip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
   border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
@@ -32,7 +34,16 @@
 .dsx .tib.ai { background: var(--brand-wash); color: var(--brand-ink); border-color: transparent; }
 .dsx .tib.primary { background: var(--brand); color: #fff; border-color: transparent; box-shadow: var(--shadow-pop); }
 .dsx .tib.primary:hover { background: var(--brand-press); }
-.dsx .tib:disabled { opacity: .45; cursor: not-allowed; }
+.dsx .tib.danger { color: var(--danger); }
+.dsx .tib.danger:hover { background: var(--danger-wash, #fde8e8); color: var(--danger); }
+.dsx .tib:disabled { opacity: .4; cursor: not-allowed; }
+.dsx .tib:disabled:hover { background: var(--card); color: var(--ink-soft); }
+/* badge contatore selezione */
+.dsx .selcount { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px;
+  border-radius: var(--r-pill); background: var(--brand); color: #fff; font-size: 12px; font-weight: 700; }
+/* colonna checkbox */
+.dsx .t th.chk, .dsx .t td.chk { width: 38px; text-align: center; padding-left: 12px; padding-right: 0; }
+.dsx .t .chk input { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; vertical-align: middle; }
 
 /* tabella 2 livelli */
 .dsx .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden; }

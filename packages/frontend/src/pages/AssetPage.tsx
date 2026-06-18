@@ -6,7 +6,8 @@ import { useHistory } from 'react-router';
 import type { AssetDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
-import { SlidersHorizontal, Columns3, Sparkles, Download, Plus } from '../ui/icons';
+import { useEntityActions } from '../ui/useEntityActions';
+import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
@@ -23,14 +24,19 @@ export function AssetPage() {
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/assets?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/assets?${params.toString()}`);
+
+  const { onDelete, onDuplicate } = useEntityActions<AssetDto>({
+    basePath: '/assets', reload, noun: 'asset',
+    duplicateBody: (a) => ({ companyId: a.companyId, label: `${a.label} (copia)`, kind: a.kind, siteId: a.siteId ?? null, installedOn: a.installedOn ?? undefined, attributes: a.attributes }),
+  });
 
   const columns: ListColumn<AssetDto>[] = [
-    { key: 'label', header: 'Asset', sub: 'tipo', render: (r) => (
+    { key: 'label', header: 'Asset', sub: 'tipo', value: (r) => r.label, render: (r) => (
       <div className="two"><span className="a">{r.label}</span><span className="b">{r.kind}</span></div>) },
-    { key: 'company', header: 'Cliente', sub: 'sito', render: (r) => (
+    { key: 'company', header: 'Cliente', sub: 'sito', value: (r) => r.companyName ?? '', render: (r) => (
       <div className="two"><span className="a">{r.companyName ?? '—'}</span><span className="b">{r.siteName ?? '—'}</span></div>) },
-    { key: 'installed', header: 'Installato', num: true, render: (r) => <span className="mono faint">{r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '—'}</span> },
+    { key: 'installed', header: 'Installato', num: true, value: (r) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '—'}</span> },
   ];
 
   const leftActions: ListAction[] = [
@@ -39,18 +45,20 @@ export function AssetPage() {
     { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
   ];
   const rightActions: ListAction[] = [
-    { key: 'export', icon: Download, tip: 'Esporta (presto)', disabled: true },
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo asset', variant: 'primary' as const, onClick: () => history.push('/assets/new') }] : []),
   ];
 
   return (
-    <Page title="Asset">
+    <Page>
       <EntityList<AssetDto>
         title="Asset" subtitle="Oggetti gestiti: impianti, sistemi, apparati"
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca etichetta o tipo…"
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/assets/${r.id}`)}
+        onDelete={can('delete') ? onDelete : undefined}
+        onDuplicate={can('create') ? onDuplicate : undefined}
+        exportName="asset"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun asset."
       />

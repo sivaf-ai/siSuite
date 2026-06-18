@@ -9,7 +9,8 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
-import { SlidersHorizontal, Columns3, Sparkles, Upload, Download, Plus } from '../ui/icons';
+import { useEntityActions } from '../ui/useEntityActions';
+import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
@@ -48,20 +49,25 @@ export function MaterialiPage() {
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/materials?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/materials?${params.toString()}`);
+
+  const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
+    basePath: '/materials', reload, noun: 'articolo',
+    duplicateBody: (m) => ({ name: `${m.name} (copia)`, unit: m.unit, sku: null, trackStock: m.trackStock, trackedBySerial: m.trackedBySerial, trackedByLot: m.trackedByLot, costingMethod: m.costingMethod, attributes: m.attributes }),
+  });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
 
   const columns: ListColumn<MaterialDto>[] = [
-    { key: 'name', header: 'Articolo', sub: 'SKU', render: (m) => (
+    { key: 'name', header: 'Articolo', sub: 'SKU', value: (m) => m.name, render: (m) => (
       <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>) },
-    { key: 'cat', header: 'Categoria', sub: 'tracciamento', render: (m) => (
+    { key: 'cat', header: 'Categoria', sub: 'tracciamento', value: (m) => attr(m, 'category') ?? '', render: (m) => (
       <div className="two"><span className="a">{attr(m, 'category') ?? '—'}</span><span className="b"><span className="serialtag">{trackingTag(m)}</span></span></div>) },
-    { key: 'qty', header: 'Giacenza', sub: 'unità', num: true, render: (m) => (attr(m, 'item_type') === 'service'
+    { key: 'qty', header: 'Giacenza', sub: 'unità', num: true, value: (m) => (attr(m, 'item_type') === 'service' ? '' : m.qtyOnHand), render: (m) => (attr(m, 'item_type') === 'service'
       ? <span className="faint">—</span>
       : <div className="two"><span className="a mono">{m.qtyOnHand.toLocaleString('it-IT')}</span><span className="b">{m.unit}</span></div>) },
-    { key: 'cost', header: 'Costo medio', sub: '€ / unità', num: true, render: (m) => <Money value={m.avgCost ?? m.defaultCost} /> },
-    { key: 'st', header: 'Stato', render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
+    { key: 'cost', header: 'Costo medio', sub: '€ / unità', num: true, value: (m) => m.avgCost ?? m.defaultCost ?? '', render: (m) => <Money value={m.avgCost ?? m.defaultCost} /> },
+    { key: 'st', header: 'Stato', value: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
   ];
 
   const leftActions: ListAction[] = [
@@ -70,13 +76,11 @@ export function MaterialiPage() {
     { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
   ];
   const rightActions: ListAction[] = [
-    { key: 'import', icon: Upload, tip: 'Importa da CSV (presto)', disabled: true },
-    { key: 'export', icon: Download, tip: 'Esporta (presto)', disabled: true },
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo articolo', variant: 'primary' as const, onClick: () => history.push('/materials/new') }] : []),
   ];
 
   return (
-    <Page title="Articoli & seriali">
+    <Page>
       <EntityList<MaterialDto>
         title="Articoli & seriali" subtitle="Catalogo magazzino & servizi"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
@@ -84,6 +88,9 @@ export function MaterialiPage() {
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(m) => history.push(`/materials/${m.id}`)}
+        onDelete={can('delete') ? onDelete : undefined}
+        onDuplicate={can('create') ? onDuplicate : undefined}
+        exportName="articoli"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."
       />

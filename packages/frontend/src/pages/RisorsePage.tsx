@@ -9,6 +9,7 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
+import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
@@ -32,15 +33,20 @@ export function RisorsePage() {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
   if (view !== 'all') params.set('kind', view);
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/resources?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/resources?${params.toString()}`);
+
+  const { onDelete, onDuplicate } = useEntityActions<ResourceDto>({
+    basePath: '/resources', reload, noun: 'risorsa',
+    duplicateBody: (r) => ({ kind: r.kind, label: `${r.label} (copia)`, active: r.active, attributes: r.attributes }),
+  });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));
 
   const columns: ListColumn<ResourceDto>[] = [
-    { key: 'label', header: 'Nome', sub: 'tipo', render: (r) => (
+    { key: 'label', header: 'Nome', sub: 'tipo', value: (r) => r.label, render: (r) => (
       <div className="two"><span className="a">{r.label}</span><span className="b">{KIND_LABEL[r.kind]}</span></div>) },
-    { key: 'cost', header: 'Costo orario', sub: '€ / h', num: true, render: (r) => <Money value={(r.attributes as Record<string, unknown>)?.hourly_cost as number ?? null} /> },
-    { key: 'active', header: 'Stato', render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
+    { key: 'cost', header: 'Costo orario', sub: '€ / h', num: true, value: (r) => ((r.attributes as Record<string, unknown>)?.hourly_cost as number) ?? '', render: (r) => <Money value={(r.attributes as Record<string, unknown>)?.hourly_cost as number ?? null} /> },
+    { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attiva' : 'Disattivata'), render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
   ];
 
   const leftActions: ListAction[] = [
@@ -53,7 +59,7 @@ export function RisorsePage() {
   ];
 
   return (
-    <Page title="Risorse">
+    <Page>
       <EntityList<ResourceDto>
         title="Risorse" subtitle="Persone, mezzi e attrezzature"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
@@ -61,6 +67,9 @@ export function RisorsePage() {
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/resources/${r.id}`)}
+        onDelete={can('delete') ? onDelete : undefined}
+        onDuplicate={can('create') ? onDuplicate : undefined}
+        exportName="risorse"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."
       />

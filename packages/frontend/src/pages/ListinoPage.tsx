@@ -8,6 +8,7 @@ import type { PriceListItemDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
+import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Columns3, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
@@ -31,20 +32,25 @@ export function ListinoPage() {
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/price-list-items?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/price-list-items?${params.toString()}`);
+
+  const { onDelete, onDuplicate } = useEntityActions<PriceListItemDto>({
+    basePath: '/price-list-items', reload, noun: 'voce',
+    duplicateBody: (v) => ({ priceListId: v.priceListId, code: `${v.code}-COPIA`, description: `${v.description} (copia)`, unit: v.unit, category: v.category ?? null, costPrice: v.costPrice, revenuePrice: v.revenuePrice }),
+  });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
 
   const columns: ListColumn<PriceListItemDto>[] = [
-    { key: 'voce', header: 'Voce', sub: 'codice', render: (v) => (
+    { key: 'voce', header: 'Voce', sub: 'codice', value: (v) => v.description, render: (v) => (
       <div className="two"><span className="a">{v.description}</span><span className="b mono">{v.code}</span></div>) },
-    { key: 'cat', header: 'Categoria', sub: 'unità', render: (v) => (
+    { key: 'cat', header: 'Categoria', sub: 'unità', value: (v) => v.category ?? '', render: (v) => (
       <div className="two"><span className="a">{v.category ?? '—'}</span><span className="b">{v.unit}</span></div>) },
-    { key: 'cost', header: 'Costo', sub: '€ / unità', num: true, render: (v) => <Money value={v.costPrice} /> },
-    { key: 'rev', header: 'Ricavo', sub: '€ / unità', num: true, render: (v) => <Money value={v.revenuePrice} /> },
-    { key: 'margin', header: 'Margine %', num: true, render: (v) => v.marginPct == null ? <span className="faint">—</span>
+    { key: 'cost', header: 'Costo', sub: '€ / unità', num: true, value: (v) => v.costPrice ?? '', render: (v) => <Money value={v.costPrice} /> },
+    { key: 'rev', header: 'Ricavo', sub: '€ / unità', num: true, value: (v) => v.revenuePrice ?? '', render: (v) => <Money value={v.revenuePrice} /> },
+    { key: 'margin', header: 'Margine %', num: true, value: (v) => v.marginPct ?? '', render: (v) => v.marginPct == null ? <span className="faint">—</span>
       : <span className="mono" style={{ color: v.marginPct >= 0 ? 'var(--success)' : 'var(--danger)' }}>{v.marginPct.toFixed(1)}%</span> },
-    { key: 'ov', header: 'Ritocchi', num: true, render: (v) => v.overrideCount > 0
+    { key: 'ov', header: 'Ritocchi', num: true, value: (v) => v.overrideCount, render: (v) => v.overrideCount > 0
       ? <span className="serialtag">{v.overrideCount}</span> : <span className="faint">—</span> },
   ];
 
@@ -56,7 +62,7 @@ export function ListinoPage() {
     ? [{ key: 'new', icon: Plus, tip: 'Nuova voce', variant: 'primary' as const, onClick: () => history.push('/price-list/new') }] : [];
 
   return (
-    <Page title="Listino voci di capitolato">
+    <Page>
       <EntityList<PriceListItemDto>
         title="Listino voci di capitolato" subtitle="Prezzi costo/ricavo · regola: commessa › gestore › base"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
@@ -64,6 +70,9 @@ export function ListinoPage() {
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(v) => history.push(`/price-list/${v.id}`)}
+        onDelete={canManage ? onDelete : undefined}
+        onDuplicate={canManage ? onDuplicate : undefined}
+        exportName="listino"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna voce in questa vista."
       />

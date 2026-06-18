@@ -8,6 +8,7 @@ import type { WorkReportDto, EngagementDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
+import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
@@ -20,10 +21,13 @@ export function RapportiniPage() {
   const history = useHistory();
   const { user } = useAuth();
   const canCreate = !!user?.permissions.includes('work_report:create' as never);
+  const canDelete = !!user?.permissions.includes('work_report:delete' as never);
 
   const wr = useApi<{ items: WorkReportDto[] }>('/work-reports');
   const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const engById = useMemo(() => new Map((engs.data?.items ?? []).map((e) => [e.id, e])), [engs.data]);
+
+  const { onDelete } = useEntityActions<WorkReportDto>({ basePath: '/work-reports', reload: () => void wr.reload(), noun: 'rapportino' });
 
   const [q, setQ] = useState('');
   const ql = q.trim().toLowerCase();
@@ -33,13 +37,14 @@ export function RapportiniPage() {
     return `${e?.code ?? ''} ${e?.title ?? ''}`.toLowerCase().includes(ql);
   });
 
+  const engLabel = (r: WorkReportDto) => { const e = engById.get(r.engagementId); return `${e?.code ?? ''} ${e?.title ?? ''}`.trim(); };
   const columns: ListColumn<WorkReportDto>[] = [
-    { key: 'eng', header: 'Commessa', sub: 'cliente', render: (r) => { const e = engById.get(r.engagementId); return (
+    { key: 'eng', header: 'Commessa', sub: 'cliente', value: engLabel, render: (r) => { const e = engById.get(r.engagementId); return (
       <div className="two"><span className="a mono">{e?.code ?? '—'}</span><span className="b">{e?.title ?? ''}</span></div>); } },
-    { key: 'audience', header: 'Destinatario', render: (r) => <span className="chip">{AUDIENCE_LABEL[r.audience] ?? r.audience}</span> },
-    { key: 'period', header: 'Periodo', num: true, render: (r) => <span className="mono faint">{r.periodStart ? `${r.periodStart}→${r.periodEnd ?? ''}` : '—'}</span> },
-    { key: 'status', header: 'Stato', render: (r) => lk.byId(r.statusId) ? <StatusPill label={lk.labelOf(r.statusId)} token={lk.byId(r.statusId)?.colorToken} /> : <span className="faint">—</span> },
-    { key: 'ai', header: 'AI', render: (r) => (r.generatedByAi ? <Sparkles size={15} style={{ color: 'var(--brand)' }} /> : <span className="faint">—</span>) },
+    { key: 'audience', header: 'Destinatario', value: (r) => AUDIENCE_LABEL[r.audience] ?? r.audience, render: (r) => <span className="chip">{AUDIENCE_LABEL[r.audience] ?? r.audience}</span> },
+    { key: 'period', header: 'Periodo', num: true, value: (r) => (r.periodStart ? `${r.periodStart}→${r.periodEnd ?? ''}` : ''), render: (r) => <span className="mono faint">{r.periodStart ? `${r.periodStart}→${r.periodEnd ?? ''}` : '—'}</span> },
+    { key: 'status', header: 'Stato', value: (r) => (lk.byId(r.statusId) ? lk.labelOf(r.statusId) : ''), render: (r) => lk.byId(r.statusId) ? <StatusPill label={lk.labelOf(r.statusId)} token={lk.byId(r.statusId)?.colorToken} /> : <span className="faint">—</span> },
+    { key: 'ai', header: 'AI', value: (r) => (r.generatedByAi ? 'sì' : ''), render: (r) => (r.generatedByAi ? <Sparkles size={15} style={{ color: 'var(--brand)' }} /> : <span className="faint">—</span>) },
   ];
 
   const leftActions: ListAction[] = [{ key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true }];
@@ -48,13 +53,15 @@ export function RapportiniPage() {
     : [];
 
   return (
-    <Page title="Rapportini">
+    <Page>
       <EntityList<WorkReportDto>
         title="Rapportini" subtitle="Documenti di lavoro: testata, costi/ricavi e racconto AI"
         search={q} onSearch={setQ} searchPlaceholder="Cerca per commessa…"
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={rows} loading={wr.loading} error={wr.error}
         onRowClick={(r) => history.push(`/work-reports/${r.id}`)}
+        onDelete={canDelete ? onDelete : undefined}
+        exportName="rapportini"
         emptyText="Nessun rapportino."
       />
     </Page>

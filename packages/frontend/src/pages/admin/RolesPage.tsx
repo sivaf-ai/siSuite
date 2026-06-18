@@ -8,6 +8,7 @@ import type { RoleDto } from '@sisuite/shared';
 import { Page } from '../../components/Page';
 import { StatusPill } from '../../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../../ui/EntityList';
+import { useEntityActions } from '../../ui/useEntityActions';
 import { SlidersHorizontal, Plus } from '../../ui/icons';
 import { useApi } from '../../api/hooks';
 import { useAuth } from '../../auth/AuthContext';
@@ -26,14 +27,19 @@ export function RolesPage() {
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'name', sortDir: 'asc' });
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/roles?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/roles?${params.toString()}`);
+
+  const { onDelete, onDuplicate } = useEntityActions<RoleDto>({
+    basePath: '/roles', reload, noun: 'ruolo',
+    duplicateBody: (r) => ({ name: `${r.name} (copia)`, description: r.description ?? null, dataScope: r.dataScope, permissions: r.permissions }),
+  });
 
   const columns: ListColumn<RoleDto>[] = [
-    { key: 'name', header: 'Ruolo', sub: 'descrizione', render: (r) => (
+    { key: 'name', header: 'Ruolo', sub: 'descrizione', value: (r) => r.name, render: (r) => (
       <div className="two"><span className="a">{r.name}</span><span className="b">{r.description ?? '—'}</span></div>) },
-    { key: 'scope', header: 'Visibilità', render: (r) => <span className="chip">{SCOPE_LABEL[r.dataScope] ?? r.dataScope}</span> },
-    { key: 'perms', header: 'Permessi', num: true, render: (r) => <span className="mono">{r.permissions.length}</span> },
-    { key: 'sys', header: 'Tipo', render: (r) => <StatusPill label={r.isSystem ? 'Sistema' : 'Personalizzato'} token={r.isSystem ? 'neutral' : 'brand'} /> },
+    { key: 'scope', header: 'Visibilità', value: (r) => SCOPE_LABEL[r.dataScope] ?? r.dataScope, render: (r) => <span className="chip">{SCOPE_LABEL[r.dataScope] ?? r.dataScope}</span> },
+    { key: 'perms', header: 'Permessi', num: true, value: (r) => r.permissions.length, render: (r) => <span className="mono">{r.permissions.length}</span> },
+    { key: 'sys', header: 'Tipo', value: (r) => (r.isSystem ? 'Sistema' : 'Personalizzato'), render: (r) => <StatusPill label={r.isSystem ? 'Sistema' : 'Personalizzato'} token={r.isSystem ? 'neutral' : 'brand'} /> },
   ];
 
   const leftActions: ListAction[] = [{ key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true }];
@@ -42,13 +48,16 @@ export function RolesPage() {
     : [];
 
   return (
-    <Page title="Ruoli">
+    <Page>
       <EntityList<RoleDto>
         title="Ruoli & permessi" subtitle="Ruoli di sistema e personalizzati"
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca ruolo…"
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/admin/roles/${r.id}`)}
+        onDelete={canManage ? onDelete : undefined}
+        onDuplicate={canManage ? onDuplicate : undefined}
+        exportName="ruoli"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ruolo."
       />

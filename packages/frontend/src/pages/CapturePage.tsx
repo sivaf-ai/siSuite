@@ -254,6 +254,7 @@ function CaptureHistory({ items, loading, error, view, onView, q, onQ, onOpen }:
 
   return (
     <EntityList<CaptureDto>
+      selectable={false}
       title="Storico catture" subtitle="Catture in linguaggio naturale e loro stato"
       views={views} activeView={view} onView={onView}
       search={q} onSearch={onQ} searchPlaceholder="Cerca nel testo della cattura…"

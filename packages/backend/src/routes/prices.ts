@@ -135,6 +135,19 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
       return itemDto(r.rows[0]);
     }));
 
+  // ELIMINA voce di listino: hard delete; se referenziata da lavorazioni (FK) → disattiva.
+  app.delete<{ Params: { id: string } }>('/price-list-items/:id', { preHandler: [app.authenticate, requirePermission('settings:manage')] },
+    async (request, reply) => withRls(request.ctx, async (db) => {
+      try {
+        await db.query(`DELETE FROM price_list_item WHERE id=$1`, [request.params.id]);
+      } catch (e) {
+        if ((e as { code?: string }).code === '23503') {
+          await db.query(`UPDATE price_list_item SET active=false, updated_by=$2 WHERE id=$1`, [request.params.id, request.ctx.userId]);
+        } else throw e;
+      }
+      return reply.code(204).send();
+    }));
+
   /** Ritocchi (override). */
   app.post('/price-list-overrides', { preHandler: [app.authenticate, requirePermission('settings:manage')] }, async (request, reply) => {
     const input = createPriceOverrideSchema.parse(request.body);

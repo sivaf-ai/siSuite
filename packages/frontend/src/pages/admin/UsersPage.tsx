@@ -7,6 +7,7 @@ import type { UserAdminDto } from '@sisuite/shared';
 import { Page } from '../../components/Page';
 import { StatusPill } from '../../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../../ui/EntityList';
+import { useEntityActions } from '../../ui/useEntityActions';
 import { SlidersHorizontal, Columns3, Plus } from '../../ui/icons';
 import { useApi } from '../../api/hooks';
 import { useAuth } from '../../auth/AuthContext';
@@ -24,16 +25,18 @@ export function UsersPage() {
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'fullName', sortDir: 'asc' });
   if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(`/users?${params.toString()}`);
+  const { data, loading, error, reload } = useApi<ListResp>(`/users?${params.toString()}`);
+
+  const { onDelete } = useEntityActions<UserAdminDto>({ basePath: '/users', reload, noun: 'utente' });
 
   const columns: ListColumn<UserAdminDto>[] = [
-    { key: 'name', header: 'Nome', sub: 'email', render: (r) => (
+    { key: 'name', header: 'Nome', sub: 'email', value: (r) => r.fullName, render: (r) => (
       <div className="two"><span className="a">{r.fullName}</span><span className="b">{r.email ?? '—'}</span></div>) },
-    { key: 'roles', header: 'Ruoli', render: (r) => (r.roles.length
+    { key: 'roles', header: 'Ruoli', value: (r) => r.roles.map((x) => x.name).join(', '), render: (r) => (r.roles.length
       ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.roles.map((x) => <span key={x.id} className="chip">{x.name}</span>)}</span>
       : <span className="faint">—</span>) },
-    { key: 'active', header: 'Stato', render: (r) => <StatusPill label={r.active ? 'Attivo' : 'Disattivato'} token={r.active ? 'success' : 'neutral'} /> },
-    { key: 'created', header: 'Creato', num: true, render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+    { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attivo' : 'Disattivato'), render: (r) => <StatusPill label={r.active ? 'Attivo' : 'Disattivato'} token={r.active ? 'success' : 'neutral'} /> },
+    { key: 'created', header: 'Creato', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
   ];
 
   const leftActions: ListAction[] = [
@@ -45,13 +48,15 @@ export function UsersPage() {
     : [];
 
   return (
-    <Page title="Utenti">
+    <Page>
       <EntityList<UserAdminDto>
         title="Utenti" subtitle="Account del tenant e ruoli assegnati"
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome o email…"
         leftActions={leftActions} rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/admin/users/${r.id}`)}
+        onDelete={canManage ? onDelete : undefined}
+        exportName="utenti"
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun utente."
       />
