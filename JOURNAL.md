@@ -2,6 +2,15 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-18 — PIANO prossimi lavori: Blocchi 0, 1, 4 (Claude Code)
+- **Migrazioni**: nessuna nuova. Stato: 001→035 + 007_term_override già applicate. Prossima libera: **036**.
+  ⚠️ Correzione al PIANO: `term_override` esiste già come **007**, NON va creata come "036". `saved_view` (Blocco 5) sarà la 036.
+- **Blocco 0 (verifica)**: mappatura stato reale vs PIANO (5 agenti). Esito: molta infra già fatta. → `docs/DONE_0_verifica.md` (tabella stato corretta per ogni blocco).
+- **Blocco 1 (design system)**: era ~85% fatto. Rifinito `theme/design-system.css`: `.btn` font = body (13), `.btn-sm` 12.5, icone bottoni 16/15px, nuovo `.btn-secondary`. → `docs/DONE_1_designsystem.md`.
+- **Blocco 4 (export dinamico)**: `ui/EntityList.tsx` nuova prop `entity` → unisce i `field_definition` del tenant all'export automaticamente (helper `attrExportValue`, label localizzata). Wiring: ClientiPage/MaterialiPage/AssetPage/OrdinativiPage/EngagementsPage/RisorsePage. → `docs/DONE_4_export_dinamico.md`.
+- **Restano (pesanti, multi-sessione)**: Blocco 2 (retrofit i18n + propagazione glossario — il cuore), Blocco 3 (liste legacy: Foglio ore/Assenze/Magazzino), Blocco 5 (QBE type-aware + multi-sort + saved_view mig 036), Blocco 6 (dedup AI Soggetti — apply su **9** FK, incl. `subcontract_line.company_id` non nel piano).
+- Typecheck frontend/shared: pulito.
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

@@ -115,7 +115,7 @@ export function OrdinativiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onSelectionChange={setSelRows}
         clearSelectionToken={clearTok}
-        exportName="ordini-di-lavoro" exportFields={exportFields}
+        exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ordinativo in questa vista."

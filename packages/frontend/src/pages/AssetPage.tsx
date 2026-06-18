@@ -68,7 +68,7 @@ export function AssetPage() {
         onRowClick={(r) => history.push(`/assets/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="asset" exportFields={exportFields}
+        exportName="asset" exportFields={exportFields} entity="asset"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun asset."

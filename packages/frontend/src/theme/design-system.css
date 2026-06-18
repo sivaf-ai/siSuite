@@ -276,15 +276,22 @@ ion-split-pane > .split-pane-side { transition: min-width .18s ease, max-width .
 .icon-btn { width: var(--ctrl-h); height: var(--ctrl-h); border-radius: var(--r-sm); display: grid; place-items: center; color: var(--ink-soft); background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: border .12s, color .12s, background .12s; }
 .icon-btn:hover { border-color: var(--ink-faint); color: var(--ink); }
 .icon-btn.on { color: var(--brand); border-color: var(--brand); background: var(--brand-wash); }
-.btn { display: inline-flex; align-items: center; gap: 7px; height: var(--ctrl-h); padding: 0 14px; border-radius: var(--r-sm); font-weight: 600; font-size: 13.5px; cursor: pointer; border: 1px solid transparent; transition: transform .1s, box-shadow .12s, background .12s; white-space: nowrap; }
+/* Standard 2: il testo del bottone NON è più grande del body (--fs-body 13).
+   Icone lucide dentro i .btn dimensionate al controllo (16px), non più grandi del testo. */
+.btn { display: inline-flex; align-items: center; gap: 7px; height: var(--ctrl-h); padding: 0 14px; border-radius: var(--r-sm); font-weight: 600; font-size: var(--fs-body); cursor: pointer; border: 1px solid transparent; transition: transform .1s, box-shadow .12s, background .12s; white-space: nowrap; }
 .btn:active { transform: translateY(1px); }
+.btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .btn-primary { background: var(--brand); color: #fff; box-shadow: var(--shadow-pop); }
 .btn-primary:hover { background: var(--brand-press); }
+/* gerarchia intermedia (standard 2): meno forte del primario, più del ghost */
+.btn-secondary { background: var(--brand-wash); color: var(--brand-ink); border-color: transparent; }
+.btn-secondary:hover { background: var(--brand-wash); border-color: var(--brand); }
 .btn-ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
 .btn-ghost:hover { border-color: var(--ink-faint); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn[disabled] { opacity: .55; pointer-events: none; }
-.btn-sm { height: calc(var(--ctrl-h) - 4px); padding: 0 12px; font-size: 13px; }
+.btn-sm { height: calc(var(--ctrl-h) - 4px); padding: 0 12px; font-size: 12.5px; }
+.btn-sm svg { width: 15px; height: 15px; }
 
 /* ---- tabella dati ---- */
 .table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-1); }

@@ -106,7 +106,7 @@ export function ClientiPage() {
         onRowClick={(r) => history.push(`/companies/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="soggetti" exportFields={exportFields}
+        exportName="soggetti" exportFields={exportFields} entity="company"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."

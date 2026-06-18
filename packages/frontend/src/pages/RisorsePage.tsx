@@ -79,7 +79,7 @@ export function RisorsePage() {
         onRowClick={(r) => history.push(`/resources/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="risorse" exportFields={exportFields}
+        exportName="risorse" exportFields={exportFields} entity="resource"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."

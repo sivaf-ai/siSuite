@@ -13,6 +13,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles } from 'lucide-react';
 import type { LucideIcon } from './icons';
+import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
+import { useApi } from '../api/hooks';
+import { currentLocale } from '../i18n';
 import { Loading, ErrorBox } from '../components/Page';
 import { downloadXlsx } from '../lib/xlsx';
 import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
@@ -66,6 +69,10 @@ interface Props<T extends { id: string }> {
   exportName?: string;
   /** TUTTI i campi dell'entità per l'export (oltre alle colonne a video). */
   exportFields?: ExportField<T>[];
+  /** chiave entità per i `field_definition` (es. 'company','work_order','material'):
+   *  se presente, i campi custom del tenant entrano AUTOMATICAMENTE in export/filtro
+   *  (Blocco 4 — metadata-driven). Le righe devono esporre `attributes`. */
+  entity?: string;
   /** notifica la selezione corrente (per azioni bulk custom della pagina). */
   onSelectionChange?: (rows: T[]) => void;
   /** incrementa questo token per AZZERARE la selezione dall'esterno (dopo un'azione bulk custom). */
@@ -85,6 +92,26 @@ interface Props<T extends { id: string }> {
   emptyText?: string;
 }
 
+/** Valore grezzo di un attributo custom per l'export (Blocco 4 — export dinamico).
+ *  select/multiselect → etichetta opzione nella lingua corrente; boolean → Sì/No;
+ *  numeri/date → valore come memorizzato. */
+function attrExportValue(def: FieldDefinitionDto, attributes: Record<string, unknown> | undefined): string | number {
+  const raw = attributes?.[def.key];
+  if (raw == null || raw === '') return '';
+  const loc = currentLocale();
+  if (def.dataType === 'select') {
+    const opt = def.options?.find((o) => o.value === raw);
+    return opt ? fieldLabel(opt.label, loc, String(raw)) : String(raw);
+  }
+  if (def.dataType === 'multiselect' && Array.isArray(raw)) {
+    return raw.map((v) => def.options?.find((o) => o.value === v))
+      .map((o, i) => (o ? fieldLabel(o.label, loc, '') : String((raw as unknown[])[i]))).join(', ');
+  }
+  if (def.dataType === 'boolean') return raw ? 'Sì' : 'No';
+  if (typeof raw === 'number') return raw;
+  return String(raw);
+}
+
 function Tib({ a }: { a: ListAction }) {
   const I = a.icon;
   return (
@@ -100,8 +127,20 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const selectable = !pick && (p.selectable ?? true);
 
   // fonte campi per export E filtro: TUTTI i campi dell'entità (prop exportFields) o le colonne con value.
-  const exportSource: ExportField<T>[] = p.exportFields
+  const baseExport: ExportField<T>[] = p.exportFields
     ?? p.columns.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  // Blocco 4: i field_definition del tenant entrano AUTOMATICAMENTE nell'export (no codice per pagina).
+  const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>(p.entity ? `/field-definitions?entity=${encodeURIComponent(p.entity)}` : null);
+  const customExport: ExportField<T>[] = (fieldDefs.data?.items ?? [])
+    .filter((d) => d.active !== false)
+    .filter((d) => !baseExport.some((f) => f.key === d.key)) // la pagina può aver già mappato un attributo a mano
+    .sort((a, b) => a.sequence - b.sequence)
+    .map((d) => ({
+      key: d.key,
+      label: fieldLabel(d.label, currentLocale(), d.key),
+      value: (row: T) => attrExportValue(d, (row as { attributes?: Record<string, unknown> }).attributes),
+    }));
+  const exportSource: ExportField<T>[] = [...baseExport, ...customExport];
   const exportFields: FieldOpt[] = exportSource.map((f) => ({ key: f.key, label: f.label }));
 
   // ── Filtro AI (client-side su TUTTI i campi) ──

@@ -88,7 +88,7 @@ export function EngagementsPage() {
         onRowClick={(r) => history.push(`/engagements/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="commesse" exportFields={exportFields}
+        exportName="commesse" exportFields={exportFields} entity="engagement"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna commessa in questa vista."

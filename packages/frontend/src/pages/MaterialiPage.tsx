@@ -107,7 +107,7 @@ export function MaterialiPage() {
         onRowClick={(m) => history.push(`/materials/${m.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="articoli" exportFields={exportFields}
+        exportName="articoli" exportFields={exportFields} entity="material"
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."
