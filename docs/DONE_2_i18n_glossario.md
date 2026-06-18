@@ -36,7 +36,10 @@ Collegate a `t('terms.*')` le schermate di dominio principali (lista + scheda):
 - Propagazione provata a runtime (sopra).
 - **Da fare sul PC test** (3 lingue + rename): cambia lingua utente → menu/liste/schede cambiano; Impostazioni › Terminologia (IT) rinomina *Commessa→Progetto* (sing+plur) → menu, titolo lista Commesse e header scheda mostrano "Progetto/Progetti"; en/es-AR restano default; ↺ ripristina.
 
-## Aperto (retrofit residuo — non blocca il DoD core)
-Restano stringhe IT hardcoded in: **header colonne**, **tooltip toolbar** (in `EntityList`: "Modifica/Duplica/Esporta/Elimina"), **label di box/sezione** non-dominio, **messaggi/dialoghi**, e schermate minori (rapportino, pivot, DDT, magazzino — quest'ultimo arriva col Blocco 3). Sono ~centinaia di stringhe generiche: vanno spostate sotto chiavi `common.*`/`actions.*` progressivamente. Il **valore-demo** (rename di dominio che si propaga su menu/liste/schede) è però già soddisfatto.
+## Completamento (sessione 2) — EntityList generico i18n
+Retrofit **ad alto leverage** del componente condiviso `EntityList` (presente su OGNI lista): nuovo namespace **`list.*`** in tutte e 3 le lingue e wiring di tutte le sue stringhe generiche — tooltip toolbar (Modifica/Duplica/Esporta N/Elimina N), Ordina/Colonne/Filtro/Filtro AI, placeholder ricerca, chip viste salvate, barra filtro attivo + "N risultati", stati vuoto, e il **ConfirmDialog di eliminazione** (titoli/messaggi con pluralizzazione). Così tutte le liste cambiano lingua per intero, non solo il titolo.
+
+## Aperto (long-tail — consigliato con revisione terminologia)
+Restano stringhe IT hardcoded **per-pagina**: **header colonne** delle tabelle (es. "P.IVA / cod. fiscale", "Giacenza / unità"), **label di box/sezione** non-dominio nelle schede di dettaglio, **toast/messaggi** specifici, e schermate minori (rapportino, pivot, DDT). Sono ~centinaia di stringhe la cui **traduzione (specie es-AR) è una scelta di terminologia**: meglio farle in batch con revisione di Sivaf, non a freddo. Il valore-demo (propagazione glossario + cambio lingua su menu/liste-chrome/schede-titoli) è pienamente soddisfatto.
 
 *Fine Blocco 2 (parte propagazione + flagship). Retrofit generico residuo: incrementale.*

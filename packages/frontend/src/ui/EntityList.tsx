@@ -11,6 +11,7 @@
  * Stili: datapages.css (scope .dsx).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, ArrowUp, ArrowDown, Plus, X as XIcon } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
@@ -135,6 +136,7 @@ function Tib({ a }: { a: ListAction }) {
 }
 
 export function EntityList<T extends { id: string }>(p: Props<T>) {
+  const { t } = useTranslation();
   const mode = p.mode ?? 'manage';
   const pick = mode !== 'manage';
   const selectable = !pick && (p.selectable ?? true);
@@ -281,22 +283,22 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   // azioni standard dipendenti dalla selezione
   const stdActions: ListAction[] = [];
   if (selectable) {
-    if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: 'Modifica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
-    if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: 'Duplica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? `Esporta ${count} selezionati` : 'Esporta', disabled: count < 1, onClick: () => setExportOpen(true) });
-    if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? `Elimina ${count} selezionati` : 'Elimina', variant: 'danger', disabled: count < 1, onClick: () => setDelOpen(true) });
+    if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
+    if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
+    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: () => setExportOpen(true) });
+    if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => setDelOpen(true) });
   }
 
   // azioni "di sinistra": built-in standard (Filtri/Colonne/AI) + eventuali custom della pagina.
   // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
   const builtinLeft: ListAction[] = pick ? [] : [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri manuali (in arrivo)', disabled: true },
+    { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
     ...(p.onSortChange && p.sortFields?.length
-      ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? `Ordina (${sortState.length})` : 'Ordina', variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setSortOpen(true) }]
+      ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setSortOpen(true) }]
       : []),
-    { key: 'cols', icon: Columns3, tip: 'Colonne (mostra/nascondi e ordina)', onClick: () => setColumnsOpen(true) },
-    { key: 'ai', icon: Sparkles, tip: 'Filtro intelligente (scrivi o detta)', variant: 'ai', onClick: () => setAiFilterOpen(true) },
+    { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: () => setColumnsOpen(true) },
+    { key: 'ai', icon: Sparkles, tip: t('list.aiFilter'), variant: 'ai', onClick: () => setAiFilterOpen(true) },
   ];
   const leftAll = [...builtinLeft, ...customLeft];
 
@@ -315,12 +317,12 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
               </span>
             ))}
             {p.savedViewKey && (savedViews.data?.items ?? []).map((v) => (
-              <span key={v.id} className={`viewchip sv${activeSV === v.id ? ' on' : ''}`} title="Vista salvata" onClick={() => applySavedView(v)}>
+              <span key={v.id} className={`viewchip sv${activeSV === v.id ? ' on' : ''}`} title={t('list.savedView')} onClick={() => applySavedView(v)}>
                 {v.name}{v.isOwn && <button className="sv-x" title="Elimina vista" onClick={(e) => { e.stopPropagation(); void deleteSavedView(v.id); }}>✕</button>}
               </span>
             ))}
             {p.savedViewKey && (
-              <span className="viewchip sv-add" title="Salva la lista corrente (filtro + colonne) come vista" onClick={() => setSvPromptOpen(true)}>+ Salva vista</span>
+              <span className="viewchip sv-add" title="Salva la lista corrente (filtro + colonne) come vista" onClick={() => setSvPromptOpen(true)}>{t('list.saveView')}</span>
             )}
           </div>
         </div>
@@ -331,7 +333,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           {p.onSearch && (
             <div className="dsx-search grow">
               <Search size={16} />
-              <input placeholder={p.searchPlaceholder ?? 'Cerca…'} value={p.search ?? ''} onChange={(e) => p.onSearch?.(e.target.value)} />
+              <input placeholder={p.searchPlaceholder ?? t('list.search')} value={p.search ?? ''} onChange={(e) => p.onSearch?.(e.target.value)} />
             </div>
           )}
           {/* tutto a destra: ricerca larga a sinistra, azioni a destra con il "+" per ultimo */}
@@ -353,8 +355,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       {filterConds.length > 0 && (
         <div className="aif-active">
           <Sparkles size={14} />
-          <button className="aif-text" onClick={() => setAiFilterOpen(true)}>Filtro: {filterDesc || `${filterConds.length} condizioni`}</button>
-          <span className="aif-n">{serverFilter ? (p.total ?? viewRows.length) : viewRows.length} risultati</span>
+          <button className="aif-text" onClick={() => setAiFilterOpen(true)}>{t('list.filterActive')}: {filterDesc || `${filterConds.length} condizioni`}</button>
+          <span className="aif-n">{t('list.resultsN', { n: serverFilter ? (p.total ?? viewRows.length) : viewRows.length })}</span>
           <button className="aif-clear" title="Rimuovi filtro" onClick={() => { setFilterConds([]); setFilterDesc(''); p.onFilterChange?.(null); }}>✕</button>
         </div>
       )}
@@ -381,7 +383,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                   </tr>
                 );
               })}
-              {viewRows.length === 0 && <tr><td colSpan={colSpan}><div className="dsx-empty">{filterConds.length ? 'Nessun risultato per il filtro.' : (p.emptyText ?? 'Nessun elemento.')}</div></td></tr>}
+              {viewRows.length === 0 && <tr><td colSpan={colSpan}><div className="dsx-empty">{filterConds.length ? t('list.emptyFiltered') : (p.emptyText ?? t('list.empty'))}</div></td></tr>}
             </tbody>
           </table>
           {p.total != null && p.total > 0 && p.limit != null && (
@@ -427,9 +429,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           onApply={applySort} onCancel={() => setSortOpen(false)} />
       )}
 
-      <ConfirmDialog open={delOpen} danger title={count > 1 ? `Eliminare ${count} elementi?` : 'Eliminare l\'elemento?'}
-        message={count > 1 ? 'Gli elementi selezionati verranno eliminati. L\'operazione potrebbe essere irreversibile.' : 'L\'elemento selezionato verrà eliminato. L\'operazione potrebbe essere irreversibile.'}
-        confirmLabel="Elimina" busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
+      <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}
+        message={count > 1 ? t('list.deleteManyMsg') : t('list.deleteOneMsg')}
+        confirmLabel={t('list.delete')} busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
 
       {aiFilterOpen && (
         <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}
