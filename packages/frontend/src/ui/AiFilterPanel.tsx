@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Sparkles, Mic, StopCircle, X, Check, Trash2, Save, Wand2 } from 'lucide-react';
 import type { FieldOpt } from './FieldPicker';
 import { type FilterCondition, condLabel } from '../lib/listFilter';
+import { PromptDialog } from './PromptDialog';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch } from '../api/client';
 import { useToast } from './Toast';
@@ -27,6 +28,7 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
   const [conditions, setConditions] = useState<FilterCondition[]>(initial?.conditions ?? []);
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
 
   if (!open) return null;
   const labelOf = (k: string) => fields.find((f) => f.key === k)?.label ?? k;
@@ -52,11 +54,13 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
     }
   }
 
-  async function save() {
+  function save() {
     if (!conditions.length) { toast('Interpreta o crea un filtro prima di salvarlo', 'error'); return; }
-    const name = window.prompt('Nome del filtro (es. "Clienti Bergamo no P.IVA"):');
-    if (!name || !name.trim()) return;
-    try { await mutate('POST', '/filter-presets', { entity, name: name.trim(), payload: { query, conditions } }); toast('Filtro salvato'); void presets.reload(); }
+    setNameOpen(true);
+  }
+  async function confirmSave(name: string) {
+    setNameOpen(false);
+    try { await mutate('POST', '/filter-presets', { entity, name, payload: { query, conditions } }); toast('Filtro salvato'); void presets.reload(); }
     catch (e) { toast((e as Error).message || 'Errore salvataggio', 'error'); }
   }
   function loadPreset(id: string) {
@@ -68,6 +72,11 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
   }
 
   return (
+    <>
+    <PromptDialog open={nameOpen} title="Salva questo filtro"
+      message="Dai un nome al filtro: potrai ricaricarlo quando vuoi." label="Nome filtro"
+      placeholder='es. "Clienti Bergamo no P.IVA"' confirmLabel="Salva"
+      onConfirm={confirmSave} onCancel={() => setNameOpen(false)} />
     <div className="afp-back" onClick={onClose}>
       <div className="afp" onClick={(e) => e.stopPropagation()}>
         <div className="afp-head">
@@ -153,5 +162,6 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
         `}</style>
       </div>
     </div>
+    </>
   );
 }

@@ -49,6 +49,14 @@ export function RisorsePage() {
     { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attiva' : 'Disattivata'), render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
   ];
 
+  const exportFields = [
+    { key: 'label', label: 'Nome', value: (r: ResourceDto) => r.label },
+    { key: 'kind', label: 'Tipo', value: (r: ResourceDto) => KIND_LABEL[r.kind] },
+    { key: 'hourly_cost', label: 'Costo orario (€/h)', value: (r: ResourceDto) => ((r.attributes as Record<string, unknown>)?.hourly_cost as number) ?? '' },
+    { key: 'active', label: 'Stato', value: (r: ResourceDto) => (r.active ? 'Attiva' : 'Disattivata') },
+    { key: 'userName', label: 'Utente collegato', value: (r: ResourceDto) => r.userName ?? '' },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -69,7 +77,7 @@ export function RisorsePage() {
         onRowClick={(r) => history.push(`/resources/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="risorse"
+        exportName="risorse" exportFields={exportFields}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."
       />

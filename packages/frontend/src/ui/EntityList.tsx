@@ -17,6 +17,7 @@ import { Loading, ErrorBox } from '../components/Page';
 import { downloadXlsx } from '../lib/xlsx';
 import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
 import { ExportDialog } from './ExportDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import { AiFilterPanel } from './AiFilterPanel';
 import { matchConditions, type FilterCondition } from '../lib/listFilter';
 import '../theme/datapages.css';
@@ -27,6 +28,8 @@ export interface ListColumn<T> {
   /** valore grezzo per l'export Excel (se assente la colonna non viene esportata). */
   value?: (row: T) => string | number | null | undefined;
 }
+/** campo esportabile: TUTTI i campi dell'entità (non solo le colonne a video). */
+export interface ExportField<T> { key: string; label: string; value: (row: T) => string | number | null | undefined }
 export interface ListAction { key: string; icon: LucideIcon; tip: string; onClick?: () => void; disabled?: boolean; variant?: 'ai' | 'primary' | 'danger' }
 
 interface Props<T extends { id: string }> {
@@ -61,6 +64,8 @@ interface Props<T extends { id: string }> {
   onExport?: (rows: T[]) => void | Promise<void>;
   /** nome file per l'export di default. */
   exportName?: string;
+  /** TUTTI i campi dell'entità per l'export (oltre alle colonne a video). */
+  exportFields?: ExportField<T>[];
   /** notifica la selezione corrente (per azioni bulk custom della pagina). */
   onSelectionChange?: (rows: T[]) => void;
   /** incrementa questo token per AZZERARE la selezione dall'esterno (dopo un'azione bulk custom). */
@@ -91,12 +96,17 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const pick = mode !== 'manage';
   const selectable = !pick && (p.selectable ?? true);
 
-  // ── Filtro AI (client-side sui valori delle colonne) ──
+  // fonte campi per export E filtro: TUTTI i campi dell'entità (prop exportFields) o le colonne con value.
+  const exportSource: ExportField<T>[] = p.exportFields
+    ?? p.columns.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header, value: c.value! }));
+  const exportFields: FieldOpt[] = exportSource.map((f) => ({ key: f.key, label: f.label }));
+
+  // ── Filtro AI (client-side su TUTTI i campi) ──
   const [aiFilterOpen, setAiFilterOpen] = useState(false);
   const [filterConds, setFilterConds] = useState<FilterCondition[]>([]);
   const [filterDesc, setFilterDesc] = useState('');
-  const colVal = (field: string, row: T) => p.columns.find((c) => c.key === field)?.value?.(row);
-  const allVals = (row: T) => p.columns.filter((c) => c.value).map((c) => c.value!(row));
+  const colVal = (field: string, row: T) => exportSource.find((f) => f.key === field)?.value(row);
+  const allVals = (row: T) => exportSource.map((f) => f.value(row));
   const viewRows = filterConds.length
     ? p.rows.filter((row) => matchConditions(filterConds, (f) => colVal(f, row), () => allVals(row)))
     : p.rows;
@@ -152,24 +162,24 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const toggleRow = (row: T) => setSel((s) => { const n = new Set(s); n.has(row.id) ? n.delete(row.id) : n.add(row.id); return n; });
   const toggleAll = () => setSel(() => (allOn ? new Set() : new Set(viewRows.map((r) => r.id))));
 
-  const exportableCols = p.columns.filter((c) => c.value);
-  const exportFields: FieldOpt[] = exportableCols.map((c) => ({ key: c.key, label: c.header }));
   async function runExport(orderedKeys: string[]) {
     setExportOpen(false);
     if (p.onExport) { await p.onExport(selectedRows); return; }
-    const cols = orderedKeys.map((k) => exportableCols.find((c) => c.key === k)).filter((c): c is ListColumn<T> => !!c);
-    if (!cols.length) return;
+    const flds = orderedKeys.map((k) => exportSource.find((f) => f.key === k)).filter((f): f is ExportField<T> => !!f);
+    if (!flds.length) return;
     await downloadXlsx(p.exportName ?? (p.title ?? 'export'), [{
       name: (p.title ?? 'Dati').slice(0, 28),
-      columns: cols.map((c) => ({ header: c.header, key: c.key, width: 20 })),
-      rows: selectedRows.map((r) => Object.fromEntries(cols.map((c) => [c.key, c.value!(r) ?? '']))),
+      columns: flds.map((f) => ({ header: f.label, key: f.key, width: 20 })),
+      rows: selectedRows.map((r) => Object.fromEntries(flds.map((f) => [f.key, f.value(r) ?? '']))),
     }]);
   }
-  async function doDelete() {
-    if (!p.onDelete || count === 0) return;
-    if (!window.confirm(`Eliminare ${count} element${count > 1 ? 'i' : 'o'} selezionat${count > 1 ? 'i' : 'o'}?`)) return;
-    await p.onDelete(selectedRows);
-    setSel(new Set());
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
+  async function confirmDelete() {
+    if (!p.onDelete) return;
+    setDelBusy(true);
+    try { await p.onDelete(selectedRows); setSel(new Set()); }
+    finally { setDelBusy(false); setDelOpen(false); }
   }
   const edit = p.onEdit ?? p.onRowClick;
 
@@ -178,8 +188,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   if (selectable) {
     if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: 'Modifica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
     if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: 'Duplica (1 riga)', disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-    if (p.onExport || exportableCols.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? `Esporta ${count} selezionati` : 'Esporta', disabled: count < 1, onClick: () => setExportOpen(true) });
-    if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? `Elimina ${count} selezionati` : 'Elimina', variant: 'danger', disabled: count < 1, onClick: () => void doDelete() });
+    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? `Esporta ${count} selezionati` : 'Esporta', disabled: count < 1, onClick: () => setExportOpen(true) });
+    if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? `Elimina ${count} selezionati` : 'Elimina', variant: 'danger', disabled: count < 1, onClick: () => setDelOpen(true) });
   }
 
   // azioni "di sinistra": built-in standard (Filtri/Colonne/AI) + eventuali custom della pagina.
@@ -302,9 +312,13 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       )}
       {(exportOpen || columnsOpen) && <FieldPickerStyles />}
 
+      <ConfirmDialog open={delOpen} danger title={count > 1 ? `Eliminare ${count} elementi?` : 'Eliminare l\'elemento?'}
+        message={count > 1 ? 'Gli elementi selezionati verranno eliminati. L\'operazione potrebbe essere irreversibile.' : 'L\'elemento selezionato verrà eliminato. L\'operazione potrebbe essere irreversibile.'}
+        confirmLabel="Elimina" busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
+
       {aiFilterOpen && (
         <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}
-          fields={p.columns.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header }))}
+          fields={exportFields}
           initial={{ query: '', conditions: filterConds }}
           onApply={(conds, d) => { setFilterConds(conds); setFilterDesc(d); }}
           onClose={() => setAiFilterOpen(false)} />

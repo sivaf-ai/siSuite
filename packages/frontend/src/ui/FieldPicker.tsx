@@ -40,9 +40,9 @@ export function FieldPicker({
         <div className="fp-head">
           <div className="fp-title">{title}</div>
           <div className="fp-acts">
-            {onSave && <button className="btn btn-ghost btn-sm" onClick={() => onSave(selectedOrdered())}><Check size={15} /> Salva</button>}
-            <button className="btn btn-ghost btn-sm" onClick={onCancel}><X size={15} /> Annulla</button>
-            <button className="btn btn-primary btn-sm" onClick={() => onConfirm(selectedOrdered())} disabled={sel.size === 0}><Check size={15} /> {confirmLabel}</button>
+            {onSave && <button className="fp-btn ghost" onClick={() => onSave(selectedOrdered())}><Check size={15} /> Salva</button>}
+            <button className="fp-btn ghost" onClick={onCancel}><X size={15} /> Annulla</button>
+            <button className="fp-btn primary" onClick={() => onConfirm(selectedOrdered())} disabled={sel.size === 0}><Check size={15} /> {confirmLabel}</button>
           </div>
         </div>
         {topExtra && <div className="fp-extra">{topExtra}</div>}
@@ -70,19 +70,26 @@ export function FieldPickerStyles(): ReactNode {
   return (
     <style>{`
       .fp-back { position: fixed; inset: 0; background: rgba(20,18,40,.34); display: grid; place-items: center; z-index: 1000; padding: 20px; }
-      .fp-modal { width: 440px; max-width: 96vw; max-height: 86vh; background: var(--card); border-radius: 14px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; overflow: hidden; }
-      .fp-head { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
-      .fp-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
-      .fp-acts { margin-left: auto; display: flex; gap: 8px; }
-      .fp-extra { padding: 10px 16px 0; }
-      .fp-tools { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px; }
+      .fp-modal { width: 600px; max-width: 96vw; max-height: 84vh; background: var(--card); border-radius: 16px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; overflow: hidden; }
+      /* titolo su riga propria, pulsanti sotto a destra: niente testo che va a capo */
+      .fp-head { display: flex; flex-direction: column; align-items: stretch; gap: 11px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+      .fp-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; line-height: 1.2; }
+      .fp-acts { display: flex; gap: 8px; justify-content: flex-end; }
+      .fp-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+      .fp-btn svg { width: 15px; height: 15px; }
+      .fp-btn.ghost:hover { background: var(--paper); }
+      .fp-btn.primary { background: var(--brand); color: #fff; border-color: transparent; }
+      .fp-btn.primary:hover { background: var(--brand-press); }
+      .fp-btn:disabled { opacity: .5; cursor: not-allowed; }
+      .fp-extra { padding: 12px 18px 0; }
+      .fp-tools { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px 6px; font-size: 12.5px; }
       .fp-all { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
-      .fp-list { overflow-y: auto; padding: 4px 10px 12px; }
-      .fp-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; background: var(--card); }
+      .fp-list { overflow-y: auto; padding: 4px 12px 14px; }
+      .fp-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--card); }
       .fp-row:hover { background: var(--paper); }
       .fp-row.dragging { opacity: .5; }
       .fp-grip { color: var(--ink-faint); cursor: grab; display: inline-flex; }
-      .fp-lbl { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; cursor: pointer; flex: 1; }
+      .fp-lbl { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; flex: 1; }
       .fp-back input[type=checkbox], .fp-all input { width: 16px; height: 16px; accent-color: var(--brand); }
     `}</style>
   );

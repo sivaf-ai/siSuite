@@ -39,6 +39,14 @@ export function AssetPage() {
     { key: 'installed', header: 'Installato', num: true, value: (r) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '—'}</span> },
   ];
 
+  const exportFields = [
+    { key: 'label', label: 'Etichetta', value: (r: AssetDto) => r.label },
+    { key: 'kind', label: 'Tipo', value: (r: AssetDto) => r.kind },
+    { key: 'company', label: 'Cliente', value: (r: AssetDto) => r.companyName ?? '' },
+    { key: 'site', label: 'Sito / Località', value: (r: AssetDto) => r.siteName ?? '' },
+    { key: 'installedOn', label: 'Installato il', value: (r: AssetDto) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '') },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -58,7 +66,7 @@ export function AssetPage() {
         onRowClick={(r) => history.push(`/assets/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="asset"
+        exportName="asset" exportFields={exportFields}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun asset."
       />

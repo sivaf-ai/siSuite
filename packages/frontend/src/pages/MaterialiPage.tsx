@@ -70,6 +70,21 @@ export function MaterialiPage() {
     { key: 'st', header: 'Stato', value: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
   ];
 
+  const exportFields = [
+    { key: 'name', label: 'Articolo', value: (m: MaterialDto) => m.name },
+    { key: 'sku', label: 'SKU', value: (m: MaterialDto) => m.sku ?? '' },
+    { key: 'unit', label: 'Unità di misura', value: (m: MaterialDto) => m.unit },
+    { key: 'category', label: 'Categoria', value: (m: MaterialDto) => attr(m, 'category') ?? '' },
+    { key: 'item_type', label: 'Tipo', value: (m: MaterialDto) => attr(m, 'item_type') ?? '' },
+    { key: 'supplier_code', label: 'Codice fornitore', value: (m: MaterialDto) => attr(m, 'supplier_code') ?? '' },
+    { key: 'tracking', label: 'Tracciamento', value: (m: MaterialDto) => trackingTag(m) },
+    { key: 'costingMethod', label: 'Metodo costo', value: (m: MaterialDto) => m.costingMethod },
+    { key: 'qtyOnHand', label: 'Giacenza', value: (m: MaterialDto) => m.qtyOnHand },
+    { key: 'avgCost', label: 'Costo medio', value: (m: MaterialDto) => m.avgCost ?? m.defaultCost ?? '' },
+    { key: 'min_stock', label: 'Scorta minima', value: (m: MaterialDto) => (attr(m, 'min_stock') as unknown as number) ?? '' },
+    { key: 'status', label: 'Stato', value: (m: MaterialDto) => statusOf(m).label },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -90,7 +105,7 @@ export function MaterialiPage() {
         onRowClick={(m) => history.push(`/materials/${m.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="articoli"
+        exportName="articoli" exportFields={exportFields}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."
       />

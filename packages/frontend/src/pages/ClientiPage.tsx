@@ -66,6 +66,24 @@ export function ClientiPage() {
     { key: 'created', header: 'Creato', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
   ];
 
+  // TUTTI i campi del Soggetto per l'export (non solo le colonne a video)
+  const exportFields = [
+    { key: 'displayName', label: 'Nome / Ragione sociale', value: (r: CompanyDto) => r.displayName },
+    { key: 'type', label: 'Tipo', value: (r: CompanyDto) => (r.type === 'organization' ? 'Organizzazione' : 'Privato') },
+    { key: 'roles', label: 'Ruoli', value: (r: CompanyDto) => r.roles.map((x) => ROLE_LABEL[x] ?? x).join(', ') },
+    { key: 'vat_number', label: 'P.IVA', value: (r: CompanyDto) => attr(r, 'vat_number') ?? '' },
+    { key: 'tax_code', label: 'Codice fiscale', value: (r: CompanyDto) => attr(r, 'tax_code') ?? '' },
+    { key: 'pec', label: 'PEC', value: (r: CompanyDto) => attr(r, 'pec') ?? '' },
+    { key: 'sdi_code', label: 'Codice SDI', value: (r: CompanyDto) => attr(r, 'sdi_code') ?? '' },
+    { key: 'street', label: 'Indirizzo', value: (r: CompanyDto) => attr(r, 'street') ?? '' },
+    { key: 'city', label: 'Città', value: (r: CompanyDto) => attr(r, 'city') ?? '' },
+    { key: 'province', label: 'Provincia', value: (r: CompanyDto) => attr(r, 'province') ?? '' },
+    { key: 'postal_code', label: 'CAP', value: (r: CompanyDto) => attr(r, 'postal_code') ?? '' },
+    { key: 'website', label: 'Sito web', value: (r: CompanyDto) => attr(r, 'website') ?? '' },
+    { key: 'notes', label: 'Note', value: (r: CompanyDto) => attr(r, 'notes') ?? '' },
+    { key: 'createdAt', label: 'Creato il', value: (r: CompanyDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -86,7 +104,7 @@ export function ClientiPage() {
         onRowClick={(r) => history.push(`/companies/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="soggetti"
+        exportName="soggetti" exportFields={exportFields}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."
       />

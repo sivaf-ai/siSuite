@@ -34,3 +34,6 @@ coverage/
 # frontend
 packages/frontend/.vite/
 packages/frontend/dist/
+
+# script analisi porting (read-only, non versionare deps)
+scratch-porting/node_modules/

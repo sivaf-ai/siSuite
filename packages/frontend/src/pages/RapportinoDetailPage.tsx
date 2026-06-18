@@ -11,6 +11,7 @@ import type { WorkReportDto, EngagementDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { PromptDialog } from '../ui/PromptDialog';
 import { DocSectionTable, TotalsStrip, type DocSection } from '../ui/DocumentArchetype';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch } from '../api/client';
@@ -43,6 +44,7 @@ export function RapportinoDetailPage() {
 
   const [finalText, setFinalText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [signOpen, setSignOpen] = useState(false);
   // creazione
   const [nEng, setNEng] = useState('');
   const [nAudience, setNAudience] = useState<'customer' | 'internal'>('customer');
@@ -74,10 +76,9 @@ export function RapportinoDetailPage() {
     try { await mutate('PATCH', `/work-reports/${r.id}`, { finalText, confirm }); toast(confirm ? 'Rapportino confermato' : 'Testo salvato'); void doc.reload(); }
     catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
-  async function sign() {
+  async function doSign(signerName: string) {
     if (!r) return;
-    const signerName = window.prompt('Nome del firmatario:'); if (!signerName) return;
-    setBusy(true);
+    setSignOpen(false); setBusy(true);
     try { await apiFetch(`/work-reports/${r.id}/sign`, { method: 'POST', body: JSON.stringify({ signerName }) }); toast('Rapportino firmato'); void doc.reload(); }
     catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
@@ -139,7 +140,7 @@ export function RapportinoDetailPage() {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10, flexWrap: 'wrap' }}>
             {can('update') && !signed && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => saveConfirm(false)}>Salva testo</button>}
             {can('update') && !confirmed && <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => saveConfirm(true)}><Check size={15} /> Conferma</button>}
-            {can('update') && confirmed && !signed && <button className="btn btn-primary btn-sm" disabled={busy} onClick={sign}><PenLine size={15} /> Firma</button>}
+            {can('update') && confirmed && !signed && <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => setSignOpen(true)}><PenLine size={15} /> Firma</button>}
             {signed && r.signerName && <span className="faint" style={{ alignSelf: 'center' }}>Firmato da {r.signerName}</span>}
           </div>
         </ObjectBox>
@@ -164,6 +165,10 @@ export function RapportinoDetailPage() {
               </div>}
         </ObjectBox>
       </ObjectPage>
+      <PromptDialog open={signOpen} title="Firma rapportino"
+        message="Inserisci il nome di chi firma il rapportino." label="Nome del firmatario"
+        placeholder="Nome e cognome" confirmLabel="Firma"
+        onConfirm={(name) => void doSign(name)} onCancel={() => setSignOpen(false)} />
     </Page>
   );
 }

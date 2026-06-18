@@ -13,6 +13,7 @@ import { StatusPill } from '../components/StatusPill';
 import { DataTable, type Column } from '../ui/DataTable';
 import { EmptyState } from '../ui/EmptyState';
 import { useApi, mutate } from '../api/hooks';
+import { PromptDialog } from '../ui/PromptDialog';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
@@ -48,6 +49,7 @@ export function TimeEntriesPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [reasonFor, setReasonFor] = useState<'reject' | 'lock' | null>(null);
 
   const engById = useMemo(() => new Map((engs.data?.items ?? []).map((e) => [e.id, e])), [engs.data]);
   const resById = useMemo(() => new Map((ress.data?.items ?? []).map((r) => [r.id, r])), [ress.data]);
@@ -66,17 +68,7 @@ export function TimeEntriesPage() {
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  async function run(action: 'submit' | 'approve' | 'reject' | 'lock' | 'unlock') {
-    const ids = [...sel];
-    if (!ids.length) return;
-    let body: Record<string, unknown> = { ids };
-    if (action === 'reject') {
-      const reason = window.prompt('Motivo del rifiuto (opzionale):') ?? undefined;
-      body = { ids, reason };
-    } else if (action === 'lock') {
-      const reason = (window.prompt('Motivo blocco: PAYROLL / INVOICED / PERIOD_CLOSE / MANUAL', 'MANUAL') ?? 'MANUAL').toUpperCase();
-      body = { ids, reason: ['PAYROLL', 'INVOICED', 'PERIOD_CLOSE', 'MANUAL'].includes(reason) ? reason : 'MANUAL' };
-    }
+  async function exec(action: 'submit' | 'approve' | 'reject' | 'lock' | 'unlock', body: Record<string, unknown>) {
     setBusy(true);
     try {
       const res = await mutate<{ updated: number }>('POST', `/time-entries/${action}`, body);
@@ -88,6 +80,20 @@ export function TimeEntriesPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function run(action: 'submit' | 'approve' | 'reject' | 'lock' | 'unlock') {
+    const ids = [...sel];
+    if (!ids.length) return;
+    if (action === 'reject' || action === 'lock') { setReasonFor(action); return; } // chiede il motivo via popup in-app
+    void exec(action, { ids });
+  }
+  function onReasonConfirm(value: string) {
+    const action = reasonFor; if (!action) return;
+    const ids = [...sel]; setReasonFor(null);
+    if (action === 'reject') { void exec('reject', { ids, reason: value || undefined }); return; }
+    const reason = (value || 'MANUAL').toUpperCase();
+    void exec('lock', { ids, reason: ['PAYROLL', 'INVOICED', 'PERIOD_CLOSE', 'MANUAL'].includes(reason) ? reason : 'MANUAL' });
   }
 
   const columns: Column<TimeEntryDto>[] = [
@@ -178,6 +184,15 @@ export function TimeEntriesPage() {
           columns={columns} rows={rows}
           empty={<EmptyState icon={Clock} title="Nessuna riga ore" hint="Le ore registrate dai tecnici compaiono qui." />}
         />}
+
+      <PromptDialog open={reasonFor === 'reject'} title="Respingi le ore"
+        message="Puoi indicare un motivo per il rifiuto (facoltativo)." label="Motivo del rifiuto"
+        placeholder="es. ore non coerenti col rapportino" confirmLabel="Respingi" required={false}
+        onConfirm={onReasonConfirm} onCancel={() => setReasonFor(null)} />
+      <PromptDialog open={reasonFor === 'lock'} title="Blocca le ore"
+        message="Indica il motivo del blocco: PAYROLL, INVOICED, PERIOD_CLOSE o MANUAL." label="Motivo del blocco"
+        initial="MANUAL" confirmLabel="Blocca"
+        onConfirm={onReasonConfirm} onCancel={() => setReasonFor(null)} />
     </Page>
   );
 }
