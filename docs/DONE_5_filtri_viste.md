@@ -18,9 +18,22 @@
 - Migrazione 036 applicata (`saved_view` esiste), backend riavviato, health 200.
 - **Da fare sul PC test**: su Soggetti, applica un filtro AI/manuale + nascondi qualche colonna → "+ Salva vista" ("Clienti di Bergamo") → cambia vista → riclicca la vista salvata: filtro e colonne tornano. ✕ elimina.
 
-## Aperto (Blocco 5 residuo — prossima sessione)
-- **5.1 QBE type-aware**: oggi il builder manuale (`AiFilterPanel`) è campo·operatore·valore con input generico. Manca la modalità "scheda" con input per tipo (data→date-picker, enum→select dei valori reali, numero→numerico) e il **chip operatore** (Uguale·Contiene·Da–a) per campo. L'operatore `between` backend è pronto: serve esporlo nel pannello + un date-picker. Anche il client-side `lib/listFilter.ts` va esteso con `between` per la modalità client.
-- **5.2 Multi-sort**: oggi solo single-sort (header → `sortBy/sortDir` via URL). Manca la mascherina "Ordina" multi-campo con priorità e l'`ORDER BY` multiplo lato backend. Quando arriva, il `payload.sort` della Vista (già previsto nello schema) va popolato.
-- **Igiene residua**: indici **GIN trigram** (`gin_trgm_ops`) su `attributes->>'x'` usati nei filtri ILIKE (perf); **gating PII** nel filtro server-side (alcuni attributi filtrabili senza permesso); **conteggi viste** che rispettino il filtro attivo.
+## Completamento (sessione 2)
 
-*Fine Blocco 5 (igiene + viste salvate). QBE type-aware e multi-sort: residuo documentato.*
+### 5.2 Multi-sort — FATTO
+- Helper backend **`sortSql.ts` `buildOrderBy`** (multi-campo, whitelisted via SORTABLE, direzione vincolata asc/desc, retro-compatibile col singolo `sortBy/sortDir`). **Test `sortSql.test.ts`: 9 verdi** (priorità, fuori-whitelist ignorato, anti-injection).
+- Wired su **6 endpoint**: companies, work-orders, materials, engagements, resources, assets (param `?sort=[{field,dir}]`).
+- UI **`SortDialog`** in `EntityList` (mascherina "Ordina" multi-campo con priorità + asc/desc, aggiungi/rimuovi, azzera) via props `sortFields`/`onSortChange`. Wired: Soggetti, Commesse, Ordini di lavoro, Articoli.
+
+### 5.1 `between` end-to-end — FATTO
+- Operatore **"tra (da–a)"** nel builder manuale (`AiFilterPanel`): due input *da/a*; client-side `lib/listFilter.ts` valuta `between` (numerico o testuale per date ISO); backend già pronto. Funziona sia client che server.
+
+### Igiene — FATTO
+- **Indici GIN trigram** (migrazione **037**, applicata): `pg_trgm` + indici su display_name/city/vat (company), name/sku (material), code/address (work_order), code/title (engagement) → ILIKE veloce.
+- **PII nel filtro**: verificato che **nessun campo PII** (intestatario in `work_order_subject`, mascherato) è presente nelle `FILTER_FIELDS` di alcun endpoint → il filtro non può aggirare il mascheramento (è una whitelist). Nessuna modifica necessaria.
+
+## Aperto (rifiniture minori)
+- **QBE type-aware completo**: input per tipo (data→date-picker, enum→select dei valori reali) e **chip operatore** visibile per campo (oggi l'operatore è una select; `between` ha già i due input). Serve passare i tipi dei campi (da `field_definition`) al pannello filtro.
+- **Conteggi viste (chip) che rispettino il filtro attivo**: oggi riflettono la ricerca `q` ma non il filtro AI/manuale.
+
+*Fine Blocco 5: 5.1/5.2/5.3 + igiene fatti. Residue solo rifiniture (type-aware inputs, conteggi-col-filtro).*

@@ -34,12 +34,14 @@ export function EngagementsPage() {
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
+  const [sortParam, setSortParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (view !== 'all') params.set('type', view);
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
+  if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/engagements?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
@@ -91,6 +93,8 @@ export function EngagementsPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="commesse" exportFields={exportFields} entity="engagement"
+        sortFields={[{ key: 'code', label: 'Codice' }, { key: 'title', label: 'Titolo' }, { key: 'createdAt', label: 'Creato' }]}
+        onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna commessa in questa vista."

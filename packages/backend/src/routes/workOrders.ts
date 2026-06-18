@@ -30,6 +30,7 @@ import { validateAttributes } from '../fields.js';
 import { nextNumber } from '../numberSeries.js';
 import { lookupDefaultId } from '../status.js';
 import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
 import type { PoolClient } from '../db/pool.js';
 
 const SORTABLE: Record<string, string> = {
@@ -162,7 +163,7 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
     const engagementId = (request.query as Record<string, unknown>).engagementId as string | undefined;
     const level = piiLevel(new Set(request.ctx.permissions));
-    const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'wo.scheduled_on';
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'wo.scheduled_on', q.sortDir);
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE wo.archived_at IS NULL`;
@@ -186,7 +187,7 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
          LEFT JOIN lookup_value lv ON lv.id = wo.status_id ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(
-        `${LIST_SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,
+        `${LIST_SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params);
       // conteggi per le viste (chip)
       const counts = await db.query(

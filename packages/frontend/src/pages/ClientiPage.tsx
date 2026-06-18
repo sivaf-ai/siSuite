@@ -50,6 +50,7 @@ export function ClientiPage() {
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
+  const [sortParam, setSortParam] = useState<string | null>(null);
   const limit = 25;
   useEffect(() => { setView(initialView); setOffset(0); }, [initialView]);
 
@@ -57,6 +58,7 @@ export function ClientiPage() {
   if (view !== 'all') params.set('role', view);
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
+  if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/companies?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
@@ -117,6 +119,8 @@ export function ClientiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="soggetti" exportFields={exportFields} entity="company" savedViewKey="company"
+        sortFields={[{ key: 'displayName', label: 'Nome' }, { key: 'type', label: 'Tipo' }, { key: 'createdAt', label: 'Creato' }]}
+        onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."

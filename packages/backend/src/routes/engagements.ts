@@ -15,6 +15,7 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { nextNumber } from '../numberSeries.js';
 import { validateAttributes } from '../fields.js';
+import { buildOrderBy } from '../sortSql.js';
 import { buildFilter } from '../filterSql.js';
 
 const SORTABLE: Record<string, string> = { code: 'e.code', title: 'e.title', createdAt: 'e.created_at' };
@@ -78,8 +79,7 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const q = listQuerySchema.parse(request.query);
       const type = (request.query as { type?: string }).type;
-      const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'e.created_at';
-      const sortDir = q.sortBy ? q.sortDir : 'desc';
+      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'e.created_at', q.sortBy ? q.sortDir : 'desc');
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
         let where = `WHERE e.archived_at IS NULL`;
@@ -91,7 +91,7 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
         const total = await db.query(`SELECT count(*)::int AS n FROM engagement e LEFT JOIN company c ON c.id=e.company_id LEFT JOIN lookup_value lv ON lv.id=e.status_id ${where}`, params);
         params.push(q.limit, q.offset);
         const res = await db.query(
-          `${SELECT_DTO} ${where} ORDER BY ${sortCol} ${sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,
+          `${SELECT_DTO} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
           params,
         );
         // conteggi viste per tipo (rispettano la ricerca q, non il filtro tipo)

@@ -45,6 +45,7 @@ export function OrdinativiPage() {
   const [selRows, setSelRows] = useState<WorkOrderDto[]>([]);
   const [clearTok, setClearTok] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
+  const [sortParam, setSortParam] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const limit = 25;
@@ -52,6 +53,7 @@ export function OrdinativiPage() {
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset), sortBy: 'scheduled', sortDir: 'desc' });
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
+  if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/work-orders?${params.toString()}`);
   const rows = data?.items ?? [];
 
@@ -118,6 +120,8 @@ export function OrdinativiPage() {
         onSelectionChange={setSelRows}
         clearSelectionToken={clearTok}
         exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order" savedViewKey="work_order"
+        sortFields={[{ key: 'code', label: 'Codice' }, { key: 'scheduled', label: 'Data pianificata' }, { key: 'operator', label: 'Gestore' }, { key: 'status', label: 'Stato' }]}
+        onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ordinativo in questa vista."

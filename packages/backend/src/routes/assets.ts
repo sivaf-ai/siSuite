@@ -5,6 +5,7 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
 
 const SORTABLE: Record<string, string> = { label: 'a.label', kind: 'a.kind', createdAt: 'a.created_at' };
 const FILTER_FIELDS: Record<string, string> = { label: 'a.label', kind: 'a.kind', installedOn: 'a.installed_at' };
@@ -32,7 +33,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('asset:read')] },
     async (request) => {
       const q = listQuerySchema.parse(request.query);
-      const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'a.label';
+      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'a.label', q.sortDir);
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
         let where = `WHERE a.archived_at IS NULL`;
@@ -42,7 +43,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         if (fsql) where += ` AND ${fsql}`;
         const total = await db.query(`SELECT count(*)::int AS n FROM asset a ${where}`, params);
         params.push(q.limit, q.offset);
-        const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+        const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
         return { items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset };
       });
     });

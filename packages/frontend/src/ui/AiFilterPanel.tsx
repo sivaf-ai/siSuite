@@ -35,6 +35,8 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
 
   if (!open) return null;
   const opNoValue = (op: string) => FILTER_OPS.find((o) => o.op === op)?.noValue;
+  const opRange = (op: string) => FILTER_OPS.find((o) => o.op === op)?.range;
+  const rangeAt = (v: FilterCondition['value'], i: 0 | 1) => (Array.isArray(v) ? String(v[i] ?? '') : '');
 
   async function interpret(text: string) {
     if (!text.trim()) return;
@@ -127,12 +129,19 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
                     <option value="__any">Qualsiasi campo</option>
                     {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                   </select>
-                  <select className="afp-op" value={c.op} onChange={(e) => setCond(i, { op: e.target.value })}>
+                  <select className="afp-op" value={c.op} onChange={(e) => {
+                    const op = e.target.value; const isR = !!opRange(op);
+                    setCond(i, { op, value: isR ? (Array.isArray(c.value) ? c.value : ['', '']) : (Array.isArray(c.value) ? '' : c.value) });
+                  }}>
                     {FILTER_OPS.map((o) => <option key={o.op} value={o.op}>{o.label}</option>)}
                   </select>
-                  {!opNoValue(c.op)
-                    ? <input className="afp-v" value={c.value == null ? '' : String(c.value)} placeholder="valore" onChange={(e) => setCond(i, { value: e.target.value })} />
-                    : <span className="afp-v empty">—</span>}
+                  {opNoValue(c.op) ? <span className="afp-v empty">—</span>
+                    : opRange(c.op) ? (
+                      <div className="afp-v afp-range">
+                        <input placeholder="da" value={rangeAt(c.value, 0)} onChange={(e) => setCond(i, { value: [e.target.value, rangeAt(c.value, 1)] })} />
+                        <input placeholder="a" value={rangeAt(c.value, 1)} onChange={(e) => setCond(i, { value: [rangeAt(c.value, 0), e.target.value] })} />
+                      </div>
+                    ) : <input className="afp-v" value={c.value == null ? '' : String(c.value)} placeholder="valore" onChange={(e) => setCond(i, { value: e.target.value })} />}
                   <button className="afp-rm" title="Rimuovi" onClick={() => delCond(i)}><X size={14} /></button>
                 </div>
               ))}
@@ -197,6 +206,9 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
           .afp-cond select, .afp-cond input { height: 36px; border: 1.5px solid var(--line); border-radius: 8px; padding: 0 9px; font-size: 13px; font-family: inherit; background: var(--card); color: var(--ink); outline: none; }
           .afp-cond select:focus, .afp-cond input:focus { border-color: var(--brand); }
           .afp-v.empty { color: var(--ink-faint); display: grid; place-items: center; }
+          .afp-range { display: flex; gap: 6px; }
+          .afp-range input { flex: 1; min-width: 0; height: 36px; border: 1.5px solid var(--line); border-radius: 8px; padding: 0 9px; font-size: 13px; font-family: inherit; background: var(--card); color: var(--ink); outline: none; }
+          .afp-range input:focus { border-color: var(--brand); }
           .afp-rm { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink-soft); display: grid; place-items: center; cursor: pointer; }
           .afp-rm:hover { color: var(--danger); }
           .afp-none { font-size: 12.5px; color: var(--ink-faint); padding: 6px 2px; }

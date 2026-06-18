@@ -9,6 +9,7 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
 
 const SORTABLE: Record<string, string> = { displayName: 'c.display_name', type: 'c.type', createdAt: 'c.created_at' };
 // mappa campi-filtro (key del client → espressione SQL) per il filtro server-side
@@ -57,7 +58,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
   // LISTA (ricerca server-side + ordinamento + paginazione + total)
   app.get('/companies', { preHandler: [app.authenticate, requirePermission('company:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
-    const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'c.display_name';
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'c.display_name', q.sortDir);
     const role = (request.query as Record<string, unknown>).role as string | undefined;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
@@ -76,7 +77,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
       const totalRes = await db.query(`SELECT count(*)::int AS n FROM company c ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(
-        `${SELECT} ${where} ${GROUP} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,
+        `${SELECT} ${where} ${GROUP} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params,
       );
       // conteggi viste per ruolo (indipendenti dalla vista corrente, rispettano la ricerca)

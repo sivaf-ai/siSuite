@@ -10,6 +10,7 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
 import { validateAttributes } from '../fields.js';
 
 const SORTABLE: Record<string, string> = { name: 'm.name', sku: 'm.sku', qty: 'qty_on_hand', cost: 'avg_cost' };
@@ -48,7 +49,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
   app.get('/materials', { preHandler: [app.authenticate, requirePermission('material:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
-    const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'm.name';
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'm.name', q.sortDir);
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE m.archived_at IS NULL`;
@@ -71,7 +72,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
                  AND COALESCE((SELECT sum(qty_on_hand) FROM stock_balance b WHERE b.material_id=material.id),0) < (attributes->>'min_stock')::numeric)::int AS low
         FROM material`);
       params.push(q.limit, q.offset);
-      const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+      const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
       return { items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset, views: counts.rows[0] };
     });
   });

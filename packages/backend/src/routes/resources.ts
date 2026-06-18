@@ -10,6 +10,7 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
 
 const FILTER_FIELDS: Record<string, string> = { label: 'label', kind: 'kind', active: 'active', hourly_cost: "attributes->>'hourly_cost'" };
 const FILTER_ANY = ['label', 'kind'];
@@ -36,7 +37,7 @@ function toAvailDto(r: Record<string, unknown>): ResourceAvailabilityDto {
 export async function resourceRoutes(app: FastifyInstance): Promise<void> {
   app.get('/resources', { preHandler: [app.authenticate, requirePermission('resource:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
-    const sortCol = SORTABLE[q.sortBy ?? ''] ?? 'label';
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'label', q.sortDir);
     const kind = (request.query as { kind?: string }).kind;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
@@ -47,7 +48,7 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
       if (fsql) where += ` AND ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM resource ${where}`, params);
       params.push(q.limit, q.offset);
-      const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+      const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
       // viste per tipo (rispettano q, non kind)
       const vp: unknown[] = [];
       let vw = `WHERE archived_at IS NULL`;

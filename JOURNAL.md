@@ -44,6 +44,14 @@
 - Proposta AI-assistita + arricchimento = fast-follow. → `docs/DONE_6_dedup_soggetti.md`.
 - **PIANO 0→6 completato** (Blocco 5 resta con coda: QBE type-aware + multi-sort; Blocco 2 retrofit generico incrementale).
 
+## 2026-06-18 (6) — PIANO Blocco 5 completamento: multi-sort + between + trigram (Claude Code)
+- **Migrazione applicata: 037_trgm_indexes.sql** (GIN trigram). Prossima libera: **038**.
+- **Multi-sort**: nuovo `sortSql.ts` `buildOrderBy` + `test/sortSql.test.ts` (9 verdi). Wired 6 endpoint (companies/work-orders/materials/engagements/resources/assets, param `?sort=`). UI `SortDialog` in EntityList (props `sortFields`/`onSortChange`), wired su 4 pagine.
+- **between**: `AiFilterPanel` due input da/a; `lib/listFilter.ts` valuta between (num/testo-data). Backend già pronto.
+- **PII filtro**: verificato sicuro (nessun campo PII nelle FILTER_FIELDS).
+- **Tutti i 64 test backend verdi** (8 file). Typecheck FE+BE pulito. Backend riavviato, health 200.
+- **Resta solo Blocco 2 retrofit generico** (stringhe IT in tooltip/header/dialoghi) + rifiniture QBE type-aware.
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

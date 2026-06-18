@@ -48,11 +48,13 @@ export function MaterialiPage() {
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
+  const [sortParam, setSortParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
+  if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/materials?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
@@ -110,6 +112,8 @@ export function MaterialiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="articoli" exportFields={exportFields} entity="material"
+        sortFields={[{ key: 'name', label: 'Articolo' }, { key: 'sku', label: 'SKU' }, { key: 'qty', label: 'Giacenza' }, { key: 'cost', label: 'Costo medio' }]}
+        onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."

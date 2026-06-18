@@ -11,7 +11,7 @@
  * Stili: datapages.css (scope .dsx).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, ArrowUp, ArrowDown, Plus, X as XIcon } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
@@ -94,6 +94,10 @@ interface Props<T extends { id: string }> {
   /** chiave entità per le VISTE salvate (filtro + colonne sotto un nome). Opt-in:
    *  se assente, le viste salvate non compaiono (comportamento invariato). Blocco 5.3. */
   savedViewKey?: string;
+  /** campi ordinabili (key = chiave SORTABLE del backend) per la mascherina "Ordina". Blocco 5.2. */
+  sortFields?: { key: string; label: string }[];
+  /** riceve l'ordinamento multi-campo (priorità) → la pagina lo passa all'API come ?sort=. */
+  onSortChange?: (sort: { field: string; dir: 'asc' | 'desc' }[]) => void;
 }
 
 interface SavedView {
@@ -236,6 +240,15 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     void savedViews.reload();
   }
 
+  // ── Ordinamento multi-campo (Blocco 5.2) ──
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortState, setSortState] = useState<{ field: string; dir: 'asc' | 'desc' }[]>([]);
+  function applySort(next: { field: string; dir: 'asc' | 'desc' }[]) {
+    setSortState(next);
+    p.onSortChange?.(next);
+    setSortOpen(false);
+  }
+
   const allOn = selectable && viewRows.length > 0 && count === viewRows.length;
   const someOn = selectable && count > 0 && count < viewRows.length;
   const headRef = useRef<HTMLInputElement>(null);
@@ -279,6 +292,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
   const builtinLeft: ListAction[] = pick ? [] : [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri manuali (in arrivo)', disabled: true },
+    ...(p.onSortChange && p.sortFields?.length
+      ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? `Ordina (${sortState.length})` : 'Ordina', variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setSortOpen(true) }]
+      : []),
     { key: 'cols', icon: Columns3, tip: 'Colonne (mostra/nascondi e ordina)', onClick: () => setColumnsOpen(true) },
     { key: 'ai', icon: Sparkles, tip: 'Filtro intelligente (scrivi o detta)', variant: 'ai', onClick: () => setAiFilterOpen(true) },
   ];
@@ -406,6 +422,11 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         label="Nome della vista" placeholder="Es. Clienti di Bergamo" confirmLabel="Salva"
         onConfirm={(name) => void saveCurrentView(name)} onCancel={() => setSvPromptOpen(false)} />
 
+      {sortOpen && p.sortFields && (
+        <SortDialog fields={p.sortFields} initial={sortState}
+          onApply={applySort} onCancel={() => setSortOpen(false)} />
+      )}
+
       <ConfirmDialog open={delOpen} danger title={count > 1 ? `Eliminare ${count} elementi?` : 'Eliminare l\'elemento?'}
         message={count > 1 ? 'Gli elementi selezionati verranno eliminati. L\'operazione potrebbe essere irreversibile.' : 'L\'elemento selezionato verrà eliminato. L\'operazione potrebbe essere irreversibile.'}
         confirmLabel="Elimina" busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
@@ -418,5 +439,54 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           onClose={() => setAiFilterOpen(false)} />
       )}
     </div>
+  );
+}
+
+/** Mascherina "Ordina" multi-campo con priorità (Blocco 5.2). */
+function SortDialog({ fields, initial, onApply, onCancel }: {
+  fields: { key: string; label: string }[];
+  initial: { field: string; dir: 'asc' | 'desc' }[];
+  onApply: (sort: { field: string; dir: 'asc' | 'desc' }[]) => void;
+  onCancel: () => void;
+}) {
+  const [rows, setRows] = useState<{ field: string; dir: 'asc' | 'desc' }[]>(
+    initial.length ? initial : (fields[0] ? [{ field: fields[0].key, dir: 'asc' }] : []),
+  );
+  const used = new Set(rows.map((r) => r.field));
+  const free = fields.filter((f) => !used.has(f.key));
+  const setRow = (i: number, patch: Partial<{ field: string; dir: 'asc' | 'desc' }>) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const addRow = () => { if (free[0]) setRows((rs) => [...rs, { field: free[0]!.key, dir: 'asc' }]); };
+  const removeRow = (i: number) => setRows((rs) => rs.filter((_, j) => j !== i));
+
+  return (
+    <>
+      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1200 }} />
+      <div role="dialog" aria-modal="true" style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1201,
+        width: 'min(520px, 94vw)', background: 'var(--card)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-2)', padding: 22,
+      }}>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'var(--font-display)' }}>Ordina</h3>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '6px 0 14px' }}>Più campi con priorità: il primo conta di più.</p>
+        {rows.map((r, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ width: 18, color: 'var(--ink-faint)', fontSize: 12 }}>{i + 1}</span>
+            <select className="txt" style={{ flex: 1, height: 36 }} value={r.field} onChange={(e) => setRow(i, { field: e.target.value })}>
+              {fields.filter((f) => f.key === r.field || !used.has(f.key)).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <button className="btn btn-ghost btn-sm" onClick={() => setRow(i, { dir: r.dir === 'asc' ? 'desc' : 'asc' })}>
+              {r.dir === 'asc' ? <><ArrowUp size={14} /> Cresc.</> : <><ArrowDown size={14} /> Decr.</>}
+            </button>
+            <button className="icon-btn" title="Rimuovi" onClick={() => removeRow(i)}><XIcon size={15} /></button>
+          </div>
+        ))}
+        {free.length > 0 && <button className="btn btn-ghost btn-sm" onClick={addRow}><Plus size={14} /> Aggiungi campo</button>}
+        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 18 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => onApply([])}>Azzera</button>
+          <button className="btn btn-ghost btn-sm" onClick={onCancel}>Annulla</button>
+          <button className="btn btn-primary btn-sm" onClick={() => onApply(rows)}>Applica</button>
+        </div>
+      </div>
+    </>
   );
 }
