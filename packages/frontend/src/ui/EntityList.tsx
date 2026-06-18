@@ -14,9 +14,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
-import { useApi } from '../api/hooks';
+import { useApi, mutate } from '../api/hooks';
 import { currentLocale } from '../i18n';
 import { Loading, ErrorBox } from '../components/Page';
+import { PromptDialog } from './PromptDialog';
 import { downloadXlsx } from '../lib/xlsx';
 import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
 import { ExportDialog } from './ExportDialog';
@@ -90,6 +91,14 @@ interface Props<T extends { id: string }> {
   offset?: number;
   onPage?: (offset: number) => void;
   emptyText?: string;
+  /** chiave entità per le VISTE salvate (filtro + colonne sotto un nome). Opt-in:
+   *  se assente, le viste salvate non compaiono (comportamento invariato). Blocco 5.3. */
+  savedViewKey?: string;
+}
+
+interface SavedView {
+  id: string; name: string; isOwn: boolean; isShared: boolean;
+  payload: { filter?: { mode?: FilterMode; conditions?: FilterCondition[] } | null; columns?: { order?: string[]; hidden?: string[] } | null; exportRef?: string | null };
 }
 
 /** Valore grezzo di un attributo custom per l'export (Blocco 4 — export dinamico).
@@ -199,6 +208,34 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     setColState(state); try { localStorage.setItem(lsKey, JSON.stringify(state)); } catch { /* ignore */ }
   }
 
+  // ── Viste salvate (Blocco 5.3): impacchettano filtro + colonne sotto un nome ──
+  const savedViews = useApi<{ items: SavedView[] }>(p.savedViewKey ? `/saved-views?entity=${encodeURIComponent(p.savedViewKey)}` : null);
+  const [activeSV, setActiveSV] = useState<string | null>(null);
+  const [svPromptOpen, setSvPromptOpen] = useState(false);
+  function applySavedView(v: SavedView) {
+    const f = v.payload.filter;
+    const conds = (f?.conditions as FilterCondition[]) ?? [];
+    const m = (f?.mode as FilterMode) ?? 'and';
+    setFilterConds(conds); setFilterMode(m); setFilterDesc(conds.length ? v.name : '');
+    p.onFilterChange?.(conds.length ? { mode: m, conditions: conds } : null);
+    if (v.payload.columns) saveCols({ order: v.payload.columns.order ?? [], hidden: v.payload.columns.hidden ?? [] });
+    setActiveSV(v.id);
+  }
+  async function saveCurrentView(name: string) {
+    if (!p.savedViewKey || !name.trim()) { setSvPromptOpen(false); return; }
+    await mutate('POST', '/saved-views', { entity: p.savedViewKey, name: name.trim(), payload: {
+      filter: filterConds.length ? { mode: filterMode, conditions: filterConds } : null,
+      columns: colState, exportRef: p.exportName ?? null,
+    } });
+    setSvPromptOpen(false);
+    void savedViews.reload();
+  }
+  async function deleteSavedView(id: string) {
+    await mutate('DELETE', `/saved-views/${id}`);
+    if (activeSV === id) setActiveSV(null);
+    void savedViews.reload();
+  }
+
   const allOn = selectable && viewRows.length > 0 && count === viewRows.length;
   const someOn = selectable && count > 0 && count < viewRows.length;
   const headRef = useRef<HTMLInputElement>(null);
@@ -251,18 +288,25 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
 
   return (
     <div className="dsx">
-      {(p.title || (p.views && p.views.length > 0)) && (
+      {(p.title || (p.views && p.views.length > 0) || p.savedViewKey) && (
         <div className="lhrow">
           {p.title && <div className="lh"><h1>{p.title}</h1>{p.subtitle && <span className="sub">{p.subtitle}</span>}</div>}
-          {p.views && p.views.length > 0 && (
-            <div className="views">
-              {p.views.map((v) => (
-                <span key={v.key} className={`viewchip${p.activeView === v.key ? ' on' : ''}`} onClick={() => p.onView?.(v.key)}>
-                  {v.label} {v.count != null && <span className="c">{v.count}</span>}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="views">
+            {(p.views ?? []).map((v) => (
+              <span key={v.key} className={`viewchip${p.activeView === v.key ? ' on' : ''}`}
+                onClick={() => { setActiveSV(null); p.onView?.(v.key); }}>
+                {v.label} {v.count != null && <span className="c">{v.count}</span>}
+              </span>
+            ))}
+            {p.savedViewKey && (savedViews.data?.items ?? []).map((v) => (
+              <span key={v.id} className={`viewchip sv${activeSV === v.id ? ' on' : ''}`} title="Vista salvata" onClick={() => applySavedView(v)}>
+                {v.name}{v.isOwn && <button className="sv-x" title="Elimina vista" onClick={(e) => { e.stopPropagation(); void deleteSavedView(v.id); }}>✕</button>}
+              </span>
+            ))}
+            {p.savedViewKey && (
+              <span className="viewchip sv-add" title="Salva la lista corrente (filtro + colonne) come vista" onClick={() => setSvPromptOpen(true)}>+ Salva vista</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -356,6 +400,11 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           }} />
       )}
       {(exportOpen || columnsOpen) && <FieldPickerStyles />}
+
+      <PromptDialog open={svPromptOpen} title="Salva vista"
+        message="Salva filtro e colonne correnti come vista, per ricaricarli con un clic."
+        label="Nome della vista" placeholder="Es. Clienti di Bergamo" confirmLabel="Salva"
+        onConfirm={(name) => void saveCurrentView(name)} onCancel={() => setSvPromptOpen(false)} />
 
       <ConfirmDialog open={delOpen} danger title={count > 1 ? `Eliminare ${count} elementi?` : 'Eliminare l\'elemento?'}
         message={count > 1 ? 'Gli elementi selezionati verranno eliminati. L\'operazione potrebbe essere irreversibile.' : 'L\'elemento selezionato verrà eliminato. L\'operazione potrebbe essere irreversibile.'}

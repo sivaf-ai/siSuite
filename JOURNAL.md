@@ -27,6 +27,14 @@
 - Typecheck FE+BE pulito. → `docs/DONE_3_liste_legacy.md`. Nessuna migrazione.
 - **Restano**: Blocco 5 (QBE type-aware + multi-sort + saved_view mig 036), Blocco 6 (dedup AI Soggetti, 9 FK).
 
+## 2026-06-18 (4) — PIANO Blocco 5 (parziale): igiene filtri + viste salvate (Claude Code)
+- **Migrazione applicata: 036_saved_view.sql** (additiva). Prossima libera: **037**.
+- `filterSql.ts`: nuovo operatore **between** (numerico/testuale). Nuovo `test/filterSql.test.ts` (**19 test verdi**, incl. anti-injection).
+- **saved_view**: backend `routes/savedViews.ts` (GET/POST/DELETE, registrato in index.ts). UI `EntityList` opt-in prop `savedViewKey` (chip viste salvate + Salva/ricarica/elimina, PromptDialog). Wired: ClientiPage (company), OrdinativiPage (work_order).
+- Backend riavviato (route nuova), health 200. Typecheck FE+BE pulito.
+- **Aperto Blocco 5**: QBE type-aware (date-picker/enum-select + chip operatore), multi-sort (ORDER BY multiplo + mascherina), indici GIN trigram, gating PII filtro, conteggi viste col filtro. → `docs/DONE_5_filtri_viste.md`.
+- **Resta**: Blocco 6 (dedup AI Soggetti, 9 FK, pattern CaptureBarAI).
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.

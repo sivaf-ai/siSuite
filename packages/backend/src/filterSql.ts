@@ -43,6 +43,27 @@ export function buildFilter(raw: string | undefined, map: Record<string, string>
         parts.push(`NULLIF(regexp_replace(${expr}::text, '[^0-9.-]', '', 'g'), '')::numeric ${o} $${params.length}`);
         break;
       }
+      case 'between': {
+        // value = [from, to] oppure { from, to }. Numerico se entrambi i bound sono numeri,
+        // altrimenti confronto testuale (vale per le date ISO: YYYY-MM-DD ordina cronologicamente).
+        const v = c.value;
+        const arr: unknown[] = Array.isArray(v)
+          ? v
+          : (v && typeof v === 'object' ? [(v as { from?: unknown }).from, (v as { to?: unknown }).to] : []);
+        const a = arr[0], b = arr[1];
+        if (a == null || a === '' || b == null || b === '') break;
+        const bothNum = !Number.isNaN(Number(a)) && !Number.isNaN(Number(b));
+        if (bothNum) {
+          params.push(Number(a)); const pa = params.length;
+          params.push(Number(b)); const pb = params.length;
+          parts.push(`NULLIF(regexp_replace(${expr}::text, '[^0-9.-]', '', 'g'), '')::numeric BETWEEN $${pa} AND $${pb}`);
+        } else {
+          params.push(String(a)); const pa = params.length;
+          params.push(String(b)); const pb = params.length;
+          parts.push(`${expr}::text BETWEEN $${pa} AND $${pb}`);
+        }
+        break;
+      }
       case 'is_true': parts.push(`lower(${expr}::text) IN ${POS_TRUE}`); break;
       case 'is_false': parts.push(`(${expr} IS NULL OR lower(${expr}::text) NOT IN ${POS_TRUE})`); break;
       default: break;
