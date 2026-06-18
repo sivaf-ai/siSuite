@@ -89,5 +89,5 @@ Poi scriviamo insieme il **piano operativo** (un doc `docs/analisi/<data>_PIANO_
 ## 7. Riferimenti
 - Handoff operativo: `docs/analisi/2026-06-18_HANDOFF_nuova_sessione.md`
 - Standard: `docs/STD_export_e_colonne.md`, `docs/STD_filtro_ai.md`
-- Report blocchi: `docs/DONE_*.md` · Coordinamento: `JOURNAL.md` · Schema: `docs/analisi/2026-06-17_schema_db_completo.md`
+- Report blocchi: `docs/DONE_*.md` · Coordinamento: `JOURNAL.md` · Schema: `docs/analisi/2026-06-18_schema_db_completo.md` (001-035)
 - Repo: `github.com/sivaf-ai/siSuite` (main). Migrazioni 001-035, prossima 036.

@@ -55,7 +55,7 @@ Blocchi A, B, B-ter, C, C-bis, D, E, **M** (tutte le liste/CRUD → EntityList/O
 - **Export tutti-i-campi**: definito a mano per pagina (`exportFields`); non include ancora i `field_definition` custom del tenant in modo dinamico.
 - **Saved views** (mockup "Salva") non implementate (= filtro + colonne + ordinamento salvati con nome).
 - **Liste ancora su DataTable vecchio** (non EntityList v3): Foglio ore, Assenze, Magazzino (giacenze/movimenti/documenti/ubicazioni).
-- **Rigenerare** `docs/analisi/<data>_schema_db_completo.md` dopo 034/035.
+- **Schema DB aggiornato**: `docs/analisi/2026-06-18_schema_db_completo.md` (001→035). Rigenerare dopo nuove migrazioni con `pg_dump --schema-only -n public`.
 
 ## 5. GIT
 - Repo: `https://github.com/sivaf-ai/siSuite.git`, branch `main` (commit diretti su main, come lo storico). Tutto il lavoro di questa sessione è già pushato (ultimo commit `e4ca4b9`).
