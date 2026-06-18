@@ -119,3 +119,13 @@
 - **Schema doc** rigenerato: `docs/analisi/2026-06-17_schema_db_completo.md` (pg_dump dopo 001-033).
 - **Demo H**: `demo/runner.ts` ora seeda stock_movement 'out' con work_order_id (tab "Materiali scaricati" popolato). Demo ricaricata.
 - Dettagli: `docs/DONE_debiti_2026-06-17.md`. Typecheck shared+backend+frontend puliti. Tutto pushato su GitHub main.
+
+## 2026-06-18 — UI standard (lista v3, export, filtro AI+manuale server-side) + handoff
+- **Script avvio** one-click (avvia/ferma/carica-demo-fibra .bat/.ps1 + AVVIO.md).
+- **EntityList v3**: testata 1 riga (viste a dx), selezione checkbox + toolbar standard (modifica/duplica/elimina/esporta, regole per nº selezione), toolbar tutta a dx con "+" ultimo, ricerca larga. `useEntityActions`.
+- **Export**: FieldPicker (TUTTI i campi via `exportFields`, drag, preset per-utente save/load), ExportDialog, `export_preset` (mig **034**), `.xlsx` exceljs. **Colonne** (mostra/nascondi/riordina, localStorage).
+- **Filtro AI-first**: AiFilterPanel (NL + **voce**) + **builder manuale** (campo·operatore·valore, **E/O**), set salvabili `filter_preset` (mig **035**), endpoint `POST /ai/list-filter` + `/filter-presets`. **SERVER-SIDE** via `filterSql.buildFilter` + FIELD_MAP su companies/resources/materials/assets/engagements/activities/work-orders/users/roles/price-list-items/work-lines; pagine passano `?filter=`.
+- **MAI window.\***: nuovi ConfirmDialog/PromptDialog; sostituiti ovunque. Regola in memory `feedback_no_native_popups`.
+- **Migrazioni 033-035** applicate. Prossima libera: **036**. Tutto typecheck pulito, pushato su main (ultimo `e4ca4b9`).
+- **Handoff**: `docs/analisi/2026-06-18_HANDOFF_nuova_sessione.md`. **Stato+prossimi passi per Claude AI**: `docs/analisi/2026-06-18_STATO_per_ClaudeAI.md` (proposta P1-P7 da valutare → poi piano operativo).
+- **scratch-porting/**: gestita da altra sessione, NON toccare.
