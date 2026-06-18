@@ -17,6 +17,8 @@ import { Loading, ErrorBox } from '../components/Page';
 import { downloadXlsx } from '../lib/xlsx';
 import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
 import { ExportDialog } from './ExportDialog';
+import { AiFilterPanel } from './AiFilterPanel';
+import { matchConditions, type FilterCondition } from '../lib/listFilter';
 import '../theme/datapages.css';
 
 export interface ListView { key: string; label: string; count?: number }
@@ -89,18 +91,28 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const pick = mode !== 'manage';
   const selectable = !pick && (p.selectable ?? true);
 
+  // ── Filtro AI (client-side sui valori delle colonne) ──
+  const [aiFilterOpen, setAiFilterOpen] = useState(false);
+  const [filterConds, setFilterConds] = useState<FilterCondition[]>([]);
+  const [filterDesc, setFilterDesc] = useState('');
+  const colVal = (field: string, row: T) => p.columns.find((c) => c.key === field)?.value?.(row);
+  const allVals = (row: T) => p.columns.filter((c) => c.value).map((c) => c.value!(row));
+  const viewRows = filterConds.length
+    ? p.rows.filter((row) => matchConditions(filterConds, (f) => colVal(f, row), () => allVals(row)))
+    : p.rows;
+
   // selezione interna (solo 'manage'); nelle modalità pick è controllata dal padre.
   const [sel, setSel] = useState<Set<string>>(new Set());
-  // pota la selezione alle sole righe visibili quando i dati cambiano (cambio vista/ricerca/pagina/reload)
-  const rowsKey = p.rows.map((r) => r.id).join(',');
+  // pota la selezione alle sole righe visibili quando i dati cambiano (cambio vista/ricerca/pagina/reload/filtro)
+  const rowsKey = viewRows.map((r) => r.id).join(',');
   useEffect(() => {
-    const visible = new Set(p.rows.map((r) => r.id));
+    const visible = new Set(viewRows.map((r) => r.id));
     setSel((prev) => { const n = new Set([...prev].filter((id) => visible.has(id))); return n.size === prev.size ? prev : n; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsKey]);
 
   const pickSelected = new Set(p.selectedIds ?? []);
-  const selectedRows = p.rows.filter((r) => sel.has(r.id));
+  const selectedRows = viewRows.filter((r) => sel.has(r.id));
   const count = selectedRows.length;
 
   // notifica la pagina della selezione corrente (per azioni bulk custom)
@@ -132,13 +144,13 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     setColState(state); try { localStorage.setItem(lsKey, JSON.stringify(state)); } catch { /* ignore */ }
   }
 
-  const allOn = selectable && p.rows.length > 0 && count === p.rows.length;
-  const someOn = selectable && count > 0 && count < p.rows.length;
+  const allOn = selectable && viewRows.length > 0 && count === viewRows.length;
+  const someOn = selectable && count > 0 && count < viewRows.length;
   const headRef = useRef<HTMLInputElement>(null);
   useEffect(() => { if (headRef.current) headRef.current.indeterminate = someOn; }, [someOn]);
 
   const toggleRow = (row: T) => setSel((s) => { const n = new Set(s); n.has(row.id) ? n.delete(row.id) : n.add(row.id); return n; });
-  const toggleAll = () => setSel(() => (allOn ? new Set() : new Set(p.rows.map((r) => r.id))));
+  const toggleAll = () => setSel(() => (allOn ? new Set() : new Set(viewRows.map((r) => r.id))));
 
   const exportableCols = p.columns.filter((c) => c.value);
   const exportFields: FieldOpt[] = exportableCols.map((c) => ({ key: c.key, label: c.header }));
@@ -174,9 +186,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
   const builtinLeft: ListAction[] = pick ? [] : [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri (in arrivo)', disabled: true },
+    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri manuali (in arrivo)', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne (mostra/nascondi e ordina)', onClick: () => setColumnsOpen(true) },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (in arrivo)', variant: 'ai', disabled: true },
+    { key: 'ai', icon: Sparkles, tip: 'Filtro intelligente (scrivi o detta)', variant: 'ai', onClick: () => setAiFilterOpen(true) },
   ];
   const leftAll = [...builtinLeft, ...customLeft];
 
@@ -223,6 +235,15 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         </div>
       )}
 
+      {filterConds.length > 0 && (
+        <div className="aif-active">
+          <Sparkles size={14} />
+          <button className="aif-text" onClick={() => setAiFilterOpen(true)}>Filtro: {filterDesc || `${filterConds.length} condizioni`}</button>
+          <span className="aif-n">{viewRows.length} risultati</span>
+          <button className="aif-clear" title="Rimuovi filtro" onClick={() => { setFilterConds([]); setFilterDesc(''); }}>✕</button>
+        </div>
+      )}
+
       {p.loading ? <Loading /> : p.error ? <ErrorBox message={p.error} /> : (
         <div className="card">
           <table className="t">
@@ -234,7 +255,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
               ))}
             </tr></thead>
             <tbody>
-              {p.rows.map((row) => {
+              {viewRows.map((row) => {
                 const isSel = pick ? pickSelected.has(row.id) : sel.has(row.id);
                 return (
                   <tr key={row.id} className={isSel ? 'sel' : undefined}
@@ -245,7 +266,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                   </tr>
                 );
               })}
-              {p.rows.length === 0 && <tr><td colSpan={colSpan}><div className="dsx-empty">{p.emptyText ?? 'Nessun elemento.'}</div></td></tr>}
+              {viewRows.length === 0 && <tr><td colSpan={colSpan}><div className="dsx-empty">{filterConds.length ? 'Nessun risultato per il filtro.' : (p.emptyText ?? 'Nessun elemento.')}</div></td></tr>}
             </tbody>
           </table>
           {p.total != null && p.total > 0 && p.limit != null && (
@@ -280,6 +301,14 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           }} />
       )}
       {(exportOpen || columnsOpen) && <FieldPickerStyles />}
+
+      {aiFilterOpen && (
+        <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}
+          fields={p.columns.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header }))}
+          initial={{ query: '', conditions: filterConds }}
+          onApply={(conds, d) => { setFilterConds(conds); setFilterDesc(d); }}
+          onClose={() => setAiFilterOpen(false)} />
+      )}
     </div>
   );
 }

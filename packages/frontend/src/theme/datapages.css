@@ -141,5 +141,13 @@
 .dsx .rtab.on { color: var(--brand-ink); border-bottom-color: var(--brand); }
 .dsx .rtab .cnt { font-size: 11px; background: var(--neutral-wash); color: var(--ink-soft); border-radius: var(--r-pill); padding: 0 6px; font-weight: 700; }
 
+/* chip filtro AI attivo */
+.dsx .aif-active { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 11px; padding: 7px 11px;
+  background: var(--brand-wash); color: var(--brand-ink); border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; }
+.dsx .aif-active svg { width: 14px; height: 14px; }
+.dsx .aif-text { background: none; color: inherit; cursor: pointer; font: inherit; }
+.dsx .aif-n { background: var(--card); color: var(--ink-soft); border-radius: var(--r-pill); padding: 1px 8px; font-size: 11px; }
+.dsx .aif-clear { background: none; color: inherit; cursor: pointer; opacity: .7; font-weight: 700; }
+
 .dsx .dsx-empty { padding: 40px; text-align: center; color: var(--ink-faint); }
 .dsx .skelrow { height: 44px; }
