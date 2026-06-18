@@ -21,10 +21,12 @@ export function UsersPage() {
 
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'fullName', sortDir: 'asc' });
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/users?${params.toString()}`);
 
   const { onDelete } = useEntityActions<UserAdminDto>({ basePath: '/users', reload, noun: 'utente' });
@@ -37,6 +39,16 @@ export function UsersPage() {
       : <span className="faint">—</span>) },
     { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attivo' : 'Disattivato'), render: (r) => <StatusPill label={r.active ? 'Attivo' : 'Disattivato'} token={r.active ? 'success' : 'neutral'} /> },
     { key: 'created', header: 'Creato', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+  ];
+
+  const exportFields = [
+    { key: 'fullName', label: 'Nome', value: (r: UserAdminDto) => r.fullName },
+    { key: 'email', label: 'Email', value: (r: UserAdminDto) => r.email ?? '' },
+    { key: 'phone', label: 'Telefono', value: (r: UserAdminDto) => r.phone ?? '' },
+    { key: 'roles', label: 'Ruoli', value: (r: UserAdminDto) => r.roles.map((x) => x.name).join(', ') },
+    { key: 'active', label: 'Stato', value: (r: UserAdminDto) => (r.active ? 'Attivo' : 'Disattivato') },
+    { key: 'locale', label: 'Lingua', value: (r: UserAdminDto) => r.locale ?? '' },
+    { key: 'createdAt', label: 'Creato', value: (r: UserAdminDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];
 
   const leftActions: ListAction[] = [
@@ -56,7 +68,8 @@ export function UsersPage() {
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/admin/users/${r.id}`)}
         onDelete={canManage ? onDelete : undefined}
-        exportName="utenti"
+        exportName="utenti" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun utente."
       />

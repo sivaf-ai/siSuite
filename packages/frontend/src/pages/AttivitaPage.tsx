@@ -29,11 +29,13 @@ export function AttivitaPage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 50;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (view !== 'all') params.set('status', view);
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/activities?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<ActivityDto>({
@@ -50,6 +52,16 @@ export function AttivitaPage() {
     { key: 'dur', header: 'Durata stim.', sub: 'h:mm', num: true, value: (r) => r.estimatedMinutes ?? '', render: (r) => <Dur minutes={r.estimatedMinutes} /> },
     { key: 'when', header: 'Pianificata', num: true, value: (r) => (r.isFixed ? fmtDate(r.scheduledStart) : ''), render: (r) => <span className="mono faint">{r.isFixed ? fmtDate(r.scheduledStart) : '—'}</span> },
     { key: 'status', header: 'Stato', value: (r) => lk.labelOf(r.statusId) || (r.statusCanonical ?? ''), render: (r) => <StatusPill label={lk.labelOf(r.statusId) || (r.statusCanonical ?? '')} token={lk.byId(r.statusId)?.colorToken} /> },
+  ];
+
+  const exportFields = [
+    { key: 'title', label: 'Attività', value: (r: ActivityDto) => r.title },
+    { key: 'engagementCode', label: 'Commessa (codice)', value: (r: ActivityDto) => r.engagementCode ?? '' },
+    { key: 'engagementTitle', label: 'Commessa (titolo)', value: (r: ActivityDto) => r.engagementTitle ?? '' },
+    { key: 'status', label: 'Stato', value: (r: ActivityDto) => lk.labelOf(r.statusId) || (r.statusCanonical ?? '') },
+    { key: 'estimatedMinutes', label: 'Durata stimata (min)', value: (r: ActivityDto) => r.estimatedMinutes ?? '' },
+    { key: 'scheduledStart', label: 'Inizio pianificato', value: (r: ActivityDto) => (r.scheduledStart ? new Date(r.scheduledStart).toLocaleString('it-IT') : '') },
+    { key: 'kind', label: 'Tipo', value: (r: ActivityDto) => r.kind ?? '' },
   ];
 
   const leftActions: ListAction[] = [
@@ -69,7 +81,8 @@ export function AttivitaPage() {
         onRowClick={(r) => history.push(`/activities/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="attivita"
+        exportName="attivita" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna attività in questa vista."
       />

@@ -4,8 +4,11 @@ import { createAssetSchema, updateAssetSchema, listQuerySchema, type AssetDto } 
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
+import { buildFilter } from '../filterSql.js';
 
 const SORTABLE: Record<string, string> = { label: 'a.label', kind: 'a.kind', createdAt: 'a.created_at' };
+const FILTER_FIELDS: Record<string, string> = { label: 'a.label', kind: 'a.kind', installedOn: 'a.installed_at' };
+const FILTER_ANY = ['a.label', 'a.kind'];
 
 const SELECT = `
   SELECT a.id, a.company_id, c.display_name AS company_name, a.kind, a.label,
@@ -35,6 +38,8 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         let where = `WHERE a.archived_at IS NULL`;
         if (request.query.companyId) { params.push(request.query.companyId); where += ` AND a.company_id = $${params.length}`; }
         if (q.q) { params.push(`%${q.q}%`); where += ` AND (a.label ILIKE $${params.length} OR a.kind ILIKE $${params.length})`; }
+        const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
+        if (fsql) where += ` AND ${fsql}`;
         const total = await db.query(`SELECT count(*)::int AS n FROM asset a ${where}`, params);
         params.push(q.limit, q.offset);
         const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);

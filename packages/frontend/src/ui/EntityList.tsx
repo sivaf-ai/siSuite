@@ -70,6 +70,9 @@ interface Props<T extends { id: string }> {
   onSelectionChange?: (rows: T[]) => void;
   /** incrementa questo token per AZZERARE la selezione dall'esterno (dopo un'azione bulk custom). */
   clearSelectionToken?: number;
+  /** se presente, il filtro è applicato LATO SERVER: la pagina riceve lo spec e lo passa all'API
+   *  (niente filtro client-side). Senza questa prop, EntityList filtra le righe caricate (client). */
+  onFilterChange?: (spec: { mode: FilterMode; conditions: FilterCondition[] } | null) => void;
 
   /* ── modalità pop-up di scelta (controllate dal padre) ── */
   mode?: 'manage' | 'pick-single' | 'pick-multi';
@@ -106,9 +109,11 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const [filterConds, setFilterConds] = useState<FilterCondition[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('and');
   const [filterDesc, setFilterDesc] = useState('');
+  const serverFilter = !!p.onFilterChange;
   const colVal = (field: string, row: T) => exportSource.find((f) => f.key === field)?.value(row);
   const allVals = (row: T) => exportSource.map((f) => f.value(row));
-  const viewRows = filterConds.length
+  // server mode: le righe arrivano già filtrate dall'API → nessun filtro client.
+  const viewRows = (!serverFilter && filterConds.length)
     ? p.rows.filter((row) => matchConditions(filterConds, (f) => colVal(f, row), () => allVals(row), filterMode))
     : p.rows;
 
@@ -250,8 +255,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         <div className="aif-active">
           <Sparkles size={14} />
           <button className="aif-text" onClick={() => setAiFilterOpen(true)}>Filtro: {filterDesc || `${filterConds.length} condizioni`}</button>
-          <span className="aif-n">{viewRows.length} risultati</span>
-          <button className="aif-clear" title="Rimuovi filtro" onClick={() => { setFilterConds([]); setFilterDesc(''); }}>✕</button>
+          <span className="aif-n">{serverFilter ? (p.total ?? viewRows.length) : viewRows.length} risultati</span>
+          <button className="aif-clear" title="Rimuovi filtro" onClick={() => { setFilterConds([]); setFilterDesc(''); p.onFilterChange?.(null); }}>✕</button>
         </div>
       )}
 
@@ -321,7 +326,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}
           fields={exportFields}
           initial={{ query: '', conditions: filterConds, mode: filterMode }}
-          onApply={(conds, d, m) => { setFilterConds(conds); setFilterDesc(d); setFilterMode(m); }}
+          onApply={(conds, d, m) => { setFilterConds(conds); setFilterDesc(d); setFilterMode(m); p.onFilterChange?.(conds.length ? { mode: m, conditions: conds } : null); }}
           onClose={() => setAiFilterOpen(false)} />
       )}
     </div>

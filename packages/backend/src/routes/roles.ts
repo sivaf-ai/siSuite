@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { createRoleSchema, updateRoleSchema, type RoleDto } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { buildFilter } from '../filterSql.js';
 import type { PoolClient } from '../db/pool.js';
 
 const listQuery = z.object({
@@ -56,6 +57,10 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
       const params: unknown[] = [];
       let where = '';
       if (qp.q) { params.push(`%${qp.q}%`); where = `WHERE r.name ILIKE $${params.length}`; }
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined,
+        { name: 'r.name', description: 'r.description', dataScope: 'r.data_scope', isSystem: 'r.is_system' },
+        ['r.name', 'r.description'], params);
+      if (fsql) where = where ? `${where} AND ${fsql}` : `WHERE ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM role r ${where}`, params);
       params.push(qp.limit, qp.offset);
       const rows = await db.query(

@@ -28,11 +28,13 @@ export function RisorsePage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
   if (view !== 'all') params.set('kind', view);
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/resources?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<ResourceDto>({
@@ -78,6 +80,7 @@ export function RisorsePage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="risorse" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."
       />

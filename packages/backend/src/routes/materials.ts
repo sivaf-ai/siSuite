@@ -9,9 +9,16 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { buildFilter } from '../filterSql.js';
 import { validateAttributes } from '../fields.js';
 
 const SORTABLE: Record<string, string> = { name: 'm.name', sku: 'm.sku', qty: 'qty_on_hand', cost: 'avg_cost' };
+const FILTER_FIELDS: Record<string, string> = {
+  name: 'm.name', sku: 'm.sku', unit: 'm.unit', costingMethod: 'm.costing_method',
+  category: "m.attributes->>'category'", item_type: "m.attributes->>'item_type'",
+  supplier_code: "m.attributes->>'supplier_code'", min_stock: "m.attributes->>'min_stock'",
+};
+const FILTER_ANY = ['m.name', 'm.sku', "m.attributes->>'category'"];
 
 const SELECT = `
   SELECT m.id, m.name, m.unit, m.sku, m.track_stock, m.tracked_by_serial, m.tracked_by_lot,
@@ -50,6 +57,8 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       else if (view === 'serial') where += ` AND m.tracked_by_serial`;
       else if (view === 'service') where += ` AND m.attributes->>'item_type' = 'service'`;
       else if (view === 'low') where += ` AND m.track_stock AND (m.attributes->>'min_stock') IS NOT NULL AND COALESCE((SELECT sum(qty_on_hand) FROM stock_balance b WHERE b.material_id=m.id),0) < (m.attributes->>'min_stock')::numeric`;
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
+      if (fsql) where += ` AND ${fsql}`;
 
       const total = await db.query(`SELECT count(*)::int AS n FROM material m ${where}`, params);
       // conteggi viste

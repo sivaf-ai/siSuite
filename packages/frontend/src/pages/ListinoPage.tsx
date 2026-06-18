@@ -28,10 +28,12 @@ export function ListinoPage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/price-list-items?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<PriceListItemDto>({
@@ -54,6 +56,17 @@ export function ListinoPage() {
       ? <span className="serialtag">{v.overrideCount}</span> : <span className="faint">—</span> },
   ];
 
+  const exportFields = [
+    { key: 'code', label: 'Codice', value: (v: PriceListItemDto) => v.code },
+    { key: 'description', label: 'Descrizione', value: (v: PriceListItemDto) => v.description },
+    { key: 'category', label: 'Categoria', value: (v: PriceListItemDto) => v.category ?? '' },
+    { key: 'unit', label: 'Unità', value: (v: PriceListItemDto) => v.unit },
+    { key: 'costPrice', label: 'Costo', value: (v: PriceListItemDto) => v.costPrice ?? '' },
+    { key: 'revenuePrice', label: 'Ricavo', value: (v: PriceListItemDto) => v.revenuePrice ?? '' },
+    { key: 'marginPct', label: 'Margine %', value: (v: PriceListItemDto) => v.marginPct ?? '' },
+    { key: 'overrideCount', label: 'Ritocchi', value: (v: PriceListItemDto) => v.overrideCount },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -72,7 +85,8 @@ export function ListinoPage() {
         onRowClick={(v) => history.push(`/price-list/${v.id}`)}
         onDelete={canManage ? onDelete : undefined}
         onDuplicate={canManage ? onDuplicate : undefined}
-        exportName="listino"
+        exportName="listino" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna voce in questa vista."
       />

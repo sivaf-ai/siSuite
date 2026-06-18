@@ -8,8 +8,18 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
+import { buildFilter } from '../filterSql.js';
 
 const SORTABLE: Record<string, string> = { displayName: 'c.display_name', type: 'c.type', createdAt: 'c.created_at' };
+// mappa campi-filtro (key del client → espressione SQL) per il filtro server-side
+const FILTER_FIELDS: Record<string, string> = {
+  displayName: 'c.display_name', type: 'c.type', createdAt: 'c.created_at',
+  vat_number: "c.attributes->>'vat_number'", tax_code: "c.attributes->>'tax_code'",
+  pec: "c.attributes->>'pec'", sdi_code: "c.attributes->>'sdi_code'", street: "c.attributes->>'street'",
+  city: "c.attributes->>'city'", province: "c.attributes->>'province'", postal_code: "c.attributes->>'postal_code'",
+  website: "c.attributes->>'website'", notes: "c.attributes->>'notes'",
+};
+const FILTER_ANY = ['c.display_name', "c.attributes->>'vat_number'", "c.attributes->>'city'"];
 
 const SELECT = `
   SELECT c.id, c.display_name, c.type, c.address, c.attributes, c.created_at,
@@ -61,6 +71,8 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         params.push(role);
         where += ` AND EXISTS (SELECT 1 FROM company_role crf WHERE crf.company_id = c.id AND crf.role = $${params.length})`;
       }
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
+      if (fsql) where += ` AND ${fsql}`;
       const totalRes = await db.query(`SELECT count(*)::int AS n FROM company c ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(

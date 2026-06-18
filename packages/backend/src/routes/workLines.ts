@@ -7,6 +7,7 @@ import {
   listQuerySchema, createWorkLineSchema, updateWorkLineSchema, resolvePrice,
   type WorkLineDto, type WorkLineMeasureDto, type PriceOverride,
 } from '@sisuite/shared';
+import { buildFilter } from '../filterSql.js';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
@@ -82,6 +83,10 @@ export async function workLineRoutes(app: FastifyInstance): Promise<void> {
       if (view === 'with_libretto') where += ` AND EXISTS (SELECT 1 FROM work_line_measure m WHERE m.work_line_id = wl.id)`;
       else if (view === 'from_capture') where += ` AND wl.source_capture_id IS NOT NULL`;
       else if (view === 'manual') where += ` AND wl.price_list_item_id IS NULL`;
+      const fsql = buildFilter(qq.filter as string | undefined,
+        { voce: 'COALESCE(pli.description, wl.description)', code: 'pli.code', occurredOn: 'wl.occurred_on', quantity: 'wl.quantity', unit: 'wl.unit', revenue: 'wl.revenue_price' },
+        ['pli.code', 'pli.description', 'wl.description'], params);
+      if (fsql) where += ` AND ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM work_line wl LEFT JOIN price_list_item pli ON pli.id=wl.price_list_item_id ${where}`, params);
       const counts = await db.query(
         `SELECT count(*)::int AS all,

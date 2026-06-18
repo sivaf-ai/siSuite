@@ -38,12 +38,14 @@ export function ClientiPage() {
   const [view, setView] = useState<ViewKey>(initialView);
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
   useEffect(() => { setView(initialView); setOffset(0); }, [initialView]);
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'displayName', sortDir: 'asc' });
   if (view !== 'all') params.set('role', view);
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/companies?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
@@ -105,6 +107,7 @@ export function ClientiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="soggetti" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."
       />

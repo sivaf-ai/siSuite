@@ -45,10 +45,12 @@ export function MaterialiPage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/materials?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
@@ -106,6 +108,7 @@ export function MaterialiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="articoli" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."
       />

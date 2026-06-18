@@ -23,10 +23,12 @@ export function RolesPage() {
 
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'name', sortDir: 'asc' });
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/roles?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<RoleDto>({
@@ -40,6 +42,14 @@ export function RolesPage() {
     { key: 'scope', header: 'Visibilità', value: (r) => SCOPE_LABEL[r.dataScope] ?? r.dataScope, render: (r) => <span className="chip">{SCOPE_LABEL[r.dataScope] ?? r.dataScope}</span> },
     { key: 'perms', header: 'Permessi', num: true, value: (r) => r.permissions.length, render: (r) => <span className="mono">{r.permissions.length}</span> },
     { key: 'sys', header: 'Tipo', value: (r) => (r.isSystem ? 'Sistema' : 'Personalizzato'), render: (r) => <StatusPill label={r.isSystem ? 'Sistema' : 'Personalizzato'} token={r.isSystem ? 'neutral' : 'brand'} /> },
+  ];
+
+  const exportFields = [
+    { key: 'name', label: 'Ruolo', value: (r: RoleDto) => r.name },
+    { key: 'description', label: 'Descrizione', value: (r: RoleDto) => r.description ?? '' },
+    { key: 'dataScope', label: 'Visibilità', value: (r: RoleDto) => SCOPE_LABEL[r.dataScope] ?? r.dataScope },
+    { key: 'permissions', label: 'N. permessi', value: (r: RoleDto) => r.permissions.length },
+    { key: 'isSystem', label: 'Tipo', value: (r: RoleDto) => (r.isSystem ? 'Sistema' : 'Personalizzato') },
   ];
 
   const leftActions: ListAction[] = [{ key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true }];
@@ -57,7 +67,8 @@ export function RolesPage() {
         onRowClick={(r) => history.push(`/admin/roles/${r.id}`)}
         onDelete={canManage ? onDelete : undefined}
         onDuplicate={canManage ? onDuplicate : undefined}
-        exportName="ruoli"
+        exportName="ruoli" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ruolo."
       />

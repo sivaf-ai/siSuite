@@ -9,6 +9,10 @@ import { z } from 'zod';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
+import { buildFilter } from '../filterSql.js';
+
+const FILTER_FIELDS: Record<string, string> = { label: 'label', kind: 'kind', active: 'active', hourly_cost: "attributes->>'hourly_cost'" };
+const FILTER_ANY = ['label', 'kind'];
 
 const SELECT = `SELECT id, kind, label, user_id, active, attributes, working_hours FROM resource`;
 const SORTABLE: Record<string, string> = { label: 'label', kind: 'kind' };
@@ -39,6 +43,8 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
       let where = `WHERE archived_at IS NULL`;
       if (kind) { params.push(kind); where += ` AND kind = $${params.length}`; }
       if (q.q) { params.push(`%${q.q}%`); where += ` AND label ILIKE $${params.length}`; }
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
+      if (fsql) where += ` AND ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM resource ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);

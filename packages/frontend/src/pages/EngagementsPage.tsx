@@ -31,11 +31,13 @@ export function EngagementsPage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (view !== 'all') params.set('type', view);
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/engagements?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
@@ -53,6 +55,17 @@ export function EngagementsPage() {
     { key: 'status', header: 'Stato', value: (r) => lk.labelOf(r.statusId) || (r.statusCanonical ?? ''), render: (r) => <StatusPill label={lk.labelOf(r.statusId) || (r.statusCanonical ?? '')} token={lk.byId(r.statusId)?.colorToken} /> },
     { key: 'started', header: 'Inizio', num: true, value: (r) => (r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : '—'}</span> },
     { key: 'created', header: 'Creata', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+  ];
+
+  const exportFields = [
+    { key: 'code', label: 'Codice', value: (r: EngagementDto) => r.code },
+    { key: 'title', label: 'Titolo', value: (r: EngagementDto) => r.title },
+    { key: 'type', label: 'Tipo', value: (r: EngagementDto) => (r.type === 'build' ? 'Realizzazione' : 'Manutenzione') },
+    { key: 'company', label: 'Cliente', value: (r: EngagementDto) => r.companyName ?? '' },
+    { key: 'status', label: 'Stato', value: (r: EngagementDto) => lk.labelOf(r.statusId) || (r.statusCanonical ?? '') },
+    { key: 'startedOn', label: 'Inizio', value: (r: EngagementDto) => (r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : '') },
+    { key: 'endedOn', label: 'Fine', value: (r: EngagementDto) => (r.endedOn ? new Date(r.endedOn).toLocaleDateString('it-IT') : '') },
+    { key: 'createdAt', label: 'Creata', value: (r: EngagementDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];
 
   const leftActions: ListAction[] = [
@@ -75,7 +88,8 @@ export function EngagementsPage() {
         onRowClick={(r) => history.push(`/engagements/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
-        exportName="commesse"
+        exportName="commesse" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna commessa in questa vista."
       />

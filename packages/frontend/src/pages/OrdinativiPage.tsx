@@ -42,12 +42,14 @@ export function OrdinativiPage() {
   const [offset, setOffset] = useState(0);
   const [selRows, setSelRows] = useState<WorkOrderDto[]>([]);
   const [clearTok, setClearTok] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset), sortBy: 'scheduled', sortDir: 'desc' });
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/work-orders?${params.toString()}`);
   const rows = data?.items ?? [];
 
@@ -75,6 +77,21 @@ export function OrdinativiPage() {
       <div className="two"><span className="a mono">{fmtDate(wo.scheduledOn)}</span><span className="b mono">{wo.code}</span></div>) },
   ];
 
+  const exportFields = [
+    { key: 'code', label: 'Codice', value: (w: WorkOrderDto) => w.code },
+    { key: 'principalCompanyName', label: 'Committente', value: (w: WorkOrderDto) => w.principalCompanyName ?? '' },
+    { key: 'principalOrderRef', label: 'Rif. esterno', value: (w: WorkOrderDto) => w.principalOrderRef ?? '' },
+    { key: 'typeLabel', label: 'Tipo', value: (w: WorkOrderDto) => w.typeLabel ?? '' },
+    { key: 'address', label: 'Indirizzo', value: (w: WorkOrderDto) => w.address ?? '' },
+    { key: 'engagementTitle', label: 'Commessa', value: (w: WorkOrderDto) => w.engagementTitle ?? '' },
+    { key: 'subject', label: 'Intestatario', value: (w: WorkOrderDto) => w.subjectNameDisplay ?? '' },
+    { key: 'planned', label: 'Apparati previsti', value: (w: WorkOrderDto) => w.plannedCount },
+    { key: 'installed', label: 'Apparati installati', value: (w: WorkOrderDto) => w.installedCount },
+    { key: 'status', label: 'Stato', value: (w: WorkOrderDto) => statusOf(w).label },
+    { key: 'team', label: 'Squadra', value: (w: WorkOrderDto) => w.assignedResourceLabel ?? '' },
+    { key: 'scheduledOn', label: 'Programmato', value: (w: WorkOrderDto) => (w.scheduledOn ? fmtDate(w.scheduledOn) : '') },
+  ];
+
   const leftActions: ListAction[] = [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
@@ -98,7 +115,8 @@ export function OrdinativiPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onSelectionChange={setSelRows}
         clearSelectionToken={clearTok}
-        exportName="ordini-di-lavoro"
+        exportName="ordini-di-lavoro" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ordinativo in questa vista."
       />

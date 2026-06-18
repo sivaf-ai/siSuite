@@ -29,6 +29,7 @@ import { withRls } from '../context/rls.js';
 import { validateAttributes } from '../fields.js';
 import { nextNumber } from '../numberSeries.js';
 import { lookupDefaultId } from '../status.js';
+import { buildFilter } from '../filterSql.js';
 import type { PoolClient } from '../db/pool.js';
 
 const SORTABLE: Record<string, string> = {
@@ -130,6 +131,12 @@ async function upsertSubject(
   );
 }
 
+const WO_FILTER_FIELDS: Record<string, string> = {
+  code: 'wo.code', principalOrderRef: 'wo.principal_order_ref', address: 'wo.address',
+  scheduledOn: 'wo.scheduled_on', principalCompanyName: 'op.display_name', status: 'lv.canonical',
+};
+const WO_FILTER_ANY = ['wo.code', 'wo.principal_order_ref', 'wo.address', 'op.display_name'];
+
 const LIST_SELECT = `
   SELECT wo.id, wo.code, wo.engagement_id, e.title AS engagement_title,
          wo.principal_company_id, op.display_name AS principal_company_name,
@@ -171,6 +178,8 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
                         OR op.display_name ILIKE $${i}
                         OR EXISTS (SELECT 1 FROM stock_serial_unit su WHERE su.work_order_id = wo.id AND su.serial ILIKE $${i}))`;
       }
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, WO_FILTER_FIELDS, WO_FILTER_ANY, params);
+      if (fsql) where += ` AND ${fsql}`;
       const total = await db.query(
         `SELECT count(*)::int AS n FROM work_order wo
          LEFT JOIN company op ON op.id = wo.principal_company_id

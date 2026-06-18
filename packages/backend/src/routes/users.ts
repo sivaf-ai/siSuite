@@ -10,6 +10,7 @@ import { withRls } from '../context/rls.js';
 import type { PoolClient } from '../db/pool.js';
 import { ensureAuthUser } from '../auth/gotrueAdmin.js';
 import { config } from '../config.js';
+import { buildFilter } from '../filterSql.js';
 
 const listQuery = z.object({
   q: z.string().trim().optional(),
@@ -63,6 +64,10 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       const params: unknown[] = [];
       let where = '';
       if (qp.q) { params.push(`%${qp.q}%`); where = `WHERE (u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`; }
+      const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined,
+        { fullName: 'u.full_name', email: 'u.email', phone: 'u.phone', active: 'u.active', locale: 'u.locale', createdAt: 'u.created_at' },
+        ['u.full_name', 'u.email'], params);
+      if (fsql) where = where ? `${where} AND ${fsql}` : `WHERE ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM app_user u ${where}`, params);
       params.push(qp.limit, qp.offset);
       const rows = await db.query(

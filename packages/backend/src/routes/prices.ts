@@ -8,6 +8,7 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { buildFilter } from '../filterSql.js';
 
 const SORTABLE: Record<string, string> = { code: 'i.code', description: 'i.description', category: 'i.category' };
 
@@ -45,6 +46,10 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
       if (q.q) { params.push(`%${q.q}%`); const x = params.length; where += ` AND (i.code ILIKE $${x} OR i.description ILIKE $${x} OR i.category ILIKE $${x})`; }
       if (view === 'inactive') where += ` AND NOT i.active`; else where += ` AND i.active`;
       if (view === 'overrides') where += ` AND EXISTS (SELECT 1 FROM price_list_override o WHERE o.base_item_id = i.id)`;
+      const fsql = buildFilter(qq.filter as string | undefined,
+        { code: 'i.code', description: 'i.description', category: 'i.category', unit: 'i.unit', costPrice: 'i.cost_price', revenuePrice: 'i.revenue_price' },
+        ['i.code', 'i.description', 'i.category'], params);
+      if (fsql) where += ` AND ${fsql}`;
       const sel = `
         SELECT i.id, i.price_list_id, i.code, i.description, i.unit, i.category, i.cost_price, i.revenue_price, i.active, i.attributes,
                (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id = i.id) AS override_count

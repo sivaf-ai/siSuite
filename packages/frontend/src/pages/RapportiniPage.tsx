@@ -47,6 +47,15 @@ export function RapportiniPage() {
     { key: 'ai', header: 'AI', value: (r) => (r.generatedByAi ? 'sì' : ''), render: (r) => (r.generatedByAi ? <Sparkles size={15} style={{ color: 'var(--brand)' }} /> : <span className="faint">—</span>) },
   ];
 
+  const exportFields = [
+    { key: 'eng', label: 'Commessa', value: engLabel },
+    { key: 'audience', label: 'Destinatario', value: (r: WorkReportDto) => AUDIENCE_LABEL[r.audience] ?? r.audience },
+    { key: 'periodStart', label: 'Periodo da', value: (r: WorkReportDto) => r.periodStart ?? '' },
+    { key: 'periodEnd', label: 'Periodo a', value: (r: WorkReportDto) => r.periodEnd ?? '' },
+    { key: 'status', label: 'Stato', value: (r: WorkReportDto) => (lk.byId(r.statusId) ? lk.labelOf(r.statusId) : '') },
+    { key: 'ai', label: 'Generato da AI', value: (r: WorkReportDto) => (r.generatedByAi ? 'sì' : 'no') },
+  ];
+
   const leftActions: ListAction[] = [{ key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true }];
   const rightActions: ListAction[] = canCreate
     ? [{ key: 'new', icon: Plus, tip: 'Nuovo rapportino', variant: 'primary' as const, onClick: () => history.push('/work-reports/new') }]
@@ -61,7 +70,7 @@ export function RapportiniPage() {
         columns={columns} rows={rows} loading={wr.loading} error={wr.error}
         onRowClick={(r) => history.push(`/work-reports/${r.id}`)}
         onDelete={canDelete ? onDelete : undefined}
-        exportName="rapportini"
+        exportName="rapportini" exportFields={exportFields}
         emptyText="Nessun rapportino."
       />
     </Page>

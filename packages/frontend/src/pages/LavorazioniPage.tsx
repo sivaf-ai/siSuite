@@ -35,11 +35,13 @@ export function LavorazioniPage() {
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (eng) params.set('engagement_id', eng);
   if (q.trim()) params.set('q', q.trim());
+  if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(eng ? `/work-lines?${params.toString()}` : null);
 
   const { onDelete } = useEntityActions<WorkLineDto>({ basePath: '/work-lines', reload, noun: 'lavorazione' });
@@ -55,6 +57,17 @@ export function LavorazioniPage() {
       <div className="two"><span className="a mono">{w.quantity.toLocaleString('it-IT')}</span><span className="b">{w.unit}{w.hasLibretto ? ' · da libretto' : ''}</span></div>) },
     { key: 'rev', header: 'Ricavo', num: true, value: (w) => w.revenue ?? '', render: (w) => <Money value={w.revenue} /> },
     { key: 'orig', header: 'Origine', value: (w) => (w.fromCapture ? 'cattura' : w.origin), render: (w) => <span className="serialtag">{w.fromCapture ? 'cattura' : w.origin}</span> },
+  ];
+
+  const exportFields = [
+    { key: 'voce', label: 'Voce', value: (w: WorkLineDto) => w.itemDescription ?? w.description ?? '' },
+    { key: 'code', label: 'Codice', value: (w: WorkLineDto) => w.itemCode ?? '' },
+    { key: 'phase', label: 'Fase / WBS', value: (w: WorkLineDto) => `${w.wbsCode ? w.wbsCode + ' ' : ''}${w.phaseName ?? ''}`.trim() },
+    { key: 'occurredOn', label: 'Data', value: (w: WorkLineDto) => fmtDate(w.occurredOn) },
+    { key: 'quantity', label: 'Quantità', value: (w: WorkLineDto) => w.quantity },
+    { key: 'unit', label: 'Unità', value: (w: WorkLineDto) => w.unit },
+    { key: 'revenue', label: 'Ricavo', value: (w: WorkLineDto) => w.revenue ?? '' },
+    { key: 'origin', label: 'Origine', value: (w: WorkLineDto) => (w.fromCapture ? 'cattura' : w.origin) },
   ];
 
   const leftActions: ListAction[] = [{ key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true }];
@@ -81,7 +94,8 @@ export function LavorazioniPage() {
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(w) => history.push(`/work-lines/${w.id}`)}
         onDelete={canWrite ? onDelete : undefined}
-        exportName="lavorazioni"
+        exportName="lavorazioni" exportFields={exportFields}
+        onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna lavorazione in questa vista."
       />

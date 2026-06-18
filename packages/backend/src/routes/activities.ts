@@ -12,6 +12,13 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { lookupDefaultId } from '../status.js';
+import { buildFilter } from '../filterSql.js';
+
+const ACT_FILTER_FIELDS: Record<string, string> = {
+  title: 'a.title', engagementCode: 'e.code', engagementTitle: 'e.title', status: 's.canonical',
+  estimatedMinutes: 'a.estimated_minutes', scheduledStart: 'a.scheduled_start', kind: 'a.kind',
+};
+const ACT_FILTER_ANY = ['a.title', 'e.code', 'e.title'];
 
 function depDto(r: Record<string, unknown>): DependencyEdgeDto {
   return {
@@ -164,6 +171,11 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
         if (phId) { params.push(phId); conds.push(`a.phase_id = $${params.length}`); }
         if (qstr) { params.push(`%${qstr}%`); conds.push(`(a.title ILIKE $${params.length} OR e.code ILIKE $${params.length} OR e.title ILIKE $${params.length})`); }
         if (status) { params.push(status); conds.push(`s.canonical = $${params.length}`); }
+        // filtro avanzato (AI/manuale) solo nella vista globale
+        if (!eId && !phId) {
+          const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, ACT_FILTER_FIELDS, ACT_FILTER_ANY, params);
+          if (fsql) conds.push(fsql);
+        }
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
         // se filtrato per commessa/fase (uso interno scheda) → comportamento legacy: solo items, no paginazione

@@ -15,8 +15,14 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { nextNumber } from '../numberSeries.js';
 import { validateAttributes } from '../fields.js';
+import { buildFilter } from '../filterSql.js';
 
 const SORTABLE: Record<string, string> = { code: 'e.code', title: 'e.title', createdAt: 'e.created_at' };
+const FILTER_FIELDS: Record<string, string> = {
+  code: 'e.code', title: 'e.title', type: 'e.type', startedOn: 'e.started_on', endedOn: 'e.ended_on', createdAt: 'e.created_at',
+  company: 'c.display_name', status: 'lv.canonical',
+};
+const FILTER_ANY = ['e.code', 'e.title', 'c.display_name'];
 
 const SELECT_DTO = `
   SELECT e.id, e.code, e.title, e.type, e.company_id,
@@ -79,7 +85,10 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
         let where = `WHERE e.archived_at IS NULL`;
         if (type) { params.push(type); where += ` AND e.type = $${params.length}`; }
         if (q.q) { params.push(`%${q.q}%`); where += ` AND (e.title ILIKE $${params.length} OR e.code ILIKE $${params.length})`; }
-        const total = await db.query(`SELECT count(*)::int AS n FROM engagement e ${where}`, params);
+        const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
+        if (fsql) where += ` AND ${fsql}`;
+        // join company + lookup nel conteggio per supportare i filtri su cliente/stato
+        const total = await db.query(`SELECT count(*)::int AS n FROM engagement e LEFT JOIN company c ON c.id=e.company_id LEFT JOIN lookup_value lv ON lv.id=e.status_id ${where}`, params);
         params.push(q.limit, q.offset);
         const res = await db.query(
           `${SELECT_DTO} ${where} ORDER BY ${sortCol} ${sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`,

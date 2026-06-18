@@ -26,5 +26,13 @@ Il pannello (pulsante ✨) ora ha DUE livelli:
 2. **Builder manuale**: righe **campo · operatore · valore** su TUTTI i campi dell'entità; operatori: contiene/uguale/diverso/>/≥/</≤/è vuoto/valorizzato/sì/no; **logica E (tutte) / O (almeno una)**; «Aggiungi condizione». L'AI **precompila** le stesse righe, che l'utente può rifinire a mano.
 Il set salvato (`filter_preset.payload`) contiene `query`, `conditions`, `mode`. `lib/listFilter.matchConditions(..., mode)` valuta in AND/OR.
 
-## Nota / evoluzione
-- Il filtro è **client-side** sulle righe caricate (pagina corrente). Per dataset grandi conviene poi portarlo **server-side** (le condizioni `field/op/value`+`mode` sono già strutturate). Il pulsante imbuto resta scorciatoia futura; il builder vive nel pannello ✨.
+## Server-side (18/06) — filtra TUTTI i dati, non solo la pagina
+Il filtro è ora applicato **lato server** sulle liste paginate. Architettura:
+- **Backend** `filterSql.ts` `buildFilter(rawJson, FIELD_MAP, ANY_TEXT, params)` → frammento SQL WHERE sicuro (cast numerici/booleani protetti, ILIKE per testo, AND/OR). Ogni endpoint lista accetta `?filter=<json>` e definisce la sua `FIELD_MAP` (key del client → espressione SQL) e i campi testuali per `__any`.
+- Endpoint wired: companies, resources, materials, assets, engagements, activities(globale), work-orders, users, roles, price-list-items, work-lines. Il filtro incide su `total` + righe (le viste/chip restano conteggi indipendenti).
+- **Frontend**: `EntityList` con prop `onFilterChange` entra in **modalità server** (niente filtro client); la pagina mette `&filter=` nella query. Senza `onFilterChange` resta client-side (es. Rapportini che carica tutto).
+- **Chiavi coerenti**: le key di `exportFields` (client) = le key della `FIELD_MAP` (server).
+- **Limiti noti**: campi calcolati (giacenza, conteggi, label tipo) e PII (intestatario) non sono mappati server-side; alcuni campi enum filtrano sul valore RAW della colonna (es. `type=build`, non "Realizzazione"). L'AI di norma produce già i valori giusti.
+
+## Test (reale)
+- companies: nome contiene «Fiber» → 1; OR (Sirti|Open) → 2; vat vuoto → 7. engagements type=build → 2. listino code contiene «B-» → 8. Builder E/O + voce + preset OK.
