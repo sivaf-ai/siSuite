@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Struttura commessa (WBS) · desktop + mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{
+--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral:#8A8F9B;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;
+--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;
+--ctrl-h:36px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}.muted{color:var(--ink-soft)}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:var(--ctrl-h);padding:0 13px;border-radius:var(--r-sm);font-weight:600;font-size:13px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn-soft{background:var(--brand-wash);color:var(--brand-ink)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--success{color:var(--success);background:var(--success-wash)}.pill--warning{color:var(--warning);background:var(--warning-wash)}.pill--danger{color:var(--danger);background:var(--danger-wash)}.pill--info{color:var(--info);background:var(--info-wash)}.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+
+/* ---- page chrome ---- */
+.page{max-width:1280px;margin:0 auto;padding:26px 18px 80px}
+.intro h1{font-size:25px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:13.5px;margin:7px 0 0;max-width:860px}
+.switch{display:flex;align-items:center;gap:12px;margin:18px 0 14px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:30px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft);display:inline-flex;align-items:center;gap:7px}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.switch .hint{font-size:12.5px;color:var(--ink-faint)}
+
+/* ---- shared app bits ---- */
+.brand-logo{display:flex;align-items:center;gap:9px}.brand-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.brand-logo .name{font-family:var(--font-display);font-weight:800;font-size:18px;color:#fff}.brand-logo .name em{font-style:normal;color:var(--flow)}
+.nav-group{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7080;padding:13px 10px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:#C9CDD7}.nav-item svg{width:17px;height:17px;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.active{background:var(--brand);color:#fff}
+
+/* status pill helpers */
+.st-done{color:var(--success);background:var(--success-wash)}.st-wip{color:var(--info);background:var(--info-wash)}.st-todo{color:var(--ink-soft);background:var(--neutral-wash)}
+
+/* ---- AI build bar ---- */
+.aibar{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--r);background:linear-gradient(120deg,#fff,#fff) padding-box,var(--flow-grad) border-box;border:1.6px solid transparent;box-shadow:var(--shadow-1)}
+.aibar .spark{width:30px;height:30px;border-radius:9px;background:var(--brand-wash);display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.aibar input{flex:1;border:0;background:none;outline:none;font-family:inherit;font-size:13.5px;color:var(--ink)}.aibar input::placeholder{color:var(--ink-faint)}
+.aibar .tmpl{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:var(--r-pill);background:var(--neutral-wash);color:var(--ink-soft);font-size:12px;font-weight:600;flex:0 0 auto}
+.aibar .mic{width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-soft);flex:0 0 auto}
+.aibar .go{flex:0 0 auto}
+
+/* ---- tree ---- */
+.treetools{display:flex;align-items:center;gap:8px;margin:14px 0 9px;flex-wrap:wrap}
+.ibtn{width:34px;height:34px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft)}.ibtn:hover{color:var(--ink)}
+.kbd-hints{display:flex;gap:7px;flex-wrap:wrap;margin-left:2px}
+.kbd-hints span{font-size:11px;color:var(--ink-faint);display:inline-flex;align-items:center;gap:5px}
+.kbd{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:var(--card)}
+.rollup{display:flex;align-items:center;gap:14px;margin-left:auto;flex-wrap:wrap}
+.rollup .rg{display:flex;flex-direction:column;align-items:flex-end}
+.rollup .rk{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint)}
+.rollup .rv{font-family:var(--font-mono);font-size:13.5px;font-weight:600}
+.rollup .rv.good{color:var(--success)}
+.progmini{display:flex;align-items:center;gap:8px}.progmini .bar{width:90px;height:7px;border-radius:999px;background:var(--line-2);overflow:hidden}.progmini .bar i{display:block;height:100%;border-radius:999px;background:var(--flow-grad)}
+
+.split{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;align-items:start}
+.xtree{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden;padding:4px 0}
+.tnode{display:flex;align-items:center;gap:9px;min-height:42px;padding:3px 12px 3px 10px;border-bottom:1px solid var(--line-2);position:relative;cursor:pointer}
+.tkids .tnode{border-bottom:1px solid var(--line-2)}
+.xtree>.node-wrap:last-child>.tnode{border-bottom:0}
+.tnode:hover{background:var(--paper)}
+.tnode.sel{background:var(--brand-wash)}
+.tnode.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand)}
+.grip{color:var(--line);opacity:0;cursor:grab;flex:0 0 auto;margin-left:-2px}.tnode:hover .grip{opacity:1}
+.chev{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--ink-faint);flex:0 0 auto;transition:transform .12s}.chev:hover{background:var(--neutral-wash);color:var(--ink)}
+.node-wrap.collapsed>.tnode .chev{transform:rotate(-90deg)}
+.node-wrap.collapsed>.tkids{display:none}
+.chev.spacer{visibility:hidden}
+.code{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--brand-ink);background:var(--brand-wash);padding:1px 6px;border-radius:6px;flex:0 0 auto;min-width:34px;text-align:center}
+.tnode.leaf .code{color:var(--ink-soft);background:var(--neutral-wash)}
+.ticon{width:25px;height:25px;border-radius:7px;display:grid;place-items:center;flex:0 0 auto}
+.ticon.branch{background:var(--flow-wash);color:#10918c}.ticon.leaf{background:var(--neutral-wash);color:var(--ink-soft);width:22px;height:22px;border-radius:6px}
+.tname{font-size:13.5px;font-weight:600;color:var(--ink);outline:none}
+.tnode.leaf .tname{font-weight:500;font-size:13px;color:var(--ink-2)}
+.tname[contenteditable="true"]{background:#fff;border:1px solid var(--brand);border-radius:6px;padding:1px 6px;box-shadow:0 0 0 3px var(--brand-wash)}
+.tmeta{display:flex;align-items:center;gap:11px;margin-left:auto;flex:0 0 auto}
+.hrs{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint)}.hrs b{color:var(--ink-2);font-weight:600}
+.mar{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--r-pill)}
+.tact{display:flex;gap:1px;opacity:0;transition:.12s}.tnode:hover .tact{opacity:1}
+.tact .a{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--ink-faint)}.tact .a:hover{background:var(--neutral-wash);color:var(--brand)}
+.guideline{position:absolute;top:0;bottom:0;width:1px;background:var(--line-2)}
+.addrow{display:flex;align-items:center;gap:8px;min-height:34px;padding:2px 12px;color:var(--ink-faint);font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--line-2)}
+.addrow:hover{color:var(--brand);background:var(--paper)}
+.addrow svg{width:15px;height:15px}
+.addrow input{border:1px solid var(--brand);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:13px;outline:none;box-shadow:0 0 0 3px var(--brand-wash);width:240px}
+
+/* ---- detail panel ---- */
+.detail{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);position:sticky;top:14px;overflow:hidden}
+.detail .dhead{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line)}
+.detail .dhead .dcode{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--brand-ink);background:var(--brand-wash);padding:2px 7px;border-radius:var(--r-pill)}
+.detail .dhead .dt{font-family:var(--font-display);font-weight:800;font-size:15px}
+.detail .dhead .da{margin-left:auto;display:flex;gap:7px}
+.detail .body{padding:14px 15px;display:flex;flex-direction:column;gap:11px}
+.fbox{border:1px solid var(--line);border-radius:var(--r);padding:11px 12px 10px;position:relative}
+.fbox>.l{position:absolute;top:-8px;left:11px;background:var(--card);padding:0 6px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+.fbox .v{font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.moneybox{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.moneybox .m{padding:10px 12px;border-right:1px solid var(--line-2)}.moneybox .m:last-child{border-right:0}
+.moneybox .mk{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+.moneybox .mv{font-family:var(--font-mono);font-size:14px;font-weight:600;margin-top:3px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);background:var(--neutral-wash);color:var(--ink-2);font-size:12px;font-weight:600}
+.relstrip{display:flex;gap:14px;border-bottom:1px solid var(--line);margin:-2px -1px 2px}
+.relstrip .rt{padding:7px 2px;font-size:12.5px;font-weight:600;color:var(--ink-soft);border-bottom:2px solid transparent}
+.relstrip .rt.on{color:var(--brand-ink);border-bottom-color:var(--brand)}
+
+/* ---- DESKTOP frame ---- */
+.frame-d{display:grid;grid-template-columns:222px 1fr;height:740px;overflow:hidden;border-radius:var(--r-lg);box-shadow:var(--shadow-2);border:1px solid var(--line)}
+.frame-d .sidebar{background:var(--ink);color:#C9CDD7;display:flex;flex-direction:column;padding:18px 12px;gap:2px;overflow:auto}
+.frame-d .side-user{margin-top:auto;display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.frame-d .side-user .av{width:30px;height:30px;border-radius:50%;background:#34384a;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.frame-d .side-user .nm{font-size:13px;color:#fff;font-weight:600}.frame-d .side-user .rl{font-size:11px;color:#8A8F9B}
+.frame-d .main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+.frame-d .topbar{height:58px;display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}
+.cmdbar{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+.cmdbar .sp{color:var(--brand)}.cmdbar input{flex:1;border:0;background:none;outline:none;font-size:13px;color:var(--ink-faint);font-family:inherit}
+.cmdbar .k{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.ico-btn{width:36px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--ink-soft)}
+.frame-d .work{flex:1;overflow:auto;padding:18px 20px}
+.chead{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 18px;box-shadow:var(--shadow-1)}
+.chead .back{display:inline-flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:12.5px;font-weight:600;cursor:pointer}
+.chead .ctop{display:flex;align-items:center;gap:10px;margin-top:9px}
+.chead .ccode{font-family:var(--font-mono);font-size:12px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.chead h1{font-size:21px;font-weight:800;margin:8px 0 4px}.chead .csub{color:var(--ink-soft);font-size:13px}
+.kv{display:flex;gap:26px;margin-top:13px;flex-wrap:wrap}.kv .k{font-size:10px;color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.kv .v{font-size:13.5px;font-weight:600;margin-top:3px}
+.tabsbar{display:flex;gap:16px;margin:14px 0 4px;border-bottom:1px solid var(--line)}
+.tabu{padding:9px 2px;margin-bottom:-1px;font-size:13px;font-weight:600;color:var(--ink-soft);border-bottom:2px solid transparent;cursor:pointer}.tabu.on{color:var(--brand-ink);border-bottom-color:var(--brand)}
+
+/* ---- MOBILE frame ---- */
+.frame-m{width:392px;height:800px;margin:0 auto;border-radius:42px;background:#0c0d12;padding:11px;box-shadow:var(--shadow-2);position:relative}
+.frame-m .notch{position:absolute;top:17px;left:50%;transform:translateX(-50%);width:118px;height:26px;background:#0c0d12;border-radius:0 0 16px 16px;z-index:6}
+.screen{position:relative;height:100%;background:var(--paper);border-radius:32px;overflow:hidden;display:flex;flex-direction:column}
+.m-top{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);padding:30px 16px 10px}
+.m-top .mt1{display:flex;align-items:center;gap:9px}
+.m-top .mt1 .back{width:30px;height:30px;border-radius:9px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--ink-soft)}
+.m-top .mcode{font-family:var(--font-mono);font-size:11px;color:var(--brand-ink);background:var(--brand-wash);padding:1px 7px;border-radius:var(--r-pill);font-weight:600}
+.m-top h2{font-size:16px;font-weight:800;margin:8px 0 2px}.m-top .msub{font-size:12px;color:var(--ink-soft)}
+.m-tabs{display:flex;gap:7px;margin-top:11px;overflow:auto}
+.m-tabs .mtab{flex:0 0 auto;height:28px;padding:0 12px;border-radius:var(--r-pill);background:var(--neutral-wash);color:var(--ink-soft);font-size:12px;font-weight:600;display:inline-flex;align-items:center}
+.m-tabs .mtab.on{background:var(--brand);color:#fff}
+.m-body{flex:1;overflow:auto;padding:12px 13px 24px}
+.m-aibar{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);background:linear-gradient(120deg,#fff,#fff) padding-box,var(--flow-grad) border-box;border:1.5px solid transparent;box-shadow:var(--shadow-1);margin-bottom:11px}
+.m-aibar .sp{width:26px;height:26px;border-radius:8px;background:var(--brand-wash);display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.m-aibar .tx{flex:1;font-size:12.5px;color:var(--ink-faint)}
+.m-aibar .mic{width:28px;height:28px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-soft);flex:0 0 auto}
+.m-tooltools{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.m-tooltools .seg2{display:inline-flex;background:var(--neutral-wash);border-radius:9px;padding:3px;gap:2px}
+.m-tooltools .seg2 button{height:26px;padding:0 10px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--ink-soft)}.m-tooltools .seg2 button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.m-roll{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint)}
+.crumb{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-bottom:9px}
+.crumb b{color:var(--ink)}.crumb .sepc{color:var(--line)}
+.m-tree{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.m-tree .tnode{padding:3px 10px}
+.m-tree .tname{font-size:13px}
+.enter{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--ink-faint);flex:0 0 auto}.enter:hover{background:var(--neutral-wash);color:var(--brand)}
+
+/* bottom sheet */
+.sheet-back{position:absolute;inset:0;background:rgba(20,22,30,.35);opacity:0;pointer-events:none;transition:.18s;z-index:8;border-radius:32px}
+.sheet-back.open{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:22px 22px 32px 32px;box-shadow:0 -10px 30px rgba(0,0,0,.18);transform:translateY(102%);transition:.22s cubic-bezier(.22,.8,.26,1);z-index:9;max-height:78%;overflow:auto;padding:8px 15px 20px}
+.sheet.open{transform:translateY(0)}
+.sheet .grab{width:38px;height:4px;border-radius:99px;background:var(--line);margin:6px auto 12px}
+.sheet .shead{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.sheet .shead .dcode{font-family:var(--font-mono);font-size:11px;color:var(--brand-ink);background:var(--brand-wash);padding:2px 7px;border-radius:var(--r-pill);font-weight:600}
+.sheet .shead .stt{font-family:var(--font-display);font-weight:800;font-size:15px}
+.sheet .shead .x{margin-left:auto;width:30px;height:30px;border-radius:9px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--ink-soft)}
+.sheet .body{display:flex;flex-direction:column;gap:10px}
+
+.legend{display:flex;gap:13px;font-size:11px;color:var(--ink-faint);margin:10px 2px 0;flex-wrap:wrap}
+.legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+.note{font-size:12.5px;color:var(--ink-soft);margin-top:14px;max-width:880px}
+.note b{color:var(--ink)}
+@media(max-width:560px){.frame-m{width:100%;border-radius:30px}.page{padding:18px 12px 60px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1><em>si</em>Suite — Struttura commessa <span style="color:var(--ink-faint);font-weight:600;font-size:16px">(WBS · la mia idea)</span></h1>
+    <p>Albero <b>commessa → fase → sotto-fase → attività</b> che si costruisce come una lista: scrivi, rientra, trascina. Sopra c'è la barra AI che propone l'intera struttura da una frase. Ogni ramo mostra ore <i>e</i> margine reali (presi dalla pivot). I rami si aprono e si chiudono; clicca una voce per il dettaglio a fianco. Prova il pulsante Desktop/Mobile.</p>
+  </div>
+
+  <div class="switch">
+    <div class="seg" id="vp">
+      <button data-vp="d" class="on"><i data-lucide="monitor"></i> Desktop</button>
+      <button data-vp="m"><i data-lucide="smartphone"></i> Mobile</button>
+    </div>
+    <span class="hint">Espansione/chiusura, selezione e dettaglio sono attivi. Doppio click sul nome per rinominare. "+ aggiungi" inserisce davvero una voce.</span>
+  </div>
+
+  <!-- ============ DESKTOP ============ -->
+  <div class="frame-d" id="viewD">
+    <aside class="sidebar">
+      <div class="brand-logo" style="padding:6px 8px 12px"><div class="mark"><i data-lucide="layout-grid"></i></div><div class="name"><em>si</em>Suite</div></div>
+      <div class="nav-group">Lavoro</div>
+      <a class="nav-item active"><i data-lucide="briefcase"></i> Commesse</a>
+      <a class="nav-item"><i data-lucide="calendar-range"></i> Pianificazione</a>
+      <a class="nav-item"><i data-lucide="clock"></i> Foglio ore</a>
+      <a class="nav-item"><i data-lucide="warehouse"></i> Magazzino</a>
+      <a class="nav-item"><i data-lucide="wallet"></i> Finanza &amp; Budget</a>
+      <div class="nav-group">Dati</div>
+      <a class="nav-item"><i data-lucide="building-2"></i> Anagrafiche</a>
+      <div class="side-user"><div class="av">SV</div><div><div class="nm">Sivaf</div><div class="rl">Titolare</div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="cmdbar"><i data-lucide="sparkles" class="sp"></i><input placeholder="Cerca o chiedi a siSuite…"><span class="k">⌘K</span></div>
+        <button class="ico-btn"><i data-lucide="bell"></i></button><button class="ico-btn"><i data-lucide="settings"></i></button>
+      </div>
+      <div class="work">
+        <div class="chead">
+          <span class="back"><i data-lucide="chevron-left" style="width:15px;height:15px"></i> Commesse</span>
+          <div class="ctop"><span class="ccode">2026-0042</span><span class="pill pill--info"><span class="dot"></span>In corso</span></div>
+          <h1>Attivazione FTTH — Napoli Est</h1>
+          <div class="csub">Open Fiber · a misura · WBS 14 attività</div>
+          <div class="kv">
+            <div><div class="k">Responsabile</div><div class="v">Marco Gallo</div></div>
+            <div><div class="k">Inizio</div><div class="v mono">04/05/2026</div></div>
+            <div><div class="k">Consegna</div><div class="v mono">31/07/2026</div></div>
+            <div><div class="k">Tipo</div><div class="v">Attivazione</div></div>
+          </div>
+          <div class="tabsbar">
+            <span class="tabu">Panoramica</span><span class="tabu on">Struttura</span><span class="tabu">Budget</span><span class="tabu">Rapportini</span><span class="tabu">Documenti</span>
+          </div>
+        </div>
+
+        <div class="aibar" style="margin-top:14px">
+          <div class="spark"><i data-lucide="sparkles"></i></div>
+          <input placeholder="Descrivi o detta la commessa e la costruisco… es. «posa Tratta C 90m con splicing e collaudo»">
+          <span class="tmpl"><i data-lucide="layout-template" style="width:14px;height:14px"></i> Da modello: Fibra ▾</span>
+          <button class="mic"><i data-lucide="mic"></i></button>
+          <button class="btn btn-primary go"><i data-lucide="wand-2" style="width:16px;height:16px"></i> Costruisci</button>
+        </div>
+
+        <div class="treetools">
+          <button class="btn btn-soft" id="addRoot"><i data-lucide="plus" style="width:16px;height:16px"></i> Ramo</button>
+          <button class="ibtn" id="expAll" title="Esplodi tutto"><i data-lucide="chevrons-up-down"></i></button>
+          <button class="ibtn" id="colAll" title="Comprimi tutto"><i data-lucide="chevrons-down-up"></i></button>
+          <div class="kbd-hints">
+            <span><span class="kbd">Invio</span> nuovo</span><span><span class="kbd">Tab</span> figlio</span><span><i data-lucide="move" style="width:13px;height:13px"></i> trascina</span>
+          </div>
+          <div class="rollup" id="rollupD"></div>
+        </div>
+
+        <div class="split">
+          <div class="xtree" id="treeD"></div>
+          <div class="detail" id="detailD"></div>
+        </div>
+
+        <div class="legend">
+          <span><i style="background:var(--flow-wash)"></i>Ramo (riepilogo)</span>
+          <span><i style="background:var(--neutral-wash)"></i>Attività (porta ore, risorse, materiali)</span>
+          <span><i style="background:var(--success-wash)"></i>Completata</span>
+          <span><i style="background:var(--info-wash)"></i>In corso</span>
+          <span><i style="background:var(--neutral-wash)"></i>Da fare</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MOBILE ============ -->
+  <div class="frame-m" id="viewM" style="display:none">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="m-top">
+        <div class="mt1"><span class="back"><i data-lucide="chevron-left" style="width:17px;height:17px"></i></span><span class="mcode">2026-0042</span><span class="pill pill--info" style="margin-left:auto"><span class="dot"></span>In corso</span></div>
+        <h2>Attivazione FTTH — Napoli Est</h2>
+        <div class="msub">Open Fiber · a misura</div>
+        <div class="m-tabs"><span class="mtab">Panoramica</span><span class="mtab on">Struttura</span><span class="mtab">Budget</span><span class="mtab">Rapportini</span></div>
+      </div>
+      <div class="m-body">
+        <div class="m-aibar"><div class="sp"><i data-lucide="sparkles" style="width:15px;height:15px"></i></div><div class="tx">Detta la commessa e la costruisco…</div><button class="mic"><i data-lucide="mic" style="width:15px;height:15px"></i></button></div>
+        <div class="m-tooltools">
+          <div class="seg2" id="mMode"><button data-m="all" class="on">Albero</button><button data-m="focus">Per ramo</button></div>
+          <button class="ibtn" id="mColAll" style="width:30px;height:30px" title="Comprimi"><i data-lucide="chevrons-down-up" style="width:15px;height:15px"></i></button>
+          <span class="m-roll" id="rollupM"></span>
+        </div>
+        <div class="crumb" id="mCrumb" style="display:none"></div>
+        <div class="m-tree" id="treeM"></div>
+        <div class="legend" style="margin-top:12px">
+          <span><i style="background:var(--flow-wash)"></i>Ramo</span><span><i style="background:var(--neutral-wash)"></i>Attività</span>
+          <span style="width:100%"><i data-lucide="corner-down-right" style="width:12px;height:12px;color:var(--ink-faint)"></i> tocca <i data-lucide="chevron-right" style="width:12px;height:12px;color:var(--ink-faint)"></i> per entrare nel ramo</span>
+        </div>
+      </div>
+      <div class="sheet-back" id="sheetBack"></div>
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Cosa stai guardando.</b> Tre strati: la <b>barra AI</b> in alto (proporrebbe l'intero albero da una frase, poi tu confermi e il deterministico scrive); l'<b>editor ad albero</b> manuale velocissimo (apri/chiudi, rinomina, aggiungi); il <b>dettaglio</b> a fianco (desktop) o a tendina (mobile). Su mobile, "Per ramo" + la freccia <i data-lucide="chevron-right" style="width:12px;height:12px"></i> ti fanno entrare in un singolo ramo con le briciole di pane — la navigazione personalizzata che ti piaceva. Ogni ramo mostra <b>ore e margine</b>: la struttura <i>è</i> il preventivo-consuntivo, non un disegno separato.
+  </div>
+</div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const T = [
+  {id:'1',code:'1',name:'Rilievo e progettazione',kind:'branch',icon:'compass',children:[
+    {id:'1.1',code:'1.1',name:'Sopralluogo PCN',kind:'leaf',icon:'search',status:'done',owner:'M. Gallo',est:240,act:215,cost:180,rev:320},
+    {id:'1.2',code:'1.2',name:'Rilievo tratte',kind:'leaf',icon:'ruler',status:'done',owner:'A. Greco',est:300,act:280,cost:240,rev:420},
+    {id:'1.3',code:'1.3',name:'Progetto esecutivo',kind:'leaf',icon:'file-pen-line',status:'done',owner:'M. Gallo',est:360,act:400,cost:360,rev:560},
+  ]},
+  {id:'2',code:'2',name:'Permessi e scavi',kind:'branch',icon:'shovel',children:[
+    {id:'2.1',code:'2.1',name:'Richiesta permessi',kind:'leaf',icon:'file-check',status:'done',owner:'L. Ferri',est:120,act:130,cost:90,rev:180},
+    {id:'2.2',code:'2.2',name:'Scavo Tratta A · 200 m',kind:'leaf',icon:'shovel',status:'wip',owner:'Squadra 1',est:600,act:360,cost:1200,rev:1800},
+    {id:'2.3',code:'2.3',name:'Scavo Tratta B · 140 m',kind:'leaf',icon:'shovel',status:'todo',owner:'Squadra 1',est:420,act:0,cost:0,rev:1260},
+    {id:'2.4',code:'2.4',name:'Ripristini stradali',kind:'leaf',icon:'brick-wall',status:'todo',owner:'—',est:240,act:0,cost:0,rev:520},
+  ]},
+  {id:'3',code:'3',name:'Posa e giunzioni',kind:'branch',icon:'cable',children:[
+    {id:'3.1',code:'3.1',name:'Posa cavo',kind:'branch',icon:'cable',children:[
+      {id:'3.1.1',code:'3.1.1',name:'Posa Tratta A',kind:'leaf',icon:'cable',status:'wip',owner:'Squadra 2',est:300,act:120,cost:380,rev:640},
+      {id:'3.1.2',code:'3.1.2',name:'Posa Tratta B',kind:'leaf',icon:'cable',status:'todo',owner:'Squadra 2',est:240,act:0,cost:0,rev:520},
+    ]},
+    {id:'3.2',code:'3.2',name:'Splicing 24 fibre',kind:'leaf',icon:'git-merge',status:'todo',owner:'G. Russo',est:480,act:0,cost:0,rev:1280},
+    {id:'3.3',code:'3.3',name:'Attestazione ROE',kind:'leaf',icon:'waypoints',status:'todo',owner:'—',est:180,act:0,cost:0,rev:360},
+  ]},
+  {id:'4',code:'4',name:'Collaudo e consegna',kind:'branch',icon:'badge-check',children:[
+    {id:'4.1',code:'4.1',name:'Misure OTDR',kind:'leaf',icon:'gauge',status:'todo',owner:'G. Russo',est:240,act:0,cost:0,rev:480},
+    {id:'4.2',code:'4.2',name:'Collaudo cliente',kind:'leaf',icon:'clipboard-check',status:'todo',owner:'M. Gallo',est:120,act:0,cost:0,rev:320},
+    {id:'4.3',code:'4.3',name:'Documentazione as-built',kind:'leaf',icon:'file-text',status:'todo',owner:'—',est:180,act:0,cost:0,rev:280},
+  ]},
+];
+
+/* ---------------- STATE ---------------- */
+const collapsed = new Set();      // node ids collapsed (shared)
+let selected = '2.2';             // desktop detail
+let mMode = 'all';                // mobile: all | focus
+let mFocus = null;                // mobile focused branch id
+const ICONS = ()=>window.lucide&&window.lucide.createIcons();
+
+/* ---------------- HELPERS ---------------- */
+const STLAB={done:'Completata',wip:'In corso',todo:'Da fare'};
+const STCLS={done:'st-done',wip:'st-wip',todo:'st-todo'};
+function hm(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0');}
+function eur(n){return n.toLocaleString('it-IT');}
+function findNode(id,list=T){for(const n of list){if(n.id===id)return n;if(n.children){const f=findNode(id,n.children);if(f)return f;}}return null;}
+function roll(node){
+  if(node.kind==='leaf'){const prog=node.status==='done'?node.est:Math.min(node.act,node.est);
+    return {est:node.est,act:node.act,cost:node.cost,rev:node.rev,prog,leaves:1,done:node.status==='done'?1:0,wip:node.act>0&&node.status!=='done'?1:0};}
+  let r={est:0,act:0,cost:0,rev:0,prog:0,leaves:0,done:0,wip:0};
+  (node.children||[]).forEach(c=>{const s=roll(c);for(const k in r)r[k]+=s[k];});
+  return r;
+}
+function brStatus(r){if(r.leaves&&r.done===r.leaves)return'done';if(r.done>0||r.wip>0)return'wip';return'todo';}
+function pct(r){return r.est?Math.round(r.prog/r.est*100):0;}
+function margin(r){return r.rev?Math.round((r.rev-r.cost)/r.rev*100):0;}
+function marColor(m){return m>=30?'var(--success)':m>=18?'var(--warning)':'var(--danger)';}
+
+/* ---------------- DESKTOP TREE ---------------- */
+function nodeEl(node,depth){
+  const wrap=document.createElement('div');wrap.className='node-wrap';wrap.dataset.id=node.id;
+  if(collapsed.has(node.id))wrap.classList.add('collapsed');
+  const row=document.createElement('div');
+  row.className='tnode '+(node.kind);if(selected===node.id)row.classList.add('sel');
+  row.style.paddingLeft=(10+depth*20)+'px';
+  const r=roll(node);
+  // guideline
+  for(let d=0;d<depth;d++){const g=document.createElement('span');g.className='guideline';g.style.left=(10+d*20+9)+'px';row.appendChild(g);}
+  // grip
+  const grip=document.createElement('span');grip.className='grip';grip.innerHTML='<i data-lucide="grip-vertical" style="width:14px;height:14px"></i>';row.appendChild(grip);
+  // chevron
+  const chev=document.createElement('span');
+  if(node.kind==='branch'){chev.className='chev';chev.innerHTML='<i data-lucide="chevron-down" style="width:16px;height:16px"></i>';
+    chev.onclick=e=>{e.stopPropagation();wrap.classList.toggle('collapsed');if(collapsed.has(node.id))collapsed.delete(node.id);else collapsed.add(node.id);};}
+  else{chev.className='chev spacer';}
+  row.appendChild(chev);
+  // code
+  const code=document.createElement('span');code.className='code';code.textContent=node.code;row.appendChild(code);
+  // icon
+  const ic=document.createElement('span');ic.className='ticon '+node.kind;
+  ic.innerHTML='<i data-lucide="'+(node.kind==='branch'?(collapsed.has(node.id)?'folder':'folder-open'):node.icon)+'" style="width:'+(node.kind==='branch'?15:13)+'px;height:'+(node.kind==='branch'?15:13)+'px"></i>';row.appendChild(ic);
+  // name
+  const nm=document.createElement('span');nm.className='tname';nm.textContent=node.name;
+  nm.ondblclick=e=>{e.stopPropagation();editName(nm,node);};row.appendChild(nm);
+  // meta
+  const meta=document.createElement('div');meta.className='tmeta';
+  const st=node.kind==='leaf'?node.status:brStatus(r);
+  const hrs=document.createElement('span');hrs.className='hrs';hrs.innerHTML='<b>'+hm(r.act)+'</b> / '+hm(r.est);meta.appendChild(hrs);
+  if(node.kind==='branch'){const m=margin(r);const mar=document.createElement('span');mar.className='mar';mar.style.color=marColor(m);mar.style.background=marColor(m).replace('var(--success)','var(--success-wash)').replace('var(--warning)','var(--warning-wash)').replace('var(--danger)','var(--danger-wash)');mar.textContent=m+'%';mar.title='Margine';meta.appendChild(mar);}
+  const pl=document.createElement('span');pl.className='pill '+STCLS[st];pl.innerHTML='<span class="dot"></span>'+STLAB[st];meta.appendChild(pl);
+  // actions
+  const act=document.createElement('span');act.className='tact';
+  if(node.kind==='branch'){const a1=document.createElement('span');a1.className='a';a1.title='Aggiungi attività';a1.innerHTML='<i data-lucide="plus"></i>';a1.onclick=e=>{e.stopPropagation();collapsed.delete(node.id);renderDesktop();const inp=document.querySelector('.node-wrap[data-id="'+node.id+'"] .addrow');if(inp)inp.click();};act.appendChild(a1);}
+  const a2=document.createElement('span');a2.className='a';a2.innerHTML='<i data-lucide="ellipsis"></i>';act.appendChild(a2);
+  meta.appendChild(act);
+  row.appendChild(meta);
+  row.onclick=()=>{selected=node.id;renderDesktop();};
+  wrap.appendChild(row);
+  if(node.kind==='branch'){
+    const kids=document.createElement('div');kids.className='tkids';
+    (node.children||[]).forEach(c=>kids.appendChild(nodeEl(c,depth+1)));
+    kids.appendChild(addRowEl(node,depth+1));
+    wrap.appendChild(kids);
+  }
+  return wrap;
+}
+function addRowEl(parent,depth){
+  const a=document.createElement('div');a.className='addrow';a.style.paddingLeft=(10+depth*20+26)+'px';
+  a.innerHTML='<i data-lucide="plus"></i> aggiungi attività';
+  a.onclick=()=>{
+    a.innerHTML='';const inp=document.createElement('input');inp.placeholder='Nome attività… (Invio)';a.appendChild(inp);inp.focus();
+    inp.onkeydown=e=>{if(e.key==='Enter'&&inp.value.trim()){const n=(parent.children||[]).length+1;parent.children=parent.children||[];parent.children.push({id:parent.id+'.'+n,code:parent.code+'.'+n,name:inp.value.trim(),kind:'leaf',icon:'circle-dashed',status:'todo',owner:'—',est:60,act:0,cost:0,rev:0});renderDesktop();}
+      if(e.key==='Escape'){renderDesktop();}};
+    inp.onblur=()=>{setTimeout(renderDesktop,120);};
+  };
+  return a;
+}
+function editName(span,node){
+  span.contentEditable=true;span.focus();
+  const rng=document.createRange();rng.selectNodeContents(span);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(rng);
+  const done=()=>{span.contentEditable=false;node.name=span.textContent.trim()||node.name;renderDesktop();renderMobile();};
+  span.onblur=done;span.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();span.blur();}};
+}
+function renderDesktop(){
+  const tree=document.getElementById('treeD');if(!tree)return;tree.innerHTML='';
+  T.forEach(n=>tree.appendChild(nodeEl(n,0)));
+  // rollup header
+  const R=roll({kind:'branch',children:T});
+  document.getElementById('rollupD').innerHTML=
+    '<div class="progmini"><div class="bar"><i style="width:'+pct(R)+'%"></i></div><span class="rv" style="font-size:12.5px">'+pct(R)+'%</span></div>'+
+    '<div class="rg"><span class="rk">Ore</span><span class="rv">'+hm(R.act)+' / '+hm(R.est)+'</span></div>'+
+    '<div class="rg"><span class="rk">Costo</span><span class="rv">'+eur(R.cost)+'</span></div>'+
+    '<div class="rg"><span class="rk">Ricavo</span><span class="rv">'+eur(R.rev)+'</span></div>'+
+    '<div class="rg"><span class="rk">Margine</span><span class="rv good">'+margin(R)+'%</span></div>';
+  renderDetail();
+  ICONS();
+}
+function renderDetail(){
+  const d=document.getElementById('detailD');if(!d)return;
+  const node=findNode(selected)||T[0];const r=roll(node);const st=node.kind==='leaf'?node.status:brStatus(r);
+  let body='';
+  if(node.kind==='leaf'){
+    body=
+    '<div class="frow"><div class="fbox"><span class="l">Stato</span><div class="v"><span class="pill '+STCLS[st]+'"><span class="dot"></span>'+STLAB[st]+'</span></div></div>'+
+    '<div class="fbox"><span class="l">Responsabile</span><div class="v">'+node.owner+'</div></div></div>'+
+    '<div class="frow"><div class="fbox"><span class="l">Ore stimate</span><div class="v mono">'+hm(node.est)+'</div></div>'+
+    '<div class="fbox"><span class="l">Ore consuntivo</span><div class="v mono">'+hm(node.act)+'</div></div></div>'+
+    '<div class="fbox"><span class="l">Periodo</span><div class="v mono" style="font-size:13px">04/05/2026 → 31/07/2026</div></div>'+
+    '<div class="moneybox"><div class="m"><div class="mk">Costo</div><div class="mv">'+eur(node.cost)+'</div></div><div class="m"><div class="mk">Ricavo</div><div class="mv">'+eur(node.rev)+'</div></div><div class="m"><div class="mk">Margine</div><div class="mv" style="color:'+marColor(margin(r))+'">'+margin(r)+'%</div></div></div>'+
+    '<div><div class="relstrip"><span class="rt on">Risorse</span><span class="rt">Materiali</span><span class="rt">Note</span></div>'+
+    '<div class="chips"><span class="chip"><i data-lucide="users" style="width:14px;height:14px"></i> '+node.owner+'</span><span class="chip"><i data-lucide="package" style="width:14px;height:14px"></i> Cavo 24F · 200m</span><span class="chip"><i data-lucide="wrench" style="width:14px;height:14px"></i> Minipala</span></div></div>';
+  } else {
+    body=
+    '<div class="frow"><div class="fbox"><span class="l">Stato ramo</span><div class="v"><span class="pill '+STCLS[st]+'"><span class="dot"></span>'+STLAB[st]+'</span></div></div>'+
+    '<div class="fbox"><span class="l">Avanzamento</span><div class="v mono">'+pct(r)+'%</div></div></div>'+
+    '<div class="frow"><div class="fbox"><span class="l">Attività</span><div class="v">'+r.leaves+' ('+r.done+' completate)</div></div>'+
+    '<div class="fbox"><span class="l">Ore cons./stim.</span><div class="v mono" style="font-size:13px">'+hm(r.act)+' / '+hm(r.est)+'</div></div></div>'+
+    '<div class="moneybox"><div class="m"><div class="mk">Costo</div><div class="mv">'+eur(r.cost)+'</div></div><div class="m"><div class="mk">Ricavo</div><div class="mv">'+eur(r.rev)+'</div></div><div class="m"><div class="mk">Margine</div><div class="mv" style="color:'+marColor(margin(r))+'">'+margin(r)+'%</div></div></div>'+
+    '<div class="fbox"><span class="l">Nota</span><div class="v" style="font-weight:500;font-size:12.5px;color:var(--ink-soft)">Il ramo è un riepilogo: ore, costi e margine sono la somma delle attività figlie. Solo le foglie portano dati.</div></div>';
+  }
+  d.innerHTML=
+    '<div class="dhead"><span class="dcode">'+node.code+'</span><span class="dt">'+node.name+'</span>'+
+    '<span class="da"><button class="btn btn-ghost" style="height:30px;padding:0 11px">Annulla</button><button class="btn btn-primary" style="height:30px;padding:0 12px">Salva</button></span></div>'+
+    '<div class="body">'+body+'</div>';
+}
+
+/* ---------------- MOBILE TREE ---------------- */
+function mNodeEl(node,depth){
+  const wrap=document.createElement('div');wrap.className='node-wrap';wrap.dataset.id=node.id;
+  if(collapsed.has(node.id))wrap.classList.add('collapsed');
+  const row=document.createElement('div');row.className='tnode '+node.kind;row.style.paddingLeft=(10+depth*16)+'px';
+  const r=roll(node);const st=node.kind==='leaf'?node.status:brStatus(r);
+  const chev=document.createElement('span');
+  if(node.kind==='branch'){chev.className='chev';chev.innerHTML='<i data-lucide="chevron-down" style="width:15px;height:15px"></i>';
+    chev.onclick=e=>{e.stopPropagation();wrap.classList.toggle('collapsed');if(collapsed.has(node.id))collapsed.delete(node.id);else collapsed.add(node.id);};}
+  else chev.className='chev spacer';
+  row.appendChild(chev);
+  const code=document.createElement('span');code.className='code';code.textContent=node.code;row.appendChild(code);
+  const ic=document.createElement('span');ic.className='ticon '+node.kind;ic.innerHTML='<i data-lucide="'+(node.kind==='branch'?'folder-open':node.icon)+'" style="width:13px;height:13px"></i>';row.appendChild(ic);
+  const nm=document.createElement('span');nm.className='tname';nm.textContent=node.name;row.appendChild(nm);
+  const meta=document.createElement('div');meta.className='tmeta';meta.style.gap='8px';
+  if(node.kind==='leaf'){const hrs=document.createElement('span');hrs.className='hrs';hrs.innerHTML='<b>'+hm(r.act)+'</b>';meta.appendChild(hrs);}
+  else{const m=margin(r);const mar=document.createElement('span');mar.className='mar';mar.style.color=marColor(m);mar.textContent=m+'%';meta.appendChild(mar);}
+  const pl=document.createElement('span');pl.className='pill '+STCLS[st];pl.style.padding='0 6px';pl.innerHTML='<span class="dot"></span>';meta.appendChild(pl);
+  if(node.kind==='branch'){const en=document.createElement('span');en.className='enter';en.innerHTML='<i data-lucide="chevron-right" style="width:16px;height:16px"></i>';en.onclick=e=>{e.stopPropagation();mFocus=node.id;mMode='focus';syncMModeBtns();renderMobile();};meta.appendChild(en);}
+  row.appendChild(meta);
+  row.onclick=()=>{if(node.kind==='leaf')openSheet(node.id);else{wrap.classList.toggle('collapsed');if(collapsed.has(node.id))collapsed.delete(node.id);else collapsed.add(node.id);}};
+  wrap.appendChild(row);
+  if(node.kind==='branch'){const kids=document.createElement('div');kids.className='tkids';(node.children||[]).forEach(c=>kids.appendChild(mNodeEl(c,depth+1)));wrap.appendChild(kids);}
+  return wrap;
+}
+function renderMobile(){
+  const tree=document.getElementById('treeM');if(!tree)return;tree.innerHTML='';
+  const crumb=document.getElementById('mCrumb');
+  let list=T,base=0;
+  if(mMode==='focus'&&mFocus){const f=findNode(mFocus);if(f){list=f.children||[];base=0;
+      crumb.style.display='flex';crumb.innerHTML='<span style="cursor:pointer" id="crHome">Commessa</span><span class="sepc">/</span><b>'+f.code+' · '+f.name+'</b>';
+    }}
+  else crumb.style.display='none';
+  list.forEach(n=>tree.appendChild(mNodeEl(n,base)));
+  const R=roll({kind:'branch',children:T});
+  document.getElementById('rollupM').textContent=pct(R)+'% · '+hm(R.act)+'h · '+margin(R)+'%';
+  const ch=document.getElementById('crHome');if(ch)ch.onclick=()=>{mFocus=null;mMode='all';syncMModeBtns();renderMobile();};
+  ICONS();
+}
+function syncMModeBtns(){document.querySelectorAll('#mMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===mMode));}
+function openSheet(id){
+  const node=findNode(id);const r=roll(node);
+  const sheet=document.getElementById('sheet');
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="shead"><span class="dcode">'+node.code+'</span><span class="stt">'+node.name+'</span><span class="x" id="sx"><i data-lucide="x" style="width:17px;height:17px"></i></span></div>'+
+    '<div class="body">'+
+      '<div class="frow"><div class="fbox"><span class="l">Stato</span><div class="v"><span class="pill '+STCLS[node.status]+'"><span class="dot"></span>'+STLAB[node.status]+'</span></div></div>'+
+      '<div class="fbox"><span class="l">Responsabile</span><div class="v">'+node.owner+'</div></div></div>'+
+      '<div class="frow"><div class="fbox"><span class="l">Ore stim.</span><div class="v mono">'+hm(node.est)+'</div></div><div class="fbox"><span class="l">Ore cons.</span><div class="v mono">'+hm(node.act)+'</div></div></div>'+
+      '<div class="moneybox"><div class="m"><div class="mk">Costo</div><div class="mv">'+eur(node.cost)+'</div></div><div class="m"><div class="mk">Ricavo</div><div class="mv">'+eur(node.rev)+'</div></div><div class="m"><div class="mk">Margine</div><div class="mv" style="color:'+marColor(margin(r))+'">'+margin(r)+'%</div></div></div>'+
+      '<div class="chips"><span class="chip"><i data-lucide="package" style="width:14px;height:14px"></i> Cavo 24F</span><span class="chip"><i data-lucide="wrench" style="width:14px;height:14px"></i> Minipala</span></div>'+
+      '<button class="btn btn-primary" style="justify-content:center"><i data-lucide="check" style="width:16px;height:16px"></i> Salva</button>'+
+    '</div>';
+  document.getElementById('sheetBack').classList.add('open');sheet.classList.add('open');ICONS();
+  document.getElementById('sx').onclick=closeSheet;
+}
+function closeSheet(){document.getElementById('sheet').classList.remove('open');document.getElementById('sheetBack').classList.remove('open');}
+
+/* ---------------- WIRING ---------------- */
+document.querySelectorAll('#vp button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#vp button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const m=b.dataset.vp==='m';document.getElementById('viewD').style.display=m?'none':'grid';document.getElementById('viewM').style.display=m?'block':'none';
+  if(m)renderMobile();else renderDesktop();
+});
+document.getElementById('expAll').onclick=()=>{collapsed.clear();renderDesktop();};
+document.getElementById('colAll').onclick=()=>{(function walk(l){l.forEach(n=>{if(n.kind==='branch'){collapsed.add(n.id);walk(n.children||[]);}});})(T);renderDesktop();};
+document.getElementById('addRoot').onclick=()=>{const n=T.length+1;T.push({id:''+n,code:''+n,name:'Nuovo ramo',kind:'branch',icon:'folder',children:[]});renderDesktop();};
+document.getElementById('mColAll').onclick=()=>{(function walk(l){l.forEach(n=>{if(n.kind==='branch'){collapsed.add(n.id);walk(n.children||[]);}});})(T);renderMobile();};
+document.querySelectorAll('#mMode button').forEach(b=>b.onclick=()=>{mMode=b.dataset.m;if(mMode==='all')mFocus=null;syncMModeBtns();renderMobile();});
+document.getElementById('sheetBack').onclick=closeSheet;
+
+renderDesktop();
+ICONS();
+</script>
+</body>
+</html>

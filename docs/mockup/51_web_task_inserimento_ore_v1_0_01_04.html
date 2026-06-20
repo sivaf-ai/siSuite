@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Rapportino attività · ore, materiali, attrezzature</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:20px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-2:0 2px 6px rgba(27,29,36,.06),0 14px 34px rgba(27,29,36,.09);--shadow-pop:0 8px 24px rgba(91,77,240,.18);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono);font-feature-settings:"tnum" 1}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}svg{width:17px;height:17px}
+input{font-family:inherit}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:var(--r-sm);font-weight:600;font-size:13px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600}.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--info{color:var(--info);background:var(--info-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}.pill--success{color:var(--success);background:var(--success-wash)}
+.page{max-width:1100px;margin:0 auto;padding:26px 18px 80px}
+.intro h1{font-size:25px;font-weight:800}.intro h1 em{font-style:normal;background:var(--flow-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--ink-soft);font-size:13.5px;margin:7px 0 0;max-width:820px}
+.switch{display:flex;align-items:center;gap:12px;margin:18px 0 16px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--neutral-wash);border-radius:var(--r-sm);padding:3px;gap:2px}
+.seg button{height:30px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft);display:inline-flex;align-items:center;gap:7px}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-1)}
+.switch .hint{font-size:12.5px;color:var(--ink-faint)}
+
+/* mask card */
+.mask{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-2);overflow:hidden;display:flex;flex-direction:column}
+.dwrap{max-width:780px;margin:0 auto}
+.crumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);flex-wrap:wrap}.crumb .c1{color:var(--ink-faint)}.crumb b{color:var(--ink)}.crumb .s{color:var(--line)}
+.mhead{padding:16px 20px;border-bottom:1px solid var(--line)}
+.mhead .row1{display:flex;align-items:center;gap:10px}
+.mhead h2{font-size:18px;font-weight:800;margin:9px 0 0}
+.mhead .date{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--neutral-wash);padding:5px 11px;border-radius:var(--r-pill)}
+.body{padding:16px 20px}
+.aibar{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--r);background:linear-gradient(120deg,#fff,#fff) padding-box,var(--flow-grad) border-box;border:1.6px solid transparent;box-shadow:var(--shadow-1)}
+.aibar .spark{width:30px;height:30px;border-radius:9px;background:var(--brand-wash);display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.aibar input{flex:1;border:0;background:none;outline:none;font-size:13.5px;color:var(--ink)}.aibar input::placeholder{color:var(--ink-faint)}
+.aibar .mic{width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-soft);flex:0 0 auto}
+.aihelp{font-size:11.5px;color:var(--ink-faint);margin:7px 2px 0;display:flex;align-items:center;gap:6px}
+
+.segtabs{display:flex;gap:7px;margin:16px 0 11px}
+.segtab{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:var(--r-pill);background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink-soft)}
+.segtab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.segtab .cnt{font-family:var(--font-mono);font-size:11px;background:rgba(255,255,255,.25);padding:0 6px;border-radius:var(--r-pill)}
+.segtab:not(.on) .cnt{background:var(--neutral-wash);color:var(--ink-soft)}
+
+.linelist{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lhead{display:grid;padding:9px 13px;background:var(--paper);border-bottom:1px solid var(--line);font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+.lrow{display:grid;align-items:center;padding:10px 13px;border-bottom:1px solid var(--line-2);font-size:13px}
+.lrow:last-child{border-bottom:0}.lrow:hover{background:var(--paper)}
+.lrow .nm{font-weight:600}.lrow .sub{font-size:11.5px;color:var(--ink-soft)}
+.num{font-family:var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+.del{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-faint);justify-self:end}.del:hover{background:var(--danger-wash);color:var(--danger)}
+.grid-ore{grid-template-columns:1.6fr .7fr 1.4fr 34px}
+.grid-mat{grid-template-columns:1.8fr .6fr .5fr 34px}
+.grid-att{grid-template-columns:2fr .8fr 34px}
+.addbox{display:grid;gap:8px;padding:11px 13px;background:var(--brand-wash);border-top:1px dashed var(--brand)}
+.addbox.grid-ore,.addbox.grid-mat,.addbox.grid-att{align-items:center}
+.fin{height:36px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;padding:0 11px;font-size:13px;outline:none;width:100%}
+.fin:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(91,77,240,.12)}
+.addbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:var(--r-sm);background:var(--brand);color:#fff;font-weight:600;font-size:12.5px}
+.ghostadd{display:flex;align-items:center;gap:7px;padding:9px 13px;color:var(--brand-ink);font-weight:600;font-size:12.5px;cursor:pointer;border-top:1px solid var(--line-2)}.ghostadd:hover{background:var(--paper)}
+
+.totbar{display:flex;align-items:center;gap:18px;margin-top:14px;padding:13px 16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r)}
+.totbar .tg{display:flex;flex-direction:column}.totbar .tk{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+.totbar .tv{font-family:var(--font-mono);font-size:16px;font-weight:600}
+.footer{display:flex;gap:9px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:var(--card)}
+
+/* mobile */
+.frame-m{width:392px;height:810px;margin:0 auto;border-radius:42px;background:#0c0d12;padding:11px;box-shadow:var(--shadow-2);position:relative}
+.notch{position:absolute;top:17px;left:50%;transform:translateX(-50%);width:118px;height:26px;background:#0c0d12;border-radius:0 0 16px 16px;z-index:6}
+.screen{position:relative;height:100%;background:var(--paper);border-radius:32px;overflow:hidden;display:flex;flex-direction:column}
+.m-top{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);padding:30px 16px 12px}
+.m-top h2{font-size:16px;font-weight:800;margin:7px 0 0}
+.m-body{flex:1;overflow:auto;padding:13px 13px 90px}
+.m-foot{position:absolute;left:0;right:0;bottom:0;padding:12px 14px 18px;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 32%);display:flex;gap:9px}
+.m-foot .btn{flex:1;justify-content:center}
+.msegtabs{display:flex;gap:6px;margin:12px 0 10px}
+.msegtabs .segtab{height:32px;font-size:12px;flex:1;justify-content:center}
+.card-line{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.card-line .ci{width:34px;height:34px;border-radius:9px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--ink-soft);flex:0 0 auto}
+.card-line .nm{font-weight:600;font-size:13.5px}.card-line .sub{font-size:11.5px;color:var(--ink-soft)}
+.card-line .rt{margin-left:auto;font-family:var(--font-mono);font-weight:600}
+.note{font-size:12.5px;color:var(--ink-soft);margin-top:16px;max-width:840px}.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1><em>si</em>Suite — Rapportino su attività</h1>
+    <p>Inserisci <b>ore, materiali e attrezzature</b> su un task. Prima la voce ("detta cosa hai fatto" → l'AI compila le righe e tu confermi), ma anche inserimento manuale velocissimo: una riga, un campo, e via. Prova Desktop/Mobile e i pulsanti <b>Compila</b> (simula l'AI) e <b>+ aggiungi</b>.</p>
+  </div>
+  <div class="switch">
+    <div class="seg" id="vp"><button data-vp="d" class="on"><i data-lucide="monitor"></i> Desktop</button><button data-vp="m"><i data-lucide="smartphone"></i> Mobile</button></div>
+    <span class="hint">Aggiungi/elimina righe, cambia sezione, i totali si aggiornano.</span>
+  </div>
+
+  <!-- DESKTOP -->
+  <div class="dwrap" id="viewD">
+    <div class="mask">
+      <div class="mhead">
+        <div class="crumb"><span class="c1">Napoli Est</span><span class="s">›</span><span class="c1">3 Posa</span><span class="s">›</span><b>3.1.1 Posa Tratta A</b></div>
+        <div class="row1"><h2>Rapportino — Posa Tratta A</h2><span class="date"><i data-lucide="calendar" style="width:15px;height:15px"></i> Oggi · 18/06/2026</span></div>
+      </div>
+      <div class="body">
+        <div class="aibar">
+          <div class="spark"><i data-lucide="sparkles"></i></div>
+          <input id="aiD" placeholder="Detta: «4 ore e mezza io e la squadra 2, posati 200 m di cavo 24F, usata la minipala 3 ore»">
+          <button class="mic"><i data-lucide="mic"></i></button>
+          <button class="btn btn-primary" id="fillD"><i data-lucide="wand-2" style="width:16px;height:16px"></i> Compila</button>
+        </div>
+        <div class="aihelp"><i data-lucide="info" style="width:13px;height:13px"></i> L'AI propone le righe qui sotto — tu controlli e salvi. (Premi "Compila" per vederlo)</div>
+
+        <div class="segtabs" id="tabsD"></div>
+        <div id="sectionD"></div>
+
+        <div class="totbar" id="totD"></div>
+      </div>
+      <div class="footer"><button class="btn btn-ghost">Annulla</button><button class="btn btn-primary"><i data-lucide="check" style="width:16px;height:16px"></i> Salva rapportino</button></div>
+    </div>
+  </div>
+
+  <!-- MOBILE -->
+  <div id="viewM" style="display:none">
+    <div class="frame-m"><div class="notch"></div><div class="screen">
+      <div class="m-top">
+        <div class="crumb"><b>3.1.1 Posa Tratta A</b></div>
+        <h2>Rapportino</h2>
+      </div>
+      <div class="m-body">
+        <div class="aibar" style="padding:9px 11px">
+          <div class="spark" style="width:26px;height:26px"><i data-lucide="sparkles" style="width:15px;height:15px"></i></div>
+          <input placeholder="Detta cosa hai fatto…" style="font-size:13px">
+          <button class="mic" style="width:30px;height:30px"><i data-lucide="mic" style="width:15px;height:15px"></i></button>
+        </div>
+        <div class="msegtabs" id="tabsM"></div>
+        <div id="sectionM"></div>
+        <div class="totbar" id="totM" style="margin-top:12px;padding:11px 13px"></div>
+      </div>
+      <div class="m-foot"><button class="btn btn-ghost" style="flex:0 0 auto">Annulla</button><button class="btn btn-primary"><i data-lucide="check" style="width:16px;height:16px"></i> Salva</button></div>
+    </div></div>
+  </div>
+
+  <div class="note"><b>L'idea.</b> Una sola maschera per ore + materiali + attrezzature, perché il tecnico in cantiere registra tutto in un colpo. La voce riempie le tre sezioni insieme; il manuale è ridotto all'osso (un campo per cosa serve, niente finestre). I totali sono sempre sotto gli occhi. Su mobile il "Salva" è sempre a portata di pollice.</div>
+</div>
+
+<script>
+const fmtHM=m=>{const h=Math.floor(m/60),x=m%60;return h+':'+String(x).padStart(2,'0')};
+const DATA={
+  ore:[{res:'Marco Gallo',dur:270,note:'Posa e tiraggio cavo'},{res:'Squadra 2',dur:120,note:'Assistenza'}],
+  mat:[{art:'Cavo ottico 24F',q:200,um:'m'},{art:'Giunti dritti',q:4,um:'pz'}],
+  att:[{att:'Minipala',dur:180}]
+};
+const RES=['Marco Gallo','Anna Greco','Giulia Russo','Luca Ferri','Squadra 1','Squadra 2'];
+const ART=['Cavo ottico 24F','Giunti dritti','Bretelle SC/APC','Pozzetto 40x40','Tubo corrugato Ø50','Chiusura ROE'];
+const ATT=['Minipala','Fusionatrice','OTDR','Gruppo elettrogeno','Furgone attrezzato'];
+let cur={d:'ore',m:'ore'};
+
+function dataList(id,arr){return '<datalist id="'+id+'">'+arr.map(a=>'<option value="'+a+'">').join('')+'</datalist>';}
+
+function tabs(side){
+  const t=[['ore','Ore','clock'],['mat','Materiali','package'],['att','Attrezzature','wrench']];
+  return t.map(([k,l,ic])=>{
+    const cnt=DATA[k].length, on=cur[side]===k?' on':'';
+    return '<button class="segtab'+on+'" data-k="'+k+'">'+'<i data-lucide="'+ic+'" style="width:15px;height:15px"></i> '+l+' <span class="cnt">'+cnt+'</span></button>';
+  }).join('');
+}
+
+function sectionDesktop(){
+  const k=cur.d;let html='<div class="linelist">';
+  if(k==='ore'){
+    html+='<div class="lhead grid-ore"><span>Risorsa</span><span class="num">Ore (h:mm)</span><span>Nota</span><span></span></div>';
+    DATA.ore.forEach((r,i)=>html+='<div class="lrow grid-ore"><span class="nm">'+r.res+'</span><span class="num">'+fmtHM(r.dur)+'</span><span class="sub">'+(r.note||'—')+'</span><span class="del" data-del="ore" data-i="'+i+'"><i data-lucide="trash-2" style="width:15px;height:15px"></i></span></div>');
+    html+='<div class="addbox grid-ore"><input class="fin" id="o_res" list="dlres" placeholder="Risorsa o squadra"><input class="fin num" id="o_dur" placeholder="h:mm"><input class="fin" id="o_note" placeholder="Nota (opz.)"><button class="addbtn" data-add="ore"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  } else if(k==='mat'){
+    html+='<div class="lhead grid-mat"><span>Articolo</span><span class="num">Q.tà</span><span>U.M.</span><span></span></div>';
+    DATA.mat.forEach((r,i)=>html+='<div class="lrow grid-mat"><span class="nm">'+r.art+'</span><span class="num">'+r.q+'</span><span class="sub">'+r.um+'</span><span class="del" data-del="mat" data-i="'+i+'"><i data-lucide="trash-2" style="width:15px;height:15px"></i></span></div>');
+    html+='<div class="addbox grid-mat"><input class="fin" id="m_art" list="dlart" placeholder="Articolo"><input class="fin num" id="m_q" placeholder="Q.tà"><input class="fin" id="m_um" placeholder="pz/m"><button class="addbtn" data-add="mat"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  } else {
+    html+='<div class="lhead grid-att"><span>Attrezzatura</span><span class="num">Ore d\'uso</span><span></span></div>';
+    DATA.att.forEach((r,i)=>html+='<div class="lrow grid-att"><span class="nm">'+r.att+'</span><span class="num">'+fmtHM(r.dur)+'</span><span class="del" data-del="att" data-i="'+i+'"><i data-lucide="trash-2" style="width:15px;height:15px"></i></span></div>');
+    html+='<div class="addbox grid-att"><input class="fin" id="a_att" list="dlatt" placeholder="Attrezzatura"><input class="fin num" id="a_dur" placeholder="h:mm"><button class="addbtn" data-add="att"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  }
+  html+='</div>'+dataList('dlres',RES)+dataList('dlart',ART)+dataList('dlatt',ATT);
+  return html;
+}
+function sectionMobile(){
+  const k=cur.m;let html='';
+  const icon={ore:'clock',mat:'package',att:'wrench'}[k];
+  (DATA[k]||[]).forEach((r,i)=>{
+    let nm,sub,rt;
+    if(k==='ore'){nm=r.res;sub=r.note||'—';rt=fmtHM(r.dur);}
+    else if(k==='mat'){nm=r.art;sub=r.um;rt=r.q;}
+    else {nm=r.att;sub='ore d\'uso';rt=fmtHM(r.dur);}
+    html+='<div class="card-line"><span class="ci"><i data-lucide="'+icon+'" style="width:16px;height:16px"></i></span><div><div class="nm">'+nm+'</div><div class="sub">'+sub+'</div></div><span class="rt">'+rt+'</span><span class="del" data-del="'+k+'" data-i="'+i+'"><i data-lucide="trash-2" style="width:15px;height:15px"></i></span></div>';
+  });
+  // quick add (mobile)
+  if(k==='ore')html+='<div class="addbox grid-ore" style="border-radius:var(--r);border:1px dashed var(--brand);margin-top:6px"><input class="fin" id="mo_res" list="dlres" placeholder="Risorsa"><input class="fin num" id="mo_dur" placeholder="h:mm"><input class="fin" id="mo_note" placeholder="Nota"><button class="addbtn" data-add="ore" data-side="m"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  else if(k==='mat')html+='<div class="addbox grid-mat" style="border-radius:var(--r);border:1px dashed var(--brand);margin-top:6px"><input class="fin" id="mm_art" list="dlart" placeholder="Articolo"><input class="fin num" id="mm_q" placeholder="Q.tà"><input class="fin" id="mm_um" placeholder="UM"><button class="addbtn" data-add="mat" data-side="m"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  else html+='<div class="addbox grid-att" style="border-radius:var(--r);border:1px dashed var(--brand);margin-top:6px"><input class="fin" id="ma_att" list="dlatt" placeholder="Attrezzatura"><input class="fin num" id="ma_dur" placeholder="h:mm"><button class="addbtn" data-add="att" data-side="m"><i data-lucide="plus" style="width:15px;height:15px"></i></button></div>';
+  html+=dataList('dlres',RES)+dataList('dlart',ART)+dataList('dlatt',ATT);
+  return html;
+}
+function totals(){
+  const ore=DATA.ore.reduce((s,r)=>s+r.dur,0);
+  const att=DATA.att.reduce((s,r)=>s+r.dur,0);
+  return '<div class="tg"><span class="tk">Ore totali</span><span class="tv">'+fmtHM(ore)+'</span></div>'+
+         '<div class="tg"><span class="tk">Righe materiali</span><span class="tv">'+DATA.mat.length+'</span></div>'+
+         '<div class="tg"><span class="tk">Ore attrezzature</span><span class="tv">'+fmtHM(att)+'</span></div>';
+}
+function parseDur(v){if(!v)return 0;v=v.trim();if(v.includes(':')){const[a,b]=v.split(':');return (+a||0)*60+(+b||0);}if(v.includes(','))return Math.round(parseFloat(v.replace(',','.'))*60);return Math.round((parseFloat(v)||0)*60);}
+
+function renderD(){const t=document.getElementById('tabsD');if(t){t.innerHTML=tabs('d');document.getElementById('sectionD').innerHTML=sectionDesktop();document.getElementById('totD').innerHTML=totals();}window.lucide&&lucide.createIcons();}
+function renderM(){const t=document.getElementById('tabsM');if(t){t.innerHTML=tabs('m');document.getElementById('sectionM').innerHTML=sectionMobile();document.getElementById('totM').innerHTML=totals();}window.lucide&&lucide.createIcons();}
+
+document.addEventListener('click',e=>{
+  const tab=e.target.closest('.segtab');if(tab){const side=document.getElementById('viewM').style.display==='none'?'d':'m';cur[side]=tab.dataset.k;side==='d'?renderD():renderM();return;}
+  const del=e.target.closest('[data-del]');if(del){DATA[del.dataset.del].splice(+del.dataset.i,1);renderD();renderM();return;}
+  const add=e.target.closest('[data-add]');if(add){addLine(add.dataset.add,add.dataset.side||'d');return;}
+});
+function addLine(k,side){
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  if(k==='ore'){const p=side==='m'?'mo_':'o_';const res=g(p+'res'),dur=parseDur(g(p+'dur'));if(!res&&!dur)return;DATA.ore.push({res:res||'—',dur,note:g(p+'note')});}
+  else if(k==='mat'){const p=side==='m'?'mm_':'m_';const art=g(p+'art');if(!art)return;DATA.mat.push({art,q:parseFloat(g(p+'q'))||0,um:g(p+'um')||'pz'});}
+  else {const p=side==='m'?'ma_':'a_';const att=g(p+'att');if(!att)return;DATA.att.push({att,dur:parseDur(g(p+'dur'))});}
+  renderD();renderM();
+}
+function aiFill(){ // simulate AI proposal
+  DATA.ore=[{res:'Marco Gallo',dur:270,note:'Posa e tiraggio'},{res:'Squadra 2',dur:270,note:'Assistenza posa'}];
+  DATA.mat=[{art:'Cavo ottico 24F',q:200,um:'m'},{art:'Giunti dritti',q:4,um:'pz'}];
+  DATA.att=[{att:'Minipala',dur:180}];
+  renderD();renderM();
+}
+document.getElementById('fillD').onclick=aiFill;
+
+document.querySelectorAll('#vp button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#vp button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const m=b.dataset.vp==='m';document.getElementById('viewD').style.display=m?'none':'block';document.getElementById('viewM').style.display=m?'block':'none';
+  m?renderM():renderD();
+});
+renderD();renderM();window.lucide&&lucide.createIcons();
+</script>
+</body>
+</html>

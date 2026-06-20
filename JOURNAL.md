@@ -52,6 +52,11 @@
 - **Tutti i 64 test backend verdi** (8 file). Typecheck FE+BE pulito. Backend riavviato, health 200.
 - **Resta solo Blocco 2 retrofit generico** (stringhe IT in tooltip/header/dialoghi) + rifiniture QBE type-aware.
 
+## 2026-06-20 — Stato per Claude AI + schema DB rigenerato (Claude Code)
+- **Schema DB rigenerato**: `docs/analisi/2026-06-20_schema_db_completo.md` (pg_dump 001→037). Delta vs 18/06: +`saved_view` (036), +`pg_trgm` + 9 indici trigram (037).
+- **Stato dettagliato per decidere come procedere**: `docs/analisi/2026-06-20_STATO_per_ClaudeAI.md` (per-blocco: fatto/come/file/residuo + decisioni prese in autonomia + opzioni A/B/C).
+- **⚠️ I 7 commit del PIANO sono LOCALI, non pushati** (`main...origin/main [ahead 7]`): serve `git push origin main` a mano. Residuo documentato: long-tail i18n per-pagina (B2), QBE type-aware + conteggi-col-filtro (B5), proposta dedup AI (B6).
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.
