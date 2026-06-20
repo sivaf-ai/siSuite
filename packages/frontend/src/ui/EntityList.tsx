@@ -312,7 +312,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     p.onSortChange?.(next);
     setSortOpen(false);
   }
-  const sortChooserFields: ChooserField[] = (p.sortFields ?? []).map((f) => ({ key: f.key, label: f.label }));
+  // Ordina su TUTTI i campi dell'entità (non solo i sortFields): usa la sorgente export
+  // (colonne base + field_definition). Il backend ordina per attributo via attrsCol.
+  const sortChooserFields: ChooserField[] = exportSource.map((f) => ({ key: f.key, label: f.label }));
 
   const allOn = selectable && viewRows.length > 0 && count === viewRows.length;
   const someOn = selectable && count > 0 && count < viewRows.length;
@@ -359,7 +361,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     canGroup
       ? { key: 'gruppo', icon: ListFilter, tip: filterConds.length ? `Filtra (Gruppo) · ${filterConds.length}` : 'Filtra (Gruppo)', variant: (filterConds.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setGroupOpen(true) }
       : { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
-    ...(p.onSortChange && p.sortFields?.length
+    ...(p.onSortChange && sortChooserFields.length
       ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: openSort }]
       : []),
     { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: openColumns },

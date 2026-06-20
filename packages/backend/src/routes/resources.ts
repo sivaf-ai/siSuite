@@ -37,7 +37,7 @@ function toAvailDto(r: Record<string, unknown>): ResourceAvailabilityDto {
 export async function resourceRoutes(app: FastifyInstance): Promise<void> {
   app.get('/resources', { preHandler: [app.authenticate, requirePermission('resource:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
-    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'label', q.sortDir);
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'label', q.sortDir, 'attributes');
     const kind = (request.query as { kind?: string }).kind;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];

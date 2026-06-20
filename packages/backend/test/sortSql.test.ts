@@ -50,4 +50,15 @@ describe('buildOrderBy', () => {
     expect(r).not.toContain('DROP TABLE');
     expect(r).toBe('c.display_name asc NULLS LAST');
   });
+
+  it('campo fuori whitelist + attrsCol → ordina per attributo (tutti i campi ordinabili)', () => {
+    expect(buildOrderBy(JSON.stringify([{ field: 'city', dir: 'desc' }]), SORTABLE, 'c.display_name', 'asc', 'c.attributes'))
+      .toBe("c.attributes->>'city' desc NULLS LAST");
+  });
+
+  it('attrsCol con key NON valida → ignorata (no injection), fallback', () => {
+    const r = buildOrderBy(JSON.stringify([{ field: "x'; DROP TABLE company;--", dir: 'asc' }]), SORTABLE, 'c.display_name', 'asc', 'c.attributes');
+    expect(r).not.toContain('DROP TABLE');
+    expect(r).toBe('c.display_name asc NULLS LAST');
+  });
 });

@@ -163,7 +163,7 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
     const engagementId = (request.query as Record<string, unknown>).engagementId as string | undefined;
     const level = piiLevel(new Set(request.ctx.permissions));
-    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'wo.scheduled_on', q.sortDir);
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'wo.scheduled_on', q.sortDir, 'wo.attributes');
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE wo.archived_at IS NULL`;

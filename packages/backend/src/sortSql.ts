@@ -12,6 +12,7 @@ export function buildOrderBy(
   sortable: Record<string, string>,
   fallbackExpr: string,
   fallbackDir: string = 'asc',
+  attrsCol?: string,   // es. 'c.attributes': i campi non in `sortable` con key valida ordinano per attributo
 ): string {
   let items: SortItem[] = [];
   if (rawSort) {
@@ -21,8 +22,11 @@ export function buildOrderBy(
   const seen = new Set<string>();
   for (const it of items) {
     if (!it || typeof it.field !== 'string') continue;
-    const expr = sortable[it.field];
-    if (!expr || seen.has(it.field)) continue;       // campo fuori whitelist o ripetuto → ignora
+    if (seen.has(it.field)) continue;
+    // espressione: whitelist `sortable`, altrimenti attributo (key validata: niente injection)
+    let expr = sortable[it.field];
+    if (!expr && attrsCol && /^[a-z][a-z0-9_]*$/.test(it.field)) expr = `${attrsCol}->>'${it.field}'`;
+    if (!expr) continue;
     seen.add(it.field);
     const dir = it.dir === 'desc' ? 'desc' : 'asc';  // solo asc/desc
     parts.push(`${expr} ${dir} NULLS LAST`);

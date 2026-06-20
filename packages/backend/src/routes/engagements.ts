@@ -79,7 +79,7 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const q = listQuerySchema.parse(request.query);
       const type = (request.query as { type?: string }).type;
-      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'e.created_at', q.sortBy ? q.sortDir : 'desc');
+      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'e.created_at', q.sortBy ? q.sortDir : 'desc', 'e.attributes');
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
         let where = `WHERE e.archived_at IS NULL`;

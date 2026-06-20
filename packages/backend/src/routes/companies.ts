@@ -58,7 +58,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
   // LISTA (ricerca server-side + ordinamento + paginazione + total)
   app.get('/companies', { preHandler: [app.authenticate, requirePermission('company:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
-    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'c.display_name', q.sortDir);
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'c.display_name', q.sortDir, 'c.attributes');
     const role = (request.query as Record<string, unknown>).role as string | undefined;
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];

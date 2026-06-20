@@ -8,17 +8,17 @@
 .eng-backdrop { position: fixed; inset: 0; background: rgba(20,22,30,.34); z-index: 1200; display: flex; align-items: flex-start; justify-content: center; padding: 60px 14px; }
 .eng-pop { width: 560px; max-width: 100%; max-height: 86vh; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-2); display: flex; flex-direction: column; overflow: hidden; }
 .eng-pop.wide { width: 920px; }
-.eng-head { display: flex; align-items: center; gap: 9px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-.eng-head .t { font-family: var(--font-display); font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.eng-head .t svg { color: var(--brand); width: 16px; height: 16px; }
-.eng-head .x { margin-left: auto; width: 32px; height: 32px; border-radius: 9px; background: var(--neutral-wash); display: grid; place-items: center; color: var(--ink-soft); border: 0; cursor: pointer; }
+.eng-head { display: flex; align-items: center; gap: 9px; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.eng-head .t { font-family: var(--font-display); font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.eng-head .t svg { color: var(--brand); width: 15px; height: 15px; }
+.eng-head .x { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; background: var(--neutral-wash); display: grid; place-items: center; color: var(--ink-soft); border: 0; cursor: pointer; }
 .eng-head .x:hover { color: var(--ink); }
-.eng-body { padding: 13px 16px; overflow: auto; }
-.eng-foot { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); align-items: center; }
+.eng-body { padding: 9px 14px; overflow: auto; }
+.eng-foot { display: flex; gap: 8px; padding: 9px 14px; border-top: 1px solid var(--line); align-items: center; }
 .eng-foot .left { margin-right: auto; font-size: 12px; color: var(--ink-soft); display: flex; align-items: center; }
 
 /* ── SavedHeader: striscia salva/carica/elimina (identica ovunque) ──────── */
-.eng-saver { display: flex; align-items: center; gap: 7px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.eng-saver { display: flex; align-items: center; gap: 7px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: var(--paper); }
 .eng-saver select { flex: 1; height: 34px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); font-size: 12.5px; padding: 0 9px; color: var(--ink); font-family: inherit; }
 .eng-saver .ib { height: 34px; width: 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--card); color: var(--ink-soft); display: grid; place-items: center; cursor: pointer; }
 .eng-saver .ib:disabled { opacity: .4; cursor: default; }
@@ -26,10 +26,10 @@
 .eng-saver .ib.danger:hover { background: var(--danger-wash); color: var(--danger); }
 
 /* ── FieldPicker: area "scelti" + area "tutti i campi" ──────────────────── */
-.eng-seclbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); margin: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
+.eng-seclbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); margin: 2px 0 5px; display: flex; align-items: center; gap: 6px; }
 .eng-seclbl svg { width: 13px; height: 13px; }
-.eng-chosen { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
-.eng-crow { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); box-shadow: var(--shadow-1); cursor: grab; }
+.eng-chosen { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.eng-crow { display: flex; align-items: center; gap: 9px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card); box-shadow: var(--shadow-1); cursor: grab; }
 .eng-crow.drag { opacity: .4; }
 .eng-crow.over { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-wash); }
 .eng-crow .pn { width: 24px; height: 24px; border-radius: 7px; background: var(--brand); color: #fff; font-family: var(--font-mono); font-weight: 700; font-size: 12px; display: grid; place-items: center; flex: 0 0 auto; }
@@ -44,13 +44,13 @@
 .eng-crow .rm { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--ink-faint); border: 0; background: none; cursor: pointer; }
 .eng-crow .rm:hover { background: var(--danger-wash); color: var(--danger); }
 .eng-emptyc { font-size: 12.5px; color: var(--ink-faint); padding: 10px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
-.eng-availbox { margin-top: 14px; }
-.eng-availsearch { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--paper); margin-bottom: 8px; }
+.eng-availbox { margin-top: 8px; }
+.eng-availsearch { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--paper); margin-bottom: 5px; }
 .eng-availsearch svg { width: 15px; height: 15px; color: var(--ink-faint); }
 .eng-availsearch input { border: 0; background: none; outline: none; flex: 1; font-size: 13px; font-family: inherit; color: var(--ink); }
-.eng-availlist { max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); }
+.eng-availlist { max-height: 48vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card); }
 .eng-agrp { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); padding: 8px 11px 3px; background: var(--paper); }
-.eng-arow { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-bottom: 1px solid var(--line-2); cursor: pointer; font-size: 13px; }
+.eng-arow { display: flex; align-items: center; gap: 9px; padding: 6px 11px; border-bottom: 1px solid var(--line-2); cursor: pointer; font-size: 13px; }
 .eng-arow:last-child { border-bottom: 0; }
 .eng-arow:hover { background: var(--brand-wash); }
 .eng-arow .ad { width: 22px; height: 22px; border-radius: 6px; background: var(--neutral-wash); display: grid; place-items: center; color: var(--brand); flex: 0 0 auto; }

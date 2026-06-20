@@ -49,7 +49,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
   app.get('/materials', { preHandler: [app.authenticate, requirePermission('material:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
-    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'm.name', q.sortDir);
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'm.name', q.sortDir, 'm.attributes');
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
       let where = `WHERE m.archived_at IS NULL`;

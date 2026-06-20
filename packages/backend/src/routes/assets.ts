@@ -33,7 +33,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('asset:read')] },
     async (request) => {
       const q = listQuerySchema.parse(request.query);
-      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'a.label', q.sortDir);
+      const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'a.label', q.sortDir, 'a.attributes');
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
         let where = `WHERE a.archived_at IS NULL`;
