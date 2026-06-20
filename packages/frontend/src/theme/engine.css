@@ -180,4 +180,8 @@
 .engrep-rcard .h { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
 .engrep-rcard .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; font-size: 12.5px; }
 .engrep-rcard .kv .k { color: var(--ink-faint); }
+.engrep-fc { margin-bottom: 4px; }
+.engrep-fc .eng-availbox { margin-top: 6px; }
+.engrep-fc .eng-availlist { max-height: 160px; }
+.engrep-fc .eng-seclbl { display: none; } /* la sezione ha già la sua etichetta nel pannello */
 @media (max-width: 900px) { .engrep-cols { grid-template-columns: 1fr; } }

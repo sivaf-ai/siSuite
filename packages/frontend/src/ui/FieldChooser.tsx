@@ -11,15 +11,25 @@ import { GripVertical, ArrowUp, ArrowDown, ChevronUp, ChevronDown, X, Plus, Sear
 
 export interface ChooserField { key: string; label: string; group?: string; numeric?: boolean }
 export type ChooserMode = 'sort' | 'columns' | 'export' | 'report-show' | 'report-sum' | 'report-group';
-export interface ChosenItem { key: string; dir?: 'asc' | 'desc' }
+export interface ChosenItem { key: string; dir?: 'asc' | 'desc'; fn?: string }
+
+/** funzioni di aggregazione per i Totali, in funzione del tipo di campo (numerico vs no). */
+export const AGG_FNS: { fn: string; label: string; numericOnly?: boolean }[] = [
+  { fn: 'sum', label: 'Somma', numericOnly: true },
+  { fn: 'avg', label: 'Media', numericOnly: true },
+  { fn: 'min', label: 'Minimo', numericOnly: true },
+  { fn: 'max', label: 'Massimo', numericOnly: true },
+  { fn: 'count', label: 'Conteggio' },
+];
+const aggsFor = (numeric?: boolean) => AGG_FNS.filter((a) => numeric || !a.numericOnly);
 
 const MODE_META: Record<ChooserMode, { label: string; icon: typeof ListOrdered; numericOnly?: boolean }> = {
   sort: { label: 'Ordina per (trascina per la priorità — il primo conta di più)', icon: ListOrdered },
   columns: { label: 'Colonne mostrate (trascina per l’ordine)', icon: Columns3 },
   export: { label: 'Campi da esportare (trascina per l’ordine)', icon: Columns3 },
-  'report-show': { label: 'Campi da mostrare', icon: Columns3 },
-  'report-sum': { label: 'Totali / somma (solo numerici)', icon: Sigma, numericOnly: true },
-  'report-group': { label: 'Raggruppa per (tagli di controllo)', icon: Layers },
+  'report-show': { label: 'Campi da mostrare (trascina per l’ordine)', icon: Columns3 },
+  'report-sum': { label: 'Totali — scegli i campi e la funzione', icon: Sigma },
+  'report-group': { label: 'Raggruppa per (più livelli, il primo è il taglio principale)', icon: Layers },
 };
 
 export function FieldChooser({ fields, mode, value, onChange }: {
@@ -33,6 +43,7 @@ export function FieldChooser({ fields, mode, value, onChange }: {
   const [overI, setOverI] = useState<number | null>(null);
   const meta = MODE_META[mode];
   const showDir = mode === 'sort';
+  const showAgg = mode === 'report-sum';
   const byKey = new Map(fields.map((f) => [f.key, f]));
   const chosenKeys = new Set(value.map((c) => c.key));
 
@@ -40,9 +51,14 @@ export function FieldChooser({ fields, mode, value, onChange }: {
     if (to < 0 || to >= value.length || from === to) return;
     const next = [...value]; const [it] = next.splice(from, 1); next.splice(to, 0, it!); onChange(next);
   };
-  const add = (key: string) => { if (!chosenKeys.has(key)) onChange([...value, { key, dir: showDir ? 'asc' : undefined }]); };
+  const add = (key: string) => {
+    if (chosenKeys.has(key)) return;
+    const f = byKey.get(key);
+    onChange([...value, { key, dir: showDir ? 'asc' : undefined, fn: showAgg ? (f?.numeric ? 'sum' : 'count') : undefined }]);
+  };
   const remove = (i: number) => onChange(value.filter((_, j) => j !== i));
   const toggleDir = (i: number) => onChange(value.map((c, j) => (j === i ? { ...c, dir: c.dir === 'asc' ? 'desc' : 'asc' } : c)));
+  const setFn = (i: number, fn: string) => onChange(value.map((c, j) => (j === i ? { ...c, fn } : c)));
 
   // area "tutti i campi": raggruppata per sezione, filtrata per ricerca, e (report-sum) solo numerici
   const avail = fields.filter((f) => (!meta.numericOnly || f.numeric) && f.label.toLowerCase().includes(q.toLowerCase()));
@@ -70,6 +86,11 @@ export function FieldChooser({ fields, mode, value, onChange }: {
                 <button className="dir" onClick={() => toggleDir(i)}>
                   {c.dir === 'desc' ? <><ArrowDown /> Decrescente</> : <><ArrowUp /> Crescente</>}
                 </button>
+              )}
+              {showAgg && (
+                <select className="dir" value={c.fn ?? (f?.numeric ? 'sum' : 'count')} onChange={(e) => setFn(i, e.target.value)} style={{ height: 28, padding: '0 8px' }}>
+                  {aggsFor(f?.numeric).map((a) => <option key={a.fn} value={a.fn}>{a.label}</option>)}
+                </select>
               )}
               <span className="updown">
                 <button disabled={i === 0} onClick={() => move(i, i - 1)}><ChevronUp size={13} /></button>
