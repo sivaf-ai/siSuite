@@ -80,13 +80,15 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         `${SELECT} ${where} ${GROUP} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params,
       );
-      // conteggi viste per ruolo (indipendenti dalla vista corrente, rispettano la ricerca)
+      // conteggi viste per ruolo (indipendenti dalla vista corrente, rispettano ricerca E filtro attivo)
       const vParams: unknown[] = [];
       let vWhere = `WHERE c.archived_at IS NULL`;
       if (q.q) {
         vParams.push(`%${q.q}%`);
         vWhere += ` AND (c.display_name ILIKE $1 OR c.attributes->>'vat_number' ILIKE $1 OR c.attributes->>'city' ILIKE $1)`;
       }
+      const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vParams);
+      if (vfsql) vWhere += ` AND ${vfsql}`;
       const vRes = await db.query(
         `SELECT count(*)::int AS all,
                 count(*) FILTER (WHERE EXISTS (SELECT 1 FROM company_role r WHERE r.company_id=c.id AND r.role='customer'))::int AS customer,

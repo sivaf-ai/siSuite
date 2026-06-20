@@ -189,13 +189,18 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
       const rows = await db.query(
         `${LIST_SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params);
-      // conteggi per le viste (chip)
+      // conteggi per le viste (chip) — rispettano engagementId E filtro attivo; param-bind (no injection)
+      const vParams: unknown[] = [];
+      let vWhere = `WHERE wo.archived_at IS NULL`;
+      if (engagementId) { vParams.push(engagementId); vWhere += ` AND wo.engagement_id = $${vParams.length}`; }
+      const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, WO_FILTER_FIELDS, WO_FILTER_ANY, vParams);
+      if (vfsql) vWhere += ` AND ${vfsql}`;
       const counts = await db.query(
         `SELECT lv.canonical, count(*)::int AS n,
                 count(*) FILTER (WHERE wo.assigned_resource_id IS NULL AND lv.canonical='assigned')::int AS unassigned
          FROM work_order wo LEFT JOIN lookup_value lv ON lv.id = wo.status_id
-         WHERE wo.archived_at IS NULL ${engagementId ? `AND wo.engagement_id = '${engagementId}'` : ''}
-         GROUP BY lv.canonical`, []);
+              LEFT JOIN company op ON op.id = wo.principal_company_id
+         ${vWhere} GROUP BY lv.canonical`, vParams);
       const byCanon: Record<string, number> = {};
       let unassigned = 0; let all = 0;
       for (const c of counts.rows) { byCanon[c.canonical as string] = c.n as number; all += c.n as number; unassigned += c.unassigned as number; }

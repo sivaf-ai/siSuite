@@ -101,7 +101,25 @@ export async function absenceRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string } }>('/absences/:id',
     { preHandler: [app.authenticate, requirePermission('absence:delete')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`DELETE FROM absence_entry WHERE id = $1`, [request.params.id]));
+      await withRls(request.ctx, async (db) => {
+        // se l'assenza era APPROVATA, l'uso era stato imputato al saldo: lo ripristino prima di cancellare.
+        const cur = await db.query(
+          `SELECT resource_id, type_id, starts_on, ends_on, hours, half_day, approval_status_id
+           FROM absence_entry WHERE id = $1`, [request.params.id]);
+        const a = cur.rows[0];
+        if (a) {
+          const approvedId = await lookupIdByCanonical(db, 'time_entry_status', 'approved');
+          if (a.approval_status_id === approvedId) {
+            const used = usedAmount({ hours: a.hours === null ? null : Number(a.hours), startsOn: a.starts_on, endsOn: a.ends_on, halfDay: a.half_day });
+            const year = new Date(a.starts_on).getUTCFullYear();
+            await db.query(
+              `UPDATE absence_balance SET used = GREATEST(0, used - $5)
+               WHERE tenant_id = $1 AND resource_id = $2 AND type_id = $3 AND year = $4`,
+              [request.ctx.tenantId, a.resource_id, a.type_id, year, used]);
+          }
+          await db.query(`DELETE FROM absence_entry WHERE id = $1`, [request.params.id]);
+        }
+      });
       return reply.code(204).send();
     });
 

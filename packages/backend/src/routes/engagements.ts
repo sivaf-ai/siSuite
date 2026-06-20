@@ -94,15 +94,17 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
           `${SELECT_DTO} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
           params,
         );
-        // conteggi viste per tipo (rispettano la ricerca q, non il filtro tipo)
+        // conteggi viste per tipo (rispettano ricerca q E filtro attivo, non il filtro tipo)
         const vParams: unknown[] = [];
         let vWhere = `WHERE e.archived_at IS NULL`;
         if (q.q) { vParams.push(`%${q.q}%`); vWhere += ` AND (e.title ILIKE $1 OR e.code ILIKE $1)`; }
+        const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vParams);
+        if (vfsql) vWhere += ` AND ${vfsql}`;
         const vRes = await db.query(
           `SELECT count(*)::int AS all,
                   count(*) FILTER (WHERE e.type='build')::int AS build,
                   count(*) FILTER (WHERE e.type='maintenance')::int AS maintenance
-           FROM engagement e ${vWhere}`,
+           FROM engagement e LEFT JOIN company c ON c.id=e.company_id LEFT JOIN lookup_value lv ON lv.id=e.status_id ${vWhere}`,
           vParams,
         );
         const v = vRes.rows[0];

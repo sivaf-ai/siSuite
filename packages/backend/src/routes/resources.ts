@@ -49,10 +49,12 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
       const total = await db.query(`SELECT count(*)::int AS n FROM resource ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
-      // viste per tipo (rispettano q, non kind)
+      // viste per tipo (rispettano q E filtro attivo, non kind)
       const vp: unknown[] = [];
       let vw = `WHERE archived_at IS NULL`;
       if (q.q) { vp.push(`%${q.q}%`); vw += ` AND label ILIKE $1`; }
+      const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vp);
+      if (vfsql) vw += ` AND ${vfsql}`;
       const v = (await db.query(
         `SELECT count(*)::int AS all,
                 count(*) FILTER (WHERE kind='person')::int AS person,

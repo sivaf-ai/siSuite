@@ -62,15 +62,20 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       if (fsql) where += ` AND ${fsql}`;
 
       const total = await db.query(`SELECT count(*)::int AS n FROM material m ${where}`, params);
-      // conteggi viste
+      // conteggi viste (rispettano ricerca E filtro attivo)
+      const vParams: unknown[] = [];
+      let vWhere = `WHERE m.archived_at IS NULL`;
+      if (q.q) { vParams.push(`%${q.q}%`); const i = vParams.length; vWhere += ` AND (m.name ILIKE $${i} OR m.sku ILIKE $${i} OR m.attributes->>'category' ILIKE $${i})`; }
+      const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vParams);
+      if (vfsql) vWhere += ` AND ${vfsql}`;
       const counts = await db.query(`
-        SELECT count(*) FILTER (WHERE archived_at IS NULL)::int AS all,
-               count(*) FILTER (WHERE archived_at IS NULL AND track_stock)::int AS stock,
-               count(*) FILTER (WHERE archived_at IS NULL AND tracked_by_serial)::int AS serial,
-               count(*) FILTER (WHERE archived_at IS NULL AND attributes->>'item_type'='service')::int AS service,
-               count(*) FILTER (WHERE archived_at IS NULL AND track_stock AND (attributes->>'min_stock') IS NOT NULL
-                 AND COALESCE((SELECT sum(qty_on_hand) FROM stock_balance b WHERE b.material_id=material.id),0) < (attributes->>'min_stock')::numeric)::int AS low
-        FROM material`);
+        SELECT count(*)::int AS all,
+               count(*) FILTER (WHERE m.track_stock)::int AS stock,
+               count(*) FILTER (WHERE m.tracked_by_serial)::int AS serial,
+               count(*) FILTER (WHERE m.attributes->>'item_type'='service')::int AS service,
+               count(*) FILTER (WHERE m.track_stock AND (m.attributes->>'min_stock') IS NOT NULL
+                 AND COALESCE((SELECT sum(qty_on_hand) FROM stock_balance b WHERE b.material_id=m.id),0) < (m.attributes->>'min_stock')::numeric)::int AS low
+        FROM material m ${vWhere}`, vParams);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
       return { items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset, views: counts.rows[0] };
