@@ -71,6 +71,9 @@ export function MaterialeDetailPage() {
 
   const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const canSecret = can('serial:secret_read');
+  // NB: gli hook devono stare PRIMA dei return condizionali (loading/error) sotto,
+  // altrimenti il conteggio hook cambia tra i render → React crasha (pagina vuota).
+  const catOptions = useMemo(() => (fieldDefs.data?.items ?? []).find((f) => f.key === 'item_type')?.options ?? [], [fieldDefs.data]);
 
   async function save() {
     if (!form.name || !form.unit) { toast('Nome e unità sono obbligatori', 'error'); return; }
@@ -94,7 +97,6 @@ export function MaterialeDetailPage() {
 
   const itemType = (attrs.item_type as string) ?? 'article';
   const trackTag = itemType === 'service' ? { label: 'Servizio', token: 'neutral' } : form.trackedBySerial ? { label: 'A seriale', token: 'brand' } : { label: 'A magazzino', token: 'neutral' };
-  const catOptions = useMemo(() => (fieldDefs.data?.items ?? []).find((f) => f.key === 'item_type')?.options ?? [], [fieldDefs.data]);
 
   const serialsTable = (
     <table className="subt">
