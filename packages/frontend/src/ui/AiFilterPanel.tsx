@@ -6,9 +6,9 @@
  *  I set di filtri si SALVANO/CARICANO per-utente (filter_preset).
  */
 import { useState } from 'react';
-import { Sparkles, Mic, StopCircle, X, Check, Trash2, Save, Wand2, Plus } from 'lucide-react';
+import { Sparkles, Mic, StopCircle, X, Check, Trash2, Save, Wand2 } from 'lucide-react';
 import type { FieldOpt } from './FieldPicker';
-import { type FilterCondition, type FilterMode, FILTER_OPS } from '../lib/listFilter';
+import { type FilterCondition, type FilterMode, condLabel } from '../lib/listFilter';
 import { PromptDialog } from './PromptDialog';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch } from '../api/client';
@@ -34,9 +34,6 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
   const [nameOpen, setNameOpen] = useState(false);
 
   if (!open) return null;
-  const opNoValue = (op: string) => FILTER_OPS.find((o) => o.op === op)?.noValue;
-  const opRange = (op: string) => FILTER_OPS.find((o) => o.op === op)?.range;
-  const rangeAt = (v: FilterCondition['value'], i: 0 | 1) => (Array.isArray(v) ? String(v[i] ?? '') : '');
 
   async function interpret(text: string) {
     if (!text.trim()) return;
@@ -59,10 +56,7 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
     }
   }
 
-  // builder manuale
-  const setCond = (i: number, patch: Partial<FilterCondition>) => setConditions((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-  const addCond = () => setConditions((cs) => [...cs, { field: fields[0]?.key ?? '__any', op: 'contains', value: '' }]);
-  const delCond = (i: number) => setConditions((cs) => cs.filter((_, j) => j !== i));
+  const fieldLabelOf = (k: string) => fields.find((f) => f.key === k)?.label ?? k;
 
   function save() {
     if (!conditions.length) { toast('Crea o interpreta un filtro prima di salvarlo', 'error'); return; }
@@ -113,42 +107,16 @@ export function AiFilterPanel({ open, entity, fields, initial, onApply, onClose 
             {desc && <div className="afp-desc">{desc}</div>}
           </div>
 
-          {/* 2) Builder manuale */}
-          <div className="afp-sec">
-            <div className="afp-secrow">
-              <div className="afp-seclabel">Costruisci il filtro</div>
-              <div className="afp-mode">
-                <button className={mode === 'and' ? 'on' : ''} onClick={() => setMode('and')}>Tutte (E)</button>
-                <button className={mode === 'or' ? 'on' : ''} onClick={() => setMode('or')}>Almeno una (O)</button>
+          {/* 2) Condizioni interpretate (sola lettura). Il filtro MANUALE è il pulsante "Gruppo". */}
+          {conditions.length > 0 && (
+            <div className="afp-sec">
+              <div className="afp-seclabel">Condizioni interpretate ({mode === 'or' ? 'almeno una' : 'tutte'})</div>
+              <div className="afp-rows">
+                {conditions.map((c, i) => <span key={i} className="afp-cond" style={{ display: 'inline-flex', padding: '7px 11px', width: 'auto' }}>{condLabel(c, fieldLabelOf)}</span>)}
               </div>
+              <div className="afp-none">Per costruire un filtro a mano, campo per campo, usa il pulsante <b>Gruppo</b> nella barra.</div>
             </div>
-            <div className="afp-rows">
-              {conditions.map((c, i) => (
-                <div className="afp-cond" key={i}>
-                  <select className="afp-f" value={c.field} onChange={(e) => setCond(i, { field: e.target.value })}>
-                    <option value="__any">Qualsiasi campo</option>
-                    {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                  </select>
-                  <select className="afp-op" value={c.op} onChange={(e) => {
-                    const op = e.target.value; const isR = !!opRange(op);
-                    setCond(i, { op, value: isR ? (Array.isArray(c.value) ? c.value : ['', '']) : (Array.isArray(c.value) ? '' : c.value) });
-                  }}>
-                    {FILTER_OPS.map((o) => <option key={o.op} value={o.op}>{o.label}</option>)}
-                  </select>
-                  {opNoValue(c.op) ? <span className="afp-v empty">—</span>
-                    : opRange(c.op) ? (
-                      <div className="afp-v afp-range">
-                        <input placeholder="da" value={rangeAt(c.value, 0)} onChange={(e) => setCond(i, { value: [e.target.value, rangeAt(c.value, 1)] })} />
-                        <input placeholder="a" value={rangeAt(c.value, 1)} onChange={(e) => setCond(i, { value: [rangeAt(c.value, 0), e.target.value] })} />
-                      </div>
-                    ) : <input className="afp-v" value={c.value == null ? '' : String(c.value)} placeholder="valore" onChange={(e) => setCond(i, { value: e.target.value })} />}
-                  <button className="afp-rm" title="Rimuovi" onClick={() => delCond(i)}><X size={14} /></button>
-                </div>
-              ))}
-              {conditions.length === 0 && <div className="afp-none">Nessuna condizione. Aggiungine una o usa l'AI sopra.</div>}
-            </div>
-            <button className="afp-add" onClick={addCond}><Plus size={15} /> Aggiungi condizione</button>
-          </div>
+          )}
 
           {/* set salvati */}
           {(presets.data?.items.length ?? 0) > 0 && (

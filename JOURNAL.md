@@ -70,7 +70,16 @@
 - **Blocco 2 FRONTEND (Filtro Gruppo, mockup 54)**: `ui/FilterGroupPanel.tsx` (scheda QBE a tutta larghezza, freccettina+pop-up per campo, operatori type-aware, frase in lingua, parentesi 1 livello, SavedHeader). `EntityList` prop `filterFields` + azione toolbar "Gruppo" (list-filter). Composizione campi = filterFields + field_definition (enum display↔raw). **Wired su 6 liste**: Soggetti/Articoli/Commesse/Ordini/Risorse/Asset. → `DONE_motore_2_filtro_gruppo.md`.
 - **Blocco 7 BACKEND (Magazzino)**: `POST /stock/movements/:id/reverse` (rettifica = movimento compensativo, rispetta immutabilità) + `DELETE /stock/locations/:id` (soft archived_at) + GET locations filtra archiviati.
 - 77 test backend verdi. Typecheck FE+BE pulito.
-- **RESTA**: Blocco 7 FRONTEND (form "Nuovo movimento", rettifica/storna in UI, schede Magazzini con tab Ubicazioni, Giacenze drill-down, Documenti archetipo — mockup 29/42), Blocco 5 (Report designer, mockup 56, +mig 039), Blocco 6 (toolbar badge), rimozione builder manuale da AiFilterPanel, conteggi viste col filtro, residui §9.
+## 2026-06-20 (4) — motore COMPLETATO: Magazzino CRUD + Report + Blocco 6 (Claude Code)
+- **Migrazione applicata: 039_saved_report.sql**. Migrazioni 001→039. Tutto pushato su GitHub.
+- **Blocco 7 Magazzino CRUD**: backend reverse+soft-delete (commit prec.) + frontend `MagazzinoPage` (Nuovo movimento, Rettifica/Storna, Ubicazioni crea/modifica/elimina, Giacenze drill-down).
+- **Blocco 5 Report designer** (mockup 56): `ui/ReportDesigner.tsx` + `routes/savedReports.ts` + mig 039. Azione toolbar "Report" su tutte le liste. Anteprima HTML live + Stampa/PDF + barra AI (euristica) + SavedHeader.
+- **Blocco 6**: toolbar completa (Gruppo·Ordina·Colonne·Report·Esporta·AI, badge); `AiFilterPanel` ridotto a NL/voce (builder manuale → sostituito dal Gruppo).
+- 77 test backend verdi. Typecheck FE+BE pulito. → `DONE_motore_5_7_report_magazzino.md`.
+- **PIANO_motore COMPLETO (blocchi 1→8).** Residui rifiniture §9: conteggi viste col filtro, archetipo Documento DetailPage, saldo assenze DELETE, long-tail i18n, render Report server-side/PDF nativo.
+
+### (riferimento precedente)
+- **RESTAVA**: Blocco 7 FRONTEND, Blocco 5, Blocco 6 — ora FATTI.
 
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
