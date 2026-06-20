@@ -57,6 +57,14 @@
 - **Stato dettagliato per decidere come procedere**: `docs/analisi/2026-06-20_STATO_per_ClaudeAI.md` (per-blocco: fatto/come/file/residuo + decisioni prese in autonomia + opzioni A/B/C).
 - **⚠️ I 7 commit del PIANO sono LOCALI, non pushati** (`main...origin/main [ahead 7]`): serve `git push origin main` a mano. Residuo documentato: long-tail i18n per-pagina (B2), QBE type-aware + conteggi-col-filtro (B5), proposta dedup AI (B6).
 
+## 2026-06-20 (2) — PIANO_motore_liste_e_magazzino: Blocchi 1,3,4 + 2-backend (Claude Code)
+- **Migrazione applicata: 038_list_preset.sql** (store generico preset filter/sort/columns/export). **039 riservata a saved_report** (Blocco 5). Prossima libera dopo 039.
+- **Blocco 1 (motore comune)**: `ui/FloatingPopover.tsx`, `ui/SavedHeader.tsx`, `ui/FieldChooser.tsx` (replica mockup 55) + `theme/engine.css`. → `DONE_motore_1_engine.md`.
+- **Blocchi 3+4**: Ordina/Colonne/Export cablati sul motore in `EntityList` (si propagano a tutte le liste). Sostituiti SortDialog/FieldPicker/ExportDialog. Storage via `list_preset` + `useListPresets`. → `DONE_motore_3_4_*.md`.
+- **Blocco 2 BACKEND**: `filterSql.buildFilter` esteso (mockup 54) — operatori starts/ends/in/not_in/date_*, join per-condizione E/O, NON, parentesi 1 livello (bilanciamento validato), retro-compatibile. +13 test (32 su filterSql). 77 test backend totali verdi.
+- **RESTA (UI-heavy, prossime sessioni con verifica visiva vs mockup)**: Blocco 2 FRONTEND (QBE scheda, mockup 54), Blocco 5 (Report designer, mockup 56, + mig 039 + render), Blocco 6 (toolbar §3 rifinitura), Blocco 7 (Magazzino CRUD completi: Magazzini/Ubicazioni/Movimenti/Giacenze/Documenti), Blocco 8/9 (verifica anagrafiche identiche + residui).
+- Typecheck FE+BE pulito. Commit motore: `98c9126`, `1caa2f9`, `38daba3` (+ docs). NON pushati.
+
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
   Prossimo numero libero: **030**.
