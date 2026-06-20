@@ -54,6 +54,17 @@
     "loading": "Caricamento…",
     "language": "Lingua"
   },
+  "cols": {
+    "nome": "Nome", "tipo": "tipo", "ruoli": "Ruoli", "piva": "P.IVA", "codFiscale": "cod. fiscale",
+    "citta": "Città", "provincia": "provincia", "creato": "Creato", "creata": "Creata",
+    "articolo": "Articolo", "sku": "SKU", "categoria": "Categoria", "tracciamento": "tracciamento",
+    "giacenza": "Giacenza", "unita": "unità", "costoMedio": "Costo medio", "perUnita": "€ / unità", "stato": "Stato",
+    "codice": "Codice", "titolo": "Titolo", "cliente": "Cliente", "clienteLow": "cliente", "inizio": "Inizio",
+    "committente": "Committente", "indirizzoAttivazione": "Indirizzo di attivazione", "intestatario": "Intestatario",
+    "programmato": "Programmato", "apparati": "Apparati", "refEsternoTipo": "Rif. esterno · tipo", "commessa": "commessa",
+    "previstiInstallati": "previsti · installati", "protetto": "protetto", "squadra": "squadra",
+    "costoOrario": "Costo orario", "perOra": "€ / h", "asset": "Asset", "installato": "Installato", "sito": "sito"
+  },
   "list": {
     "search": "Cerca…",
     "sort": "Ordina",

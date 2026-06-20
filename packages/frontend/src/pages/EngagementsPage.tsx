@@ -52,13 +52,13 @@ export function EngagementsPage() {
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));
 
   const columns: ListColumn<EngagementDto>[] = [
-    { key: 'code', header: 'Codice', sub: 'tipo', value: (r) => r.code, render: (r) => (
+    { key: 'code', header: t('cols.codice'), sub: t('cols.tipo'), value: (r) => r.code, render: (r) => (
       <div className="two"><span className="a mono">{r.code}</span><span className="b">{r.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</span></div>) },
-    { key: 'title', header: 'Titolo', sub: 'cliente', value: (r) => r.title, render: (r) => (
+    { key: 'title', header: t('cols.titolo'), sub: t('cols.clienteLow'), value: (r) => r.title, render: (r) => (
       <div className="two"><span className="a">{r.title}</span><span className="b">{r.companyName ?? '—'}</span></div>) },
-    { key: 'status', header: 'Stato', value: (r) => lk.labelOf(r.statusId) || (r.statusCanonical ?? ''), render: (r) => <StatusPill label={lk.labelOf(r.statusId) || (r.statusCanonical ?? '')} token={lk.byId(r.statusId)?.colorToken} /> },
-    { key: 'started', header: 'Inizio', num: true, value: (r) => (r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : '—'}</span> },
-    { key: 'created', header: 'Creata', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+    { key: 'status', header: t('cols.stato'), value: (r) => lk.labelOf(r.statusId) || (r.statusCanonical ?? ''), render: (r) => <StatusPill label={lk.labelOf(r.statusId) || (r.statusCanonical ?? '')} token={lk.byId(r.statusId)?.colorToken} /> },
+    { key: 'started', header: t('cols.inizio'), num: true, value: (r) => (r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.startedOn ? new Date(r.startedOn).toLocaleDateString('it-IT') : '—'}</span> },
+    { key: 'created', header: t('cols.creata'), num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
   ];
 
   const exportFields = [

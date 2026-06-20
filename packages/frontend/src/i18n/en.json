@@ -54,6 +54,17 @@
     "loading": "Loading…",
     "language": "Language"
   },
+  "cols": {
+    "nome": "Name", "tipo": "type", "ruoli": "Roles", "piva": "VAT no.", "codFiscale": "tax code",
+    "citta": "City", "provincia": "province", "creato": "Created", "creata": "Created",
+    "articolo": "Item", "sku": "SKU", "categoria": "Category", "tracciamento": "tracking",
+    "giacenza": "On hand", "unita": "unit", "costoMedio": "Avg cost", "perUnita": "€ / unit", "stato": "Status",
+    "codice": "Code", "titolo": "Title", "cliente": "Customer", "clienteLow": "customer", "inizio": "Start",
+    "committente": "Principal", "indirizzoAttivazione": "Activation address", "intestatario": "Account holder",
+    "programmato": "Scheduled", "apparati": "Devices", "refEsternoTipo": "Ext. ref · type", "commessa": "job",
+    "previstiInstallati": "planned · installed", "protetto": "protected", "squadra": "team",
+    "costoOrario": "Hourly cost", "perOra": "€ / h", "asset": "Asset", "installato": "Installed", "sito": "site"
+  },
   "list": {
     "search": "Search…",
     "sort": "Sort",

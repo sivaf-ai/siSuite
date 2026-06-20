@@ -69,16 +69,16 @@ export function ClientiPage() {
   const views: ListView[] = VIEW_KEYS.map((k) => ({ key: k, label: viewLabel(k), count: data?.views?.[k] ?? 0 }));
 
   const columns: ListColumn<CompanyDto>[] = [
-    { key: 'name', header: 'Nome', sub: 'tipo', value: (r) => r.displayName, render: (r) => (
+    { key: 'name', header: t('cols.nome'), sub: t('cols.tipo'), value: (r) => r.displayName, render: (r) => (
       <div className="two"><span className="a">{r.displayName}</span><span className="b">{r.type === 'organization' ? 'Organizzazione' : 'Privato'}</span></div>) },
-    { key: 'roles', header: 'Ruoli', value: (r) => r.roles.map((x) => ROLE_LABEL[x] ?? x).join(', '), render: (r) => (r.roles.length
+    { key: 'roles', header: t('cols.ruoli'), value: (r) => r.roles.map((x) => ROLE_LABEL[x] ?? x).join(', '), render: (r) => (r.roles.length
       ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.roles.map((x) => <span key={x} className="chip">{ROLE_LABEL[x] ?? x}</span>)}</span>
       : <span className="faint">—</span>) },
-    { key: 'vat', header: 'P.IVA', sub: 'cod. fiscale', value: (r) => attr(r, 'vat_number') ?? '', render: (r) => (
+    { key: 'vat', header: t('cols.piva'), sub: t('cols.codFiscale'), value: (r) => attr(r, 'vat_number') ?? '', render: (r) => (
       <div className="two"><span className="a mono">{attr(r, 'vat_number') ?? '—'}</span><span className="b mono">{attr(r, 'tax_code') ?? '—'}</span></div>) },
-    { key: 'city', header: 'Città', sub: 'provincia', value: (r) => attr(r, 'city') ?? '', render: (r) => (
+    { key: 'city', header: t('cols.citta'), sub: t('cols.provincia'), value: (r) => attr(r, 'city') ?? '', render: (r) => (
       <div className="two"><span className="a">{attr(r, 'city') ?? '—'}</span><span className="b">{attr(r, 'province') ?? ''}</span></div>) },
-    { key: 'created', header: 'Creato', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
+    { key: 'created', header: t('cols.creato'), num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
   ];
 
   // TUTTI i campi del Soggetto per l'export (non solo le colonne a video)

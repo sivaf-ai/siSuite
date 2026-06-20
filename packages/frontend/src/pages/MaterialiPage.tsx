@@ -65,15 +65,15 @@ export function MaterialiPage() {
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
 
   const columns: ListColumn<MaterialDto>[] = [
-    { key: 'name', header: 'Articolo', sub: 'SKU', value: (m) => m.name, render: (m) => (
+    { key: 'name', header: t('cols.articolo'), sub: t('cols.sku'), value: (m) => m.name, render: (m) => (
       <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>) },
-    { key: 'cat', header: 'Categoria', sub: 'tracciamento', value: (m) => attr(m, 'category') ?? '', render: (m) => (
+    { key: 'cat', header: t('cols.categoria'), sub: t('cols.tracciamento'), value: (m) => attr(m, 'category') ?? '', render: (m) => (
       <div className="two"><span className="a">{attr(m, 'category') ?? '—'}</span><span className="b"><span className="serialtag">{trackingTag(m)}</span></span></div>) },
-    { key: 'qty', header: 'Giacenza', sub: 'unità', num: true, value: (m) => (attr(m, 'item_type') === 'service' ? '' : m.qtyOnHand), render: (m) => (attr(m, 'item_type') === 'service'
+    { key: 'qty', header: t('cols.giacenza'), sub: t('cols.unita'), num: true, value: (m) => (attr(m, 'item_type') === 'service' ? '' : m.qtyOnHand), render: (m) => (attr(m, 'item_type') === 'service'
       ? <span className="faint">—</span>
       : <div className="two"><span className="a mono">{m.qtyOnHand.toLocaleString('it-IT')}</span><span className="b">{m.unit}</span></div>) },
-    { key: 'cost', header: 'Costo medio', sub: '€ / unità', num: true, value: (m) => m.avgCost ?? m.defaultCost ?? '', render: (m) => <Money value={m.avgCost ?? m.defaultCost} /> },
-    { key: 'st', header: 'Stato', value: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
+    { key: 'cost', header: t('cols.costoMedio'), sub: t('cols.perUnita'), num: true, value: (m) => m.avgCost ?? m.defaultCost ?? '', render: (m) => <Money value={m.avgCost ?? m.defaultCost} /> },
+    { key: 'st', header: t('cols.stato'), value: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <StatusPill label={s.label} token={s.token} />; } },
   ];
 
   const exportFields = [

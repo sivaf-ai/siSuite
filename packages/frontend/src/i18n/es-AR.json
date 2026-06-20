@@ -54,6 +54,17 @@
     "loading": "Cargando…",
     "language": "Idioma"
   },
+  "cols": {
+    "nome": "Nombre", "tipo": "tipo", "ruoli": "Roles", "piva": "CUIT/IVA", "codFiscale": "cód. fiscal",
+    "citta": "Ciudad", "provincia": "provincia", "creato": "Creado", "creata": "Creada",
+    "articolo": "Artículo", "sku": "SKU", "categoria": "Categoría", "tracciamento": "seguimiento",
+    "giacenza": "Existencias", "unita": "unidad", "costoMedio": "Costo medio", "perUnita": "€ / unidad", "stato": "Estado",
+    "codice": "Código", "titolo": "Título", "cliente": "Cliente", "clienteLow": "cliente", "inizio": "Inicio",
+    "committente": "Principal", "indirizzoAttivazione": "Dirección de activación", "intestatario": "Titular",
+    "programmato": "Programado", "apparati": "Equipos", "refEsternoTipo": "Ref. ext. · tipo", "commessa": "obra",
+    "previstiInstallati": "previstos · instalados", "protetto": "protegido", "squadra": "cuadrilla",
+    "costoOrario": "Costo por hora", "perOra": "€ / h", "asset": "Activo", "installato": "Instalado", "sito": "sitio"
+  },
   "list": {
     "search": "Buscar…",
     "sort": "Ordenar",

@@ -67,17 +67,17 @@ export function OrdinativiPage() {
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
 
   const columns: ListColumn<WorkOrderDto>[] = [
-    { key: 'op', header: 'Committente', sub: 'Rif. esterno · tipo', value: (wo) => wo.principalCompanyName ?? '', render: (wo) => (
+    { key: 'op', header: t('cols.committente'), sub: t('cols.refEsternoTipo'), value: (wo) => wo.principalCompanyName ?? '', render: (wo) => (
       <div className="two"><span className="a">{wo.principalCompanyName ?? '—'}</span><span className="b mono">{wo.principalOrderRef ?? '—'}{wo.typeLabel ? ` · ${wo.typeLabel}` : ''}</span></div>) },
-    { key: 'addr', header: 'Indirizzo di attivazione', sub: 'commessa', value: (wo) => wo.address ?? '', render: (wo) => (
+    { key: 'addr', header: t('cols.indirizzoAttivazione'), sub: t('cols.commessa'), value: (wo) => wo.address ?? '', render: (wo) => (
       <div className="two"><span className="a">{wo.address ?? '—'}</span><span className="b">{wo.engagementTitle ?? '—'}</span></div>) },
-    { key: 'subj', header: 'Intestatario', sub: 'protetto', value: (wo) => wo.subjectNameDisplay ?? '', render: (wo) => (
+    { key: 'subj', header: t('cols.intestatario'), sub: t('cols.protetto'), value: (wo) => wo.subjectNameDisplay ?? '', render: (wo) => (
       <span className="pii"><Lock /> {wo.subjectNameDisplay ?? '—'}</span>) },
-    { key: 'app', header: 'Apparati', sub: 'previsti · installati', render: (wo) => (
+    { key: 'app', header: t('cols.apparati'), sub: t('cols.previstiInstallati'), render: (wo) => (
       <span className="mono">{wo.plannedCount} · {wo.installedCount}</span>) },
-    { key: 'st', header: 'Stato', sub: 'squadra', value: (wo) => statusOf(wo).label, render: (wo) => { const s = statusOf(wo); return (
+    { key: 'st', header: t('cols.stato'), sub: t('cols.squadra'), value: (wo) => statusOf(wo).label, render: (wo) => { const s = statusOf(wo); return (
       <div className="two"><span className="a"><StatusPill label={s.label} token={s.token} /></span><span className="b">{wo.assignedResourceLabel ?? '—'}</span></div>); } },
-    { key: 'sched', header: 'Programmato', sub: 'codice', value: (wo) => wo.code, render: (wo) => (
+    { key: 'sched', header: t('cols.programmato'), sub: 'codice', value: (wo) => wo.code, render: (wo) => (
       <div className="two"><span className="a mono">{fmtDate(wo.scheduledOn)}</span><span className="b mono">{wo.code}</span></div>) },
   ];
 

@@ -47,10 +47,10 @@ export function RisorsePage() {
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));
 
   const columns: ListColumn<ResourceDto>[] = [
-    { key: 'label', header: 'Nome', sub: 'tipo', value: (r) => r.label, render: (r) => (
+    { key: 'label', header: t('cols.nome'), sub: t('cols.tipo'), value: (r) => r.label, render: (r) => (
       <div className="two"><span className="a">{r.label}</span><span className="b">{KIND_LABEL[r.kind]}</span></div>) },
-    { key: 'cost', header: 'Costo orario', sub: '€ / h', num: true, value: (r) => ((r.attributes as Record<string, unknown>)?.hourly_cost as number) ?? '', render: (r) => <Money value={(r.attributes as Record<string, unknown>)?.hourly_cost as number ?? null} /> },
-    { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attiva' : 'Disattivata'), render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
+    { key: 'cost', header: t('cols.costoOrario'), sub: t('cols.perOra'), num: true, value: (r) => ((r.attributes as Record<string, unknown>)?.hourly_cost as number) ?? '', render: (r) => <Money value={(r.attributes as Record<string, unknown>)?.hourly_cost as number ?? null} /> },
+    { key: 'active', header: t('cols.stato'), value: (r) => (r.active ? 'Attiva' : 'Disattivata'), render: (r) => <StatusPill label={r.active ? 'Attiva' : 'Disattivata'} token={r.active ? 'success' : 'neutral'} /> },
   ];
 
   const exportFields = [

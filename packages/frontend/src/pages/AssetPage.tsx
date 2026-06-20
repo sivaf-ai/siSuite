@@ -36,11 +36,11 @@ export function AssetPage() {
   });
 
   const columns: ListColumn<AssetDto>[] = [
-    { key: 'label', header: 'Asset', sub: 'tipo', value: (r) => r.label, render: (r) => (
+    { key: 'label', header: t('cols.asset'), sub: t('cols.tipo'), value: (r) => r.label, render: (r) => (
       <div className="two"><span className="a">{r.label}</span><span className="b">{r.kind}</span></div>) },
-    { key: 'company', header: 'Cliente', sub: 'sito', value: (r) => r.companyName ?? '', render: (r) => (
+    { key: 'company', header: t('cols.cliente'), sub: t('cols.sito'), value: (r) => r.companyName ?? '', render: (r) => (
       <div className="two"><span className="a">{r.companyName ?? '—'}</span><span className="b">{r.siteName ?? '—'}</span></div>) },
-    { key: 'installed', header: 'Installato', num: true, value: (r) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '—'}</span> },
+    { key: 'installed', header: t('cols.installato'), num: true, value: (r) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : ''), render: (r) => <span className="mono faint">{r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '—'}</span> },
   ];
 
   const exportFields = [
