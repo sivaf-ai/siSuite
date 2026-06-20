@@ -138,3 +138,89 @@ describe('buildFilter — robustezza e sicurezza', () => {
     expect(run({ conditions: [] }).sql).toBe('');
   });
 });
+
+describe('buildFilter — Filtro Gruppo (mockup 54): nuovi operatori', () => {
+  it('starts_with / ends_with → ILIKE con ancora', () => {
+    expect(run({ conditions: [{ field: 'name', op: 'starts_with', value: 'al' }] }).params).toEqual(['al%']);
+    expect(run({ conditions: [{ field: 'name', op: 'ends_with', value: 'spa' }] }).params).toEqual(['%spa']);
+  });
+
+  it('in → = ANY(array) con valori lowercased nei params', () => {
+    const { sql, params } = run({ conditions: [{ field: 'city', op: 'in', values: ['Bergamo', 'Roma'] }] });
+    expect(sql).toContain('= ANY($1::text[])');
+    expect(params).toEqual([['bergamo', 'roma']]);
+  });
+
+  it('not_in → <> ALL(array), include NULL', () => {
+    const { sql } = run({ conditions: [{ field: 'city', op: 'not_in', values: ['Roma'] }] });
+    expect(sql).toContain('IS NULL OR');
+    expect(sql).toContain('<> ALL($1::text[])');
+  });
+
+  it('in senza valori → condizione ignorata', () => {
+    expect(run({ conditions: [{ field: 'city', op: 'in', values: [] }] }).sql).toBe('');
+  });
+
+  it('date_today / date_month / date_year → predicati senza params', () => {
+    expect(run({ conditions: [{ field: 'created', op: 'date_today' }] }).sql).toContain('::date = current_date');
+    expect(run({ conditions: [{ field: 'created', op: 'date_month' }] }).sql).toContain("date_trunc('month'");
+    expect(run({ conditions: [{ field: 'created', op: 'date_year' }] }).sql).toContain("date_trunc('year'");
+  });
+
+  it('date_in_year → extract(year)=param', () => {
+    const { sql, params } = run({ conditions: [{ field: 'created', op: 'date_in_year', value: '2026' }] });
+    expect(sql).toContain('extract(year from');
+    expect(params).toEqual([2026]);
+  });
+
+  it('date_after / date_before → confronto data parametrizzato', () => {
+    expect(run({ conditions: [{ field: 'created', op: 'date_after', value: '2026-01-01' }] }).params).toEqual(['2026-01-01']);
+    expect(run({ conditions: [{ field: 'created', op: 'date_before', value: '2026-12-31' }] }).sql).toContain('::date < $1');
+  });
+
+  it('between con value2 (forma Gruppo)', () => {
+    const { params } = run({ conditions: [{ field: 'created', op: 'between', value: '2026-01-01', value2: '2026-06-30' }] });
+    expect(params).toEqual(['2026-01-01', '2026-06-30']);
+  });
+});
+
+describe('buildFilter — Filtro Gruppo: assemblaggio (join/neg/parentesi)', () => {
+  it('join per-condizione: E poi O', () => {
+    const { sql } = run({ conditions: [
+      { field: 'name', op: 'contains', value: 'a' },
+      { field: 'city', op: 'contains', value: 'b', join: 'and' },
+      { field: 'name', op: 'contains', value: 'c', join: 'or' },
+    ] });
+    expect(sql).toBe('((c.display_name ILIKE $1) AND (c.attributes->>\'city\' ILIKE $2) OR (c.display_name ILIKE $3))');
+  });
+
+  it('NON → NOT davanti alla condizione', () => {
+    const { sql } = run({ conditions: [{ field: 'name', op: 'contains', value: 'a', neg: true }] });
+    expect(sql).toBe('(NOT (c.display_name ILIKE $1))');
+  });
+
+  it('parentesi a un livello (bilanciate) → emesse', () => {
+    const { sql } = run({ conditions: [
+      { field: 'name', op: 'contains', value: 'a', open: true },
+      { field: 'city', op: 'contains', value: 'b', join: 'and', close: true },
+      { field: 'name', op: 'equals', value: 'c', join: 'or' },
+    ] });
+    expect(sql).toBe('(((c.display_name ILIKE $1) AND (c.attributes->>\'city\' ILIKE $2)) OR (lower(c.display_name::text) = lower($3)))');
+  });
+
+  it('parentesi sbilanciate → ignorate (sicurezza): l’`open` senza `close` non emette parentesi extra', () => {
+    const { sql } = run({ conditions: [
+      { field: 'name', op: 'contains', value: 'a', open: true },
+      { field: 'city', op: 'contains', value: 'b', join: 'and' },
+    ] });
+    // identico al caso senza parentesi (l'open isolato è scartato)
+    expect(sql).toBe('((c.display_name ILIKE $1) AND (c.attributes->>\'city\' ILIKE $2))');
+  });
+
+  it('injection sui nuovi operatori resta nei params', () => {
+    const evil = "'; DROP TABLE company;--";
+    const r = run({ conditions: [{ field: 'city', op: 'in', values: [evil], neg: true, join: 'or' }] });
+    expect(r.sql).not.toContain('DROP TABLE');
+    expect(r.params).toEqual([[evil.toLowerCase()]]);
+  });
+});
