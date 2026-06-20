@@ -113,6 +113,16 @@ export function MaterialiPage() {
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="articoli" exportFields={exportFields} entity="material"
         sortFields={[{ key: 'name', label: 'Articolo' }, { key: 'sku', label: 'SKU' }, { key: 'qty', label: 'Giacenza' }, { key: 'cost', label: 'Costo medio' }]}
+        filterFields={[
+          { key: 'name', label: 'Nome', type: 'text', section: 'Catalogo', span: 2 },
+          { key: 'sku', label: 'SKU', type: 'text', section: 'Catalogo' },
+          { key: 'category', label: 'Categoria', type: 'text', section: 'Catalogo' },
+          { key: 'item_type', label: 'Tipo', type: 'enum', section: 'Catalogo', values: [{ value: 'good', label: 'Bene' }, { value: 'service', label: 'Servizio' }] },
+          { key: 'unit', label: 'Unità', type: 'text', section: 'Catalogo' },
+          { key: 'supplier_code', label: 'Codice fornitore', type: 'text', section: 'Catalogo' },
+          { key: 'costingMethod', label: 'Metodo costo', type: 'text', section: 'Economia' },
+          { key: 'min_stock', label: 'Scorta minima', type: 'number', section: 'Economia' },
+        ]}
         onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}

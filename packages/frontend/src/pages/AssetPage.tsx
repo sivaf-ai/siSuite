@@ -71,6 +71,11 @@ export function AssetPage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="asset" exportFields={exportFields} entity="asset"
+        filterFields={[
+          { key: 'label', label: 'Etichetta', type: 'text', section: 'Anagrafica', span: 2 },
+          { key: 'kind', label: 'Tipo', type: 'text', section: 'Anagrafica' },
+          { key: 'installedOn', label: 'Installato il', type: 'date', section: 'Anagrafica' },
+        ]}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun asset."

@@ -82,6 +82,12 @@ export function RisorsePage() {
         onDelete={can('delete') ? onDelete : undefined}
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="risorse" exportFields={exportFields} entity="resource"
+        filterFields={[
+          { key: 'label', label: 'Nome', type: 'text', section: 'Anagrafica', span: 2 },
+          { key: 'kind', label: 'Tipo', type: 'enum', section: 'Anagrafica', values: [{ value: 'person', label: 'Persona' }, { value: 'vehicle', label: 'Mezzo' }, { value: 'equipment', label: 'Attrezzatura' }] },
+          { key: 'active', label: 'Attiva', type: 'enum', section: 'Anagrafica', values: [{ value: 'true', label: 'Attiva' }, { value: 'false', label: 'Non attiva' }] },
+          { key: 'hourly_cost', label: 'Costo orario', type: 'number', section: 'Economia' },
+        ]}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."

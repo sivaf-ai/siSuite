@@ -94,6 +94,16 @@ export function EngagementsPage() {
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="commesse" exportFields={exportFields} entity="engagement"
         sortFields={[{ key: 'code', label: 'Codice' }, { key: 'title', label: 'Titolo' }, { key: 'createdAt', label: 'Creato' }]}
+        filterFields={[
+          { key: 'code', label: 'Codice', type: 'text', section: 'Anagrafica' },
+          { key: 'title', label: 'Titolo', type: 'text', section: 'Anagrafica', span: 2 },
+          { key: 'type', label: 'Tipo', type: 'enum', section: 'Anagrafica', values: [{ value: 'build', label: 'Realizzazione' }, { value: 'maintenance', label: 'Manutenzione' }] },
+          { key: 'company', label: 'Cliente', type: 'text', section: 'Anagrafica' },
+          { key: 'status', label: 'Stato', type: 'text', section: 'Stato' },
+          { key: 'startedOn', label: 'Iniziata il', type: 'date', section: 'Date' },
+          { key: 'endedOn', label: 'Chiusa il', type: 'date', section: 'Date' },
+          { key: 'createdAt', label: 'Creata il', type: 'date', section: 'Date' },
+        ]}
         onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}

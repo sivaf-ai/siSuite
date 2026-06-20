@@ -121,6 +121,14 @@ export function OrdinativiPage() {
         clearSelectionToken={clearTok}
         exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order" savedViewKey="work_order"
         sortFields={[{ key: 'code', label: 'Codice' }, { key: 'scheduled', label: 'Data pianificata' }, { key: 'operator', label: 'Gestore' }, { key: 'status', label: 'Stato' }]}
+        filterFields={[
+          { key: 'code', label: 'Codice', type: 'text', section: 'Ordine' },
+          { key: 'principalOrderRef', label: 'Rif. esterno', type: 'text', section: 'Ordine' },
+          { key: 'address', label: 'Indirizzo', type: 'text', section: 'Ordine', span: 2 },
+          { key: 'principalCompanyName', label: 'Gestore', type: 'text', section: 'Ordine' },
+          { key: 'status', label: 'Stato', type: 'text', section: 'Stato' },
+          { key: 'scheduledOn', label: 'Data pianificata', type: 'date', section: 'Pianificazione' },
+        ]}
         onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
