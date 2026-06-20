@@ -63,7 +63,14 @@
 - **Blocchi 3+4**: Ordina/Colonne/Export cablati sul motore in `EntityList` (si propagano a tutte le liste). Sostituiti SortDialog/FieldPicker/ExportDialog. Storage via `list_preset` + `useListPresets`. → `DONE_motore_3_4_*.md`.
 - **Blocco 2 BACKEND**: `filterSql.buildFilter` esteso (mockup 54) — operatori starts/ends/in/not_in/date_*, join per-condizione E/O, NON, parentesi 1 livello (bilanciamento validato), retro-compatibile. +13 test (32 su filterSql). 77 test backend totali verdi.
 - **RESTA (UI-heavy, prossime sessioni con verifica visiva vs mockup)**: Blocco 2 FRONTEND (QBE scheda, mockup 54), Blocco 5 (Report designer, mockup 56, + mig 039 + render), Blocco 6 (toolbar §3 rifinitura), Blocco 7 (Magazzino CRUD completi: Magazzini/Ubicazioni/Movimenti/Giacenze/Documenti), Blocco 8/9 (verifica anagrafiche identiche + residui).
-- Typecheck FE+BE pulito. Commit motore: `98c9126`, `1caa2f9`, `38daba3` (+ docs). NON pushati.
+- Typecheck FE+BE pulito. Commit motore: `98c9126`, `1caa2f9`, `38daba3` (+ docs).
+
+## 2026-06-20 (3) — motore: Blocco 2 frontend + Magazzino backend + PUSH (Claude Code)
+- **PUSH FATTO**: tutto su GitHub `origin/main` (fino a `1488e67`). Il titolare fa i test in locale; il push è backup.
+- **Blocco 2 FRONTEND (Filtro Gruppo, mockup 54)**: `ui/FilterGroupPanel.tsx` (scheda QBE a tutta larghezza, freccettina+pop-up per campo, operatori type-aware, frase in lingua, parentesi 1 livello, SavedHeader). `EntityList` prop `filterFields` + azione toolbar "Gruppo" (list-filter). Composizione campi = filterFields + field_definition (enum display↔raw). **Wired su 6 liste**: Soggetti/Articoli/Commesse/Ordini/Risorse/Asset. → `DONE_motore_2_filtro_gruppo.md`.
+- **Blocco 7 BACKEND (Magazzino)**: `POST /stock/movements/:id/reverse` (rettifica = movimento compensativo, rispetta immutabilità) + `DELETE /stock/locations/:id` (soft archived_at) + GET locations filtra archiviati.
+- 77 test backend verdi. Typecheck FE+BE pulito.
+- **RESTA**: Blocco 7 FRONTEND (form "Nuovo movimento", rettifica/storna in UI, schede Magazzini con tab Ubicazioni, Giacenze drill-down, Documenti archetipo — mockup 29/42), Blocco 5 (Report designer, mockup 56, +mig 039), Blocco 6 (toolbar badge), rimozione builder manuale da AiFilterPanel, conteggi viste col filtro, residui §9.
 
 ## 2026-06-16 — Chat POWERCOM v1.0 01.03 (Claude Code)
 - **Migrazioni applicate**: 024→028 (erano pronte, non applicate) + **029_work_order_fields.sql** (nuova).
