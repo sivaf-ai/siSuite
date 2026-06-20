@@ -76,7 +76,15 @@
 - **Blocco 5 Report designer** (mockup 56): `ui/ReportDesigner.tsx` + `routes/savedReports.ts` + mig 039. Azione toolbar "Report" su tutte le liste. Anteprima HTML live + Stampa/PDF + barra AI (euristica) + SavedHeader.
 - **Blocco 6**: toolbar completa (Gruppo·Ordina·Colonne·Report·Esporta·AI, badge); `AiFilterPanel` ridotto a NL/voce (builder manuale → sostituito dal Gruppo).
 - 77 test backend verdi. Typecheck FE+BE pulito. → `DONE_motore_5_7_report_magazzino.md`.
-- **PIANO_motore COMPLETO (blocchi 1→8).** Residui rifiniture §9: conteggi viste col filtro, archetipo Documento DetailPage, saldo assenze DELETE, long-tail i18n, render Report server-side/PDF nativo.
+- **PIANO_motore COMPLETO (blocchi 1→8).**
+
+## 2026-06-20 (5) — residui §9 chiusi (Claude Code)
+- **Saldo assenze DELETE**: ripristina `absence_balance.used` se l'assenza era approvata.
+- **Conteggi viste col filtro**: companies/materials/resources/work-orders/engagements applicano buildFilter ai chip; fix injection engagementId in work-orders (param-bind).
+- **i18n header colonne**: namespace `cols.*` (it/en/es) + cablaggio su Soggetti/Articoli/Commesse/Ordini/Risorse/Asset.
+- **Non-blocking documentati** (alternativa funzionante): Documenti magazzino DetailPage-archetipo (drawer ok), Report render server-side/PDF (stampa browser ok).
+- 77 test verdi, typecheck pulito, tutto pushato. → `DONE_motore_9_residui.md`.
+- **FINE PIANO_motore.** Unica voce con possibile revisione tua: terminologia traduzioni (cols.*/glossario).
 
 ### (riferimento precedente)
 - **RESTAVA**: Blocco 7 FRONTEND, Blocco 5, Blocco 6 — ora FATTI.
