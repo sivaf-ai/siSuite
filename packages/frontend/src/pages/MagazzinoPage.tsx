@@ -8,7 +8,7 @@
  * Ogni entità ha la sua strada MANUALE (l'AI è una seconda strada, non l'unica).
  */
 import { useMemo, useState } from 'react';
-import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight } from 'lucide-react';
 import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, EngagementDto, PermissionKey,
 } from '@sisuite/shared';
@@ -28,7 +28,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'balance', label: 'Giacenze' },
   { key: 'movements', label: 'Movimenti' },
   { key: 'documents', label: 'Documenti' },
-  { key: 'locations', label: 'Ubicazioni' },
+  { key: 'locations', label: 'Magazzini' },
 ];
 const num = (v: unknown) => (v == null ? '' : Number(v).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
 const eur = (v: number | null) => (v == null ? '—' : `€ ${Number(v).toFixed(2)}`);
@@ -321,8 +321,8 @@ function DocumentsTab({ lk, canManage }: { lk: ReturnType<typeof useLookups>; ca
   );
 }
 
-/* ── Ubicazioni (crea / modifica / elimina-soft) ───────────────────── */
-const KIND_LABEL: Record<string, string> = { warehouse: 'Magazzino', sub_location: 'Sotto-ubicazione', van: 'Furgone' };
+/* ── Magazzini & Ubicazioni (vista gerarchica: magazzino → ubicazioni figlie) ── */
+const KIND_LABEL: Record<string, string> = { warehouse: 'Magazzino', sub_location: 'Ubicazione', van: 'Furgone' };
 function LocationsTab({ canManage }: { canManage: boolean }) {
   const toast = useToast();
   const locs = useApi<{ items: StockLocationDto[] }>('/stock/locations');
@@ -332,66 +332,98 @@ function LocationsTab({ canManage }: { canManage: boolean }) {
   const [name, setName] = useState('');
   const [kind, setKind] = useState<'warehouse' | 'sub_location' | 'van'>('warehouse');
   const [parentId, setParentId] = useState('');
+  const [delRow, setDelRow] = useState<StockLocationDto | null>(null);
 
-  const openNew = () => { setEditId(null); setName(''); setKind('warehouse'); setParentId(''); setOpen(true); };
+  // nuovo magazzino (top-level) oppure nuova ubicazione dentro un magazzino (parent preset)
+  const openNew = (parent?: StockLocationDto) => {
+    setEditId(null); setName(''); setKind(parent ? 'sub_location' : 'warehouse'); setParentId(parent?.id ?? ''); setOpen(true);
+  };
   const openEdit = (l: StockLocationDto) => { setEditId(l.id); setName(l.name); setKind((l.kind as typeof kind) ?? 'warehouse'); setParentId(l.parentId ?? ''); setOpen(true); };
 
   async function save() {
     if (!name.trim()) { toast('Inserisci un nome', 'error'); return; }
     setBusy(true);
     try {
-      if (editId) { await mutate('PATCH', `/stock/locations/${editId}`, { name: name.trim(), kind, parentId: parentId || null }); toast('Ubicazione aggiornata', 'success'); }
-      else { await mutate('POST', '/stock/locations', { name: name.trim(), kind, parentId: parentId || undefined }); toast('Ubicazione creata', 'success'); }
+      if (editId) { await mutate('PATCH', `/stock/locations/${editId}`, { name: name.trim(), kind, parentId: parentId || null }); toast('Salvato', 'success'); }
+      else { await mutate('POST', '/stock/locations', { name: name.trim(), kind, parentId: parentId || undefined }); toast(parentId ? 'Ubicazione creata' : 'Magazzino creato', 'success'); }
       setOpen(false); await locs.reload();
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
-  async function onDelete(rows: StockLocationDto[]) {
-    for (const r of rows) await mutate('DELETE', `/stock/locations/${r.id}`);
-    toast(rows.length > 1 ? `${rows.length} ubicazioni eliminate` : 'Ubicazione eliminata', 'success');
-    await locs.reload();
+  async function doDelete() {
+    if (!delRow) return;
+    setBusy(true);
+    try { await mutate('DELETE', `/stock/locations/${delRow.id}`); toast('Eliminato', 'success'); setDelRow(null); await locs.reload(); }
+    catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
 
-  const cols: ListColumn<StockLocationDto>[] = [
-    { key: 'name', header: 'Nome', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
-    { key: 'kind', header: 'Tipo', value: (r) => KIND_LABEL[r.kind] ?? r.kind, render: (r) => <span className="chip">{KIND_LABEL[r.kind] ?? r.kind}</span> },
-    { key: 'parent', header: 'Dentro', value: (r) => (r.parentId ? (locs.data?.items.find((x) => x.id === r.parentId)?.name ?? '') : ''), render: (r) => <span className="cellsub">{r.parentId ? (locs.data?.items.find((x) => x.id === r.parentId)?.name ?? '—') : '—'}</span> },
-    { key: 'default', header: 'Default', value: (r) => (r.isDefault ? 'predefinito' : ''), render: (r) => (r.isDefault ? <span className="chip">predefinito</span> : '') },
-    { key: 'act', header: '', render: (r) => (canManage
-      ? <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil size={14} /> Modifica</button> : null) },
-  ];
-  const exportFields: ExportField<StockLocationDto>[] = cols.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header, value: c.value! }));
-  const rows = locs.data?.items ?? [];
-  const rightActions: ListAction[] = [
-    ...(canManage ? [{ key: 'new', icon: Plus, tip: 'Nuova ubicazione', variant: 'primary' as const, onClick: openNew }] : []),
-    { key: 'export', icon: Download, tip: 'Esporta tutto', onClick: () => void exportAll('ubicazioni', 'Ubicazioni', exportFields, rows) },
-  ];
+  const all = locs.data?.items ?? [];
+  const tops = all.filter((l) => !l.parentId);                          // magazzini / furgoni di primo livello
+  const childrenOf = (pid: string) => all.filter((l) => l.parentId === pid);
+
+  const RowActions = ({ l }: { l: StockLocationDto }) => canManage ? (
+    <span style={{ display: 'inline-flex', gap: 6 }}>
+      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(l)}><Pencil size={14} /> Modifica</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => setDelRow(l)}><Trash2 size={14} /></button>
+    </span>
+  ) : null;
+
   return (
     <>
-      <EntityList<StockLocationDto>
-        columns={cols} rows={rows} loading={locs.loading} error={locs.error}
-        selectable={canManage}
-        onRowClick={canManage ? openEdit : undefined}
-        onDelete={canManage ? onDelete : undefined}
-        exportName="ubicazioni" exportFields={exportFields} rightActions={rightActions}
-        emptyText="Nessuna ubicazione. Crea il primo magazzino." />
+      <div className="toolbar" style={{ marginBottom: 10 }}>
+        <span className="help" style={{ color: 'var(--ink-faint)', fontSize: 12 }}>Magazzini e furgoni di primo livello; dentro ognuno, le sue ubicazioni.</span>
+        <span className="spacer" style={{ flex: 1 }} />
+        {canManage && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} /> Nuovo magazzino</button>}
+      </div>
 
-      <Drawer open={open} title={editId ? 'Modifica ubicazione' : 'Nuova ubicazione'} onClose={() => setOpen(false)} footer={
+      {locs.loading ? <div className="dsx-empty">Caricamento…</div>
+        : tops.length === 0 ? <div className="dsx-empty">Nessun magazzino. Crea il primo con “Nuovo magazzino”.</div>
+          : tops.map((m) => (
+            <div key={m.id} className="panel" style={{ marginBottom: 12, padding: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: '1px solid var(--line)' }}>
+                <Warehouse size={18} style={{ color: 'var(--brand)' }} />
+                <b style={{ fontSize: 14 }}>{m.name}</b>
+                <span className="chip">{KIND_LABEL[m.kind] ?? m.kind}</span>
+                {m.isDefault && <span className="chip">predefinito</span>}
+                <span className="spacer" style={{ flex: 1 }} />
+                {canManage && <button className="btn btn-ghost btn-sm" onClick={() => openNew(m)}><Plus size={14} /> Ubicazione</button>}
+                <RowActions l={m} />
+              </div>
+              <div style={{ padding: '6px 14px 10px' }}>
+                {childrenOf(m.id).length === 0
+                  ? <div className="cellsub" style={{ padding: '6px 2px', color: 'var(--ink-faint)' }}>Nessuna ubicazione interna. Aggiungine una con “Ubicazione”.</div>
+                  : childrenOf(m.id).map((c) => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0', borderBottom: '1px solid var(--line-2)' }}>
+                      <CornerDownRight size={14} style={{ color: 'var(--ink-faint)' }} />
+                      <span className="cellname">{c.name}</span>
+                      <span className="chip">{KIND_LABEL[c.kind] ?? c.kind}</span>
+                      <span className="spacer" style={{ flex: 1 }} />
+                      <RowActions l={c} />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+
+      <Drawer open={open} title={editId ? 'Modifica' : (parentId ? 'Nuova ubicazione' : 'Nuovo magazzino')} onClose={() => setOpen(false)} footer={
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button>
           <button className="btn btn-primary" disabled={busy} onClick={save}>Salva</button>
         </div>
       }>
-        <div className="field"><label>Nome<span className="req">*</span></label><input className="txt" value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Magazzino centrale" /></div>
+        <div className="field"><label>Nome<span className="req">*</span></label><input className="txt" value={name} onChange={(e) => setName(e.target.value)} placeholder={parentId ? 'es. Scaffale A / Furgone Mario' : 'es. Magazzino centrale'} /></div>
         <div className="field"><label>Tipo</label>
           <select className="txt" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-            <option value="warehouse">Magazzino</option><option value="sub_location">Sotto-ubicazione</option><option value="van">Furgone</option>
+            <option value="warehouse">Magazzino</option><option value="sub_location">Ubicazione</option><option value="van">Furgone</option>
           </select></div>
-        <div className="field"><label>Dentro (opzionale)</label>
+        <div className="field"><label>Dentro (magazzino)</label>
           <select className="txt" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-            <option value="">— primo livello —</option>
-            {(locs.data?.items ?? []).filter((l) => l.id !== editId).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            <option value="">— primo livello (magazzino/furgone) —</option>
+            {all.filter((l) => l.id !== editId && !l.parentId).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select></div>
       </Drawer>
+
+      <ConfirmDialog open={!!delRow} danger title="Eliminare?" message={`«${delRow?.name ?? ''}» verrà archiviato. Le ubicazioni interne restano ma senza il contenitore.`}
+        confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRow(null)} />
     </>
   );
 }
