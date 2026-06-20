@@ -52,7 +52,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const rows = await withRls(request.ctx, (db) =>
         db.query(`SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
-                  FROM stock_location ORDER BY is_default DESC, name`).then((r) => r.rows));
+                  FROM stock_location WHERE archived_at IS NULL ORDER BY is_default DESC, name`).then((r) => r.rows));
       return { items: rows.map(locDto) };
     });
 
@@ -93,6 +93,16 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
            RETURNING id, parent_id, name, kind, resource_id, holds_stock, is_default, active`, params);
         return r.rows[0] ? locDto(r.rows[0]) : { ok: false };
       });
+    });
+
+  // elimina-soft (archivia) un'ubicazione (PIANO §5.1). Non rompe lo storico movimenti.
+  app.delete<{ Params: { id: string } }>('/stock/locations/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      await withRls(request.ctx, (db) => db.query(
+        `UPDATE stock_location SET archived_at = now(), updated_by = $2 WHERE id = $1 AND archived_at IS NULL`,
+        [request.params.id, request.ctx.userId]));
+      return reply.code(204).send();
     });
 
   // ── Giacenze ────────────────────────────────────────────────────────
@@ -159,6 +169,29 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         occurredOn: input.occurredOn, engagementId: input.engagementId, activityId: input.activityId, note: input.note,
       }));
       return reply.code(201).send({ id });
+    });
+
+  // RETTIFICA / STORNA (PIANO §5.3): crea un movimento COMPENSATIVO (quantità opposta),
+  // NON modifica/cancella l'originale (il trigger DB vieta UPDATE/DELETE sui movimenti).
+  app.post<{ Params: { id: string } }>('/stock/movements/:id/reverse',
+    { preHandler: [app.authenticate, requirePermission('stock:move')] },
+    async (request, reply) => {
+      const newId = await withRls(request.ctx, async (db) => {
+        const o = await db.query(
+          `SELECT material_id, location_id, quantity, unit, unit_cost, unit_price, currency, occurred_on, engagement_id, activity_id
+           FROM stock_movement WHERE id = $1`, [request.params.id]);
+        const m = o.rows[0];
+        if (!m) return null;
+        return insertMovement(db, request.ctx.tenantId, request.ctx.userId, {
+          materialId: m.material_id, locationId: m.location_id, typeCode: 'adjust', signedQty: -Number(m.quantity),
+          unit: m.unit, unitCost: m.unit_cost === null ? null : Number(m.unit_cost),
+          unitPrice: m.unit_price === null ? null : Number(m.unit_price), currency: m.currency ?? null,
+          engagementId: m.engagement_id ?? null, activityId: m.activity_id ?? null,
+          note: `Rettifica del movimento ${request.params.id}`,
+        });
+      });
+      if (!newId) return reply.code(404).send({ message: 'Movimento non trovato' });
+      return reply.code(201).send({ id: newId });
     });
 
   // ── Documenti (testata → movimenti alla conferma) ───────────────────
