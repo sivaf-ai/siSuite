@@ -120,6 +120,21 @@ export function ClientiPage() {
         onDuplicate={can('create') ? onDuplicate : undefined}
         exportName="soggetti" exportFields={exportFields} entity="company" savedViewKey="company"
         sortFields={[{ key: 'displayName', label: 'Nome' }, { key: 'type', label: 'Tipo' }, { key: 'createdAt', label: 'Creato' }]}
+        filterFields={[
+          { key: 'displayName', label: 'Ragione sociale', type: 'text', section: 'Anagrafica', span: 2 },
+          { key: 'type', label: 'Tipo', type: 'enum', section: 'Anagrafica', values: [{ value: 'organization', label: 'Organizzazione' }, { value: 'private', label: 'Privato' }] },
+          { key: 'createdAt', label: 'Creato il', type: 'date', section: 'Anagrafica' },
+          { key: 'vat_number', label: 'P.IVA', type: 'text', section: 'Dati fiscali' },
+          { key: 'tax_code', label: 'Codice fiscale', type: 'text', section: 'Dati fiscali' },
+          { key: 'pec', label: 'PEC', type: 'text', section: 'Dati fiscali', span: 2 },
+          { key: 'sdi_code', label: 'Codice SDI', type: 'text', section: 'Dati fiscali' },
+          { key: 'street', label: 'Indirizzo', type: 'text', section: 'Indirizzo e recapiti', span: 2 },
+          { key: 'city', label: 'Città', type: 'text', section: 'Indirizzo e recapiti' },
+          { key: 'province', label: 'Provincia', type: 'text', section: 'Indirizzo e recapiti' },
+          { key: 'postal_code', label: 'CAP', type: 'text', section: 'Indirizzo e recapiti' },
+          { key: 'website', label: 'Sito web', type: 'text', section: 'Indirizzo e recapiti', span: 2 },
+          { key: 'notes', label: 'Note', type: 'text', section: 'Note', span: 2 },
+        ]}
         onSortChange={(s) => { setSortParam(s.length ? JSON.stringify(s) : null); setOffset(0); }}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}

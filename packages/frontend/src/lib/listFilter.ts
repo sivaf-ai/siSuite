@@ -3,7 +3,16 @@
  * Le condizioni arrivano dal backend (NL→JSON) e si applicano ai valori delle colonne
  * (gli stessi `value` usati per l'export → label/valori localizzati).
  */
-export interface FilterCondition { field: string; op: string; value: string | number | boolean | null | (string | number)[]; label?: string }
+export interface FilterCondition {
+  field: string; op: string; value: string | number | boolean | null | (string | number)[]; label?: string;
+  /* ── estensioni "Filtro Gruppo" (mockup 54) ── */
+  value2?: string | number | null;
+  values?: string[];
+  join?: 'and' | 'or';
+  neg?: boolean;
+  open?: boolean;
+  close?: boolean;
+}
 
 const norm = (v: unknown) => (v == null ? '' : String(v)).trim();
 const low = (v: unknown) => norm(v).toLowerCase();

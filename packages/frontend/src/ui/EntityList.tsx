@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown } from 'lucide-react';
 import type { LucideIcon } from './icons';
-import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
+import { type FieldDefinitionDto, fieldLabel, GROUP_LABEL_IT } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
 import { currentLocale } from '../i18n';
 import { Loading, ErrorBox } from '../components/Page';
@@ -22,8 +22,9 @@ import { PromptDialog } from './PromptDialog';
 import { FloatingPopover } from './FloatingPopover';
 import { SavedHeader } from './SavedHeader';
 import { FieldChooser, type ChosenItem, type ChooserField } from './FieldChooser';
+import { FilterGroupPanel, type FilterFieldMeta, type FilterFieldType } from './FilterGroupPanel';
 import { useListPresets } from './useListPresets';
-import { Check } from 'lucide-react';
+import { Check, ListFilter } from 'lucide-react';
 import { downloadXlsx } from '../lib/xlsx';
 import { type FieldOpt } from './FieldPicker';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -101,6 +102,9 @@ interface Props<T extends { id: string }> {
   savedViewKey?: string;
   /** campi ordinabili (key = chiave SORTABLE del backend) per la mascherina "Ordina". Blocco 5.2. */
   sortFields?: { key: string; label: string }[];
+  /** metadati dei campi BASE per il Filtro "Gruppo" (motore §2.1): key=chiave FILTER_FIELDS del backend,
+   *  type/section/values. I campi custom (field_definition) si aggiungono in automatico. */
+  filterFields?: FilterFieldMeta[];
   /** riceve l'ordinamento multi-campo (priorità) → la pagina lo passa all'API come ?sort=. */
   onSortChange?: (sort: { field: string; dir: 'asc' | 'desc' }[]) => void;
 }
@@ -128,6 +132,20 @@ function attrExportValue(def: FieldDefinitionDto, attributes: Record<string, unk
   if (def.dataType === 'boolean') return raw ? 'Sì' : 'No';
   if (typeof raw === 'number') return raw;
   return String(raw);
+}
+
+/** Mappa un field_definition del tenant in metadati per il Filtro Gruppo. */
+function fieldDefToFilterMeta(d: FieldDefinitionDto): FilterFieldMeta {
+  const loc = currentLocale();
+  let type: FilterFieldType = 'text';
+  if (d.dataType === 'number' || d.dataType === 'money' || d.dataType === 'integer') type = 'number';
+  else if (d.dataType === 'date') type = 'date';
+  else if (d.dataType === 'select' || d.dataType === 'multiselect') type = 'enum';
+  else if (d.dataType === 'boolean') type = 'enum';
+  const values = d.dataType === 'boolean'
+    ? [{ value: 'true', label: 'Sì' }, { value: 'false', label: 'No' }]
+    : (d.options ?? []).map((o) => ({ value: o.value, label: fieldLabel(o.label, loc, o.value) }));
+  return { key: d.key, label: fieldLabel(d.label, loc, d.key), type, section: GROUP_LABEL_IT[d.groupKey ?? 'general'] ?? (d.groupKey ?? 'Campi'), values: type === 'enum' ? values : undefined };
 }
 
 function Tib({ a }: { a: ListAction }) {
@@ -263,6 +281,17 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const sortPresets = useListPresets(presetEntity, 'sort');
   const columnsPresets = useListPresets(presetEntity, 'columns');
   const exportPresets = useListPresets(presetEntity, 'export');
+
+  // ── Filtro "Gruppo" (motore §2.1, mockup 54): campi base + field_definition del tenant ──
+  const groupFilterFields: FilterFieldMeta[] = [
+    ...(p.filterFields ?? []),
+    ...(fieldDefs.data?.items ?? [])
+      .filter((d) => d.active !== false)
+      .filter((d) => !(p.filterFields ?? []).some((b) => b.key === d.key))
+      .map(fieldDefToFilterMeta),
+  ];
+  const [groupOpen, setGroupOpen] = useState(false);
+  const canGroup = !!p.onFilterChange && groupFilterFields.length > 0;
   const [sortOpen, setSortOpen] = useState(false);
   const [sortState, setSortState] = useState<{ field: string; dir: 'asc' | 'desc' }[]>([]);
   const [sortDraft, setSortDraft] = useState<ChosenItem[]>([]);
@@ -317,7 +346,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
   const builtinLeft: ListAction[] = pick ? [] : [
-    { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
+    canGroup
+      ? { key: 'gruppo', icon: ListFilter, tip: filterConds.length ? `Filtra (Gruppo) · ${filterConds.length}` : 'Filtra (Gruppo)', variant: (filterConds.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setGroupOpen(true) }
+      : { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
     ...(p.onSortChange && p.sortFields?.length
       ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: openSort }]
       : []),
@@ -468,6 +499,17 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           </>}>
           <FieldChooser mode="sort" fields={sortChooserFields} value={sortDraft} onChange={setSortDraft} />
         </FloatingPopover>
+      )}
+
+      {groupOpen && (
+        <FilterGroupPanel title={p.title ?? 'Record'} presetEntity={presetEntity} fields={groupFilterFields}
+          initial={filterConds}
+          onApply={(conds) => {
+            setFilterConds(conds); setFilterMode('and'); setFilterDesc('');
+            p.onFilterChange?.(conds.length ? { mode: 'and', conditions: conds } : null);
+            setActiveSV(null); setGroupOpen(false);
+          }}
+          onClose={() => setGroupOpen(false)} />
       )}
 
       <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}
