@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Filtro sulla scheda Aziende (freccettina + pop-up)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:18px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-pop:0 6px 18px rgba(91,77,240,.16);--shadow-pop2:0 16px 44px rgba(27,29,36,.22);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;--input-h:34px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:12.5px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono)}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}svg{width:16px;height:16px}input,select{font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 13px;border-radius:var(--r-sm);font-weight:600;font-size:13px}.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.full{width:100%;padding:10px 13px 86px}
+.titleline{display:flex;align-items:center;gap:9px;padding:6px 2px 8px}
+.titleline .mk{width:26px;height:26px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.titleline .nm{font-family:var(--font-display);font-weight:800;font-size:16px}.titleline .nm em{font-style:normal;color:#10918c}
+.titleline .hint{margin-left:auto;font-size:11px;color:var(--ink-faint)}
+/* op-head */
+.op-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px 10px}
+.op-head .ctx{font-family:var(--font-display);font-weight:800;font-size:16px}
+.op-head .mode{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-ink);background:var(--brand-wash);padding:3px 9px;border-radius:var(--r-pill)}
+.saver{margin-left:auto;display:flex;align-items:center;gap:7px}
+.saver select{height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:12.5px;padding:0 9px;color:var(--ink);max-width:44vw}
+.saver .ib{height:34px;width:34px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);display:grid;place-items:center;flex:0 0 auto}
+.saver .ib.pri{background:var(--brand);color:#fff;border-color:transparent}
+/* condition sentence (slim, sticky) */
+.condbar{position:sticky;top:0;z-index:25;margin:0 0 12px;padding:8px 11px;background:var(--flow-wash);border:1px solid #bdecea;border-radius:var(--r);box-shadow:var(--shadow-1)}
+.condbar .lab{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0c6b67;margin-right:4px}
+.sentence{display:inline;line-height:2}
+.brk{font-family:var(--font-mono);font-size:16px;font-weight:700;color:#0c6b67;vertical-align:-1px}
+.join{font-size:9.5px;font-weight:800;color:#0c6b67;background:#fff;border:1px solid #bdecea;border-radius:var(--r-pill);padding:2px 8px;margin:0 2px}
+.cond{display:inline-flex;align-items:center;gap:5px;height:25px;padding:0 4px 0 9px;background:#fff;border:1px solid #bdecea;border-radius:var(--r-pill);font-size:11.5px;color:var(--ink-2);margin:0 2px;vertical-align:middle}
+.cond b{color:var(--ink);font-weight:600}
+.cond .ng{font-size:8.5px;font-weight:800;color:var(--danger);background:var(--danger-wash);border-radius:var(--r-pill);padding:1px 5px}
+.cond .x{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;color:var(--ink-faint)}.cond .x:hover{background:var(--danger-wash);color:var(--danger)}
+.emptycond{font-size:11.5px;color:#0c6b67}
+/* === FORM = scheda Aziende originale === */
+.obox{position:relative;border:1.5px solid var(--line);border-radius:var(--r-lg);padding:20px 14px 14px;margin-bottom:13px;background:var(--card)}
+.obox-t{position:absolute;top:-9px;left:13px;padding:0 7px;background:var(--card);font-family:var(--font-display);font-weight:700;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.obox-t svg{width:14px;height:14px;color:var(--brand)}
+.bgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px 12px;align-items:start}
+.bf{position:relative;grid-column:span 1}.bf.c2{grid-column:span 2}.bf.c4{grid-column:span 4}
+.bl{position:absolute;top:-7px;left:10px;padding:0 5px;background:var(--card);font-size:10.5px;font-weight:600;color:var(--ink-soft);z-index:1}
+.bi{width:100%;height:var(--input-h);padding:0 6px 0 11px;background:var(--card);border:1.5px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+.bi .flin{flex:1;min-width:0;border:0;background:none;outline:none;font-size:13px;color:var(--ink);height:100%}
+.bi.seld{cursor:pointer}
+.bi .flval{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bi .flval .ph{color:var(--ink-faint)}
+.bi.act{border-color:var(--brand);box-shadow:0 0 0 3px rgba(91,77,240,.10)}
+/* the tiny caret — questo è il "chip" piccolo */
+.caret{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.caret:hover{background:var(--brand-wash)}
+.caret svg{width:15px;height:15px}
+.caret.set{background:var(--brand);color:#fff}
+/* footer */
+.opbar{position:sticky;bottom:0;display:flex;align-items:center;gap:9px;padding:11px 0 6px;background:linear-gradient(180deg,rgba(243,245,248,0),var(--paper) 38%)}
+.opbar .left{margin-right:auto;font-size:12px;color:var(--ink-soft)}
+/* === floating pop-up (naviga sopra la scheda) === */
+.fpop{position:fixed;z-index:90;width:312px;max-width:92vw;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-pop2);padding:13px;display:none}
+.fpop.open{display:block}
+.fpop .ft{font-family:var(--font-display);font-weight:800;font-size:13.5px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.fpop .ft .ic{color:var(--brand)}
+.fpl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:11px 0 6px}
+.oppills{display:flex;gap:5px;flex-wrap:wrap}
+.oppill{height:28px;padding:0 11px;border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+.oppill.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.valrow{display:flex;align-items:center;gap:7px;margin-top:3px}
+.vin{flex:1;min-width:0;height:34px;border:1.5px solid var(--line);border-radius:9px;background:#fff;padding:0 10px;font-size:13px;outline:none}.vin:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(91,77,240,.12)}
+.vin.small{flex:0 0 96px}
+.arrowto{color:var(--ink-faint);flex:0 0 auto}
+.echips{display:flex;gap:5px;flex-wrap:wrap}
+.echip{height:28px;padding:0 11px;border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;font-size:12px;font-weight:600;color:var(--ink-soft)}.echip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.combina{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.jseg{display:inline-flex;background:var(--neutral-wash);border-radius:8px;padding:2px}
+.jseg button{height:26px;padding:0 12px;border-radius:6px;font-size:11.5px;font-weight:700;color:var(--ink-soft)}.jseg button.on{background:#fff;color:var(--brand-ink);box-shadow:var(--shadow-1)}
+.tgl{height:28px;padding:0 10px;border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;font-size:11.5px;font-weight:700;color:var(--ink-soft);display:inline-flex;align-items:center;gap:5px}
+.tgl.on{background:var(--brand-wash);color:var(--brand-ink);border-color:var(--brand)}
+.tgl.neg.on{background:var(--danger-wash);color:var(--danger);border-color:var(--danger)}
+.fpop .ff{display:flex;gap:8px;margin-top:14px}.fpop .ff .btn{flex:1}
+.firsthint{font-size:10.5px;color:var(--ink-faint);margin-top:8px;display:flex;gap:5px;align-items:flex-start}
+@media(max-width:1100px){.bgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.bf.c2,.bf.c4{grid-column:span 2}}
+@media(max-width:680px){.bgrid{grid-template-columns:1fr}.bf,.bf.c2,.bf.c4{grid-column:span 1}}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;margin-top:12px}.note svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;margin-top:1px}.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="full">
+  <div class="titleline"><div class="mk"><i data-lucide="filter"></i></div><div class="nm"><em>si</em>Suite · Filtro sulla scheda</div><span class="hint">freccettina ▾ + pop-up · a tutta larghezza</span></div>
+
+  <div class="op-head">
+    <span class="ctx">Aziende</span><span class="mode">Filtro · Gruppo</span>
+    <div class="saver">
+      <select><option>Filtro salvato…</option><option>Clienti Italia attivi</option><option>Fornitori senza PEC</option></select>
+      <button class="ib"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
+      <button class="ib pri"><i data-lucide="save" style="width:15px;height:15px"></i></button>
+    </div>
+  </div>
+
+  <div class="condbar" id="cond"></div>
+  <div id="form"></div>
+
+  <div class="opbar">
+    <span class="left" id="cnt"></span>
+    <button class="btn btn-ghost" data-clearall><i data-lucide="eraser"></i> Pulisci</button>
+    <button class="btn btn-primary" data-apply><i data-lucide="filter"></i> Applica</button>
+  </div>
+
+  <div class="note"><i data-lucide="info"></i><div>La scheda è quella vera, intatta. L'unica aggiunta è la <b>freccettina ▾</b> a destra di ogni campo. Scrivi e basta → applica l'operatore di default ("contiene"). Premi la freccettina → si apre il <b>pop-up</b> che galleggia sopra: lì scegli l'operatore, il secondo valore del <b>da–a</b>, e come legare la condizione (<b>E / O / NON / parentesi</b>), con Applica/Annulla.</div></div>
+</div>
+<div class="fpop" id="fpop"></div>
+
+<script>
+const SECTIONS=[
+ {title:'Classificazione',icon:'building-2',fields:[
+   {key:'rs',label:'Ragione sociale',type:'text',span:2},
+   {key:'tipo',label:'Tipo',type:'enum',span:1,values:['Azienda','Persona fisica','Ente']},
+   {key:'cod',label:'Codice',type:'text',span:1},
+   {key:'ruoli',label:'Ruoli',type:'enum',span:2,values:['Cliente','Fornitore','Partner','Operatore']},
+   {key:'paese',label:'Paese',type:'enum',span:1,values:['Italia','Argentina','Spagna','Francia']},
+   {key:'valuta',label:'Valuta',type:'enum',span:1,values:['EUR','USD','ARS']},
+   {key:'data_cost',label:'Data costituzione',type:'date',span:2},
+   {key:'rea',label:'N. REA',type:'text',span:2},
+ ]},
+ {title:'Dati fiscali',icon:'receipt',fields:[
+   {key:'piva',label:'P.IVA',type:'text',span:1},
+   {key:'cf',label:'Codice fiscale',type:'text',span:1},
+   {key:'pec',label:'PEC',type:'text',span:2},
+   {key:'sdi',label:'Codice SDI',type:'text',span:1},
+   {key:'regime',label:'Regime fiscale',type:'enum',span:1,values:['Ordinario','Forfettario','Minimi']},
+   {key:'iban',label:'IBAN',type:'text',span:2},
+ ]},
+ {title:'Indirizzo e recapiti',icon:'map-pin',fields:[
+   {key:'indirizzo',label:'Indirizzo',type:'text',span:2},
+   {key:'citta',label:'Città',type:'text',span:1},
+   {key:'prov',label:'Prov.',type:'text',span:1},
+   {key:'cap',label:'CAP',type:'text',span:1},
+   {key:'tel',label:'Telefono',type:'text',span:1},
+   {key:'sito',label:'Sito web',type:'text',span:2},
+ ]},
+];
+const ALLF={};SECTIONS.forEach(s=>s.fields.forEach(f=>ALLF[f.key]=f));
+const TEXTOPS=[['contiene','contiene'],['eq','è uguale a'],['starts','inizia con'],['ends','finisce con'],['range','da–a'],['empty','è vuoto']];
+const ENUMOPS=[['in','è uno di'],['notin','non è']];
+const DATEOPS=[['today','oggi'],['month','mese corr.'],['year','anno corr.'],['gt','dopo il'],['lt','prima del'],['range','intervallo'],['inyear','nell\'anno']];
+
+const ST={};
+Object.values(ALLF).forEach(f=>{ST[f.key]={op:(f.type==='enum'?'in':(f.type==='date'?'year':'contiene')),v:'',v2:'',vals:[],join:'E',neg:false,po:false,pc:false};});
+// demo prefill
+ST.rs.v='srl';
+ST.ruoli.vals=['Cliente','Fornitore'];
+ST.paese.vals=['Italia'];ST.paese.neg=true;ST.paese.join='O';
+ST.data_cost.op='range';ST.data_cost.v='2026-01-01';ST.data_cost.v2='2026-06-30';
+ST.rs.po=true;ST.data_cost.pc=true; // gruppo ( rs ... data ) per mostrare le parentesi
+
+function opName(f){const s=ST[f.key];
+  if(f.type==='text')return (TEXTOPS.find(o=>o[0]===s.op)||TEXTOPS[0])[1];
+  if(f.type==='enum')return (ENUMOPS.find(o=>o[0]===s.op)||ENUMOPS[0])[1];
+  return (DATEOPS.find(o=>o[0]===s.op)||DATEOPS[2])[1];}
+function condText(f){const s=ST[f.key];
+  if(f.type==='enum'){if(!s.vals.length)return null;return (s.op==='notin'?'non è ':'è ')+s.vals.join(' / ');}
+  if(f.type==='date'){
+    if(s.op==='today')return 'è oggi';if(s.op==='month')return 'nel mese corrente';if(s.op==='year')return 'nell\'anno corrente';
+    if(s.op==='gt')return s.v?('dopo il '+s.v):null;if(s.op==='lt')return s.v?('prima del '+s.v):null;
+    if(s.op==='inyear')return s.v?('nell\'anno '+s.v):null;
+    if(s.op==='range')return (s.v||s.v2)?('da '+(s.v||'…')+' a '+(s.v2||'…')):null;return null;}
+  if(s.op==='empty')return 'è vuoto';
+  if(s.op==='range')return (s.v||s.v2)?('da "'+(s.v||'…')+'" a "'+(s.v2||'…')+'"'):null;
+  if(!s.v)return null;
+  return ({contiene:'contiene',eq:'è',starts:'inizia con',ends:'finisce con'}[s.op])+' "'+s.v+'"';}
+function hasCond(f){return condText(f)!==null;}
+function activeList(){return Object.values(ALLF).filter(hasCond).map(f=>({f,txt:condText(f),s:ST[f.key]}));}
+
+/* ---------- sentence ---------- */
+function renderSentence(){
+  const host=document.getElementById('cond');if(!host)return;
+  const list=activeList();
+  if(!list.length){host.innerHTML='<span class="lab">Aziende dove…</span><span class="emptycond">nessuna condizione — scrivi nei campi o usa la ▾</span>';window.lucide&&lucide.createIcons();return;}
+  let h='<span class="lab">Aziende dove…</span><span class="sentence">';
+  list.forEach((it,i)=>{
+    if(i>0)h+='<span class="join">'+it.s.join+'</span>';
+    if(it.s.po)h+='<span class="brk">(</span>';
+    h+='<span class="cond">'+(it.s.neg?'<span class="ng">NON</span>':'')+'<b>'+it.f.label+'</b> '+it.txt+' <span class="x" data-clear="'+it.f.key+'"><i data-lucide="x" style="width:12px;height:12px"></i></span></span>';
+    if(it.s.pc)h+='<span class="brk">)</span>';
+  });
+  h+='</span>';host.innerHTML=h;window.lucide&&lucide.createIcons();
+  const c=document.getElementById('cnt');if(c)c.textContent=list.length+' condizion'+(list.length===1?'e':'i');
+}
+
+/* ---------- form (scheda reale) ---------- */
+function fieldHTML(f){
+  const s=ST[f.key];const active=hasCond(f);
+  const caret='<button class="caret'+(active?' set':'')+'" data-op="'+f.key+'"><i data-lucide="chevron-down"></i></button>';
+  let inner;
+  if(f.type==='text'){
+    inner='<div class="bi'+(active?' act':'')+'"><input class="flin" data-v="'+f.key+'" value="'+(s.v||'').replace(/"/g,'&quot;')+'" placeholder="'+(s.op==='empty'?'(senza valore)':(s.op==='range'?'(intervallo — apri ▾)':'filtra…'))+'"'+(s.op==='empty'||s.op==='range'?' readonly':'')+'>'+caret+'</div>';
+  } else {
+    const t=condText(f);
+    const val=t?('<span class="flval">'+t+'</span>'):('<span class="flval"><span class="ph">'+(f.type==='date'?'qualsiasi data':'tutti')+'</span></span>');
+    inner='<div class="bi seld'+(active?' act':'')+'" data-op="'+f.key+'">'+val+caret+'</div>';
+  }
+  const cls=f.span===4?'c4':(f.span===2?'c2':'');
+  return '<div class="bf '+cls+'"><span class="bl">'+f.label+'</span>'+inner+'</div>';
+}
+function renderForm(){
+  document.getElementById('form').innerHTML=SECTIONS.map(sec=>'<div class="obox"><span class="obox-t"><i data-lucide="'+sec.icon+'"></i> '+sec.title+'</span><div class="bgrid">'+sec.fields.map(fieldHTML).join('')+'</div></div>').join('');
+  window.lucide&&lucide.createIcons();
+}
+
+/* ---------- floating pop-up ---------- */
+let popKey=null, snap=null, firstOpen=true;
+function popInner(f){
+  const s=ST[f.key];
+  const ops=f.type==='text'?TEXTOPS:(f.type==='enum'?ENUMOPS:DATEOPS);
+  let h='<div class="ft"><i data-lucide="sliders-horizontal" class="ic" style="width:16px;height:16px"></i> '+f.label+'</div>';
+  h+='<div class="fpl">Operatore</div><div class="oppills">'+ops.map(([v,l])=>'<button class="oppill'+(s.op===v?' on':'')+'" data-pop-op="'+v+'">'+l+'</button>').join('')+'</div>';
+  // value
+  if(f.type==='enum'){
+    h+='<div class="fpl">Valori</div><div class="echips">'+f.values.map(v=>'<button class="echip'+(s.vals.includes(v)?' on':'')+'" data-pop-echip="'+v+'">'+v+'</button>').join('')+'</div>';
+  } else if(f.type==='date'){
+    if(s.op==='gt'||s.op==='lt'){h+='<div class="fpl">Data</div><div class="valrow"><input class="vin" type="date" data-pop-v value="'+s.v+'"></div>';}
+    else if(s.op==='inyear'){h+='<div class="fpl">Anno</div><div class="valrow"><input class="vin small" type="number" data-pop-v value="'+s.v+'" placeholder="2026"></div>';}
+    else if(s.op==='range'){h+='<div class="fpl">Intervallo (da → a)</div><div class="valrow"><input class="vin" type="date" data-pop-v value="'+s.v+'"><span class="arrowto"><i data-lucide="move-right" style="width:15px;height:15px"></i></span><input class="vin" type="date" data-pop-v2 value="'+s.v2+'"></div>';}
+    else {h+='<div class="firsthint"><i data-lucide="info" style="width:13px;height:13px"></i> Nessun valore da inserire per questo operatore.</div>';}
+  } else { // text
+    if(s.op==='empty'){h+='<div class="firsthint"><i data-lucide="info" style="width:13px;height:13px"></i> Filtra i record che non hanno valore.</div>';}
+    else if(s.op==='range'){h+='<div class="fpl">Intervallo (dalla → alla)</div><div class="valrow"><input class="vin" data-pop-v value="'+(s.v||'').replace(/"/g,'&quot;')+'" placeholder="dalla A…"><span class="arrowto"><i data-lucide="move-right" style="width:15px;height:15px"></i></span><input class="vin" data-pop-v2 value="'+(s.v2||'').replace(/"/g,'&quot;')+'" placeholder="…alla M"></div>';}
+    else {h+='<div class="fpl">Valore</div><div class="valrow"><input class="vin" data-pop-v value="'+(s.v||'').replace(/"/g,'&quot;')+'" placeholder="testo da cercare…"></div>';}
+  }
+  // combina
+  h+='<div class="fpl">Lega alle altre condizioni</div><div class="combina">'+
+     '<div class="jseg"><button class="'+(s.join==='E'?'on':'')+'" data-pop-join="E">E</button><button class="'+(s.join==='O'?'on':'')+'" data-pop-join="O">O</button></div>'+
+     '<button class="tgl neg'+(s.neg?' on':'')+'" data-pop-neg>NON</button>'+
+     '<button class="tgl'+(s.po?' on':'')+'" data-pop-po>apri (</button>'+
+     '<button class="tgl'+(s.pc?' on':'')+'" data-pop-pc>chiudi )</button>'+
+     '</div>';
+  if(firstOpen)h+='<div class="firsthint"><i data-lucide="lightbulb" style="width:13px;height:13px"></i> La prima volta è tutto qui dentro: operatore, secondo valore del da–a, e come collegare la condizione. Poi basta la ▾.</div>';
+  h+='<div class="ff"><button class="btn btn-ghost" data-pop-cancel>Annulla</button><button class="btn btn-primary" data-pop-apply><i data-lucide="check"></i> Applica</button></div>';
+  return h;
+}
+function openPop(key,anchor){
+  popKey=key;snap=JSON.parse(JSON.stringify(ST[key]));
+  const pop=document.getElementById('fpop');pop.innerHTML=popInner(ALLF[key]);
+  const r=anchor.getBoundingClientRect();
+  let top=r.bottom+8, left=r.right-312;
+  if(left<8)left=8; if(left>window.innerWidth-320)left=window.innerWidth-320;
+  if(top>window.innerHeight-330)top=Math.max(8,r.top-330);
+  pop.style.top=top+'px';pop.style.left=left+'px';pop.classList.add('open');
+  window.lucide&&lucide.createIcons();
+}
+function repop(){if(popKey){document.getElementById('fpop').innerHTML=popInner(ALLF[popKey]);window.lucide&&lucide.createIcons();}}
+function closePop(){document.getElementById('fpop').classList.remove('open');popKey=null;snap=null;}
+
+document.addEventListener('click',e=>{
+  const opn=e.target.closest('[data-op]');if(opn){openPop(opn.dataset.op,opn.closest('.bi'));firstOpen=false;e.stopPropagation();return;}
+  if(!popKey){/* outside, nothing */}
+  const po=e.target.closest('[data-pop-op]');if(po){const s=ST[popKey];s.op=po.dataset.popOp;repop();renderSentence();return;}
+  const ech=e.target.closest('[data-pop-echip]');if(ech){const s=ST[popKey];const v=ech.dataset.popEchip;const i=s.vals.indexOf(v);if(i>=0)s.vals.splice(i,1);else s.vals.push(v);repop();renderSentence();return;}
+  const jn=e.target.closest('[data-pop-join]');if(jn){ST[popKey].join=jn.dataset.popJoin;repop();renderSentence();return;}
+  if(e.target.closest('[data-pop-neg]')){ST[popKey].neg=!ST[popKey].neg;repop();renderSentence();return;}
+  if(e.target.closest('[data-pop-po]')){ST[popKey].po=!ST[popKey].po;repop();renderSentence();return;}
+  if(e.target.closest('[data-pop-pc]')){ST[popKey].pc=!ST[popKey].pc;repop();renderSentence();return;}
+  if(e.target.closest('[data-pop-cancel]')){if(snap)ST[popKey]=snap;closePop();renderForm();renderSentence();return;}
+  if(e.target.closest('[data-pop-apply]')){closePop();renderForm();renderSentence();return;}
+  const cl=e.target.closest('[data-clear]');if(cl){const f=ALLF[cl.dataset.clear];const s=ST[cl.dataset.clear];s.v='';s.v2='';s.vals=[];s.neg=false;s.po=false;s.pc=false;if(f.type==='text')s.op='contiene';renderForm();renderSentence();return;}
+  if(e.target.closest('[data-clearall]')){Object.keys(ST).forEach(k=>{const f=ALLF[k];ST[k]={op:(f.type==='enum'?'in':(f.type==='date'?'year':'contiene')),v:'',v2:'',vals:[],join:'E',neg:false,po:false,pc:false};});renderForm();renderSentence();return;}
+  if(e.target.closest('[data-apply]')){alert('Applico il filtro: '+activeList().length+' condizioni.');return;}
+  if(!e.target.closest('#fpop')&&popKey){closePop();}
+});
+document.addEventListener('input',e=>{
+  const v=e.target.closest('[data-v]');if(v){ST[v.dataset.v].v=e.target.value;renderSentence();return;} // inline nel campo
+  const pv=e.target.closest('[data-pop-v]');if(pv&&popKey){ST[popKey].v=e.target.value;renderSentence();return;}
+  const pv2=e.target.closest('[data-pop-v2]');if(pv2&&popKey){ST[popKey].v2=e.target.value;renderSentence();return;}
+});
+renderForm();renderSentence();window.lucide&&lucide.createIcons();
+</script>
+</body>
+</html>

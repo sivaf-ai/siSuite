@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="it" data-density="comfortable">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>siSuite — Ordina multicampo (pop-up sopra la lista)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--ink:#1B1D24;--ink-2:#2A2D37;--ink-soft:#5C616E;--ink-faint:#8A8F9B;--paper:#F3F5F8;--card:#FFFFFF;--line:#E5E8EE;--line-2:#EEF0F4;
+--brand:#5B4DF0;--brand-press:#4A3DD6;--brand-wash:#ECEAFE;--brand-ink:#3B2EC0;--flow:#1FC8C2;--flow-wash:#DEF7F5;--flow-grad:linear-gradient(135deg,#5B4DF0 0%,#1FC8C2 100%);
+--success:#13A06B;--success-wash:#E0F4EC;--warning:#D9912A;--warning-wash:#FBF0DA;--danger:#E04550;--danger-wash:#FBE7E8;--info:#3B82F6;--info-wash:#E6EFFE;--neutral-wash:#EDEFF3;
+--r-sm:10px;--r:14px;--r-lg:18px;--r-pill:999px;--shadow-1:0 1px 2px rgba(27,29,36,.05),0 2px 6px rgba(27,29,36,.04);--shadow-pop:0 6px 18px rgba(91,77,240,.16);--shadow-modal:0 24px 70px rgba(27,29,36,.30);
+--font-display:"Bricolage Grotesque",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;--input-h:34px;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font-body);color:var(--ink);background:var(--paper);font-size:12.5px;-webkit-font-smoothing:antialiased;line-height:1.45}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.12}
+.mono{font-family:var(--font-mono)}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}svg{width:16px;height:16px}input,select{font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 13px;border-radius:var(--r-sm);font-weight:600;font-size:13px}.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:var(--shadow-pop)}.btn-primary:hover{background:var(--brand-press)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 9px;border-radius:var(--r-pill);font-size:11px;font-weight:600}
+.pill--neutral{color:var(--ink-soft);background:var(--neutral-wash)}.pill--brand{color:var(--brand-ink);background:var(--brand-wash)}
+.full{width:100%;padding:10px 13px 40px}
+.titleline{display:flex;align-items:center;gap:9px;padding:6px 2px 8px}
+.titleline .mk{width:26px;height:26px;border-radius:8px;background:var(--flow-grad);display:grid;place-items:center;color:#fff}
+.titleline .nm{font-family:var(--font-display);font-weight:800;font-size:16px}.titleline .nm em{font-style:normal;color:#10918c}
+.titleline .hint{margin-left:auto;font-size:11px;color:var(--ink-faint)}
+/* toolbar */
+.lh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:2px 0 11px}
+.lh h1{font-size:17px;font-weight:800}.lh .sub{font-size:12px;color:var(--ink-soft)}
+.tb-sp{flex:1}
+.searchbar{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-sm);width:180px;color:var(--ink-faint)}
+.searchbar input{border:0;background:none;outline:none;font-size:13px;flex:1;color:var(--ink)}
+.tbtn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:13px;font-weight:600}.tbtn svg{width:15px;height:15px}.tbtn:hover{color:var(--ink)}
+.tbtn.on{background:var(--brand-wash);color:var(--brand-ink);border-color:var(--brand)}
+/* list */
+.listcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th .sortmark{color:var(--brand);font-size:10px;margin-left:4px}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line-2)}tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--paper)}
+td.rs{font-weight:600}.code{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft)}
+/* backdrop + popup */
+.backdrop{position:fixed;inset:0;background:rgba(20,22,30,.34);z-index:40;display:flex;align-items:flex-start;justify-content:center;padding:60px 14px}
+.popup{width:560px;max-width:100%;max-height:86vh;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-modal);display:flex;flex-direction:column;overflow:hidden}
+.pu-head{display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.pu-head .t{font-family:var(--font-display);font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+.pu-head .t svg{color:var(--brand)}
+.pu-head .x{margin-left:auto;width:32px;height:32px;border-radius:9px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--ink-soft)}
+.saver{display:flex;align-items:center;gap:7px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--paper)}
+.saver select{flex:1;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:12.5px;padding:0 9px;color:var(--ink)}
+.saver .ib{height:34px;width:34px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);display:grid;place-items:center}.saver .ib.pri{background:var(--brand);color:#fff;border-color:transparent}
+.pu-body{padding:13px 16px;overflow:auto}
+.seclbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:4px 0 8px;display:flex;align-items:center;gap:6px}
+/* chosen rows */
+.chosen{display:flex;flex-direction:column;gap:7px;margin-bottom:6px}
+.crow{display:flex;align-items:center;gap:9px;padding:8px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-1);cursor:grab}
+.crow.drag{opacity:.4}.crow.over{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+.crow .pn{width:24px;height:24px;border-radius:7px;background:var(--brand);color:#fff;font-family:var(--font-mono);font-weight:700;font-size:12px;display:grid;place-items:center;flex:0 0 auto}
+.crow .grip{color:var(--line)}.crow:hover .grip{color:var(--ink-faint)}
+.crow .nm{font-weight:600;font-size:13px;flex:1}
+.crow .dir{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;font-size:11.5px;font-weight:600;color:var(--brand-ink)}
+.crow .dir svg{width:14px;height:14px}
+.crow .updown{display:flex;flex-direction:column;gap:1px}
+.crow .updown button{width:24px;height:15px;border:1px solid var(--line);border-radius:5px;display:grid;place-items:center;color:var(--ink-soft);background:#fff}.crow .updown button:disabled{opacity:.3}
+.crow .rm{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--ink-faint)}.crow .rm:hover{background:var(--danger-wash);color:var(--danger)}
+.emptyc{font-size:12.5px;color:var(--ink-faint);padding:10px;text-align:center;border:1px dashed var(--line);border-radius:var(--r)}
+/* available */
+.availbox{margin-top:14px}
+.availsearch{display:flex;align-items:center;gap:8px;height:34px;padding:0 11px;border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--paper);margin-bottom:8px}
+.availsearch input{border:0;background:none;outline:none;flex:1;font-size:13px}
+.availlist{max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+.agrp{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:8px 11px 3px;background:var(--paper)}
+.arow{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--line-2);cursor:pointer;font-size:13px}.arow:last-child{border-bottom:0}.arow:hover{background:var(--brand-wash)}
+.arow .ad{width:22px;height:22px;border-radius:6px;background:var(--neutral-wash);display:grid;place-items:center;color:var(--brand);flex:0 0 auto}.arow:hover .ad{background:#fff}
+.arow.dis{opacity:.4;pointer-events:none}
+.pu-foot{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.pu-foot .left{margin-right:auto;font-size:12px;color:var(--ink-soft);display:flex;align-items:center}
+@media(max-width:560px){.backdrop{padding:18px 8px}.popup{max-height:94vh}}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;margin-top:12px}.note svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;margin-top:1px}.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="full">
+  <div class="titleline"><div class="mk"><i data-lucide="arrow-up-down"></i></div><div class="nm"><em>si</em>Suite · Ordina</div><span class="hint">il pop-up galleggia sopra la lista · a tutta larghezza</span></div>
+  <div class="lh"><h1>Aziende</h1><span class="sub">142 record</span><span class="tb-sp"></span>
+    <div class="searchbar"><i data-lucide="search" style="width:15px;height:15px"></i><input placeholder="Cerca…"></div>
+    <button class="tbtn on" id="openOrdina"><i data-lucide="arrow-up-down"></i> Ordina <span class="pill pill--brand" id="sortcnt" style="margin-left:2px"></span></button>
+    <button class="tbtn"><i data-lucide="columns-3"></i> Colonne</button>
+    <button class="tbtn"><i data-lucide="filter"></i> Filtra</button>
+    <button class="tbtn"><i data-lucide="file-text"></i> Report</button>
+    <button class="tbtn"><i data-lucide="download"></i> Esporta</button>
+  </div>
+  <div class="listcard"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  <div class="note"><i data-lucide="info"></i><div>Lo stesso selettore di campi (a sinistra "tutti i campi" con ricerca, sopra "i campi scelti" con priorità) verrà riusato identico per <b>Colonne</b>, <b>Export</b> e <b>Report</b> — cambia solo cosa fa la riga (qui la freccia ↑↓; nel report la somma o il raggruppa). Impari il gesto una volta.</div></div>
+</div>
+
+<!-- POP-UP ORDINA -->
+<div class="backdrop" id="backdrop">
+  <div class="popup">
+    <div class="pu-head"><span class="t"><i data-lucide="arrow-up-down"></i> Ordina</span><button class="x" id="closeP"><i data-lucide="x" style="width:17px;height:17px"></i></button></div>
+    <div class="saver">
+      <select><option>Ordinamento salvato…</option><option>Per nazione e nome</option><option>Per fatturato ↓</option></select>
+      <button class="ib"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
+      <button class="ib pri"><i data-lucide="save" style="width:15px;height:15px"></i></button>
+    </div>
+    <div class="pu-body">
+      <div class="seclbl"><i data-lucide="list-ordered" style="width:13px;height:13px"></i> Ordina per (trascina per la priorità — il primo conta di più)</div>
+      <div class="chosen" id="chosen"></div>
+      <div class="availbox">
+        <div class="seclbl"><i data-lucide="plus-circle" style="width:13px;height:13px"></i> Aggiungi un campo</div>
+        <div class="availsearch"><i data-lucide="search" style="width:15px;height:15px;color:var(--ink-faint)"></i><input id="availq" placeholder="Cerca tra tutti i campi…"></div>
+        <div class="availlist" id="availlist"></div>
+      </div>
+    </div>
+    <div class="pu-foot"><span class="left" id="puinfo"></span><button class="btn btn-ghost" id="clearSort">Pulisci</button><button class="btn btn-primary" id="applySort"><i data-lucide="check"></i> Applica</button></div>
+  </div>
+</div>
+
+<script>
+const FIELDS=[
+ {key:'rs',label:'Ragione sociale',grp:'Anagrafica'},{key:'cod',label:'Codice',grp:'Anagrafica'},
+ {key:'tipo',label:'Tipo',grp:'Anagrafica'},{key:'ruolo',label:'Ruolo',grp:'Anagrafica'},
+ {key:'paese',label:'Paese',grp:'Indirizzo'},{key:'citta',label:'Città',grp:'Indirizzo'},
+ {key:'prov',label:'Provincia',grp:'Indirizzo'},{key:'cap',label:'CAP',grp:'Indirizzo'},
+ {key:'piva',label:'P.IVA',grp:'Dati fiscali'},{key:'regime',label:'Regime fiscale',grp:'Dati fiscali'},
+ {key:'fatturato',label:'Fatturato',grp:'Numeri'},{key:'commesse',label:'N. commesse',grp:'Numeri'},
+ {key:'data_cost',label:'Data costituzione',grp:'Date'},{key:'created',label:'Data creazione',grp:'Date'},
+];
+const FLAB={};FIELDS.forEach(f=>FLAB[f.key]=f.label);
+let chosen=[{key:'paese',dir:'asc'},{key:'rs',dir:'asc'}];
+const ROWS=[
+ {rs:'ALFA ACCIAI S.p.A.',tipo:'Cliente',paese:'Italia',citta:'Bergamo',piva:'01234567890',created:'12/06/2026'},
+ {rs:'Conexión Sur S.R.L.',tipo:'Cliente',paese:'Argentina',citta:'Córdoba',piva:'30715559017',created:'02/06/2026'},
+ {rs:'Dalmine S.p.A.',tipo:'Fornitore',paese:'Italia',citta:'Dalmine',piva:'00112233445',created:'09/06/2026'},
+ {rs:'EDENRED ITALIA Srl',tipo:'Fornitore',paese:'Italia',citta:'Roma',piva:'09988776655',created:'10/06/2026'},
+ {rs:'Patagonia Redes S.A.',tipo:'Cliente',paese:'Argentina',citta:'Neuquén',piva:'30709988771',created:'05/06/2026'},
+ {rs:'NAMIRIAL S.P.A.',tipo:'Cliente',paese:'Italia',citta:'Senigallia',piva:'02046920426',created:'14/06/2026'},
+ {rs:'Solar Ibérica S.L.',tipo:'Fornitore',paese:'Spagna',citta:'Valencia',piva:'B12345678',created:'08/06/2026'},
+ {rs:'Si.Va.F. Informatica s.r.l.',tipo:'Cliente',paese:'Italia',citta:'Bergamo',piva:'03344556677',created:'14/06/2026'},
+];
+
+function applySortToData(){
+  const data=[...ROWS];
+  data.sort((a,b)=>{for(const c of chosen){const av=(a[c.key]||'').toString().toLowerCase(),bv=(b[c.key]||'').toString().toLowerCase();if(av<bv)return c.dir==='asc'?-1:1;if(av>bv)return c.dir==='asc'?1:-1;}return 0;});
+  return data;
+}
+function renderList(){
+  const cols=[['rs','Ragione sociale'],['tipo','Tipo'],['paese','Paese'],['citta','Città'],['piva','P.IVA'],['created','Creato']];
+  const dirOf={};chosen.forEach((c,i)=>dirOf[c.key]={dir:c.dir,p:i+1});
+  document.getElementById('thead').innerHTML='<tr>'+cols.map(([k,l])=>'<th>'+l+(dirOf[k]?' <span class="sortmark">'+(dirOf[k].dir==='asc'?'▲':'▼')+(chosen.length>1?dirOf[k].p:'')+'</span>':'')+'</th>').join('')+'</tr>';
+  const data=applySortToData();
+  document.getElementById('tbody').innerHTML=data.map(r=>'<tr>'+cols.map(([k])=>'<td class="'+(k==='rs'?'rs':(k==='piva'?'code':''))+'">'+(k==='tipo'?'<span class="pill pill--neutral">'+r[k]+'</span>':r[k])+'</td>').join('')+'</tr>').join('');
+  document.getElementById('sortcnt').textContent=chosen.length||'';
+}
+/* chosen list */
+let dragI=null;
+function renderChosen(){
+  const host=document.getElementById('chosen');
+  if(!chosen.length){host.innerHTML='<div class="emptyc">Nessun campo scelto — aggiungine qui sotto.</div>';}
+  else host.innerHTML=chosen.map((c,i)=>
+   '<div class="crow" draggable="true" data-i="'+i+'"><span class="grip"><i data-lucide="grip-vertical" style="width:15px;height:15px"></i></span><span class="pn">'+(i+1)+'</span>'+
+   '<span class="nm">'+FLAB[c.key]+'</span>'+
+   '<button class="dir" data-dir="'+i+'">'+(c.dir==='asc'?'<i data-lucide="arrow-up"></i> Crescente':'<i data-lucide="arrow-down"></i> Decrescente')+'</button>'+
+   '<span class="updown"><button data-mv="up" data-i="'+i+'" '+(i===0?'disabled':'')+'><i data-lucide="chevron-up" style="width:13px;height:13px"></i></button><button data-mv="down" data-i="'+i+'" '+(i===chosen.length-1?'disabled':'')+'><i data-lucide="chevron-down" style="width:13px;height:13px"></i></button></span>'+
+   '<button class="rm" data-rm="'+i+'"><i data-lucide="x" style="width:15px;height:15px"></i></button></div>').join('');
+  // drag
+  host.querySelectorAll('.crow').forEach(row=>{
+    row.ondragstart=()=>{dragI=+row.dataset.i;row.classList.add('drag');};
+    row.ondragend=()=>{row.classList.remove('drag');host.querySelectorAll('.over').forEach(r=>r.classList.remove('over'));};
+    row.ondragover=e=>{e.preventDefault();row.classList.add('over');};
+    row.ondragleave=()=>row.classList.remove('over');
+    row.ondrop=e=>{e.preventDefault();const to=+row.dataset.i;if(dragI!=null&&dragI!==to){const[it]=chosen.splice(dragI,1);chosen.splice(to,0,it);renderAll();}};
+  });
+  document.getElementById('puinfo').textContent=chosen.length?(chosen.length+' livell'+(chosen.length===1?'o':'i')+' di ordinamento'):'';
+  window.lucide&&lucide.createIcons();
+}
+function renderAvail(){
+  const q=(document.getElementById('availq').value||'').toLowerCase();
+  const chosenKeys=chosen.map(c=>c.key);
+  const groups={};FIELDS.filter(f=>f.label.toLowerCase().includes(q)).forEach(f=>{(groups[f.grp]=groups[f.grp]||[]).push(f);});
+  let h='';Object.keys(groups).forEach(g=>{h+='<div class="agrp">'+g+'</div>'+groups[g].map(f=>'<div class="arow'+(chosenKeys.includes(f.key)?' dis':'')+'" data-add="'+f.key+'"><span class="ad"><i data-lucide="plus" style="width:14px;height:14px"></i></span>'+f.label+'</div>').join('');});
+  document.getElementById('availlist').innerHTML=h||'<div class="arow dis">nessun campo</div>';
+  window.lucide&&lucide.createIcons();
+}
+function renderAll(){renderChosen();renderAvail();renderList();}
+
+document.addEventListener('click',e=>{
+  const add=e.target.closest('[data-add]');if(add){if(!chosen.find(c=>c.key===add.dataset.add))chosen.push({key:add.dataset.add,dir:'asc'});renderAll();return;}
+  const dir=e.target.closest('[data-dir]');if(dir){const c=chosen[+dir.dataset.dir];c.dir=c.dir==='asc'?'desc':'asc';renderAll();return;}
+  const mv=e.target.closest('[data-mv]');if(mv){const i=+mv.dataset.i,j=mv.dataset.mv==='up'?i-1:i+1;if(j>=0&&j<chosen.length){[chosen[i],chosen[j]]=[chosen[j],chosen[i]];renderAll();}return;}
+  const rm=e.target.closest('[data-rm]');if(rm){chosen.splice(+rm.dataset.rm,1);renderAll();return;}
+  if(e.target.closest('#clearSort')){chosen=[];renderAll();return;}
+  if(e.target.closest('#openOrdina')){document.getElementById('backdrop').style.display='flex';return;}
+  if(e.target.closest('#closeP')||e.target.closest('#applySort')){document.getElementById('backdrop').style.display='none';return;}
+});
+document.getElementById('backdrop').addEventListener('click',e=>{if(e.target.id==='backdrop')document.getElementById('backdrop').style.display='none';});
+document.getElementById('availq').addEventListener('input',renderAvail);
+renderAll();window.lucide&&lucide.createIcons();
+</script>
+</body>
+</html>
