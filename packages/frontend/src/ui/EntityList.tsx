@@ -23,8 +23,9 @@ import { FloatingPopover } from './FloatingPopover';
 import { SavedHeader } from './SavedHeader';
 import { FieldChooser, type ChosenItem, type ChooserField } from './FieldChooser';
 import { FilterGroupPanel, type FilterFieldMeta, type FilterFieldType } from './FilterGroupPanel';
+import { ReportDesigner, type ReportField } from './ReportDesigner';
 import { useListPresets } from './useListPresets';
-import { Check, ListFilter } from 'lucide-react';
+import { Check, ListFilter, FileBarChart2 } from 'lucide-react';
 import { downloadXlsx } from '../lib/xlsx';
 import { type FieldOpt } from './FieldPicker';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -292,6 +293,15 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   ];
   const [groupOpen, setGroupOpen] = useState(false);
   const canGroup = !!p.onFilterChange && groupFilterFields.length > 0;
+
+  // ── Report designer (motore §2.5, mockup 56) ──
+  const [reportOpen, setReportOpen] = useState(false);
+  const numericKeys = new Set<string>([
+    ...p.columns.filter((c) => c.num).map((c) => c.key),
+    ...(p.filterFields ?? []).filter((f) => f.type === 'number').map((f) => f.key),
+    ...(fieldDefs.data?.items ?? []).filter((d) => d.dataType === 'number' || d.dataType === 'money' || d.dataType === 'integer').map((d) => d.key),
+  ]);
+  const reportFields: ReportField<T>[] = exportSource.map((f) => ({ key: f.key, label: f.label, numeric: numericKeys.has(f.key), value: f.value }));
   const [sortOpen, setSortOpen] = useState(false);
   const [sortState, setSortState] = useState<{ field: string; dir: 'asc' | 'desc' }[]>([]);
   const [sortDraft, setSortDraft] = useState<ChosenItem[]>([]);
@@ -353,6 +363,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: openSort }]
       : []),
     { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: openColumns },
+    ...(exportSource.length ? [{ key: 'report', icon: FileBarChart2, tip: 'Report', onClick: () => setReportOpen(true) }] : []),
     { key: 'ai', icon: Sparkles, tip: t('list.aiFilter'), variant: 'ai', onClick: () => setAiFilterOpen(true) },
   ];
   const leftAll = [...builtinLeft, ...customLeft];
@@ -510,6 +521,11 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
             setActiveSV(null); setGroupOpen(false);
           }}
           onClose={() => setGroupOpen(false)} />
+      )}
+
+      {reportOpen && (
+        <ReportDesigner title={p.title ?? 'Report'} presetEntity={presetEntity} fields={reportFields} rows={viewRows}
+          onClose={() => setReportOpen(false)} />
       )}
 
       <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}

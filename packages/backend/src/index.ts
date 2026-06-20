@@ -53,6 +53,7 @@ import { exportPresetRoutes } from './routes/exportPresets.js';
 import { listFilterRoutes } from './routes/listFilter.js';
 import { savedViewRoutes } from './routes/savedViews.js';
 import { listPresetRoutes } from './routes/listPresets.js';
+import { savedReportRoutes } from './routes/savedReports.js';
 
 async function build() {
   const app = Fastify({
@@ -128,6 +129,7 @@ async function build() {
   await app.register(listFilterRoutes);
   await app.register(savedViewRoutes);
   await app.register(listPresetRoutes);
+  await app.register(savedReportRoutes);
 
   return app;
 }
