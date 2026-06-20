@@ -12,16 +12,20 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, ArrowUp, ArrowDown, Plus, X as XIcon } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
 import { currentLocale } from '../i18n';
 import { Loading, ErrorBox } from '../components/Page';
 import { PromptDialog } from './PromptDialog';
+import { FloatingPopover } from './FloatingPopover';
+import { SavedHeader } from './SavedHeader';
+import { FieldChooser, type ChosenItem, type ChooserField } from './FieldChooser';
+import { useListPresets } from './useListPresets';
+import { Check } from 'lucide-react';
 import { downloadXlsx } from '../lib/xlsx';
-import { FieldPicker, FieldPickerStyles, type FieldOpt } from './FieldPicker';
-import { ExportDialog } from './ExportDialog';
+import { type FieldOpt } from './FieldPicker';
 import { ConfirmDialog } from './ConfirmDialog';
 import { AiFilterPanel } from './AiFilterPanel';
 import { matchConditions, type FilterCondition, type FilterMode } from '../lib/listFilter';
@@ -213,6 +217,18 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   function saveCols(state: { order: string[]; hidden: string[] }) {
     setColState(state); try { localStorage.setItem(lsKey, JSON.stringify(state)); } catch { /* ignore */ }
   }
+  // draft del motore per Colonne/Export (FieldChooser) + relativi salvataggi
+  const [columnsDraft, setColumnsDraft] = useState<ChosenItem[]>([]);
+  const [exportDraft, setExportDraft] = useState<ChosenItem[]>([]);
+  const openColumns = () => { setColumnsDraft(effColumns.map((c) => ({ key: c.key }))); setColumnsOpen(true); };
+  const openExport = () => { setExportDraft(exportSource.map((f) => ({ key: f.key }))); setExportOpen(true); };
+  function applyColumns(draft: ChosenItem[]) {
+    const visible = draft.map((d) => d.key);
+    saveCols({ order: [...visible, ...colKeys.filter((k) => !visible.includes(k))], hidden: colKeys.filter((k) => !visible.includes(k)) });
+    setColumnsOpen(false);
+  }
+  const columnsChooserFields: ChooserField[] = p.columns.map((c) => ({ key: c.key, label: c.header }));
+  const exportChooserFields: ChooserField[] = exportSource.map((f) => ({ key: f.key, label: f.label }));
 
   // ── Viste salvate (Blocco 5.3): impacchettano filtro + colonne sotto un nome ──
   const savedViews = useApi<{ items: SavedView[] }>(p.savedViewKey ? `/saved-views?entity=${encodeURIComponent(p.savedViewKey)}` : null);
@@ -242,14 +258,22 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
     void savedViews.reload();
   }
 
-  // ── Ordinamento multi-campo (Blocco 5.2) ──
+  // ── Ordinamento multi-campo (motore §2.2, mockup 55) ──
+  const presetEntity = p.savedViewKey ?? p.entity ?? p.exportName ?? p.title;
+  const sortPresets = useListPresets(presetEntity, 'sort');
+  const columnsPresets = useListPresets(presetEntity, 'columns');
+  const exportPresets = useListPresets(presetEntity, 'export');
   const [sortOpen, setSortOpen] = useState(false);
   const [sortState, setSortState] = useState<{ field: string; dir: 'asc' | 'desc' }[]>([]);
-  function applySort(next: { field: string; dir: 'asc' | 'desc' }[]) {
+  const [sortDraft, setSortDraft] = useState<ChosenItem[]>([]);
+  const openSort = () => { setSortDraft(sortState.map((s) => ({ key: s.field, dir: s.dir }))); setSortOpen(true); };
+  function applySort(draft: ChosenItem[]) {
+    const next = draft.map((d) => ({ field: d.key, dir: (d.dir ?? 'asc') as 'asc' | 'desc' }));
     setSortState(next);
     p.onSortChange?.(next);
     setSortOpen(false);
   }
+  const sortChooserFields: ChooserField[] = (p.sortFields ?? []).map((f) => ({ key: f.key, label: f.label }));
 
   const allOn = selectable && viewRows.length > 0 && count === viewRows.length;
   const someOn = selectable && count > 0 && count < viewRows.length;
@@ -285,7 +309,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   if (selectable) {
     if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
     if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: () => setExportOpen(true) });
+    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
     if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => setDelOpen(true) });
   }
 
@@ -295,9 +319,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const builtinLeft: ListAction[] = pick ? [] : [
     { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
     ...(p.onSortChange && p.sortFields?.length
-      ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setSortOpen(true) }]
+      ? [{ key: 'sort', icon: ArrowUpDown, tip: sortState.length ? t('list.sortN', { n: sortState.length }) : t('list.sort'), variant: (sortState.length ? 'primary' : undefined) as ListAction['variant'], onClick: openSort }]
       : []),
-    { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: () => setColumnsOpen(true) },
+    { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: openColumns },
     { key: 'ai', icon: Sparkles, tip: t('list.aiFilter'), variant: 'ai', onClick: () => setAiFilterOpen(true) },
   ];
   const leftAll = [...builtinLeft, ...customLeft];
@@ -399,25 +423,33 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         </div>
       )}
 
-      {/* Esporta: scelta+ordine campi + preset per-utente */}
+      {/* Esporta: stesso FieldChooser (motore §2.4) + SavedHeader */}
       {exportOpen && (
-        <ExportDialog open entity={p.exportName ?? p.title ?? 'lista'} fields={exportFields}
-          onCancel={() => setExportOpen(false)} onExport={(keys) => void runExport(keys)} />
+        <FloatingPopover title={t('list.export')} icon={Download} onClose={() => setExportOpen(false)}
+          saver={<SavedHeader items={exportPresets.items} placeholder="Export salvato…"
+            onLoad={(id) => { const pr = exportPresets.items.find((x) => x.id === id); if (pr) setExportDraft((pr.payload as string[]).map((k) => ({ key: k }))); }}
+            onSave={(name) => void exportPresets.save(name, exportDraft.map((d) => d.key))} onDelete={(id) => void exportPresets.remove(id)} />}
+          footer={<>
+            <span className="left">{exportDraft.length} camp{exportDraft.length === 1 ? 'o' : 'i'} · {count} record</span>
+            <button className="btn btn-primary" disabled={!exportDraft.length} onClick={() => void runExport(exportDraft.map((d) => d.key))}><Download size={16} /> {t('list.export')} (Excel)</button>
+          </>}>
+          <FieldChooser mode="export" fields={exportChooserFields} value={exportDraft} onChange={setExportDraft} />
+        </FloatingPopover>
       )}
-      {/* Colonne: mostra/nascondi e riordina (persistito per-utente) */}
+      {/* Colonne: stesso FieldChooser (motore §2.3), mostra/nascondi + ordine, persistito */}
       {columnsOpen && (
-        <FieldPicker open title="Colonne — mostra/nascondi e ordina"
-          fields={p.columns.map((c) => ({ key: c.key, label: c.header }))}
-          value={effColumns.map((c) => c.key)} confirmLabel="Applica"
-          onCancel={() => setColumnsOpen(false)}
-          onConfirm={(visible) => {
-            const order = [...visible, ...colKeys.filter((k) => !visible.includes(k))];
-            const hidden = colKeys.filter((k) => !visible.includes(k));
-            saveCols({ order, hidden });
-            setColumnsOpen(false);
-          }} />
+        <FloatingPopover title={t('list.columns')} icon={Columns3} onClose={() => setColumnsOpen(false)}
+          saver={<SavedHeader items={columnsPresets.items} placeholder="Set colonne salvato…"
+            onLoad={(id) => { const pr = columnsPresets.items.find((x) => x.id === id); if (pr) setColumnsDraft((pr.payload as string[]).map((k) => ({ key: k }))); }}
+            onSave={(name) => void columnsPresets.save(name, columnsDraft.map((d) => d.key))} onDelete={(id) => void columnsPresets.remove(id)} />}
+          footer={<>
+            <span className="left">{columnsDraft.length} di {p.columns.length} colonne</span>
+            <button className="btn btn-ghost" onClick={() => setColumnsDraft(p.columns.map((c) => ({ key: c.key })))}>Tutte</button>
+            <button className="btn btn-primary" onClick={() => applyColumns(columnsDraft)}><Check size={16} /> Applica</button>
+          </>}>
+          <FieldChooser mode="columns" fields={columnsChooserFields} value={columnsDraft} onChange={setColumnsDraft} />
+        </FloatingPopover>
       )}
-      {(exportOpen || columnsOpen) && <FieldPickerStyles />}
 
       <PromptDialog open={svPromptOpen} title="Salva vista"
         message="Salva filtro e colonne correnti come vista, per ricaricarli con un clic."
@@ -425,8 +457,17 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
         onConfirm={(name) => void saveCurrentView(name)} onCancel={() => setSvPromptOpen(false)} />
 
       {sortOpen && p.sortFields && (
-        <SortDialog fields={p.sortFields} initial={sortState}
-          onApply={applySort} onCancel={() => setSortOpen(false)} />
+        <FloatingPopover title={t('list.sort')} icon={ArrowUpDown} onClose={() => setSortOpen(false)}
+          saver={<SavedHeader items={sortPresets.items} placeholder="Ordinamento salvato…"
+            onLoad={(id) => { const pr = sortPresets.items.find((x) => x.id === id); if (pr) setSortDraft(pr.payload as ChosenItem[]); }}
+            onSave={(name) => void sortPresets.save(name, sortDraft)} onDelete={(id) => void sortPresets.remove(id)} />}
+          footer={<>
+            <span className="left">{sortDraft.length ? `${sortDraft.length} livell${sortDraft.length === 1 ? 'o' : 'i'} di ordinamento` : ''}</span>
+            <button className="btn btn-ghost" onClick={() => setSortDraft([])}>Pulisci</button>
+            <button className="btn btn-primary" onClick={() => applySort(sortDraft)}><Check size={16} /> Applica</button>
+          </>}>
+          <FieldChooser mode="sort" fields={sortChooserFields} value={sortDraft} onChange={setSortDraft} />
+        </FloatingPopover>
       )}
 
       <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}
@@ -441,54 +482,5 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           onClose={() => setAiFilterOpen(false)} />
       )}
     </div>
-  );
-}
-
-/** Mascherina "Ordina" multi-campo con priorità (Blocco 5.2). */
-function SortDialog({ fields, initial, onApply, onCancel }: {
-  fields: { key: string; label: string }[];
-  initial: { field: string; dir: 'asc' | 'desc' }[];
-  onApply: (sort: { field: string; dir: 'asc' | 'desc' }[]) => void;
-  onCancel: () => void;
-}) {
-  const [rows, setRows] = useState<{ field: string; dir: 'asc' | 'desc' }[]>(
-    initial.length ? initial : (fields[0] ? [{ field: fields[0].key, dir: 'asc' }] : []),
-  );
-  const used = new Set(rows.map((r) => r.field));
-  const free = fields.filter((f) => !used.has(f.key));
-  const setRow = (i: number, patch: Partial<{ field: string; dir: 'asc' | 'desc' }>) =>
-    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const addRow = () => { if (free[0]) setRows((rs) => [...rs, { field: free[0]!.key, dir: 'asc' }]); };
-  const removeRow = (i: number) => setRows((rs) => rs.filter((_, j) => j !== i));
-
-  return (
-    <>
-      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1200 }} />
-      <div role="dialog" aria-modal="true" style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1201,
-        width: 'min(520px, 94vw)', background: 'var(--card)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-2)', padding: 22,
-      }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'var(--font-display)' }}>Ordina</h3>
-        <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '6px 0 14px' }}>Più campi con priorità: il primo conta di più.</p>
-        {rows.map((r, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ width: 18, color: 'var(--ink-faint)', fontSize: 12 }}>{i + 1}</span>
-            <select className="txt" style={{ flex: 1, height: 36 }} value={r.field} onChange={(e) => setRow(i, { field: e.target.value })}>
-              {fields.filter((f) => f.key === r.field || !used.has(f.key)).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-            <button className="btn btn-ghost btn-sm" onClick={() => setRow(i, { dir: r.dir === 'asc' ? 'desc' : 'asc' })}>
-              {r.dir === 'asc' ? <><ArrowUp size={14} /> Cresc.</> : <><ArrowDown size={14} /> Decr.</>}
-            </button>
-            <button className="icon-btn" title="Rimuovi" onClick={() => removeRow(i)}><XIcon size={15} /></button>
-          </div>
-        ))}
-        {free.length > 0 && <button className="btn btn-ghost btn-sm" onClick={addRow}><Plus size={14} /> Aggiungi campo</button>}
-        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 18 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => onApply([])}>Azzera</button>
-          <button className="btn btn-ghost btn-sm" onClick={onCancel}>Annulla</button>
-          <button className="btn btn-primary btn-sm" onClick={() => onApply(rows)}>Applica</button>
-        </div>
-      </div>
-    </>
   );
 }

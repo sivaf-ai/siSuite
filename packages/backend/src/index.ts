@@ -52,6 +52,7 @@ import { financeRoutes } from './routes/finance.js';
 import { exportPresetRoutes } from './routes/exportPresets.js';
 import { listFilterRoutes } from './routes/listFilter.js';
 import { savedViewRoutes } from './routes/savedViews.js';
+import { listPresetRoutes } from './routes/listPresets.js';
 
 async function build() {
   const app = Fastify({
@@ -126,6 +127,7 @@ async function build() {
   await app.register(exportPresetRoutes);
   await app.register(listFilterRoutes);
   await app.register(savedViewRoutes);
+  await app.register(listPresetRoutes);
 
   return app;
 }
