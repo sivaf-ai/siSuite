@@ -71,10 +71,12 @@ export function FilterGroupPanel({ title, presetEntity, fields, initial, onApply
   function clearField(k: string) { setSt((s) => ({ ...s, [k]: blank(byKey.get(k)!.type) })); }
   function clearAll() { setSt(Object.fromEntries(fields.map((f) => [f.key, blank(f.type)]))); }
 
-  function openPop(key: string, anchor: HTMLElement) {
-    const r = anchor.getBoundingClientRect();
-    let left = r.right - 312; if (left < 8) left = 8; if (left > window.innerWidth - 320) left = window.innerWidth - 320;
-    let top = r.bottom + 8; if (top > window.innerHeight - 340) top = Math.max(8, r.top - 340);
+  function openPop(key: string) {
+    // SEMPRE centrato (il pop-up ha il titolo del campo): non si taglia mai ai bordi.
+    // Top sotto la frase dei filtri (condbar sticky in alto), così non la copre.
+    const W = 312;
+    const left = Math.max(8, Math.round((window.innerWidth - W) / 2));
+    const top = Math.min(Math.max(96, Math.round((window.innerHeight - 360) / 2)), window.innerHeight - 360);
     setPop({ key, top, left });
   }
 
@@ -111,7 +113,7 @@ export function FilterGroupPanel({ title, presetEntity, fields, initial, onApply
 
   function fieldNode(f: FilterFieldMeta) {
     const s = cur(f.key); const act = condText(f) !== null;
-    const caret = <button className={`caret${act ? ' set' : ''}`} title="Opzioni filtro" onClick={(e) => openPop(f.key, (e.currentTarget.closest('.bi') as HTMLElement))}><ChevronDown /></button>;
+    const caret = <button className={`caret${act ? ' set' : ''}`} title="Opzioni filtro" onClick={() => openPop(f.key)}><ChevronDown /></button>;
     let inner;
     if (f.type === 'text' || f.type === 'number') {
       const ro = s.op === 'empty' || s.op === 'between';

@@ -175,7 +175,7 @@ export function ReportDesigner<T>({ title, presetEntity, fields, rows, onClose }
               ))}
               <div className="engrep-optrow">Layout <div className="engrep-layseg"><button className={cfg.layout === 'elenco' ? 'on' : ''} onClick={() => set({ layout: 'elenco' })}>Elenco</button><button className={cfg.layout === 'scheda' ? 'on' : ''} onClick={() => set({ layout: 'scheda' })}>Scheda</button></div></div>
             </div>
-            <div className="engrep-gen"><button className="btn btn-ghost" onClick={() => setCfg(defaults())}><RotateCcw size={16} /> Azzera</button><button className="btn btn-primary" onClick={printDoc}><FileDown size={16} /> Genera HTML / PDF</button></div>
+            <div className="engrep-gen"><button className="btn btn-ghost" onClick={() => set({ show: [], sum: [], group: [] })}><RotateCcw size={16} /> Azzera</button><button className="btn btn-primary" onClick={printDoc}><FileDown size={16} /> Genera HTML / PDF</button></div>
           </div>
 
           <div className="engrep-previewwrap">
