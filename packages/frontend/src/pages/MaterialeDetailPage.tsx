@@ -13,6 +13,7 @@ import { Money } from '../ui/Num';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
+import { AttrBoxes } from '../ui/AttrFields';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -165,6 +166,9 @@ export function MaterialeDetailPage() {
             </div>
           </ObjectBox>
         )}
+
+        <AttrBoxes defs={fieldDefs.data?.items ?? []} attrs={attrs} setAttr={(k, v) => setAttrs((a) => ({ ...a, [k]: v }))}
+          exclude={['category', 'item_type', 'min_stock', 'supplier_code']} />
 
         {!isNew && (d?.trackStock || d?.trackedBySerial) && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
       </ObjectPage>

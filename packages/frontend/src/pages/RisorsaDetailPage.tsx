@@ -6,10 +6,11 @@ import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash } from 'lucide-react';
-import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto } from '@sisuite/shared';
+import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto, FieldDefinitionDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
+import { AttrBoxes } from '../ui/AttrFields';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -39,11 +40,14 @@ export function RisorsaDetailPage() {
   const { data: settings } = useApi<TenantSettingsDto>('/settings');
   const { data: avail, reload: reloadAvail } = useApi<ResourceAvailabilityDto[]>(isNew ? null : `/resources/${id}/availability`);
 
-  // Anagrafica editabile
+  // Anagrafica editabile + attributi (field_definition: sigla/colore/icona/email/…)
+  const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=resource');
   const [form, setForm] = useState({ kind: 'person', label: '', hourlyCost: '', active: true });
+  const [attrs, setAttrs] = useState<Record<string, unknown>>({});
+  const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
   const [savingHead, setSavingHead] = useState(false);
   useEffect(() => {
-    if (res) setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active });
+    if (res) { setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active }); setAttrs(res.attributes ?? {}); }
   }, [res]);
 
   const [tab, setTab] = useState<'avail' | 'assign' | 'hours'>('avail');
@@ -67,7 +71,7 @@ export function RisorsaDetailPage() {
     const body = {
       ...(isNew ? { kind: form.kind } : {}),
       label: form.label.trim(), active: form.active,
-      attributes: { hourly_cost: form.hourlyCost === '' ? null : Number(form.hourlyCost) },
+      attributes: { ...attrs, hourly_cost: form.hourlyCost === '' ? null : Number(form.hourlyCost) },
     };
     try {
       if (isNew) { const c = await apiFetch<ResourceDto>('/resources', { method: 'POST', body: JSON.stringify({ kind: form.kind, ...body }) }); toast('Risorsa creata'); history.replace(`/resources/${c.id}`); }
@@ -224,6 +228,8 @@ export function RisorsaDetailPage() {
                 <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /></label></div>
           </div>
         </ObjectBox>
+
+        <AttrBoxes defs={fieldDefs.data?.items ?? []} attrs={attrs} setAttr={setAttr} exclude={['hourly_cost', 'bill_rate']} />
 
         {isNew ? <div className="dsx-empty" style={{ marginTop: 4 }}>Salva la risorsa per gestire orario, indisponibilità e assegnazioni.</div>
           : <RelatedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as typeof tab)} />}

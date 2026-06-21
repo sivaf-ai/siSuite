@@ -139,6 +139,8 @@ export const GROUP_LABEL_IT: Record<string, string> = {
   skills: 'Competenze',
   vehicle: 'Veicolo',
   catalog: 'Catalogo',
+  logistics: 'Logistica',
+  contact: 'Recapiti',
   general: 'Generale',
   notes: 'Note',
 };
