@@ -102,11 +102,14 @@ export const NAV: NavSection[] = [
     groups: [
       { caption: 'Giacenze', items: [
         { id: 'stock', label: 'Giacenze & disponibilità', route: '/stock', icon: 'layers', permission: 'stock:read' },
-        { id: 'stock-movements', label: 'Movimenti', route: '/stock', icon: 'arrow-left-right', permission: 'stock:read', soon: true },
-        { id: 'stock-inventory', label: 'Inventario', route: '/stock', icon: 'clipboard-check', permission: 'stock:manage', soon: true },
+        { id: 'stock-counts', label: 'Conteggi inventariali', route: '/stock-counts', icon: 'clipboard-check', permission: 'stock:read' },
+      ] },
+      { caption: 'Approvvigionamento', items: [
+        { id: 'purchase-orders', label: "Ordini d'acquisto", route: '/purchase-orders', icon: 'shopping-cart', permission: 'stock:read' },
+        { id: 'pick-lists', label: 'Pick list', route: '/pick-lists', icon: 'list-checks', permission: 'stock:read' },
       ] },
       { caption: 'Documenti', items: [
-        { id: 'stock-docs', label: 'DDT / Scarico / Trasferimento', route: '/stock', icon: 'file-output', permission: 'stock:manage', soon: true },
+        { id: 'stock-docs', label: 'DDT / Scarico / Trasferimento', route: '/stock/documents', icon: 'file-output', permission: 'stock:read' },
       ] },
       { caption: 'Collegamenti', link: true, items: [
         { id: 'materials-link', label: 'Articoli & seriali', route: '/materials', icon: 'package', permission: 'material:read', crossLink: true },
@@ -142,6 +145,10 @@ export const NAV: NavSection[] = [
       ] },
       { caption: 'Produzione', items: [
         { id: 'price-list', label: 'Listino voci di capitolato', route: '/price-list', icon: 'tags', permission: 'report:read' },
+      ] },
+      { caption: 'Configurazione dati', items: [
+        { id: 'skills', label: 'Competenze', route: '/skills', icon: 'graduation-cap', permission: 'resource:read' },
+        { id: 'tax-rates', label: 'Aliquote IVA', route: '/tax-rates', icon: 'percent', permission: 'material:read' },
       ] },
     ],
   },

@@ -30,10 +30,23 @@ export interface LookupDto {
 /* ── Company ───────────────────────────────────────────────────────── */
 // modello Party (ADR-0005): un soggetto può avere più ruoli, incluso 'operator' (Gestore FTTH)
 export const companyRoleEnum = z.enum(['customer', 'supplier', 'partner', 'operator']);
+// indirizzo strutturato jsonb country-driven (forma canonica con chiave country interna)
+const addressJson = z.record(z.string(), z.unknown());
 export const createCompanySchema = z.object({
   displayName: z.string().min(1).max(200),
   type: z.enum(['private', 'organization']).default('organization'),
-  address: z.string().max(400).optional(),
+  country: z.string().length(2).optional(),       // ISO 3166-1 alpha-2: pilota set fiscale + form indirizzo
+  taxId: z.string().max(40).optional(),           // P.IVA (IT) / CUIT (AR) / VAT (EU)
+  taxIdKind: z.string().max(20).optional(),       // vat|cuit|cuil|dni|nif
+  email: z.string().email().optional(),
+  phone: z.string().max(60).optional(),
+  website: z.string().max(200).optional(),
+  iban: z.string().max(40).optional(),
+  paymentTerms: z.string().max(40).optional(),
+  defaultPriceListId: uuid.nullable().optional(),
+  legalAddress: addressJson.optional(),
+  operationalAddress: addressJson.optional(),
+  fiscalAttributes: attrs.optional(),             // campi fiscali country-driven (validati su field_definition country)
   attributes: attrs.optional(),
   roles: z.array(z.object({
     role: companyRoleEnum,
@@ -45,9 +58,21 @@ export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 
 export interface CompanyDto {
   id: string;
+  code: string | null;
   displayName: string;
   type: 'private' | 'organization';
-  address: string | null;
+  country: string;
+  taxId: string | null;
+  taxIdKind: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  iban: string | null;
+  paymentTerms: string | null;
+  defaultPriceListId: string | null;
+  legalAddress: Record<string, unknown>;
+  operationalAddress: Record<string, unknown>;
+  fiscalAttributes: Record<string, unknown>;
   attributes: Record<string, unknown>;
   roles: string[];
   createdAt: string;
@@ -104,18 +129,29 @@ export interface ContactDto {
 }
 
 /* ── Asset ─────────────────────────────────────────────────────────── */
-export const createAssetSchema = z.object({
-  companyId: uuid,
+const assetFields = z.object({
+  companyId: uuid.nullable().optional(),                 // E.2: non più obbligatorio (àncora a luogo/intestatario)
+  workOrderSubjectId: uuid.nullable().optional(),        // end-user FTTH (PII isolata)
   kind: z.string().min(1).max(60),
   label: z.string().min(1).max(200),
   siteId: uuid.nullable().optional(),
+  parentAssetId: uuid.nullable().optional(),
+  model: z.string().max(120).nullable().optional(),
+  manufacturer: z.string().max(120).nullable().optional(),
+  warrantyUntil: day.nullable().optional(),
+  status: z.string().max(40).nullable().optional(),
   installedOn: day.optional(),
   attributes: attrs.optional(),
 });
-export const updateAssetSchema = createAssetSchema.partial();
+export const createAssetSchema = assetFields.refine((a) => a.companyId || a.siteId || a.workOrderSubjectId, {
+  message: 'asset: serve almeno un àncora (companyId, siteId o workOrderSubjectId)',
+});
+export const updateAssetSchema = assetFields.partial();
 export interface AssetDto {
-  id: string; companyId: string; companyName: string | null; kind: string;
+  id: string; companyId: string | null; companyName: string | null; kind: string;
   label: string; siteId: string | null; siteName: string | null;
+  workOrderSubjectId: string | null; parentAssetId: string | null;
+  model: string | null; manufacturer: string | null; warrantyUntil: string | null; status: string | null;
   installedOn: string | null; attributes: Record<string, unknown>; createdAt: string;
 }
 
@@ -125,6 +161,11 @@ export const createResourceSchema = z.object({
   kind: resourceKindEnum,
   label: z.string().min(1).max(200),
   userId: uuid.optional(),
+  code: z.string().max(40).nullable().optional(),
+  color: z.string().max(40).nullable().optional(),
+  avatarUrl: z.string().max(500).nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().max(60).nullable().optional(),
   attributes: attrs.optional(),
   active: z.boolean().optional(),
 });
@@ -132,6 +173,7 @@ export const updateResourceSchema = createResourceSchema.partial();
 export interface ResourceDto {
   id: string; kind: 'person' | 'vehicle' | 'equipment'; label: string;
   userId: string | null; active: boolean; attributes: Record<string, unknown>;
+  code: string | null; color: string | null; avatarUrl: string | null; email: string | null; phone: string | null;
   /** orario per-risorsa (override dell'azienda); null = usa l'orario del tenant. */
   workingHours?: Record<string, [string, string][]> | null;
   /** nome dell'utente collegato (solo nel dettaglio). */
@@ -165,26 +207,57 @@ export interface ResourceAvailabilityDto {
 }
 
 /* ── Material (Articoli & seriali, brief Blocco C) ──────────────────── */
+const num = z.coerce.number().nullable().optional();
 export const createMaterialSchema = z.object({
   name: z.string().min(1).max(200),
   unit: z.string().min(1).max(40),
+  itemType: z.enum(['article', 'service', 'kit']).optional(),
   sku: z.string().max(60).nullable().optional(),
+  barcode: z.string().max(60).nullable().optional(),
+  categoryId: uuid.nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  brand: z.string().max(120).nullable().optional(),
+  manufacturer: z.string().max(120).nullable().optional(),
+  mpn: z.string().max(120).nullable().optional(),
   trackStock: z.boolean().optional(),
   trackedBySerial: z.boolean().optional(),
   trackedByLot: z.boolean().optional(),
   costingMethod: z.enum(['avg', 'fifo', 'standard']).optional(),
-  defaultCost: z.coerce.number().nonnegative().nullable().optional(),
+  defaultCost: num,
+  defaultSalePrice: num,
+  taxRateId: uuid.nullable().optional(),
+  reorderPoint: num,
+  safetyStock: num,
+  minQty: num,
+  maxQty: num,
+  leadTimeDays: z.coerce.number().int().nullable().optional(),
+  preferredVendorId: uuid.nullable().optional(),
+  weight: num,
+  weightUnit: z.string().max(10).nullable().optional(),
+  dimensions: z.record(z.string(), z.unknown()).nullable().optional(),
+  isReturnable: z.boolean().optional(),
+  shelfLifeDays: z.coerce.number().int().nullable().optional(),
+  primaryImageUrl: z.string().max(500).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
   attributes: attrs.optional(),
 });
 export const updateMaterialSchema = createMaterialSchema.partial();
 export interface MaterialDto {
-  id: string; name: string; unit: string;
-  sku: string | null;
+  id: string; code: string | null; name: string; unit: string;
+  itemType: string;
+  sku: string | null; barcode: string | null;
+  categoryId: string | null; categoryName: string | null;
+  description: string | null; brand: string | null; manufacturer: string | null; mpn: string | null;
   trackStock: boolean; trackedBySerial: boolean; trackedByLot: boolean;
-  costingMethod: string; defaultCost: number | null;
+  costingMethod: string; defaultCost: number | null; defaultSalePrice: number | null;
+  taxRateId: string | null;
+  reorderPoint: number | null; safetyStock: number | null; minQty: number | null; maxQty: number | null;
+  leadTimeDays: number | null; preferredVendorId: string | null;
+  weight: number | null; weightUnit: string | null; dimensions: Record<string, unknown> | null;
+  isReturnable: boolean; shelfLifeDays: number | null; primaryImageUrl: string | null; note: string | null;
   /** calcolati: giacenza totale e costo medio (da stock_balance). */
   qtyOnHand: number; avgCost: number | null;
-  /** scorta sotto la minima (attributes.min_stock). */
+  /** scorta sotto la minima (reorder_point). */
   lowStock: boolean;
   attributes: Record<string, unknown>;
 }
@@ -302,13 +375,13 @@ export const createSiteSchema = z.object({
   parentId: uuid.nullable().optional(),
   name: z.string().min(1).max(200),
   kind: z.string().min(1).max(40).default('building'),
-  address: z.string().max(300).nullable().optional(),
+  address: z.record(z.string(), z.unknown()).nullable().optional(),  // jsonb country-driven (A.5)
   attributes: attrs.optional(),
 });
 export const updateSiteSchema = createSiteSchema.omit({ companyId: true }).partial();
 export interface SiteDto {
-  id: string; companyId: string; parentId: string | null;
-  name: string; kind: string; address: string | null;
+  id: string; companyId: string | null; parentId: string | null;
+  name: string; kind: string; address: Record<string, unknown>;
   attributes: Record<string, unknown>;
 }
 
@@ -697,4 +770,213 @@ export interface WorkOrderDto {
   subject?: WorkOrderSubjectDto;          // solo nel dettaglio
   items?: WorkOrderItemDto[];             // solo nel dettaglio
   serials?: WorkOrderSerialDto[];         // solo nel dettaglio
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ *  SPEC v1.1 (chat 01.06) — Fiscale, Magazzino completo, Risorse, Asset
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── tax_rate (catalogo imposte country-scoped) — Blocco A.2 ─────────── */
+export const createTaxRateSchema = z.object({
+  country: z.string().length(2),
+  code: z.string().min(1).max(40),
+  label: z.string().min(1).max(120),
+  percent: z.coerce.number(),
+  isDefault: z.boolean().optional(),
+  active: z.boolean().optional(),
+});
+export const updateTaxRateSchema = createTaxRateSchema.partial();
+export interface TaxRateDto {
+  id: string; tenantId: string | null; country: string; code: string;
+  label: string; percent: number; isDefault: boolean; active: boolean; isSystem: boolean;
+}
+
+/* ── material_category (gerarchica) — Blocco B.2 ─────────────────────── */
+export const createMaterialCategorySchema = z.object({
+  name: z.string().min(1).max(120),
+  parentId: uuid.nullable().optional(),
+  color: z.string().max(40).nullable().optional(),
+  active: z.boolean().optional(),
+});
+export const updateMaterialCategorySchema = createMaterialCategorySchema.partial();
+export interface MaterialCategoryDto {
+  id: string; parentId: string | null; name: string; color: string | null; active: boolean;
+}
+
+/* ── material_supplier (più fornitori per articolo) — Blocco B.4 ────── */
+export const createMaterialSupplierSchema = z.object({
+  materialId: uuid,
+  supplierId: uuid,
+  supplierSku: z.string().max(120).nullable().optional(),
+  purchasePrice: z.coerce.number().nullable().optional(),
+  currency: z.string().max(10).nullable().optional(),
+  leadTimeDays: z.coerce.number().int().nullable().optional(),
+  isPreferred: z.boolean().optional(),
+});
+export const updateMaterialSupplierSchema = createMaterialSupplierSchema.omit({ materialId: true }).partial();
+export interface MaterialSupplierDto {
+  id: string; materialId: string; supplierId: string; supplierName: string | null;
+  supplierSku: string | null; purchasePrice: number | null; currency: string | null;
+  leadTimeDays: number | null; isPreferred: boolean;
+}
+
+/* ── material_image (foto multiple MinIO) — Blocco B.3 ───────────────── */
+export interface MaterialImageDto {
+  id: string; materialId: string; objectKey: string; isPrimary: boolean; sequence: number;
+}
+
+/* ── stock_lot (lotti + scadenze) — Blocco C.1 ──────────────────────── */
+export const createStockLotSchema = z.object({
+  materialId: uuid,
+  lotNumber: z.string().min(1).max(120),
+  mfgDate: day.nullable().optional(),
+  expiryDate: day.nullable().optional(),
+  supplierId: uuid.nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
+export const updateStockLotSchema = createStockLotSchema.omit({ materialId: true }).partial();
+export interface StockLotDto {
+  id: string; materialId: string; materialName: string | null; lotNumber: string;
+  mfgDate: string | null; expiryDate: string | null; supplierId: string | null; note: string | null;
+}
+
+/* ── stock_count (conteggio inventariale) — Blocco C.3 ──────────────── */
+export const STOCK_COUNT_STATUSES = ['draft', 'counting', 'review', 'posted', 'cancelled'] as const;
+export const stockCountLineSchema = z.object({
+  materialId: uuid,
+  lotId: uuid.nullable().optional(),
+  expectedQty: z.coerce.number().nullable().optional(),
+  countedQty: z.coerce.number().nullable().optional(),
+  unit: z.string().min(1).max(40),
+  note: z.string().max(2000).nullable().optional(),
+});
+export const createStockCountSchema = z.object({
+  locationId: uuid,
+  countDate: day.optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(stockCountLineSchema).optional(),
+});
+export const updateStockCountSchema = z.object({
+  status: z.enum(STOCK_COUNT_STATUSES).optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(stockCountLineSchema).optional(),
+});
+export interface StockCountLineDto {
+  id: string; materialId: string; materialName: string | null; lotId: string | null;
+  expectedQty: number | null; countedQty: number | null; unit: string; note: string | null;
+}
+export interface StockCountDto {
+  id: string; number: string | null; locationId: string; locationName: string | null;
+  status: string; countDate: string; note: string | null; createdAt: string;
+  lines?: StockCountLineDto[];
+}
+
+/* ── purchase_order (ordini d'acquisto) — Blocco C.4 ────────────────── */
+export const PO_STATUSES = ['draft', 'sent', 'partial', 'received', 'cancelled'] as const;
+export const poLineSchema = z.object({
+  materialId: uuid,
+  qtyOrdered: z.coerce.number().positive(),
+  unit: z.string().min(1).max(40),
+  unitPrice: z.coerce.number().nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
+export const createPurchaseOrderSchema = z.object({
+  supplierId: uuid,
+  destLocationId: uuid.nullable().optional(),
+  orderDate: day.optional(),
+  expectedDate: day.nullable().optional(),
+  currency: z.string().max(10).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(poLineSchema).optional(),
+});
+export const updatePurchaseOrderSchema = z.object({
+  status: z.enum(PO_STATUSES).optional(),
+  destLocationId: uuid.nullable().optional(),
+  expectedDate: day.nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(poLineSchema).optional(),
+});
+export const receivePoLineSchema = z.object({ lineId: uuid, qty: z.coerce.number().positive() });
+export const receivePurchaseOrderSchema = z.object({
+  destLocationId: uuid.nullable().optional(),
+  receipts: z.array(receivePoLineSchema).min(1),
+});
+export interface PurchaseOrderLineDto {
+  id: string; materialId: string; materialName: string | null;
+  qtyOrdered: number; qtyReceived: number; unit: string; unitPrice: number | null; note: string | null;
+}
+export interface PurchaseOrderDto {
+  id: string; number: string | null; supplierId: string; supplierName: string | null;
+  destLocationId: string | null; destLocationName: string | null; status: string;
+  orderDate: string; expectedDate: string | null; currency: string | null; note: string | null; createdAt: string;
+  lines?: PurchaseOrderLineDto[];
+}
+
+/* ── pick_list (prelievo in campo) — Blocco C.5 ─────────────────────── */
+export const PICK_STATUSES = ['draft', 'assigned', 'picking', 'done', 'cancelled'] as const;
+export const pickLineSchema = z.object({
+  materialId: uuid,
+  qtyRequested: z.coerce.number().positive(),
+  unit: z.string().min(1).max(40),
+  lotId: uuid.nullable().optional(),
+});
+export const createPickListSchema = z.object({
+  sourceLocationId: uuid,
+  assignedResourceId: uuid.nullable().optional(),
+  workOrderId: uuid.nullable().optional(),
+  engagementId: uuid.nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(pickLineSchema).optional(),
+});
+export const updatePickListSchema = z.object({
+  status: z.enum(PICK_STATUSES).optional(),
+  assignedResourceId: uuid.nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+  lines: z.array(pickLineSchema).optional(),
+});
+export interface PickListLineDto {
+  id: string; materialId: string; materialName: string | null;
+  qtyRequested: number; qtyPicked: number; unit: string; lotId: string | null;
+}
+export interface PickListDto {
+  id: string; number: string | null; sourceLocationId: string; sourceLocationName: string | null;
+  assignedResourceId: string | null; assignedResourceLabel: string | null;
+  workOrderId: string | null; engagementId: string | null; status: string; note: string | null; createdAt: string;
+  lines?: PickListLineDto[];
+}
+
+/* ── skill + resource_skill + resource_certification — Blocco D ─────── */
+export const createSkillSchema = z.object({
+  name: z.string().min(1).max(120),
+  category: z.string().max(80).nullable().optional(),
+  active: z.boolean().optional(),
+});
+export const updateSkillSchema = createSkillSchema.partial();
+export interface SkillDto { id: string; name: string; category: string | null; active: boolean; }
+
+export const createResourceSkillSchema = z.object({
+  skillId: uuid,
+  level: z.coerce.number().int().min(1).max(3).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
+export interface ResourceSkillDto {
+  id: string; resourceId: string; skillId: string; skillName: string | null;
+  category: string | null; level: number | null; note: string | null;
+}
+
+export const createCertificationSchema = z.object({
+  name: z.string().min(1).max(200),
+  issuer: z.string().max(200).nullable().optional(),
+  certNumber: z.string().max(120).nullable().optional(),
+  validFrom: day.nullable().optional(),
+  validUntil: day.nullable().optional(),
+  documentObjectKey: z.string().max(500).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
+export const updateCertificationSchema = createCertificationSchema.partial();
+export interface ResourceCertificationDto {
+  id: string; resourceId: string; name: string; issuer: string | null; certNumber: string | null;
+  validFrom: string | null; validUntil: string | null; documentObjectKey: string | null; note: string | null;
+  /** giorni alla scadenza (negativo = scaduta); null se senza data. */
+  daysToExpiry: number | null;
 }

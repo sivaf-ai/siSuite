@@ -50,6 +50,7 @@ import { OrdinativoDetailPage } from '../pages/OrdinativoDetailPage';
 import { TimeEntriesPage } from '../pages/TimeEntriesPage';
 import { TimeEntryDetailPage } from '../pages/TimeEntryDetailPage';
 import { MagazzinoPage, MagazzinoDetailPage, DocumentiPage } from '../pages/MagazzinoPage';
+import { PurchaseOrdersPage, PickListsPage, StockCountsPage, SkillsPage, TaxRatesPage } from '../pages/SpecListsPages';
 import { RapportiniPage } from '../pages/RapportiniPage';
 import { AssenzePage } from '../pages/AssenzePage';
 import { AbsenceDetailPage } from '../pages/AbsenceDetailPage';
@@ -106,6 +107,11 @@ const ROUTES: RouteDef[] = [
   { path: '/stock', render: () => <MagazzinoPage />, perm: 'stock:read' },
   { path: '/stock/documents', render: () => <DocumentiPage />, perm: 'stock:read' },
   { path: '/warehouses/:id', render: () => <MagazzinoDetailPage />, perm: 'stock:read' },
+  { path: '/purchase-orders', render: () => <PurchaseOrdersPage />, perm: 'stock:read' },
+  { path: '/pick-lists', render: () => <PickListsPage />, perm: 'stock:read' },
+  { path: '/stock-counts', render: () => <StockCountsPage />, perm: 'stock:read' },
+  { path: '/skills', render: () => <SkillsPage />, perm: 'resource:read' },
+  { path: '/tax-rates', render: () => <TaxRatesPage />, perm: 'material:read' },
   { path: '/agenda', render: () => <PlaceholderPage title="Agenda" />, perm: 'activity:read' },
   { path: '/captures', render: () => <CapturePage />, perm: 'capture:read' },
   { path: '/admin/users', render: () => <UsersPage />, perm: 'user:read' },

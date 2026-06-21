@@ -8,11 +8,12 @@ import { withRls } from '../context/rls.js';
 
 function toDto(r: Record<string, unknown>): SiteDto {
   return {
-    id: r.id as string, companyId: r.company_id as string, parentId: (r.parent_id as string) ?? null,
-    name: r.name as string, kind: r.kind as string, address: (r.address as string) ?? null,
+    id: r.id as string, companyId: (r.company_id as string) ?? null, parentId: (r.parent_id as string) ?? null,
+    name: r.name as string, kind: r.kind as string, address: (r.address as Record<string, unknown>) ?? {},
     attributes: (r.attributes as Record<string, unknown>) ?? {},
   };
 }
+const asJson = (v: unknown): string | null => (v == null ? null : JSON.stringify(v));
 
 export async function siteRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { company_id?: string } }>('/sites',
@@ -34,7 +35,7 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
         `INSERT INTO site (tenant_id, company_id, parent_id, name, kind, address, attributes, created_by, updated_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
          RETURNING id, company_id, parent_id, name, kind, address, attributes`,
-        [ctx.tenantId, input.companyId, input.parentId ?? null, input.name, input.kind, input.address ?? null, input.attributes ?? {}, ctx.userId]);
+        [ctx.tenantId, input.companyId, input.parentId ?? null, input.name, input.kind, asJson(input.address) ?? '{}', input.attributes ?? {}, ctx.userId]);
       return toDto(r.rows[0]);
     });
     return reply.code(201).send(dto);
@@ -47,7 +48,7 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
         `UPDATE site SET name=COALESCE($2,name), kind=COALESCE($3,kind), parent_id=COALESCE($4,parent_id),
            address=COALESCE($5,address), attributes=COALESCE($6,attributes), updated_by=$7
          WHERE id=$1 RETURNING id, company_id, parent_id, name, kind, address, attributes`,
-        [request.params.id, input.name ?? null, input.kind ?? null, input.parentId ?? null, input.address ?? null, input.attributes ?? null, request.ctx.userId]);
+        [request.params.id, input.name ?? null, input.kind ?? null, input.parentId ?? null, asJson(input.address), input.attributes ?? null, request.ctx.userId]);
       return toDto(r.rows[0]);
     }));
 

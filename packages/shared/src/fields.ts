@@ -26,6 +26,9 @@ export interface FieldDefinitionDto {
   placeholder: Record<string, string> | null;
   groupKey: string | null;
   sequence: number;
+  /** Scope paese (IT/AR/...); null = universale. I campi con country valorizzato
+   *  per entity='company' vivono in fiscal_attributes; per entity='address' guidano l'AddressField. */
+  country?: string | null;
   /** true = riga di SISTEMA (tenant_id NULL): sola lettura per il tenant. */
   isSystem?: boolean;
   /** attivo nei form (il Field Builder può disattivare i campi del tenant). */
@@ -143,4 +146,5 @@ export const GROUP_LABEL_IT: Record<string, string> = {
   contact: 'Recapiti',
   general: 'Generale',
   notes: 'Note',
+  address: 'Indirizzo',
 };

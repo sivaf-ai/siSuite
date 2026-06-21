@@ -1,4 +1,7 @@
-/** companies.ts — CRUD aziende (anagrafica unica con ruoli multipli) + contatti. */
+/** companies.ts — CRUD aziende (anagrafica unica con ruoli multipli) + contatti.
+ *  SPEC v1.1 Blocco A: country pilota set fiscale; campi fiscali country-driven in
+ *  fiscal_attributes; indirizzi strutturati jsonb (legal/operational); codice da
+ *  number_series ('company'). Niente più colonna address. */
 import type { FastifyInstance } from 'fastify';
 import type { PoolClient } from '../db/pool.js';
 import {
@@ -7,36 +10,49 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
-import { validateAttributes } from '../fields.js';
+import { validateAttributes, validateFiscalAttributes } from '../fields.js';
+import { nextNumber } from '../numberSeries.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 
-const SORTABLE: Record<string, string> = { displayName: 'c.display_name', type: 'c.type', createdAt: 'c.created_at' };
-// mappa campi-filtro (key del client → espressione SQL) per il filtro server-side
+const SORTABLE: Record<string, string> = { displayName: 'c.display_name', code: 'c.code', type: 'c.type', country: 'c.country', createdAt: 'c.created_at' };
 const FILTER_FIELDS: Record<string, string> = {
-  displayName: 'c.display_name', type: 'c.type', createdAt: 'c.created_at',
-  vat_number: "c.attributes->>'vat_number'", tax_code: "c.attributes->>'tax_code'",
-  pec: "c.attributes->>'pec'", sdi_code: "c.attributes->>'sdi_code'", street: "c.attributes->>'street'",
-  city: "c.attributes->>'city'", province: "c.attributes->>'province'", postal_code: "c.attributes->>'postal_code'",
-  website: "c.attributes->>'website'", notes: "c.attributes->>'notes'",
+  displayName: 'c.display_name', code: 'c.code', type: 'c.type', country: 'c.country',
+  taxId: 'c.tax_id', email: 'c.email', phone: 'c.phone',
+  city: "COALESCE(c.legal_address->>'comune', c.legal_address->>'localidad')",
 };
-const FILTER_ANY = ['c.display_name', "c.attributes->>'vat_number'", "c.attributes->>'city'"];
+const FILTER_ANY = ['c.display_name', 'c.code', 'c.tax_id', 'c.email'];
 
 const SELECT = `
-  SELECT c.id, c.display_name, c.type, c.address, c.attributes, c.created_at,
+  SELECT c.id, c.code, c.display_name, c.type, c.country, c.tax_id, c.tax_id_kind,
+         c.email, c.phone, c.website, c.iban, c.payment_terms, c.default_price_list_id,
+         c.legal_address, c.operational_address, c.fiscal_attributes, c.attributes, c.created_at,
          COALESCE(array_agg(cr.role) FILTER (WHERE cr.role IS NOT NULL), '{}') AS roles
   FROM company c
   LEFT JOIN company_role cr ON cr.company_id = c.id
 `;
 const GROUP = `GROUP BY c.id`;
 
+const obj = (v: unknown): Record<string, unknown> => (v as Record<string, unknown>) ?? {};
 function toDto(r: Record<string, unknown>): CompanyDto {
   return {
     id: r.id as string,
+    code: (r.code as string) ?? null,
     displayName: r.display_name as string,
     type: r.type as CompanyDto['type'],
-    address: (r.address as string) ?? null,
-    attributes: (r.attributes as Record<string, unknown>) ?? {},
+    country: (r.country as string) ?? 'IT',
+    taxId: (r.tax_id as string) ?? null,
+    taxIdKind: (r.tax_id_kind as string) ?? null,
+    email: (r.email as string) ?? null,
+    phone: (r.phone as string) ?? null,
+    website: (r.website as string) ?? null,
+    iban: (r.iban as string) ?? null,
+    paymentTerms: (r.payment_terms as string) ?? null,
+    defaultPriceListId: (r.default_price_list_id as string) ?? null,
+    legalAddress: obj(r.legal_address),
+    operationalAddress: obj(r.operational_address),
+    fiscalAttributes: obj(r.fiscal_attributes),
+    attributes: obj(r.attributes),
     roles: (r.roles as string[]) ?? [],
     createdAt: r.created_at as string,
   };
@@ -48,6 +64,7 @@ function contactDto(r: Record<string, unknown>): ContactDto {
     phone: (r.phone as string) ?? null, isPrimary: (r.is_primary as boolean) ?? false,
   };
 }
+const asJson = (v: unknown): string | null => (v == null ? null : JSON.stringify(v));
 
 async function loadOne(db: PoolClient, id: string): Promise<CompanyDto | null> {
   const r = await db.query(`${SELECT} WHERE c.id = $1 ${GROUP}`, [id]);
@@ -65,10 +82,9 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
       let where = `WHERE c.archived_at IS NULL`;
       if (q.q) {
         params.push(`%${q.q}%`);
-        where += ` AND (c.display_name ILIKE $${params.length} OR c.attributes->>'vat_number' ILIKE $${params.length} OR c.attributes->>'city' ILIKE $${params.length})`;
+        where += ` AND (c.display_name ILIKE $${params.length} OR c.code ILIKE $${params.length} OR c.tax_id ILIKE $${params.length})`;
       }
       if (role) {
-        // vista filtrata per ruolo (Clienti/Fornitori/Gestori) — modello Party
         params.push(role);
         where += ` AND EXISTS (SELECT 1 FROM company_role crf WHERE crf.company_id = c.id AND crf.role = $${params.length})`;
       }
@@ -80,12 +96,12 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         `${SELECT} ${where} ${GROUP} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params,
       );
-      // conteggi viste per ruolo (indipendenti dalla vista corrente, rispettano ricerca E filtro attivo)
+      // conteggi viste per ruolo (rispettano ricerca E filtro attivo)
       const vParams: unknown[] = [];
       let vWhere = `WHERE c.archived_at IS NULL`;
       if (q.q) {
         vParams.push(`%${q.q}%`);
-        vWhere += ` AND (c.display_name ILIKE $1 OR c.attributes->>'vat_number' ILIKE $1 OR c.attributes->>'city' ILIKE $1)`;
+        vWhere += ` AND (c.display_name ILIKE $1 OR c.code ILIKE $1 OR c.tax_id ILIKE $1)`;
       }
       const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vParams);
       if (vfsql) vWhere += ` AND ${vfsql}`;
@@ -130,11 +146,18 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
       const input = createCompanySchema.parse(request.body);
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
+        const country = input.country ?? 'IT';
         const attrs = await validateAttributes(db, ctx.tenantId, 'company', input.attributes);
+        const fiscal = await validateFiscalAttributes(db, ctx.tenantId, 'company', country, input.fiscalAttributes);
+        const code = await nextNumber(db, 'company');
         const ins = await db.query(
-          `INSERT INTO company (tenant_id, display_name, type, address, attributes, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$6) RETURNING id`,
-          [ctx.tenantId, input.displayName, input.type, input.address ?? null, attrs, ctx.userId],
+          `INSERT INTO company (tenant_id, code, display_name, type, country, tax_id, tax_id_kind, email, phone, website,
+             iban, payment_terms, default_price_list_id, legal_address, operational_address, fiscal_attributes, attributes, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$18) RETURNING id`,
+          [ctx.tenantId, code, input.displayName, input.type, country, input.taxId ?? null, input.taxIdKind ?? null,
+           input.email ?? null, input.phone ?? null, input.website ?? null, input.iban ?? null, input.paymentTerms ?? null,
+           input.defaultPriceListId ?? null, asJson(input.legalAddress) ?? '{}', asJson(input.operationalAddress) ?? '{}',
+           fiscal, attrs, ctx.userId],
         );
         const id = ins.rows[0].id as string;
         for (const r of input.roles ?? []) {
@@ -155,20 +178,30 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const input = updateCompanySchema.parse(request.body);
       const out = await withRls(request.ctx, async (db) => {
-        const exists = await db.query(`SELECT 1 FROM company WHERE id = $1`, [request.params.id]);
-        if (!exists.rows.length) return null;
+        const cur = await db.query(`SELECT country FROM company WHERE id = $1`, [request.params.id]);
+        if (!cur.rows.length) return null;
+        const country = input.country ?? (cur.rows[0].country as string) ?? 'IT';
         const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'company', input.attributes) : null;
-        await db.query(
-          `UPDATE company SET
-             display_name = COALESCE($2, display_name),
-             type = COALESCE($3, type),
-             address = COALESCE($4, address),
-             attributes = COALESCE($5, attributes),
-             updated_by = $6
-           WHERE id = $1`,
-          [request.params.id, input.displayName ?? null, input.type ?? null, input.address ?? null,
-           attrs, request.ctx.userId],
-        );
+        const fiscal = input.fiscalAttributes ? await validateFiscalAttributes(db, request.ctx.tenantId, 'company', country, input.fiscalAttributes) : null;
+        const sets: string[] = []; const vals: unknown[] = [request.params.id];
+        const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+        if (input.displayName !== undefined) add('display_name', input.displayName);
+        if (input.type !== undefined) add('type', input.type);
+        if (input.country !== undefined) add('country', input.country);
+        if (input.taxId !== undefined) add('tax_id', input.taxId);
+        if (input.taxIdKind !== undefined) add('tax_id_kind', input.taxIdKind);
+        if (input.email !== undefined) add('email', input.email);
+        if (input.phone !== undefined) add('phone', input.phone);
+        if (input.website !== undefined) add('website', input.website);
+        if (input.iban !== undefined) add('iban', input.iban);
+        if (input.paymentTerms !== undefined) add('payment_terms', input.paymentTerms);
+        if (input.defaultPriceListId !== undefined) add('default_price_list_id', input.defaultPriceListId);
+        if (input.legalAddress !== undefined) add('legal_address', asJson(input.legalAddress) ?? '{}');
+        if (input.operationalAddress !== undefined) add('operational_address', asJson(input.operationalAddress) ?? '{}');
+        if (fiscal) add('fiscal_attributes', fiscal);
+        if (attrs) add('attributes', attrs);
+        add('updated_by', request.ctx.userId);
+        if (sets.length > 1) await db.query(`UPDATE company SET ${sets.join(', ')} WHERE id = $1`, vals);
         if (input.roles) {
           await db.query(`DELETE FROM company_role WHERE company_id = $1`, [request.params.id]);
           for (const r of input.roles) {

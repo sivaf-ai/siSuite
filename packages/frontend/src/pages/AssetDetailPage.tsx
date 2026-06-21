@@ -38,7 +38,7 @@ export function AssetDetailPage() {
   const d = detail.data;
   useEffect(() => {
     if (!d) return;
-    setForm({ label: d.label, kind: d.kind, companyId: d.companyId, siteId: d.siteId ?? '', installedOn: d.installedOn ?? '' });
+    setForm({ label: d.label, kind: d.kind, companyId: d.companyId ?? '', siteId: d.siteId ?? '', installedOn: d.installedOn ?? '' });
     setAttrs(d.attributes ?? {});
   }, [d]);
 

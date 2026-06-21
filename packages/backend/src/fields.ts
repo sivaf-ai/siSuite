@@ -21,6 +21,7 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
     placeholder: (r.placeholder as Record<string, string>) ?? null,
     groupKey: (r.group_key as string) ?? null,
     sequence: (r.sequence as number) ?? 0,
+    country: (r.country as string) ?? null,
     isSystem: (r.is_system as boolean) ?? false,
     active: (r.active as boolean) ?? true,
   };
@@ -30,7 +31,7 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
 export async function loadAllFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
   const { rows } = await db.query(
     `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            active, tenant_id IS NULL AS is_system
+            country, active, tenant_id IS NULL AS is_system
      FROM field_definition
      WHERE entity = $1 AND (vertical IS NULL OR vertical = $2)
      ORDER BY group_key NULLS FIRST, sequence`,
@@ -44,19 +45,25 @@ export async function tenantVertical(db: PoolClient, tenantId: string): Promise<
   return (r.rows[0]?.vertical as string) ?? 'software';
 }
 
-export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
+/** Definizioni attive per (entità, verticale). Se `country` è passato, restituisce
+ *  universali (country IS NULL) + quelle del paese; altrimenti TUTTE (FE le filtra). */
+export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string, country?: string): Promise<FieldDefinitionDto[]> {
+  const params: unknown[] = [entity, vertical];
+  let countryClause = '';
+  if (country) { params.push(country); countryClause = ` AND (country IS NULL OR country = $3)`; }
   const { rows } = await db.query(
     `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            tenant_id IS NULL AS is_system
+            country, tenant_id IS NULL AS is_system
      FROM field_definition
-     WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)
+     WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)${countryClause}
      ORDER BY group_key NULLS FIRST, sequence`,
-    [entity, vertical],
+    params,
   );
   return rows.map(mapRow);
 }
 
-/** Valida `attributes` contro le field_definition dell'entità; lancia ZodError (→400). */
+/** Valida `attributes` (coda lunga universale/verticale): esclude i campi
+ *  country-scoped, che vivono altrove (fiscal_attributes / indirizzo). */
 export async function validateAttributes(
   db: PoolClient,
   tenantId: string,
@@ -65,7 +72,23 @@ export async function validateAttributes(
 ): Promise<Record<string, unknown>> {
   if (!attributes || Object.keys(attributes).length === 0) return {};
   const vertical = await tenantVertical(db, tenantId);
-  const defs = await loadFieldDefs(db, entity, vertical);
+  const defs = (await loadFieldDefs(db, entity, vertical)).filter((d) => !d.country);
   const schema = buildAttributesSchema(defs);
   return schema.parse(attributes) as Record<string, unknown>;
+}
+
+/** Valida i campi FISCALI country-scoped (entity='company', country dato) →
+ *  finiscono in company.fiscal_attributes. */
+export async function validateFiscalAttributes(
+  db: PoolClient,
+  tenantId: string,
+  entity: string,
+  country: string,
+  fiscalAttributes: Record<string, unknown> | undefined,
+): Promise<Record<string, unknown>> {
+  if (!fiscalAttributes || Object.keys(fiscalAttributes).length === 0) return {};
+  const vertical = await tenantVertical(db, tenantId);
+  const defs = (await loadFieldDefs(db, entity, vertical, country)).filter((d) => d.country === country);
+  const schema = buildAttributesSchema(defs);
+  return schema.parse(fiscalAttributes) as Record<string, unknown>;
 }

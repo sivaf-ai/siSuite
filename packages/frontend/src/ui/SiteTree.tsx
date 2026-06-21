@@ -18,6 +18,14 @@ const KIND_LABEL: Record<string, string> = {
 const KINDS = Object.keys(KIND_LABEL);
 
 interface Node extends SiteDto { children: Node[] }
+/** indirizzo jsonb country-driven → riga leggibile (ignora la chiave country). */
+function fmtAddr(a: Record<string, unknown> | null | undefined): string {
+  if (!a) return '';
+  return Object.entries(a)
+    .filter(([k, v]) => k !== 'country' && typeof v === 'string' && v.trim() !== '')
+    .map(([, v]) => String(v))
+    .join(', ');
+}
 function buildTree(items: SiteDto[]): Node[] {
   const byId = new Map<string, Node>();
   items.forEach((s) => byId.set(s.id, { ...s, children: [] }));
@@ -69,7 +77,7 @@ export function SiteTree({ companyId, canEdit }: { companyId: string; canEdit: b
           <MapPin size={15} className="site-ico" />
           <span className="site-name">{n.name}</span>
           <span className="serialtag">{KIND_LABEL[n.kind] ?? n.kind}</span>
-          {n.address && <span className="site-addr">{n.address}</span>}
+          {fmtAddr(n.address) && <span className="site-addr">{fmtAddr(n.address)}</span>}
           {canEdit && (
             <span className="site-acts">
               <button className="xbtn" title="Aggiungi sotto-sito" onClick={() => { setAdding(n.id); setName(''); setKind('floor'); }}><Plus size={14} /></button>

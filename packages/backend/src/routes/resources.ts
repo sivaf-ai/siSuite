@@ -15,13 +15,15 @@ import { buildOrderBy } from '../sortSql.js';
 const FILTER_FIELDS: Record<string, string> = { label: 'label', kind: 'kind', active: 'active', hourly_cost: "attributes->>'hourly_cost'" };
 const FILTER_ANY = ['label', 'kind'];
 
-const SELECT = `SELECT id, kind, label, user_id, active, attributes, working_hours FROM resource`;
-const SORTABLE: Record<string, string> = { label: 'label', kind: 'kind' };
+const SELECT = `SELECT id, kind, label, user_id, active, attributes, working_hours, code, color, avatar_url, email, phone FROM resource`;
+const SORTABLE: Record<string, string> = { label: 'label', kind: 'kind', code: 'code' };
 function toDto(r: Record<string, unknown>): ResourceDto {
   return {
     id: r.id as string, kind: r.kind as ResourceDto['kind'], label: r.label as string,
     userId: (r.user_id as string) ?? null, active: r.active as boolean,
     attributes: (r.attributes as Record<string, unknown>) ?? {},
+    code: (r.code as string) ?? null, color: (r.color as string) ?? null,
+    avatarUrl: (r.avatar_url as string) ?? null, email: (r.email as string) ?? null, phone: (r.phone as string) ?? null,
     workingHours: (r.working_hours as Record<string, [string, string][]> | null) ?? null,
     userName: (r.user_name as string | null) ?? null,
   };
@@ -72,7 +74,8 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('resource:read')] },
     async (request, reply) => {
       const rows = await withRls(request.ctx, (db) => db.query(
-        `SELECT r.id, r.kind, r.label, r.user_id, r.active, r.attributes, r.working_hours, u.full_name AS user_name
+        `SELECT r.id, r.kind, r.label, r.user_id, r.active, r.attributes, r.working_hours,
+                r.code, r.color, r.avatar_url, r.email, r.phone, u.full_name AS user_name
          FROM resource r LEFT JOIN app_user u ON u.id = r.user_id WHERE r.id = $1`, [request.params.id]).then((r) => r.rows));
       if (!rows.length) return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata', statusCode: 404 });
       return toDto(rows[0]);
@@ -128,9 +131,11 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
       const dto = await withRls(ctx, async (db) => {
         const attrs = await validateAttributes(db, ctx.tenantId, 'resource', input.attributes);
         const ins = await db.query(
-          `INSERT INTO resource (tenant_id, kind, label, user_id, attributes, active, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id, kind, label, user_id, active, attributes`,
-          [ctx.tenantId, input.kind, input.label, input.userId ?? null, attrs, input.active ?? true, ctx.userId],
+          `INSERT INTO resource (tenant_id, kind, label, user_id, attributes, active, code, color, avatar_url, email, phone, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
+           RETURNING id, kind, label, user_id, active, attributes, working_hours, code, color, avatar_url, email, phone`,
+          [ctx.tenantId, input.kind, input.label, input.userId ?? null, attrs, input.active ?? true,
+           input.code ?? null, input.color ?? null, input.avatarUrl ?? null, input.email ?? null, input.phone ?? null, ctx.userId],
         );
         return toDto(ins.rows[0]);
       });
@@ -143,14 +148,22 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
       withRls(request.ctx, async (db) => {
         const input = updateResourceSchema.parse(request.body);
         const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'resource', input.attributes) : null;
+        const sets: string[] = []; const vals: unknown[] = [request.params.id];
+        const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+        if (input.kind !== undefined) add('kind', input.kind);
+        if (input.label !== undefined) add('label', input.label);
+        if (input.userId !== undefined) add('user_id', input.userId);
+        if (input.active !== undefined) add('active', input.active);
+        if (input.code !== undefined) add('code', input.code);
+        if (input.color !== undefined) add('color', input.color);
+        if (input.avatarUrl !== undefined) add('avatar_url', input.avatarUrl);
+        if (input.email !== undefined) add('email', input.email);
+        if (input.phone !== undefined) add('phone', input.phone);
+        if (attrs) add('attributes', attrs);
+        add('updated_by', request.ctx.userId);
         const r = await db.query(
-          `UPDATE resource SET kind = COALESCE($2, kind), label = COALESCE($3, label),
-             user_id = COALESCE($4, user_id), attributes = COALESCE($5, attributes),
-             active = COALESCE($6, active), updated_by = $7
-           WHERE id = $1 RETURNING id, kind, label, user_id, active, attributes`,
-          [request.params.id, input.kind ?? null, input.label ?? null, input.userId ?? null,
-           attrs, input.active ?? null, request.ctx.userId],
-        );
+          `UPDATE resource SET ${sets.join(', ')} WHERE id = $1
+           RETURNING id, kind, label, user_id, active, attributes, working_hours, code, color, avatar_url, email, phone`, vals);
         return toDto(r.rows[0]);
       }));
 

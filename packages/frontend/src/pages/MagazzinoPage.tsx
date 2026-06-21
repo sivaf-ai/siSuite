@@ -8,9 +8,10 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
-import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight, Boxes, ArrowLeftRight, FileText } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight, Boxes, ArrowLeftRight, FileText, Cpu, Layers, AlertTriangle } from 'lucide-react';
 import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, EngagementDto, PermissionKey,
+  StockLotDto, PurchaseOrderDto, PickListDto,
 } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
@@ -97,11 +98,11 @@ export function MagazzinoDetailPage() {
   const { canManage } = usePerms();
   const detail = useApi<StockLocationDto>(isNew ? null : `/stock/locations/${id}`);
   const resources = useApi<{ items: { id: string; label: string }[] }>('/resources');
-  const [form, setForm] = useState<{ name: string; kind: string; isDefault: boolean; resourceId: string }>({ name: '', kind: 'warehouse', isDefault: false, resourceId: '' });
+  const [form, setForm] = useState<{ name: string; kind: string; isDefault: boolean; resourceId: string; code: string; note: string }>({ name: '', kind: 'warehouse', isDefault: false, resourceId: '', code: '', note: '' });
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('balances');
   const d = detail.data;
-  useEffect(() => { if (d) setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '' }); }, [d]);
+  useEffect(() => { if (d) setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '', code: '', note: '' }); }, [d]);
 
   async function save() {
     if (!form.name.trim()) { toast('Inserisci un nome', 'error'); return; }
@@ -120,6 +121,9 @@ export function MagazzinoDetailPage() {
     { key: 'balances', label: 'Articoli & giacenze', icon: Boxes, content: <GiacenzeTab locationId={id} /> },
     { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MovimentiTab locationId={id} /> },
     { key: 'children', label: 'Ubicazioni', icon: CornerDownRight, content: <UbicazioniTab parentId={id} canManage={canManage} /> },
+    { key: 'serials', label: 'Seriali', icon: Cpu, content: <SerialiTab /> },
+    { key: 'lots', label: 'Lotti', icon: Layers, content: <LottiTab /> },
+    { key: 'documents', label: 'Documenti', icon: FileText, content: <DocumentiTab /> },
   ];
 
   return (
@@ -134,6 +138,9 @@ export function MagazzinoDetailPage() {
             <div className="bf"><span className="bl">Tipo</span><div className="bi"><select className="flin" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}><option value="warehouse">Magazzino</option><option value="van">Furgone</option></select></div></div>
             <div className="bf"><span className="bl">Predefinito</span><div className="bi"><select className="flin" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div></div>
             {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><div className="bi"><select className="flin" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div></div>}
+            {/* Codice/Note: l'endpoint stock_location non li gestisce ancora (display-only finché il BE non li accetta). */}
+            <div className="bf"><span className="bl">Codice</span><div className="bi"><input className="flin" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="(non ancora salvato lato server)" /></div></div>
+            <div className="bf c2"><span className="bl">Note</span><div className="bi"><input className="flin" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="(non ancora salvato lato server)" /></div></div>
           </div>
         </ObjectBox>
         {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
@@ -292,6 +299,90 @@ function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: b
         <div className="field"><label>Tipo</label><select className="txt" value={kind} onChange={(e) => setKind(e.target.value)}><option value="sub_location">Ubicazione</option><option value="van">Furgone</option></select></div>
       </Drawer>
       <ConfirmDialog open={!!delRow} danger title="Eliminare?" message={`«${delRow?.name ?? ''}» verrà archiviato.`} confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRow(null)} />
+    </>
+  );
+}
+
+/* ── Tab: Seriali (no endpoint per-location → placeholder informativo) ── */
+function SerialiTab() {
+  return (
+    <div className="dsx-empty" style={{ padding: '18px 8px' }}>
+      Elenco seriali per magazzino in arrivo: il backend non espone ancora un endpoint
+      seriali filtrato per ubicazione. I seriali sono gestiti dalla scheda Articolo.
+    </div>
+  );
+}
+
+/* ── Tab: Lotti (stock-lots tenant-wide, evidenzia scadenze vicine) ──── */
+function LottiTab() {
+  const lots = useApi<{ items: StockLotDto[] }>('/stock-lots');
+  const rows = lots.data?.items ?? [];
+  const daysTo = (iso: string | null) => (iso == null ? null : Math.round((new Date(iso).getTime() - Date.now()) / 86400000));
+  if (lots.loading) return <Loading />;
+  return (
+    <>
+      <div className="toolbar" style={{ margin: '8px 0', gap: 8 }}>
+        <span className="chip" style={{ color: 'var(--ink-soft)' }}>Lotti dell'organizzazione — le scadenze entro 30 giorni sono evidenziate</span>
+      </div>
+      <table className="subt">
+        <thead><tr><th>Lotto</th><th>Articolo</th><th>Produzione</th><th>Scadenza</th></tr></thead>
+        <tbody>
+          {rows.map((r) => {
+            const dd = daysTo(r.expiryDate);
+            const near = dd != null && dd <= 30;
+            return (
+              <tr key={r.id}>
+                <td className="cellname mono">{r.lotNumber}</td>
+                <td>{r.materialName ?? '—'}</td>
+                <td className="cellsub">{r.mfgDate ? new Date(r.mfgDate).toLocaleDateString('it-IT') : '—'}</td>
+                <td className="mono" style={near ? { color: 'var(--danger)', fontWeight: 700 } : undefined}>
+                  {r.expiryDate ? new Date(r.expiryDate).toLocaleDateString('it-IT') : '—'}
+                  {near && <AlertTriangle size={13} style={{ marginLeft: 6, verticalAlign: 'text-bottom' }} />}
+                  {dd != null && dd < 0 && ' (scaduto)'}
+                </td>
+              </tr>
+            );
+          })}
+          {rows.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessun lotto registrato.</div></td></tr>}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+/* ── Tab: Documenti (unifica documenti magazzino + ordini + pick list) ── */
+interface UnifiedDoc { id: string; tipo: string; numero: string; stato: string; data: string }
+function DocumentiTab() {
+  const lk = useLookups();
+  const docs = useApi<{ items: StockDocumentDto[] }>('/stock/documents');
+  const pos = useApi<{ items: PurchaseOrderDto[] }>('/purchase-orders');
+  const picks = useApi<{ items: PickListDto[] }>('/pick-lists');
+  const dfmt = (iso: string) => new Date(iso).toLocaleDateString('it-IT');
+  if (docs.loading || pos.loading || picks.loading) return <Loading />;
+  const rows: UnifiedDoc[] = [
+    ...(docs.data?.items ?? []).map((r) => ({ id: `doc_${r.id}`, tipo: lk.labelOf(r.typeId) || 'Documento', numero: r.number ?? 'bozza', stato: r.status, data: r.docDate })),
+    ...(pos.data?.items ?? []).map((r) => ({ id: `po_${r.id}`, tipo: "Ordine d'acquisto", numero: r.number ?? 'bozza', stato: r.status, data: r.orderDate })),
+    ...(picks.data?.items ?? []).map((r) => ({ id: `pk_${r.id}`, tipo: 'Pick list', numero: r.number ?? 'bozza', stato: r.status, data: r.createdAt })),
+  ].sort((a, b) => (a.data < b.data ? 1 : -1));
+  return (
+    <>
+      <div className="toolbar" style={{ margin: '8px 0', gap: 8 }}>
+        <span className="chip" style={{ color: 'var(--ink-soft)' }}>Documenti, ordini d'acquisto e pick list (elenco dell'organizzazione)</span>
+      </div>
+      <table className="subt">
+        <thead><tr><th>Tipo</th><th>Numero</th><th>Stato</th><th>Data</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td><span className="chip">{r.tipo}</span></td>
+              <td className="cellname mono">{r.numero}</td>
+              <td><span className="chip">{r.stato}</span></td>
+              <td className="cellsub">{dfmt(r.data)}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessun documento.</div></td></tr>}
+        </tbody>
+      </table>
     </>
   );
 }

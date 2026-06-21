@@ -2,6 +2,20 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-21 — SPEC v1.1 (chat 01.06): Fiscale/Magazzino/Risorse/Asset (Claude Code, autonomo A→F)
+- **Migrazioni 041→046** (la SPEC diceva 038, ma 038/039/040 erano già occupate da altre chat → partito da 041; NON rinumerate le altrui). **Prossima libera: 047.**
+  - 041 fiscal_localization (field_definition.country, tax_rate+seed IT/AR, company colonne+drop address, fiscal_attributes, site.address→jsonb, tenant.default_country)
+  - 042 material_complete (23 colonne material, material_category/image/supplier, cleanup seed 040)
+  - 043 warehouse_complete (stock_lot+FK, stock_location +code/manager/note, stock_count/purchase_order/pick_list +line)
+  - 044 resources_skills (resource +code/color/avatar/email/phone, skill/resource_skill/resource_certification, cleanup seed 040)
+  - 045 entity_refinements (work_order/engagement/asset/company_contact + asset anchor check)
+  - 046 warehouse_entitlements_series (module.warehouse entitlement, number_series, address field_definitions IT/AR)
+- **Moduli toccati**: shared/entities+fields (DTO nuovi), backend routes companies/materials/assets/resources/sites/fields/bootstrap (estesi) + NUOVE taxRates/materialCatalog/warehouse/resourceExtras (registrate in index.ts). Frontend: AddressField, ClienteDetailPage (form fiscale country-driven), MagazzinoPage (tab Lotti/Documenti/Seriali), SpecListsPages (5 liste), AppShell+nav.
+- **Convenzioni**: field_definition.country valorizzato + entity='company' → fiscal_attributes; entity='address' → AddressField. CLEAN SLATE: campi material/resource/company promossi da attributes a colonne (DELETE field_definition superati di 004/040, senza toccare i file).
+- **Verifiche**: migrazioni applicate OK; typecheck shared+BE+FE puliti; **79/79 test BE verdi**; smoke A/B/C/D/E/F OK (login owner@sisuite.local).
+- **Docs**: DONE_A..F + DONE_TOTALE in docs/analisi/; ADR-0007 (fiscale multi-paese) e ADR-0008 (magazzino standalone) in docs/adr/; schema rigenerato in docs/analisi/2026-06-21_schema_db_completo.md.
+- **Aperti** (vedi DONE_TOTALE): tab Seriali per-location (manca endpoint BE), persistenza code/note stock_location (route stock da estendere), company_contact mobile/department/note non esposti in FE/route contatti.
+
 ## 2026-06-18 — PIANO prossimi lavori: Blocchi 0, 1, 4 (Claude Code)
 - **Migrazioni**: nessuna nuova. Stato: 001→035 + 007_term_override già applicate. Prossima libera: **036**.
   ⚠️ Correzione al PIANO: `term_override` esiste già come **007**, NON va creata come "036". `saved_view` (Blocco 5) sarà la 036.

@@ -13,17 +13,22 @@ const FILTER_ANY = ['a.label', 'a.kind'];
 
 const SELECT = `
   SELECT a.id, a.company_id, c.display_name AS company_name, a.kind, a.label,
-         a.site_id, s.name AS site_name, a.installed_at, a.attributes, a.created_at
+         a.site_id, s.name AS site_name, a.work_order_subject_id, a.parent_asset_id,
+         a.model, a.manufacturer, a.warranty_until, a.status, a.installed_at, a.attributes, a.created_at
   FROM asset a
   LEFT JOIN company c ON c.id = a.company_id
   LEFT JOIN site s ON s.id = a.site_id
 `;
 function toDto(r: Record<string, unknown>): AssetDto {
+  const d = (v: unknown): string | null => (v instanceof Date ? v.toISOString().slice(0, 10) : (v as string) ?? null);
   return {
-    id: r.id as string, companyId: r.company_id as string, companyName: (r.company_name as string) ?? null,
+    id: r.id as string, companyId: (r.company_id as string) ?? null, companyName: (r.company_name as string) ?? null,
     kind: r.kind as string, label: r.label as string,
     siteId: (r.site_id as string) ?? null, siteName: (r.site_name as string) ?? null,
-    installedOn: (r.installed_at as string) ?? null,
+    workOrderSubjectId: (r.work_order_subject_id as string) ?? null, parentAssetId: (r.parent_asset_id as string) ?? null,
+    model: (r.model as string) ?? null, manufacturer: (r.manufacturer as string) ?? null,
+    warrantyUntil: d(r.warranty_until), status: (r.status as string) ?? null,
+    installedOn: d(r.installed_at),
     attributes: (r.attributes as Record<string, unknown>) ?? {}, createdAt: r.created_at as string,
   };
 }
@@ -63,9 +68,12 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       const dto = await withRls(ctx, async (db) => {
         const attrs = await validateAttributes(db, ctx.tenantId, 'asset', input.attributes);
         const ins = await db.query(
-          `INSERT INTO asset (tenant_id, company_id, kind, label, site_id, installed_at, attributes, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING id`,
-          [ctx.tenantId, input.companyId, input.kind, input.label, input.siteId ?? null, input.installedOn ?? null, attrs, ctx.userId],
+          `INSERT INTO asset (tenant_id, company_id, work_order_subject_id, kind, label, site_id, parent_asset_id,
+             model, manufacturer, warranty_until, status, installed_at, attributes, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING id`,
+          [ctx.tenantId, input.companyId ?? null, input.workOrderSubjectId ?? null, input.kind, input.label,
+           input.siteId ?? null, input.parentAssetId ?? null, input.model ?? null, input.manufacturer ?? null,
+           input.warrantyUntil ?? null, input.status ?? null, input.installedOn ?? null, attrs, ctx.userId],
         );
         const r = await db.query(`${SELECT} WHERE a.id = $1`, [ins.rows[0].id]);
         return toDto(r.rows[0]);
@@ -81,14 +89,22 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         const ex = await db.query(`SELECT 1 FROM asset WHERE id = $1`, [request.params.id]);
         if (!ex.rows.length) return null;
         const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'asset', input.attributes) : null;
-        await db.query(
-          `UPDATE asset SET kind = COALESCE($2, kind), label = COALESCE($3, label),
-             site_id = CASE WHEN $4::uuid IS NOT NULL OR $7 THEN $4 ELSE site_id END,
-             installed_at = COALESCE($5, installed_at), attributes = COALESCE($6, attributes), updated_by = $8
-           WHERE id = $1`,
-          [request.params.id, input.kind ?? null, input.label ?? null, input.siteId ?? null,
-           input.installedOn ?? null, attrs, input.siteId === null, request.ctx.userId],
-        );
+        const sets: string[] = []; const vals: unknown[] = [request.params.id];
+        const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+        if (input.kind !== undefined) add('kind', input.kind);
+        if (input.label !== undefined) add('label', input.label);
+        if (input.companyId !== undefined) add('company_id', input.companyId);
+        if (input.workOrderSubjectId !== undefined) add('work_order_subject_id', input.workOrderSubjectId);
+        if (input.siteId !== undefined) add('site_id', input.siteId);
+        if (input.parentAssetId !== undefined) add('parent_asset_id', input.parentAssetId);
+        if (input.model !== undefined) add('model', input.model);
+        if (input.manufacturer !== undefined) add('manufacturer', input.manufacturer);
+        if (input.warrantyUntil !== undefined) add('warranty_until', input.warrantyUntil);
+        if (input.status !== undefined) add('status', input.status);
+        if (input.installedOn !== undefined) add('installed_at', input.installedOn);
+        if (attrs) add('attributes', attrs);
+        add('updated_by', request.ctx.userId);
+        await db.query(`UPDATE asset SET ${sets.join(', ')} WHERE id = $1`, vals);
         const r = await db.query(`${SELECT} WHERE a.id = $1`, [request.params.id]);
         return toDto(r.rows[0]);
       });

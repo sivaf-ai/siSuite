@@ -92,14 +92,23 @@ export async function bootstrap(client: pg.Client): Promise<void> {
   }
   log(`tenant '${tenantName}' = ${tenantId}`);
 
-  // ── 4. number_series 'engagement' ─────────────────────────────────
+  // ── 4. number_series (engagement + codici/documenti SPEC v1.1 chat 01.06) ──
   await client.query(
     `INSERT INTO number_series (tenant_id, key, format, reset_period)
-     VALUES ($1, 'engagement', '{YYYY}-{SEQ:4}', 'yearly')
+     SELECT $1, s.key, s.format, s.reset_period FROM (VALUES
+       ('engagement',     '{YYYY}-{SEQ:4}', 'yearly'),
+       ('material',       'ART-{SEQ:5}',    'never'),
+       ('company',        'SOG-{SEQ:5}',    'never'),
+       ('stock_location', 'MAG-{SEQ:3}',    'never'),
+       ('stock_document', 'DDT-{YYYY}-{SEQ:4}', 'yearly'),
+       ('purchase_order', 'ODA-{YYYY}-{SEQ:4}', 'yearly'),
+       ('pick_list',      'PRL-{YYYY}-{SEQ:4}', 'yearly'),
+       ('stock_count',    'INV-{YYYY}-{SEQ:4}', 'yearly')
+     ) AS s(key, format, reset_period)
      ON CONFLICT (tenant_id, key) DO NOTHING`,
     [tenantId],
   );
-  log('number_series engagement ok');
+  log('number_series (engagement + magazzino/anagrafiche) ok');
 
   // ── 5. subscription trial ─────────────────────────────────────────
   {

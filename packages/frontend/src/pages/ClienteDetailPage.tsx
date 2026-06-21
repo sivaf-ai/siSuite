@@ -9,10 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useHistory } from 'react-router';
 import { Building2, Contact, Receipt, MapPin, StickyNote, Plus, Pencil, Trash2, Star } from 'lucide-react';
 import type { CompanyDto, ContactDto, FieldDefinitionDto } from '@sisuite/shared';
+import { GROUP_LABEL_IT } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
-import { AttrBoxes } from '../ui/AttrFields';
+import { AttrBoxes, AttrField } from '../ui/AttrFields';
+import { AddressField } from '../ui/AddressField';
 import { Drawer } from '../ui/Drawer';
 import { SiteTree } from '../ui/SiteTree';
 import { Field, type RenderableField } from '../ui/Field';
@@ -26,6 +28,14 @@ type CompanyDetail = CompanyDto & { contacts: ContactDto[] };
 const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'Fornitore', partner: 'Partner', operator: 'Gestore' };
 const ALL_ROLES = ['customer', 'supplier', 'operator', 'partner'] as const;
 const GROUP_ICON = { fiscal: Receipt, registry: MapPin, notes: StickyNote };
+const COUNTRIES: { value: string; label: string }[] = [{ value: 'IT', label: 'Italia' }, { value: 'AR', label: 'Argentina' }];
+
+/** campi top-level di contatto/anagrafica fiscale (oltre a displayName/type/roles). */
+interface CompanyTop {
+  country: string; taxId: string; taxIdKind: string;
+  email: string; phone: string; website: string; iban: string; paymentTerms: string;
+}
+const emptyTop = (): CompanyTop => ({ country: 'IT', taxId: '', taxIdKind: '', email: '', phone: '', website: '', iban: '', paymentTerms: '' });
 
 const CONTACT_FIELDS: RenderableField[] = [
   { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
@@ -48,7 +58,11 @@ export function ClienteDetailPage() {
   const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=company');
 
   const [form, setForm] = useState<{ displayName: string; type: string; roles: string[] }>({ displayName: '', type: 'organization', roles: [] });
+  const [top, setTop] = useState<CompanyTop>(emptyTop());
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
+  const [fiscal, setFiscal] = useState<Record<string, unknown>>({});
+  const [legalAddress, setLegalAddress] = useState<Record<string, unknown>>({});
+  const [operationalAddress, setOperationalAddress] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('contacts');
   const [editing, setEditing] = useState<ContactDto | null | undefined>(undefined);
@@ -59,17 +73,32 @@ export function ClienteDetailPage() {
   useEffect(() => {
     if (!d) return;
     setForm({ displayName: d.displayName, type: d.type, roles: d.roles });
+    setTop({
+      country: d.country || 'IT', taxId: d.taxId ?? '', taxIdKind: d.taxIdKind ?? '',
+      email: d.email ?? '', phone: d.phone ?? '', website: d.website ?? '',
+      iban: d.iban ?? '', paymentTerms: d.paymentTerms ?? '',
+    });
     setAttrs(d.attributes ?? {});
+    setFiscal(d.fiscalAttributes ?? {});
+    setLegalAddress(d.legalAddress ?? {});
+    setOperationalAddress(d.operationalAddress ?? {});
   }, [d]);
 
   const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
+  const setTopF = (k: keyof CompanyTop, v: string) => setTop((s) => ({ ...s, [k]: v }));
   const toggleRole = (r: string) => setForm((f) => ({ ...f, roles: f.roles.includes(r) ? f.roles.filter((x) => x !== r) : [...f.roles, r] }));
 
   async function save() {
     if (!form.displayName.trim()) { toast('La ragione sociale è obbligatoria', 'error'); return; }
     setBusy(true);
+    const t2 = (v: string) => (v.trim() === '' ? undefined : v.trim());
     const body = {
       displayName: form.displayName.trim(), type: form.type,
+      country: top.country || 'IT',
+      taxId: t2(top.taxId), taxIdKind: t2(top.taxIdKind),
+      email: t2(top.email), phone: t2(top.phone), website: t2(top.website),
+      iban: t2(top.iban), paymentTerms: t2(top.paymentTerms),
+      legalAddress, operationalAddress, fiscalAttributes: fiscal,
       roles: form.roles.map((role) => ({ role })), attributes: attrs,
     };
     try {
@@ -102,6 +131,13 @@ export function ClienteDetailPage() {
   if (!isNew && detail.error) return <Page title={t('terms.party')}><ErrorBox message={detail.error} /></Page>;
 
   const defs = fieldDefs.data?.items ?? [];
+  // FISCALI = def con country valorizzato (filtrate per il country selezionato);
+  // GENERICI = def con country null → vanno in `attributes` (AttrBoxes come oggi).
+  const fiscalDefs = defs
+    .filter((f) => f.country != null && f.country === top.country && f.active !== false)
+    .sort((a, b) => a.sequence - b.sequence);
+  const genericDefs = defs.filter((f) => f.country == null);
+  const setFiscalF = (k: string, v: unknown) => setFiscal((s) => ({ ...s, [k]: v }));
   const contacts = d?.contacts ?? [];
 
   const contactsTable = (
@@ -167,10 +203,51 @@ export function ClienteDetailPage() {
                   return <span key={r} className="chip" style={{ cursor: 'pointer', opacity: on ? 1 : 0.5, background: on ? 'var(--brand-wash)' : undefined }} onClick={() => toggleRole(r)}>{ROLE_LABEL[r]}</span>;
                 })}
               </div></div>
+            <div className="bf"><span className="bl">Paese</span>
+              <select className="bi" value={top.country} onChange={(e) => setTopF('country', e.target.value)}>
+                {COUNTRIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select></div>
+            <div className="bf"><span className="bl">Codice fiscale / P.IVA</span>
+              <input className="bi" value={top.taxId} onChange={(e) => setTopF('taxId', e.target.value)} placeholder={top.country === 'AR' ? 'CUIT' : 'P.IVA'} /></div>
+            <div className="bf"><span className="bl">Tipo identificativo</span>
+              <select className="bi" value={top.taxIdKind} onChange={(e) => setTopF('taxIdKind', e.target.value)}>
+                <option value="">—</option>
+                {top.country === 'AR'
+                  ? [<option key="cuit" value="cuit">CUIT</option>, <option key="cuil" value="cuil">CUIL</option>, <option key="dni" value="dni">DNI</option>]
+                  : [<option key="vat" value="vat">P.IVA</option>, <option key="cf" value="cf">Codice fiscale</option>]}
+              </select></div>
           </div>
         </ObjectBox>
 
-        <AttrBoxes defs={defs} attrs={attrs} setAttr={setAttr} icons={GROUP_ICON} fullKeys={['street', 'website']} />
+        <ObjectBox icon={Contact} title="Recapiti e pagamenti">
+          <div className="bgrid">
+            <div className="bf"><span className="bl">Email</span>
+              <input className="bi" type="email" value={top.email} onChange={(e) => setTopF('email', e.target.value)} /></div>
+            <div className="bf"><span className="bl">Telefono</span>
+              <input className="bi" value={top.phone} onChange={(e) => setTopF('phone', e.target.value)} /></div>
+            <div className="bf c2"><span className="bl">Sito web</span>
+              <input className="bi" value={top.website} onChange={(e) => setTopF('website', e.target.value)} placeholder="https://" /></div>
+            <div className="bf"><span className="bl">IBAN</span>
+              <input className="bi" value={top.iban} onChange={(e) => setTopF('iban', e.target.value)} /></div>
+            <div className="bf"><span className="bl">Termini di pagamento</span>
+              <input className="bi" value={top.paymentTerms} onChange={(e) => setTopF('paymentTerms', e.target.value)} placeholder="es. 30gg FM" /></div>
+          </div>
+        </ObjectBox>
+
+        {fiscalDefs.length > 0 && (
+          <ObjectBox icon={Receipt} title={`${GROUP_LABEL_IT.fiscal} (${top.country})`}>
+            <div className="bgrid">
+              {fiscalDefs.map((f) => (
+                <AttrField key={f.key} f={f} value={fiscal[f.key]} onChange={(v) => setFiscalF(f.key, v)} />
+              ))}
+            </div>
+          </ObjectBox>
+        )}
+
+        <AddressField label="Sede legale" country={top.country} value={legalAddress} onChange={setLegalAddress} />
+        <AddressField label="Sede operativa" country={top.country} value={operationalAddress} onChange={setOperationalAddress} />
+
+        <AttrBoxes defs={genericDefs} attrs={attrs} setAttr={setAttr} icons={GROUP_ICON} fullKeys={['street', 'website']} />
 
         {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
 
