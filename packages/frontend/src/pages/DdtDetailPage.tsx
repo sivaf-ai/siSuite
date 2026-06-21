@@ -1,0 +1,192 @@
+/**
+ * DdtDetailPage — Scheda documento di magazzino (DDT/Carico/Trasferimento/Rettifica),
+ * master-detail come Ordini di lavoro: testata in ObjectBox + righe in tabella .subt.
+ * Righe SOLO via MaterialPickerDialog. Azione "Conferma" → genera movimenti, numera.
+ */
+import { useEffect, useState } from 'react';
+import { useHistory, useParams } from 'react-router';
+import { FileOutput, Boxes, Trash2, Check } from 'lucide-react';
+import type { StockDocumentDto, StockLocationDto, CompanyDto, MaterialDto } from '@sisuite/shared';
+import { Page, Loading, ErrorBox } from '../components/Page';
+import { StatusPill } from '../components/StatusPill';
+import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { useApi, mutate } from '../api/hooks';
+import { apiFetch, ApiError } from '../api/client';
+import { useToast } from '../ui/Toast';
+import { useAuth } from '../auth/AuthContext';
+
+interface ListResp<T> { items: T[] }
+interface Row { materialId: string; materialName: string; quantity: number; unit: string; unitCost: number | null; note: string | null }
+type DocType = 'receipt' | 'transfer' | 'adjustment';
+
+const TYPE_LABEL: Record<DocType, string> = { receipt: 'Carico', transfer: 'Trasferimento', adjustment: 'Rettifica' };
+const DOC_STATUS: Record<string, { label: string; token: string }> = {
+  draft: { label: 'Bozza', token: 'neutral' },
+  confirmed: { label: 'Confermato', token: 'success' },
+  cancelled: { label: 'Annullato', token: 'danger' },
+};
+const fmtErr = (e: unknown) => e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message;
+
+export function DdtDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const isNew = id === 'new';
+  const history = useHistory();
+  const toast = useToast();
+  const { user } = useAuth();
+  const canManage = !!user?.permissions.includes('stock:manage' as never);
+
+  const detail = useApi<StockDocumentDto>(isNew ? null : `/stock/documents/${id}`);
+  const locations = useApi<ListResp<StockLocationDto>>('/stock/locations');
+  const companies = useApi<ListResp<CompanyDto>>('/companies?limit=200');
+
+  const [type, setType] = useState<DocType>('receipt');
+  const [form, setForm] = useState<Record<string, string>>({ docDate: '', sourceLocationId: '', destLocationId: '', companyId: '', externalRef: '', note: '' });
+  const [rows, setRows] = useState<Row[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [pickOpen, setPickOpen] = useState(false);
+
+  const d = detail.data;
+  useEffect(() => {
+    if (!d) return;
+    if (d.typeCanonical && ['receipt', 'transfer', 'adjustment'].includes(d.typeCanonical)) setType(d.typeCanonical as DocType);
+    setForm({
+      docDate: d.docDate ?? '', sourceLocationId: d.sourceLocationId ?? '', destLocationId: d.destLocationId ?? '',
+      companyId: d.companyId ?? '', externalRef: d.externalRef ?? '', note: d.note ?? '',
+    });
+    setRows((d.lines ?? []).map((l) => ({
+      materialId: l.materialId, materialName: l.materialName ?? '—',
+      quantity: l.quantity, unit: l.unit, unitCost: l.unitCost, note: l.note,
+    })));
+  }, [d]);
+
+  const status = d?.status ?? 'draft';
+  const isDraft = isNew || status === 'draft';
+  const readOnly = !isNew && !isDraft;
+  const st = DOC_STATUS[status] ?? { label: status, token: 'neutral' };
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const needsSource = type === 'transfer' || type === 'adjustment';
+  const needsDest = type === 'receipt' || type === 'transfer';
+  const needsCompany = type === 'receipt';
+
+  function addMaterials(mats: MaterialDto[]) {
+    setRows((arr) => [...arr, ...mats.map((m) => ({
+      materialId: m.id, materialName: m.name, quantity: 1, unit: m.unit, unitCost: null, note: null,
+    }))]);
+  }
+
+  async function save() {
+    if (rows.length === 0) { toast('Aggiungi almeno una riga', 'error'); return; }
+    setBusy(true);
+    const lines = rows.map((r) => ({ materialId: r.materialId, quantity: r.quantity, unit: r.unit, unitCost: r.unitCost ?? undefined, note: r.note ?? undefined }));
+    const body = {
+      docDate: form.docDate || undefined,
+      sourceLocationId: needsSource ? (form.sourceLocationId || null) : null,
+      destLocationId: needsDest ? (form.destLocationId || null) : null,
+      companyId: needsCompany ? (form.companyId || null) : null,
+      externalRef: form.externalRef || null, note: form.note || null, lines,
+    };
+    try {
+      if (isNew) {
+        const created = await apiFetch<{ id: string }>('/stock/documents', { method: 'POST', body: JSON.stringify({ typeCode: type, ...body }) });
+        toast('Documento creato');
+        history.push(`/stock/documents/${created.id}`);
+      } else {
+        await mutate('PATCH', `/stock/documents/${id}`, body);
+        toast('Modifiche salvate');
+        void detail.reload();
+      }
+    } catch (e) { toast(fmtErr(e), 'error'); } finally { setBusy(false); }
+  }
+
+  async function confirmDoc() {
+    setBusy(true);
+    try {
+      await mutate('POST', `/stock/documents/${id}/confirm`, {});
+      toast('Documento confermato');
+      void detail.reload();
+    } catch (e) { toast(fmtErr(e), 'error'); } finally { setBusy(false); }
+  }
+
+  if (!isNew && detail.loading) return <Page title="Documento di magazzino"><Loading /></Page>;
+  if (!isNew && detail.error) return <Page title="Documento di magazzino"><ErrorBox message={detail.error} /></Page>;
+
+  const locOpts = (locations.data?.items ?? []).filter((l) => l.holdsStock);
+  const companyOpts = companies.data?.items ?? [];
+  const canConfirm = canManage && !isNew && status === 'draft';
+
+  return (
+    <Page title={isNew ? 'Documento di magazzino — nuovo' : 'Documento di magazzino'} bleed>
+      <ObjectPage
+        backLabel="Documenti di magazzino" onBack={() => history.push('/stock/documents')}
+        title={!isNew && d?.number ? d.number : `Documento · ${TYPE_LABEL[type]}`}
+        code={!isNew && d?.number ? undefined : (isNew ? 'nuovo' : 'bozza')}
+        status={!isNew ? <StatusPill label={st.label} token={st.token} /> : undefined}
+        onSave={canManage && isDraft ? save : undefined}
+        onCancel={() => history.push('/stock/documents')} saving={busy}
+      >
+        {canConfirm && (
+          <div className="capbar">
+            <div className="mic"><Check size={18} /></div>
+            <div className="tx"><b>Conferma documento</b><span>Genera i movimenti di magazzino e assegna il numero progressivo. Operazione non reversibile.</span></div>
+            <div className="sp" />
+            <button className="btn btn-primary" onClick={confirmDoc} disabled={busy}><Check size={16} /> Conferma</button>
+          </div>
+        )}
+
+        <ObjectBox icon={FileOutput} title="Documento">
+          <div className="bgrid">
+            <div className="bf"><span className="bl">Tipo <span className="req">*</span></span>
+              <select className="bi" value={type} onChange={(e) => setType(e.target.value as DocType)} disabled={readOnly || !isNew}>
+                <option value="receipt">Carico</option>
+                <option value="transfer">Trasferimento</option>
+                <option value="adjustment">Rettifica</option>
+              </select></div>
+            <div className="bf"><span className="bl">Data</span>
+              <input type="date" className="bi mono" value={form.docDate} onChange={(e) => set('docDate', e.target.value)} disabled={readOnly} /></div>
+            {needsSource && <div className="bf c2"><span className="bl">Origine</span>
+              <select className="bi" value={form.sourceLocationId} onChange={(e) => set('sourceLocationId', e.target.value)} disabled={readOnly}>
+                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select></div>}
+            {needsDest && <div className="bf c2"><span className="bl">Destinazione</span>
+              <select className="bi" value={form.destLocationId} onChange={(e) => set('destLocationId', e.target.value)} disabled={readOnly}>
+                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select></div>}
+            {needsCompany && <div className="bf c2"><span className="bl">Fornitore</span>
+              <select className="bi" value={form.companyId} onChange={(e) => set('companyId', e.target.value)} disabled={readOnly}>
+                <option value="">—</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
+              </select></div>}
+            <div className="bf"><span className="bl">Rif. esterno</span>
+              <input className="bi mono" value={form.externalRef} onChange={(e) => set('externalRef', e.target.value)} disabled={readOnly} placeholder="es. DDT fornitore" /></div>
+            <div className="bf c4"><span className="bl">Note</span>
+              <input className="bi" value={form.note} onChange={(e) => set('note', e.target.value)} disabled={readOnly} /></div>
+          </div>
+        </ObjectBox>
+
+        <ObjectBox icon={Boxes} title="Righe">
+          <table className="subt">
+            <thead><tr><th>Articolo</th><th className="num">Quantità</th><th>Unità</th><th className="num">Costo unit.</th>{!readOnly && <th style={{ width: 50 }} />}</tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.materialName}</td>
+                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} step="0.01" value={r.quantity}
+                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, quantity: Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  <td>{r.unit}</td>
+                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} step="0.01" value={r.unitCost ?? ''}
+                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitCost: e.target.value === '' ? null : Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
+                </tr>
+              ))}
+              {rows.length === 0 && <tr><td colSpan={5}><div className="dsx-empty">Nessuna riga. Aggiungi un articolo.</div></td></tr>}
+            </tbody>
+          </table>
+          {!readOnly && <div className="addline" onClick={() => setPickOpen(true)}><Boxes size={15} /> + Aggiungi articolo</div>}
+        </ObjectBox>
+      </ObjectPage>
+
+      <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
+    </Page>
+  );
+}

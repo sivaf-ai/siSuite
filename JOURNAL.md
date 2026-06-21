@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-21 (3) — Documenti master-detail PO/Pick/DDT (chat 01.06)
+- **Nessuna migrazione** (prossima libera resta 050). Solo backend(code)+frontend+shared(DTO).
+- Backend: `stock.ts` +GET `/stock/documents/:id` e PATCH (bozza). Shared: StockDocumentLineDto, StockDocumentDto esteso, updateStockDocumentSchema. (PO/Pick avevano già GET:id/PATCH/azioni.)
+- Frontend: nuovo `ui/MaterialPickerDialog` (lista Materiali in modalità selezione, EntityList pick mode — riusabile); nuove schede master-detail `PurchaseOrderDetailPage`/`PickListDetailPage`/`DdtDetailPage` (stile Ordini di Lavoro, righe via picker, azioni Ricevi/Conferma); SpecListsPages liste cliccabili + Nuovo+ + nuova DdtPage; rotte in AppShell.
+- Verifiche: typecheck shared+BE+FE puliti; 79/79 test BE; smoke DDT create/GET:id/PATCH/confirm OK.
+- Doc: `docs/analisi/DONE_documenti_master_detail.md`.
+
 ## 2026-06-21 (2) — SPEC Identità&Accessi + GoTrue + Immagini + Rifiniture (chat 01.06, autonomo G→K)
 - **Migrazioni 047→049** (la SPEC diceva 047→048; il provisioning-by-email del Blocco I ha richiesto la 049). **Prossima libera: 050.**
   - 047 user_lifecycle (app_user +status/invited_at/last_login_at/code, unique auth_user_id, number_series app_user UTE-)

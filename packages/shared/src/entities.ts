@@ -656,10 +656,28 @@ export const createStockDocumentSchema = z.object({
   note: z.string().max(500).optional(),
   lines: z.array(stockDocumentLineSchema).min(1).max(500),
 });
+/** Modifica bozza DDT (testata + sostituzione righe). Solo status='draft'. */
+export const updateStockDocumentSchema = z.object({
+  docDate: day.optional(),
+  sourceLocationId: uuid.nullable().optional(),
+  destLocationId: uuid.nullable().optional(),
+  companyId: uuid.nullable().optional(),
+  externalRef: z.string().max(120).nullable().optional(),
+  note: z.string().max(500).nullable().optional(),
+  lines: z.array(stockDocumentLineSchema).max(500).optional(),
+});
+export interface StockDocumentLineDto {
+  id: string; materialId: string; materialName: string | null;
+  quantity: number; unit: string; unitCost: number | null; unitPrice: number | null;
+  currency: string | null; note: string | null;
+}
 export interface StockDocumentDto {
-  id: string; typeId: string; number: string | null; docDate: string; status: string;
-  sourceLocationId: string | null; destLocationId: string | null; companyId: string | null;
+  id: string; typeId: string; typeCanonical: string | null; number: string | null; docDate: string; status: string;
+  sourceLocationId: string | null; sourceLocationName: string | null;
+  destLocationId: string | null; destLocationName: string | null;
+  companyId: string | null; companyName: string | null;
   externalRef: string | null; note: string | null; createdAt: string;
+  lines?: StockDocumentLineDto[];
 }
 
 /* ── Work Order (Ordinativo FTTH) — POWERCOM brief §6.1 ─────────────────

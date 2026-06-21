@@ -49,8 +49,11 @@ import { OrdinativiPage } from '../pages/OrdinativiPage';
 import { OrdinativoDetailPage } from '../pages/OrdinativoDetailPage';
 import { TimeEntriesPage } from '../pages/TimeEntriesPage';
 import { TimeEntryDetailPage } from '../pages/TimeEntryDetailPage';
-import { MagazzinoPage, MagazzinoDetailPage, DocumentiPage } from '../pages/MagazzinoPage';
-import { PurchaseOrdersPage, PickListsPage, StockCountsPage, SkillsPage, TaxRatesPage } from '../pages/SpecListsPages';
+import { MagazzinoPage, MagazzinoDetailPage } from '../pages/MagazzinoPage';
+import { PurchaseOrdersPage, PickListsPage, DdtPage, StockCountsPage, SkillsPage, TaxRatesPage } from '../pages/SpecListsPages';
+import { PurchaseOrderDetailPage } from '../pages/PurchaseOrderDetailPage';
+import { PickListDetailPage } from '../pages/PickListDetailPage';
+import { DdtDetailPage } from '../pages/DdtDetailPage';
 import { RapportiniPage } from '../pages/RapportiniPage';
 import { AssenzePage } from '../pages/AssenzePage';
 import { AbsenceDetailPage } from '../pages/AbsenceDetailPage';
@@ -105,10 +108,16 @@ const ROUTES: RouteDef[] = [
   { path: '/work-orders', render: () => <OrdinativiPage />, perm: 'work_order:read' },
   { path: '/work-orders/:id', render: () => <OrdinativoDetailPage />, perm: 'work_order:read' },
   { path: '/stock', render: () => <MagazzinoPage />, perm: 'stock:read' },
-  { path: '/stock/documents', render: () => <DocumentiPage />, perm: 'stock:read' },
+  { path: '/stock/documents', render: () => <DdtPage />, perm: 'stock:read' },
+  { path: '/stock/documents/new', render: () => <DdtDetailPage />, perm: 'stock:read' },
+  { path: '/stock/documents/:id', render: () => <DdtDetailPage />, perm: 'stock:read' },
   { path: '/warehouses/:id', render: () => <MagazzinoDetailPage />, perm: 'stock:read' },
   { path: '/purchase-orders', render: () => <PurchaseOrdersPage />, perm: 'stock:read' },
+  { path: '/purchase-orders/new', render: () => <PurchaseOrderDetailPage />, perm: 'stock:read' },
+  { path: '/purchase-orders/:id', render: () => <PurchaseOrderDetailPage />, perm: 'stock:read' },
   { path: '/pick-lists', render: () => <PickListsPage />, perm: 'stock:read' },
+  { path: '/pick-lists/new', render: () => <PickListDetailPage />, perm: 'stock:read' },
+  { path: '/pick-lists/:id', render: () => <PickListDetailPage />, perm: 'stock:read' },
   { path: '/stock-counts', render: () => <StockCountsPage />, perm: 'stock:read' },
   { path: '/skills', render: () => <SkillsPage />, perm: 'resource:read' },
   { path: '/tax-rates', render: () => <TaxRatesPage />, perm: 'material:read' },

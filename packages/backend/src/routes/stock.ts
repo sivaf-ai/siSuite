@@ -4,7 +4,7 @@
  *  conferma, numerati da number_series). Consumo su lavoro = movimento 'out'. */
 import type { FastifyInstance } from 'fastify';
 import {
-  createStockLocationSchema, updateStockLocationSchema, createStockMovementSchema, createStockDocumentSchema,
+  createStockLocationSchema, updateStockLocationSchema, createStockMovementSchema, createStockDocumentSchema, updateStockDocumentSchema,
   type StockLocationDto, type StockMovementDto, type StockBalanceDto, type StockDocumentDto,
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
@@ -247,18 +247,85 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     });
 
   // ── Documenti (testata → movimenti alla conferma) ───────────────────
+  const DOC_SELECT = `
+    SELECT d.id, d.type_id, lv.canonical AS type_canonical, d.number, d.doc_date, d.status,
+           d.source_location_id, sl.name AS source_name, d.dest_location_id, dl.name AS dest_name,
+           d.company_id, c.display_name AS company_name, d.external_ref, d.note, d.created_at
+    FROM stock_document d
+    JOIN lookup_value lv ON lv.id = d.type_id
+    LEFT JOIN stock_location sl ON sl.id = d.source_location_id
+    LEFT JOIN stock_location dl ON dl.id = d.dest_location_id
+    LEFT JOIN company c ON c.id = d.company_id`;
+  const docDto = (r: Record<string, unknown>): StockDocumentDto => ({
+    id: r.id as string, typeId: r.type_id as string, typeCanonical: (r.type_canonical as string) ?? null,
+    number: (r.number as string) ?? null, docDate: r.doc_date as string, status: r.status as string,
+    sourceLocationId: (r.source_location_id as string) ?? null, sourceLocationName: (r.source_name as string) ?? null,
+    destLocationId: (r.dest_location_id as string) ?? null, destLocationName: (r.dest_name as string) ?? null,
+    companyId: (r.company_id as string) ?? null, companyName: (r.company_name as string) ?? null,
+    externalRef: (r.external_ref as string) ?? null, note: (r.note as string) ?? null, createdAt: r.created_at as string,
+  });
+
   app.get('/stock/documents', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
       const rows = await withRls(request.ctx, (db) =>
-        db.query(`SELECT id, type_id, number, doc_date, status, source_location_id, dest_location_id, company_id,
-                         external_ref, note, created_at
-                  FROM stock_document ORDER BY doc_date DESC, created_at DESC LIMIT 500`).then((r) => r.rows));
-      const items: StockDocumentDto[] = rows.map((r) => ({
-        id: r.id, typeId: r.type_id, number: r.number ?? null, docDate: r.doc_date, status: r.status,
-        sourceLocationId: r.source_location_id ?? null, destLocationId: r.dest_location_id ?? null,
-        companyId: r.company_id ?? null, externalRef: r.external_ref ?? null, note: r.note ?? null, createdAt: r.created_at,
-      }));
-      return { items };
+        db.query(`${DOC_SELECT} ORDER BY d.doc_date DESC, d.created_at DESC LIMIT 500`).then((r) => r.rows));
+      return { items: rows.map(docDto) };
+    });
+
+  app.get<{ Params: { id: string } }>('/stock/documents/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:read')] },
+    async (request, reply) => withRls(request.ctx, async (db) => {
+      const r = await db.query(`${DOC_SELECT} WHERE d.id = $1`, [request.params.id]);
+      if (!r.rows.length) return reply.code(404).send({ error: 'not_found', message: 'Documento non trovato', statusCode: 404 });
+      const lines = await db.query(
+        `SELECT dl.id, dl.material_id, m.name AS material_name, dl.quantity, dl.unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
+         FROM stock_document_line dl LEFT JOIN material m ON m.id = dl.material_id
+         WHERE dl.document_id = $1 ORDER BY dl.created_at`, [request.params.id]);
+      return {
+        ...docDto(r.rows[0]),
+        lines: lines.rows.map((l: Record<string, unknown>) => ({
+          id: l.id as string, materialId: l.material_id as string, materialName: (l.material_name as string) ?? null,
+          quantity: Number(l.quantity), unit: l.unit as string,
+          unitCost: l.unit_cost === null ? null : Number(l.unit_cost), unitPrice: l.unit_price === null ? null : Number(l.unit_price),
+          currency: (l.currency as string) ?? null, note: (l.note as string) ?? null,
+        })),
+      };
+    }));
+
+  // PATCH bozza: aggiorna testata e, se passate, sostituisce le righe. Solo draft.
+  app.patch<{ Params: { id: string } }>('/stock/documents/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const input = updateStockDocumentSchema.parse(request.body);
+      const out = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT status FROM stock_document WHERE id = $1`, [request.params.id]);
+        if (!cur.rows.length) return 'notfound' as const;
+        if (cur.rows[0].status !== 'draft') return 'locked' as const;
+        const sets: string[] = []; const vals: unknown[] = [request.params.id];
+        const put = (col: string, v: unknown) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+        if (input.docDate !== undefined) put('doc_date', input.docDate);
+        if (input.sourceLocationId !== undefined) put('source_location_id', input.sourceLocationId);
+        if (input.destLocationId !== undefined) put('dest_location_id', input.destLocationId);
+        if (input.companyId !== undefined) put('company_id', input.companyId);
+        if (input.externalRef !== undefined) put('external_ref', input.externalRef);
+        if (input.note !== undefined) put('note', input.note);
+        vals.push(request.ctx.userId); sets.push(`updated_by = $${vals.length}`);
+        await db.query(`UPDATE stock_document SET ${sets.join(', ')} WHERE id = $1`, vals);
+        if (input.lines) {
+          await db.query(`DELETE FROM stock_document_line WHERE document_id = $1`, [request.params.id]);
+          for (const ln of input.lines) {
+            await db.query(
+              `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit, unit_cost, unit_price, currency, note)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              [request.ctx.tenantId, request.params.id, ln.materialId, ln.quantity, ln.unit, ln.unitCost ?? null,
+               ln.unitPrice ?? null, ln.currency ?? null, ln.note ?? null]);
+          }
+        }
+        return 'ok' as const;
+      });
+      if (out === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Documento non trovato', statusCode: 404 });
+      if (out === 'locked') return reply.code(409).send({ error: 'conflict', message: 'Documento confermato: non modificabile', statusCode: 409 });
+      return reply.code(204).send();
     });
 
   app.post('/stock/documents', { preHandler: [app.authenticate, requirePermission('stock:manage')] },
