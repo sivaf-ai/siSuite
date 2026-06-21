@@ -12,6 +12,10 @@ import { withRls } from '../context/rls.js';
 import type { PoolClient } from '../db/pool.js';
 import { lookupIdByCanonical } from '../lookupResolve.js';
 import { nextNumber } from '../numberSeries.js';
+import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
+
+const LOC_FILTER: Record<string, string> = { name: 'name', kind: 'kind' };
 
 const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: string }> = {
   receipt: { key: 'stock_receipt', fmt: 'CAR-{YYYY}-{SEQ:4}' },
@@ -50,10 +54,31 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
   // ── Ubicazioni (albero) ────────────────────────────────────────────
   app.get('/stock/locations', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
-      const rows = await withRls(request.ctx, (db) =>
-        db.query(`SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
-                  FROM stock_location WHERE archived_at IS NULL ORDER BY is_default DESC, name`).then((r) => r.rows));
+      const q = request.query as Record<string, unknown>;
+      const rows = await withRls(request.ctx, (db) => {
+        const params: unknown[] = [];
+        let where = `WHERE archived_at IS NULL`;
+        if (q.top === '1') where += ` AND parent_id IS NULL`;
+        if (q.parentId) { params.push(q.parentId); where += ` AND parent_id = $${params.length}`; }
+        if (q.q) { params.push(`%${q.q}%`); where += ` AND name ILIKE $${params.length}`; }
+        const fsql = buildFilter(q.filter as string | undefined, LOC_FILTER, ['name', 'kind'], params);
+        if (fsql) where += ` AND ${fsql}`;
+        const orderBy = buildOrderBy(q.sort as string | undefined, LOC_FILTER, 'name', 'asc');
+        return db.query(
+          `SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
+           FROM stock_location ${where} ORDER BY is_default DESC, ${orderBy}`, params).then((r) => r.rows);
+      });
       return { items: rows.map(locDto) };
+    });
+
+  app.get<{ Params: { id: string } }>('/stock/locations/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:read')] },
+    async (request, reply) => {
+      const r = await withRls(request.ctx, (db) => db.query(
+        `SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
+         FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [request.params.id]).then((x) => x.rows));
+      if (!r[0]) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
+      return locDto(r[0]);
     });
 
   app.post('/stock/locations', { preHandler: [app.authenticate, requirePermission('stock:manage')] },
