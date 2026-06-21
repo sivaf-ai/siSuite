@@ -14,6 +14,12 @@ import { useAuth } from '../../auth/AuthContext';
 
 interface ListResp { items: UserAdminDto[]; total: number; limit: number; offset: number }
 
+const STATUS_PILL: Record<string, { label: string; token: string }> = {
+  invited: { label: 'Invitato', token: 'warning' },
+  active: { label: 'Attivo', token: 'success' },
+  disabled: { label: 'Disattivato', token: 'neutral' },
+};
+
 export function UsersPage() {
   const { user } = useAuth();
   const history = useHistory();
@@ -32,21 +38,29 @@ export function UsersPage() {
   const { onDelete } = useEntityActions<UserAdminDto>({ basePath: '/users', reload, noun: 'utente' });
 
   const columns: ListColumn<UserAdminDto>[] = [
+    { key: 'code', header: 'Codice', value: (r) => r.code ?? '', render: (r) => <span className="mono faint">{r.code ?? '—'}</span> },
     { key: 'name', header: 'Nome', sub: 'email', value: (r) => r.fullName, render: (r) => (
       <div className="two"><span className="a">{r.fullName}</span><span className="b">{r.email ?? '—'}</span></div>) },
+    { key: 'resource', header: 'Risorsa', value: (r) => r.resourceLabel ?? '', render: (r) => (r.resourceLabel
+      ? <span className="chip">{r.resourceLabel}</span> : <span className="faint">—</span>) },
     { key: 'roles', header: 'Ruoli', value: (r) => r.roles.map((x) => x.name).join(', '), render: (r) => (r.roles.length
       ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.roles.map((x) => <span key={x.id} className="chip">{x.name}</span>)}</span>
       : <span className="faint">—</span>) },
-    { key: 'active', header: 'Stato', value: (r) => (r.active ? 'Attivo' : 'Disattivato'), render: (r) => <StatusPill label={r.active ? 'Attivo' : 'Disattivato'} token={r.active ? 'success' : 'neutral'} /> },
+    { key: 'status', header: 'Stato', value: (r) => STATUS_PILL[r.status]?.label ?? (r.active ? 'Attivo' : 'Disattivato'), render: (r) => {
+      const s = STATUS_PILL[r.status] ?? { label: r.active ? 'Attivo' : 'Disattivato', token: r.active ? 'success' : 'neutral' };
+      return <StatusPill label={s.label} token={s.token} />;
+    } },
     { key: 'created', header: 'Creato', num: true, value: (r) => new Date(r.createdAt).toLocaleDateString('it-IT'), render: (r) => <span className="mono faint">{new Date(r.createdAt).toLocaleDateString('it-IT')}</span> },
   ];
 
   const exportFields = [
+    { key: 'code', label: 'Codice', value: (r: UserAdminDto) => r.code ?? '' },
     { key: 'fullName', label: 'Nome', value: (r: UserAdminDto) => r.fullName },
     { key: 'email', label: 'Email', value: (r: UserAdminDto) => r.email ?? '' },
     { key: 'phone', label: 'Telefono', value: (r: UserAdminDto) => r.phone ?? '' },
+    { key: 'resource', label: 'Risorsa', value: (r: UserAdminDto) => r.resourceLabel ?? '' },
     { key: 'roles', label: 'Ruoli', value: (r: UserAdminDto) => r.roles.map((x) => x.name).join(', ') },
-    { key: 'active', label: 'Stato', value: (r: UserAdminDto) => (r.active ? 'Attivo' : 'Disattivato') },
+    { key: 'status', label: 'Stato', value: (r: UserAdminDto) => STATUS_PILL[r.status]?.label ?? (r.active ? 'Attivo' : 'Disattivato') },
     { key: 'locale', label: 'Lingua', value: (r: UserAdminDto) => r.locale ?? '' },
     { key: 'createdAt', label: 'Creato', value: (r: UserAdminDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];

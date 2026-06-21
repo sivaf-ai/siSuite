@@ -1,15 +1,15 @@
-﻿# Schema DB completo — siSuite (al 21/06/2026)
+﻿# Schema DB completo — siSuite (al 21/06/2026, rev. 2)
 
-> Rigenerato da `pg_dump --schema-only -n public` dopo le migrazioni **001->046** (SPEC v1.1 chat 01.06: fiscale/magazzino/risorse/asset).
-> Novità vs 20/06 (037): 041 fiscal_localization · 042 material_complete · 043 warehouse_complete · 044 resources_skills · 045 entity_refinements · 046 warehouse_entitlements_series.
-> Sostituisce `2026-06-20_schema_db_completo.md`. Prossima migrazione libera: **047**.
+> Rigenerato da `pg_dump --schema-only -n public` dopo le migrazioni **001->049**.
+> Rev.2 (chat 01.06, SPEC Identità&Accessi/Immagini): 047 user_lifecycle (app_user status/invited_at/last_login_at/code) · 048 material_images (DROP material.primary_image_url + unique una-primaria) · 049 identity_provisioning (funzione app_link_identity_by_email SECURITY DEFINER). Prossima migrazione libera: **050**.
+> Sostituisce la rev.1 dello stesso giorno (001->046).
 
 ```sql
 --
 -- PostgreSQL database dump
 --
 
-\restrict x8YJooeFnJLflhW3oD1dufhpQ3fq5HBdkc4xLmNdcs5wkFZbgUfqPnC00yEzlIQ
+\restrict HS3sAKEm7yadiCnoP0xt0Y2hlL1u2W1CH8B9LjXggWAbRDDMmMB2V6xLCcY9dZJ
 
 -- Dumped from database version 16.14 (Debian 16.14-1.pgdg12+1)
 -- Dumped by pg_dump version 16.14 (Debian 16.14-1.pgdg12+1)
@@ -253,6 +253,35 @@ CREATE FUNCTION public.app_is_platform_admin() RETURNS boolean
 
 
 ALTER FUNCTION public.app_is_platform_admin() OWNER TO sisuite_admin;
+
+--
+-- Name: app_link_identity_by_email(text, text); Type: FUNCTION; Schema: public; Owner: sisuite_admin
+--
+
+CREATE FUNCTION public.app_link_identity_by_email(p_auth_user_id text, p_email text) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF p_auth_user_id IS NULL OR p_email IS NULL OR length(trim(p_email)) = 0 THEN
+    RETURN NULL;
+  END IF;
+  -- match deterministico: un solo app_user attivo, con quella email, NON ancora legato
+  SELECT id INTO v_id FROM public.app_user
+   WHERE lower(email) = lower(p_email) AND auth_user_id IS NULL AND active
+   LIMIT 1;
+  IF v_id IS NULL THEN
+    RETURN NULL;   -- nessuna auto-registrazione aperta: l'admin deve aver creato l'utente
+  END IF;
+  UPDATE public.app_user
+     SET auth_user_id = p_auth_user_id, status = 'active', last_login_at = now()
+   WHERE id = v_id;
+  RETURN v_id;
+END $$;
+
+
+ALTER FUNCTION public.app_link_identity_by_email(p_auth_user_id text, p_email text) OWNER TO sisuite_admin;
 
 --
 -- Name: app_resolve_context(text); Type: FUNCTION; Schema: public; Owner: sisuite_admin
@@ -581,7 +610,11 @@ CREATE TABLE public.app_user (
     attributes jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    auth_user_id text
+    auth_user_id text,
+    status text DEFAULT 'active'::text NOT NULL,
+    invited_at timestamp with time zone,
+    last_login_at timestamp with time zone,
+    code text
 );
 
 ALTER TABLE ONLY public.app_user FORCE ROW LEVEL SECURITY;
@@ -975,7 +1008,6 @@ CREATE TABLE public.material (
     dimensions jsonb,
     is_returnable boolean DEFAULT true NOT NULL,
     shelf_life_days integer,
-    primary_image_url text,
     note text
 );
 
@@ -3460,6 +3492,13 @@ CREATE INDEX activity_tenant_id_idx ON public.activity USING btree (tenant_id);
 
 
 --
+-- Name: app_user_auth_user_id_uidx; Type: INDEX; Schema: public; Owner: sisuite_admin
+--
+
+CREATE UNIQUE INDEX app_user_auth_user_id_uidx ON public.app_user USING btree (auth_user_id) WHERE (auth_user_id IS NOT NULL);
+
+
+--
 -- Name: app_user_company_id_idx; Type: INDEX; Schema: public; Owner: sisuite_admin
 --
 
@@ -3779,6 +3818,13 @@ CREATE INDEX material_consumption_tenant_id_idx ON public.material_consumption U
 --
 
 CREATE INDEX material_image_material_idx ON public.material_image USING btree (material_id);
+
+
+--
+-- Name: material_image_one_primary_uidx; Type: INDEX; Schema: public; Owner: sisuite_admin
+--
+
+CREATE UNIQUE INDEX material_image_one_primary_uidx ON public.material_image USING btree (material_id) WHERE is_primary;
 
 
 --
@@ -8331,6 +8377,13 @@ GRANT ALL ON FUNCTION public.app_is_platform_admin() TO sisuite_app;
 
 
 --
+-- Name: FUNCTION app_link_identity_by_email(p_auth_user_id text, p_email text); Type: ACL; Schema: public; Owner: sisuite_admin
+--
+
+GRANT ALL ON FUNCTION public.app_link_identity_by_email(p_auth_user_id text, p_email text) TO sisuite_app;
+
+
+--
 -- Name: FUNCTION app_resolve_context(p_auth_user_id text); Type: ACL; Schema: public; Owner: sisuite_admin
 --
 
@@ -8915,7 +8968,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.work_report_time_entry TO sisu
 -- PostgreSQL database dump complete
 --
 
-\unrestrict x8YJooeFnJLflhW3oD1dufhpQ3fq5HBdkc4xLmNdcs5wkFZbgUfqPnC00yEzlIQ
+\unrestrict HS3sAKEm7yadiCnoP0xt0Y2hlL1u2W1CH8B9LjXggWAbRDDMmMB2V6xLCcY9dZJ
 
 
 ```

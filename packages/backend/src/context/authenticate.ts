@@ -18,13 +18,15 @@ export function registerAuthenticate(app: FastifyInstance): void {
       return reply.code(401).send({ error: 'unauthorized', message: 'Token di accesso mancante', statusCode: 401 });
     }
     let authUserId: string;
+    let email: string | null = null;
     try {
       const identity = await verifyToken(header.slice('Bearer '.length));
       authUserId = identity.authUserId;
+      email = identity.email;
     } catch {
       return reply.code(401).send({ error: 'unauthorized', message: 'Token non valido o scaduto', statusCode: 401 });
     }
-    const ctx = await resolveContext(authUserId);
+    const ctx = await resolveContext(authUserId, email);
     if (!ctx) {
       return reply.code(403).send({ error: 'forbidden', message: 'Utente non provisionato', statusCode: 403 });
     }

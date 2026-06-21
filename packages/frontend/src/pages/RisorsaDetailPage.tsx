@@ -5,8 +5,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash } from 'lucide-react';
-import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto, FieldDefinitionDto } from '@sisuite/shared';
+import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash, UserCog } from 'lucide-react';
+import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto, FieldDefinitionDto, UserAdminDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
@@ -231,10 +231,47 @@ export function RisorsaDetailPage() {
 
         <AttrBoxes defs={fieldDefs.data?.items ?? []} attrs={attrs} setAttr={setAttr} exclude={['hourly_cost', 'bill_rate']} />
 
+        {!isNew && res && (
+          <LinkedUserBox userId={res.userId} userName={res.userName ?? null} onGo={(uid) => history.push(uid ? `/admin/users/${uid}` : '/admin/users/new')} />
+        )}
+
         {isNew ? <div className="dsx-empty" style={{ marginTop: 4 }}>Salva la risorsa per gestire orario, indisponibilità e assegnazioni.</div>
           : <RelatedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as typeof tab)} />}
       </ObjectPage>
     </Page>
+  );
+}
+
+/* Utente collegato a questa risorsa (SPEC D.4/H.4): se userId valorizzato mostra utente + ruoli
+ * (sola lettura, fetch /users/:userId); altrimenti azione per creare/collegare un utente. */
+function LinkedUserBox({ userId, userName, onGo }: { userId: string | null; userName: string | null; onGo: (uid: string | null) => void }) {
+  const linked = useApi<UserAdminDto>(userId ? `/users/${userId}` : null);
+  const u = linked.data;
+  return (
+    <ObjectBox icon={UserCog} title="Utente collegato">
+      {userId ? (
+        <div className="bgrid">
+          <div className="bf c2"><span className="bl">Account</span>
+            <div className="bi" style={{ justifyContent: 'space-between' }}>
+              <span>{u?.fullName ?? userName ?? '—'}{u?.email ? <span className="faint" style={{ marginLeft: 6, fontSize: 12 }}>{u.email}</span> : null}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => onGo(userId)}>Apri scheda utente</button>
+            </div></div>
+          <div className="bf c2"><span className="bl">Ruoli</span>
+            <div className="bi" style={{ flexWrap: 'wrap', gap: 6, height: 'auto', minHeight: 38, padding: 6 }}>
+              {linked.loading && <span className="faint">Carico…</span>}
+              {!linked.loading && (u?.roles ?? []).map((r) => <span key={r.id} className="chip">{r.name}</span>)}
+              {!linked.loading && (u?.roles?.length ?? 0) === 0 && <span className="faint">Nessun ruolo.</span>}
+            </div></div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span className="faint" style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1, minWidth: 200 }}>
+            Nessun account collegato a questa risorsa. Crea o collega un utente per dargli accesso all'applicazione.
+          </span>
+          <button className="btn btn-primary" onClick={() => onGo(null)}><Plus size={16} /> Crea / collega utente</button>
+        </div>
+      )}
+    </ObjectBox>
   );
 }
 

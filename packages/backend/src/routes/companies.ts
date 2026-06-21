@@ -61,9 +61,12 @@ function contactDto(r: Record<string, unknown>): ContactDto {
   return {
     id: r.id as string, companyId: r.company_id as string, fullName: r.full_name as string,
     roleTitle: (r.role_title as string) ?? null, email: (r.email as string) ?? null,
-    phone: (r.phone as string) ?? null, isPrimary: (r.is_primary as boolean) ?? false,
+    phone: (r.phone as string) ?? null, mobile: (r.mobile as string) ?? null,
+    department: (r.department as string) ?? null, note: (r.note as string) ?? null,
+    isPrimary: (r.is_primary as boolean) ?? false,
   };
 }
+const CONTACT_COLS = `id, company_id, full_name, role_title, email, phone, mobile, department, note, is_primary`;
 const asJson = (v: unknown): string | null => (v == null ? null : JSON.stringify(v));
 
 async function loadOne(db: PoolClient, id: string): Promise<CompanyDto | null> {
@@ -130,7 +133,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         const company = await loadOne(db, request.params.id);
         if (!company) return null;
         const contacts = await db.query(
-          `SELECT id, company_id, full_name, role_title, email, phone, is_primary
+          `SELECT ${CONTACT_COLS}
            FROM company_contact WHERE company_id = $1 ORDER BY is_primary DESC, full_name`,
           [request.params.id],
         );
@@ -233,11 +236,12 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
       const input = createContactSchema.parse(request.body);
       const dto = await withRls(request.ctx, async (db) => {
         const ins = await db.query(
-          `INSERT INTO company_contact (tenant_id, company_id, full_name, role_title, email, phone, is_primary)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)
-           RETURNING id, company_id, full_name, role_title, email, phone, is_primary`,
+          `INSERT INTO company_contact (tenant_id, company_id, full_name, role_title, email, phone, mobile, department, note, is_primary)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           RETURNING ${CONTACT_COLS}`,
           [request.ctx.tenantId, input.companyId, input.fullName, input.roleTitle ?? null,
-           input.email ?? null, input.phone ?? null, input.isPrimary ?? false],
+           input.email ?? null, input.phone ?? null, input.mobile ?? null, input.department ?? null,
+           input.note ?? null, input.isPrimary ?? false],
         );
         return contactDto(ins.rows[0]);
       });
@@ -253,11 +257,12 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
           `UPDATE company_contact SET
              full_name = COALESCE($2, full_name), role_title = COALESCE($3, role_title),
              email = COALESCE($4, email), phone = COALESCE($5, phone),
-             is_primary = COALESCE($6, is_primary)
+             mobile = COALESCE($6, mobile), department = COALESCE($7, department), note = COALESCE($8, note),
+             is_primary = COALESCE($9, is_primary)
            WHERE id = $1
-           RETURNING id, company_id, full_name, role_title, email, phone, is_primary`,
+           RETURNING ${CONTACT_COLS}`,
           [request.params.id, input.fullName ?? null, input.roleTitle ?? null, input.email ?? null,
-           input.phone ?? null, input.isPrimary ?? null],
+           input.phone ?? null, input.mobile ?? null, input.department ?? null, input.note ?? null, input.isPrimary ?? null],
         );
         return contactDto(r.rows[0]);
       });

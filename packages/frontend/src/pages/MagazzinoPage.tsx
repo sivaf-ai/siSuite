@@ -102,12 +102,12 @@ export function MagazzinoDetailPage() {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('balances');
   const d = detail.data;
-  useEffect(() => { if (d) setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '', code: '', note: '' }); }, [d]);
+  useEffect(() => { if (d) setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '', code: d.code ?? '', note: d.note ?? '' }); }, [d]);
 
   async function save() {
     if (!form.name.trim()) { toast('Inserisci un nome', 'error'); return; }
     setBusy(true);
-    const body = { name: form.name.trim(), kind: form.kind, isDefault: form.isDefault, resourceId: form.resourceId || null };
+    const body = { name: form.name.trim(), kind: form.kind, isDefault: form.isDefault, resourceId: form.resourceId || null, code: form.code.trim() || null, note: form.note.trim() || null };
     try {
       if (isNew) { const c = await mutate<StockLocationDto>('POST', '/stock/locations', body); toast('Magazzino creato'); history.replace(`/warehouses/${c.id}`); }
       else { await mutate('PATCH', `/stock/locations/${id}`, body); toast('Salvato'); void detail.reload(); }
@@ -121,7 +121,7 @@ export function MagazzinoDetailPage() {
     { key: 'balances', label: 'Articoli & giacenze', icon: Boxes, content: <GiacenzeTab locationId={id} /> },
     { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MovimentiTab locationId={id} /> },
     { key: 'children', label: 'Ubicazioni', icon: CornerDownRight, content: <UbicazioniTab parentId={id} canManage={canManage} /> },
-    { key: 'serials', label: 'Seriali', icon: Cpu, content: <SerialiTab /> },
+    { key: 'serials', label: 'Seriali', icon: Cpu, content: <SerialiTab locationId={id} /> },
     { key: 'lots', label: 'Lotti', icon: Layers, content: <LottiTab /> },
     { key: 'documents', label: 'Documenti', icon: FileText, content: <DocumentiTab /> },
   ];
@@ -138,9 +138,8 @@ export function MagazzinoDetailPage() {
             <div className="bf"><span className="bl">Tipo</span><div className="bi"><select className="flin" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}><option value="warehouse">Magazzino</option><option value="van">Furgone</option></select></div></div>
             <div className="bf"><span className="bl">Predefinito</span><div className="bi"><select className="flin" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div></div>
             {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><div className="bi"><select className="flin" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div></div>}
-            {/* Codice/Note: l'endpoint stock_location non li gestisce ancora (display-only finché il BE non li accetta). */}
-            <div className="bf"><span className="bl">Codice</span><div className="bi"><input className="flin" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="(non ancora salvato lato server)" /></div></div>
-            <div className="bf c2"><span className="bl">Note</span><div className="bi"><input className="flin" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="(non ancora salvato lato server)" /></div></div>
+            <div className="bf"><span className="bl">Codice</span><div className="bi"><input className="flin" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="es. MAG-01" /></div></div>
+            <div className="bf c2"><span className="bl">Note</span><div className="bi"><input className="flin" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="Note interne" /></div></div>
           </div>
         </ObjectBox>
         {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
@@ -303,13 +302,34 @@ function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: b
   );
 }
 
-/* ── Tab: Seriali (no endpoint per-location → placeholder informativo) ── */
-function SerialiTab() {
+/* ── Tab: Seriali per magazzino (GET /stock/locations/:id/serials) ───── */
+interface LocationSerial { id: string; materialName: string | null; serial: string; status: string; workOrderCode: string | null; installedOn: string | null; hasSecret: boolean }
+const SERIAL_PILL: Record<string, { label: string; token: string }> = {
+  in_stock: { label: 'A magazzino', token: 'neutral' }, assigned: { label: 'Assegnato', token: 'info' },
+  installed: { label: 'Installato', token: 'success' }, faulty: { label: 'Guasto / reso', token: 'danger' },
+  returned: { label: 'Reso', token: 'warning' }, retired: { label: 'Dismesso', token: 'neutral' },
+};
+function SerialiTab({ locationId }: { locationId: string }) {
+  const ser = useApi<{ items: LocationSerial[] }>(`/stock/locations/${locationId}/serials`);
+  const rows = ser.data?.items ?? [];
+  if (ser.loading) return <Loading />;
   return (
-    <div className="dsx-empty" style={{ padding: '18px 8px' }}>
-      Elenco seriali per magazzino in arrivo: il backend non espone ancora un endpoint
-      seriali filtrato per ubicazione. I seriali sono gestiti dalla scheda Articolo.
-    </div>
+    <table className="subt">
+      <thead><tr><th>Seriale</th><th>Articolo</th><th>Stato</th><th>Ordinativo</th><th>Installato il</th><th>Password</th></tr></thead>
+      <tbody>
+        {rows.map((s) => { const p = SERIAL_PILL[s.status] ?? { label: s.status, token: 'neutral' }; return (
+          <tr key={s.id}>
+            <td><span className="serialtag">{s.serial}</span></td>
+            <td className="cellname">{s.materialName ?? '—'}</td>
+            <td><StatusPill label={p.label} token={p.token} /></td>
+            <td className="mono">{s.workOrderCode ?? '—'}</td>
+            <td className="cellsub mono">{s.installedOn ? new Date(s.installedOn).toLocaleDateString('it-IT') : '—'}</td>
+            <td>{s.hasSecret ? <span className="chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={12} /> protetta</span> : <span className="faint">—</span>}</td>
+          </tr>
+        ); })}
+        {rows.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessun seriale in questo magazzino.</div></td></tr>}
+      </tbody>
+    </table>
   );
 }
 

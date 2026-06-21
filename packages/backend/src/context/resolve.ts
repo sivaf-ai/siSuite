@@ -7,13 +7,31 @@
 import { pool } from '../db/pool.js';
 import type { UserContext, DataScope, Locale } from '@sisuite/shared';
 
-export async function resolveContext(authUserId: string): Promise<UserContext | null> {
-  const { rows } = await pool.query(
+/**
+ * Risolve il contesto dato l'auth_user_id. Se non c'è ancora un app_user legato
+ * a quell'identità e abbiamo l'email verificata, prova il PROVISIONING-BY-EMAIL
+ * (flusso invito): lega l'identità a un app_user creato dall'admin e lo attiva.
+ * Nessuna auto-registrazione aperta: se non esiste un app_user con quella email
+ * (invited, non legato), non si crea nulla.
+ */
+export async function resolveContext(authUserId: string, email?: string | null): Promise<UserContext | null> {
+  let rows = (await pool.query(
     `SELECT user_id, tenant_id, full_name, email, locale,
             is_platform_admin, company_id, data_scope, permissions, entitlements
      FROM app_resolve_context($1)`,
     [authUserId],
-  );
+  )).rows;
+  if (rows.length === 0 && email) {
+    const linked = await pool.query(`SELECT public.app_link_identity_by_email($1, $2) AS id`, [authUserId, email]);
+    if (linked.rows[0]?.id) {
+      rows = (await pool.query(
+        `SELECT user_id, tenant_id, full_name, email, locale,
+                is_platform_admin, company_id, data_scope, permissions, entitlements
+         FROM app_resolve_context($1)`,
+        [authUserId],
+      )).rows;
+    }
+  }
   if (rows.length === 0) return null;
   const r = rows[0];
   return {

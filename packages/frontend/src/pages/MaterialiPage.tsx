@@ -12,6 +12,7 @@ import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
+import { Package } from 'lucide-react';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
@@ -24,6 +25,19 @@ const VIEW_LABEL: Record<ViewKey, string> = {
   all: 'Tutti', stock: 'A magazzino', serial: 'A seriale', service: 'Servizi', low: 'Scorta bassa',
 };
 const attr = (m: MaterialDto, k: string) => (m.attributes as Record<string, unknown>)[k] as string | undefined;
+
+/** Miniatura primaria nella riga lista (placeholder se assente). */
+function Thumb({ url }: { url: string | null }) {
+  return (
+    <span style={{
+      width: 36, height: 36, flex: '0 0 auto', borderRadius: 'var(--r-sm, 6px)', overflow: 'hidden',
+      background: 'var(--surface-soft, #f3f4f6)', display: 'grid', placeItems: 'center', border: '1px solid var(--line)',
+    }}>
+      {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <Package size={16} style={{ color: 'var(--ink-faint)' }} />}
+    </span>
+  );
+}
 
 function trackingTag(m: MaterialDto): string {
   if (attr(m, 'item_type') === 'service') return 'servizio';
@@ -66,7 +80,10 @@ export function MaterialiPage() {
 
   const columns: ListColumn<MaterialDto>[] = [
     { key: 'name', header: t('cols.articolo'), sub: t('cols.sku'), value: (m) => m.name, render: (m) => (
-      <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>) },
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Thumb url={m.primaryImageUrl} />
+        <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>
+      </div>) },
     { key: 'cat', header: t('cols.categoria'), sub: t('cols.tracciamento'), value: (m) => attr(m, 'category') ?? '', render: (m) => (
       <div className="two"><span className="a">{attr(m, 'category') ?? '—'}</span><span className="b"><span className="serialtag">{trackingTag(m)}</span></span></div>) },
     { key: 'qty', header: t('cols.giacenza'), sub: t('cols.unita'), num: true, value: (m) => (attr(m, 'item_type') === 'service' ? '' : m.qtyOnHand), render: (m) => (attr(m, 'item_type') === 'service'

@@ -2,6 +2,18 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-21 (2) — SPEC Identità&Accessi + GoTrue + Immagini + Rifiniture (chat 01.06, autonomo G→K)
+- **Migrazioni 047→049** (la SPEC diceva 047→048; il provisioning-by-email del Blocco I ha richiesto la 049). **Prossima libera: 050.**
+  - 047 user_lifecycle (app_user +status/invited_at/last_login_at/code, unique auth_user_id, number_series app_user UTE-)
+  - 048 material_images (DROP material.primary_image_url + unique parziale una-primaria-per-articolo)
+  - 049 identity_provisioning (funzione `app_link_identity_by_email` SECURITY DEFINER per il login-by-email)
+- **Premessa**: G/H/I/J erano GIÀ in gran parte implementati (routes users/roles, pagine admin, GoTrue cablato dual-mode, bootstrap seed ruoli). Riempiti i GAP, non ricostruito.
+- **Moduli toccati**: shared/admin (UserAdminDto+status/code/risorsa, invito, effective) + shared/entities (StockLocationDto code/note/manager, ContactDto mobile/dept/note, MaterialImageDto url, drop createMaterial.primaryImageUrl) + shared/fields. Backend: users/roles (estesi), materials/materialCatalog (immagini MinIO reali, drop primary_image_url), stock (location code/note + seriali per-magazzino), companies (contatti), context/resolve+authenticate (provisioning-by-email), storage (bucket material-images + presign pubblico), config, bootstrap, nuovo `src/demo/wipeTestData.ts`. Frontend: UserDetailPage/UsersPage/RoleDetailPage/RisorsaDetailPage/MaterialeDetailPage/MaterialiPage/ClienteDetailPage/MagazzinoPage.
+- **Convenzioni**: authN GoTrue / authZ RBAC+RLS (nessuna credenziale in app_user); provisioning-by-email NON apre auto-registrazione; immagini = bucket non pubblico + URL presigned con endpoint pubblico (localhost:9100 dev). Wipe demo preserva la struttura.
+- **Verifiche**: typecheck shared+BE+FE puliti; **79/79 test BE verdi**; smoke L con login GoTrue reale (manuale, invito→provisioning, token invalido 401, immagini upload/primaria/delete con URL scaricabile, location code/note, seriali per-magazzino, contatti).
+- **Docs**: DONE_G..K + DONE_TOTALE_2 (docs/analisi); ADR-0009 (docs/adr); schema rigenerato 2026-06-21_schema_db_completo.md (rev.2, 001→049).
+- **Aperti**: SMTP per inviti reali (staging); reset-password admin (follow-up); reorder immagini drag&drop UI; MINIO_PUBLIC_ENDPOINT in prod.
+
 ## 2026-06-21 — SPEC v1.1 (chat 01.06): Fiscale/Magazzino/Risorse/Asset (Claude Code, autonomo A→F)
 - **Migrazioni 041→046** (la SPEC diceva 038, ma 038/039/040 erano già occupate da altre chat → partito da 041; NON rinumerate le altrui). **Prossima libera: 047.**
   - 041 fiscal_localization (field_definition.country, tax_rate+seed IT/AR, company colonne+drop address, fiscal_attributes, site.address→jsonb, tenant.default_country)

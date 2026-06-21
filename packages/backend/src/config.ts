@@ -37,6 +37,13 @@ export const config = {
     accessKey: opt('MINIO_ROOT_USER', 'sisuite'),
     secretKey: opt('MINIO_ROOT_PASSWORD', ''),
     bucket: opt('MINIO_BUCKET', 'captures'),
+    /** bucket dedicato alle immagini articolo (Blocco J). */
+    materialBucket: opt('MINIO_MATERIAL_BUCKET', 'material-images'),
+    /** endpoint PUBBLICO (raggiungibile dal browser) per gli URL presigned di lettura.
+     *  In dev = host mappato (localhost:9100). In prod = dominio pubblico dello storage. */
+    publicEndpoint: opt('MINIO_PUBLIC_ENDPOINT', 'localhost'),
+    publicPort: Number(opt('MINIO_PUBLIC_PORT', '9100')),
+    publicUseSSL: opt('MINIO_PUBLIC_USE_SSL', 'false') === 'true',
   },
   ai: {
     /** chiave API Anthropic; se vuota la pipeline AI è disattivata (resta il percorso form). */

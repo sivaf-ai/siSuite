@@ -40,8 +40,11 @@ const emptyTop = (): CompanyTop => ({ country: 'IT', taxId: '', taxIdKind: '', e
 const CONTACT_FIELDS: RenderableField[] = [
   { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
   { key: 'roleTitle', label: 'Ruolo / Mansione', dataType: 'text' },
+  { key: 'department', label: 'Reparto', dataType: 'text' },
   { key: 'email', label: 'Email', dataType: 'email' },
   { key: 'phone', label: 'Telefono', dataType: 'text' },
+  { key: 'mobile', label: 'Cellulare', dataType: 'text' },
+  { key: 'note', label: 'Note', dataType: 'textarea' },
   { key: 'isPrimary', label: 'Contatto principale', dataType: 'boolean' },
 ];
 
@@ -142,21 +145,23 @@ export function ClienteDetailPage() {
 
   const contactsTable = (
     <table className="subt">
-      <thead><tr><th>Nome</th><th>Ruolo / Mansione</th><th>Email</th><th>Telefono</th><th /></tr></thead>
+      <thead><tr><th>Nome</th><th>Ruolo / Mansione</th><th>Reparto</th><th>Email</th><th>Telefono</th><th>Cellulare</th><th /></tr></thead>
       <tbody>
         {contacts.map((c) => (
           <tr key={c.id}>
             <td>{c.fullName}{c.isPrimary && <Star size={13} style={{ marginLeft: 6, color: 'var(--warning)' }} />}</td>
             <td>{c.roleTitle ?? '—'}</td>
+            <td>{c.department ?? '—'}</td>
             <td style={{ fontSize: 12.5 }}>{c.email ?? '—'}</td>
             <td className="mono">{c.phone ?? '—'}</td>
+            <td className="mono">{c.mobile ?? '—'}</td>
             <td className="num" style={{ whiteSpace: 'nowrap' }}>
               {can('contact:update') && <button className="xbtn" title="Modifica" onClick={() => setEditing(c)}><Pencil size={15} /></button>}
               {can('contact:delete') && <button className="xbtn" title="Elimina" onClick={() => setDelContact(c)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>}
             </td>
           </tr>
         ))}
-        {contacts.length === 0 && <tr><td colSpan={5}><div className="dsx-empty">Nessun contatto.</div></td></tr>}
+        {contacts.length === 0 && <tr><td colSpan={7}><div className="dsx-empty">Nessun contatto.</div></td></tr>}
       </tbody>
     </table>
   );
@@ -279,8 +284,9 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
   onClose: () => void; onSaved: () => void; toastError: (m: string) => void; toastOk: (m: string) => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({
-    fullName: editing?.fullName ?? '', roleTitle: editing?.roleTitle ?? '',
-    email: editing?.email ?? '', phone: editing?.phone ?? '', isPrimary: editing?.isPrimary ?? false,
+    fullName: editing?.fullName ?? '', roleTitle: editing?.roleTitle ?? '', department: editing?.department ?? '',
+    email: editing?.email ?? '', phone: editing?.phone ?? '', mobile: editing?.mobile ?? '',
+    note: editing?.note ?? '', isPrimary: editing?.isPrimary ?? false,
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -289,7 +295,9 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
     setBusy(true);
     const body: Record<string, unknown> = {
       fullName: String(v.fullName).trim(), roleTitle: (v.roleTitle as string) || undefined,
-      email: (v.email as string) || undefined, phone: (v.phone as string) || undefined, isPrimary: !!v.isPrimary,
+      department: (v.department as string) || null, email: (v.email as string) || undefined,
+      phone: (v.phone as string) || undefined, mobile: (v.mobile as string) || null,
+      note: (v.note as string) || null, isPrimary: !!v.isPrimary,
     };
     try {
       if (editing) await mutate('PATCH', `/contacts/${editing.id}`, body);

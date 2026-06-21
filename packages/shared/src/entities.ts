@@ -120,12 +120,16 @@ export const createContactSchema = z.object({
   roleTitle: z.string().max(120).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(60).optional(),
+  mobile: z.string().max(60).nullable().optional(),
+  department: z.string().max(120).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
   isPrimary: z.boolean().optional(),
 });
 export const updateContactSchema = createContactSchema.omit({ companyId: true }).partial();
 export interface ContactDto {
   id: string; companyId: string; fullName: string; roleTitle: string | null;
-  email: string | null; phone: string | null; isPrimary: boolean;
+  email: string | null; phone: string | null; mobile: string | null;
+  department: string | null; note: string | null; isPrimary: boolean;
 }
 
 /* ── Asset ─────────────────────────────────────────────────────────── */
@@ -237,7 +241,6 @@ export const createMaterialSchema = z.object({
   dimensions: z.record(z.string(), z.unknown()).nullable().optional(),
   isReturnable: z.boolean().optional(),
   shelfLifeDays: z.coerce.number().int().nullable().optional(),
-  primaryImageUrl: z.string().max(500).nullable().optional(),
   note: z.string().max(2000).nullable().optional(),
   attributes: attrs.optional(),
 });
@@ -593,12 +596,16 @@ export const createStockLocationSchema = z.object({
   parentId: uuid.optional(),
   kind: z.enum(['warehouse', 'sub_location', 'van']).default('warehouse'),
   resourceId: uuid.optional(),
+  code: z.string().max(40).nullable().optional(),         // sigla magazzino (K)
+  note: z.string().max(2000).nullable().optional(),
+  managerUserId: uuid.nullable().optional(),
   holdsStock: z.boolean().optional(),
   isDefault: z.boolean().optional(),
 });
 export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
 export interface StockLocationDto {
   id: string; parentId: string | null; name: string; kind: string; resourceId: string | null;
+  code: string | null; note: string | null; managerUserId: string | null;
   holdsStock: boolean; isDefault: boolean; active: boolean;
 }
 
@@ -820,10 +827,15 @@ export interface MaterialSupplierDto {
   leadTimeDays: number | null; isPreferred: boolean;
 }
 
-/* ── material_image (foto multiple MinIO) — Blocco B.3 ───────────────── */
+/* ── material_image (foto multiple MinIO) — Blocco B.3 / J ───────────── */
 export interface MaterialImageDto {
   id: string; materialId: string; objectKey: string; isPrimary: boolean; sequence: number;
+  /** URL di lettura presigned (a scadenza); il bucket non è pubblico. */
+  url?: string | null;
 }
+export const reorderImagesSchema = z.object({
+  order: z.array(z.object({ id: uuid, sequence: z.coerce.number().int() })).min(1),
+});
 
 /* ── stock_lot (lotti + scadenze) — Blocco C.1 ──────────────────────── */
 export const createStockLotSchema = z.object({

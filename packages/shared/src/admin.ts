@@ -81,7 +81,7 @@ export interface RoleDto {
   permissions: string[];
 }
 
-/* ── User (app_user: anagrafica utente + ruoli) ────────────────────────── */
+/* ── User (app_user: anagrafica utente + ruoli + ciclo di vita) ─────────── */
 export const createUserSchema = z.object({
   fullName: z.string().min(1).max(200),
   email: z.string().email(),
@@ -89,6 +89,16 @@ export const createUserSchema = z.object({
   phone: z.string().max(60).nullable().optional(),
   locale: z.enum(['it-IT', 'en', 'es-AR']).optional(),
   roleIds: z.array(z.string().uuid()).default([]),
+  resourceId: z.string().uuid().nullable().optional(),  // collega una risorsa persona
+});
+/** Invito: nessuna password — l'identità si lega al primo login (by-email). */
+export const inviteUserSchema = z.object({
+  fullName: z.string().min(1).max(200),
+  email: z.string().email(),
+  phone: z.string().max(60).nullable().optional(),
+  locale: z.enum(['it-IT', 'en', 'es-AR']).optional(),
+  roleIds: z.array(z.string().uuid()).default([]),
+  resourceId: z.string().uuid().nullable().optional(),
 });
 export const updateUserSchema = z.object({
   fullName: z.string().min(1).max(200).optional(),
@@ -96,19 +106,30 @@ export const updateUserSchema = z.object({
   active: z.boolean().optional(),
   locale: z.enum(['it-IT', 'en', 'es-AR']).optional(),
   roleIds: z.array(z.string().uuid()).optional(),
+  resourceId: z.string().uuid().nullable().optional(),
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 export interface UserAdminDto {
   id: string;
+  code: string | null;
   fullName: string;
   email: string | null;
   phone: string | null;
   active: boolean;
+  status: string;                 // 'invited' | 'active' | 'disabled'
+  lastLoginAt: string | null;
   isPlatformAdmin: boolean;
   locale: Locale | null;
   roles: { id: string; name: string }[];
+  resourceId: string | null;
+  resourceLabel: string | null;
   createdAt: string;
+}
+/** Permessi effettivi (derivati dai ruoli) + scope più ampio — sola lettura. */
+export interface EffectivePermissionsDto {
+  permissions: string[];
+  dataScope: string;
 }
 
 /* ── Orari di lavoro (tenant e risorsa) ─────────────────────────────────── */

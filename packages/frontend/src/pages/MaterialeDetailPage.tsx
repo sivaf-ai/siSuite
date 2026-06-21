@@ -6,8 +6,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Package, Settings2, ScanLine, Layers, ArrowLeftRight, FileText, Eye, Lock } from 'lucide-react';
-import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto } from '@sisuite/shared';
+import { Package, Settings2, ScanLine, Layers, ArrowLeftRight, FileText, Eye, Lock, Image as ImageIcon, Star, Trash2, Upload } from 'lucide-react';
+import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto, MaterialImageDto } from '@sisuite/shared';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useLookups } from '../context/Lookups';
 import { Money } from '../ui/Num';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -15,7 +16,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
 import { useApi, mutate } from '../api/hooks';
-import { apiFetch, ApiError } from '../api/client';
+import { apiFetch, apiUpload, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 
@@ -59,7 +60,7 @@ export function MaterialeDetailPage() {
 
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
-  const [tab, setTab] = useState('balances');
+  const [tab, setTab] = useState('images');
   const [busy, setBusy] = useState(false);
 
   const d = detail.data;
@@ -117,11 +118,15 @@ export function MaterialeDetailPage() {
       </tbody>
     </table>
   );
+  const showStockTabs = !!(d?.trackStock || d?.trackedBySerial);
   const tabs: RelTab[] = [
+    { key: 'images', label: 'Immagini', icon: ImageIcon, content: <MaterialImages materialId={id} canEdit={can('material:update')} /> },
     ...(d?.trackedBySerial ? [{ key: 'serials', label: 'Unità seriali', icon: ScanLine, count: serials.data?.items.length ?? 0, content: serialsTable }] : []),
-    { key: 'balances', label: 'Giacenze per ubicazione', icon: Layers, content: <MaterialBalances materialId={id} /> },
-    { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MaterialMovements materialId={id} /> },
-    { key: 'docs', label: 'Documenti', icon: FileText, content: <MaterialDocs materialId={id} /> },
+    ...(showStockTabs ? [
+      { key: 'balances', label: 'Giacenze per ubicazione', icon: Layers, content: <MaterialBalances materialId={id} /> },
+      { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MaterialMovements materialId={id} /> },
+      { key: 'docs', label: 'Documenti', icon: FileText, content: <MaterialDocs materialId={id} /> },
+    ] : []),
   ];
 
   return (
@@ -170,7 +175,7 @@ export function MaterialeDetailPage() {
         <AttrBoxes defs={fieldDefs.data?.items ?? []} attrs={attrs} setAttr={(k, v) => setAttrs((a) => ({ ...a, [k]: v }))}
           exclude={['category', 'item_type', 'min_stock', 'supplier_code']} />
 
-        {!isNew && (d?.trackStock || d?.trackedBySerial) && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
+        {!isNew && d && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
       </ObjectPage>
     </Page>
   );
@@ -227,6 +232,92 @@ function MaterialMovements({ materialId }: { materialId: string }) {
         {rows.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessun movimento.</div></td></tr>}
       </tbody>
     </table>
+  );
+}
+
+/** Galleria immagini articolo (Blocco J): upload multipart + miniature + primaria + elimina.
+ * Le src usano item.url (presigned, browser-safe). Niente Content-Type a mano sul FormData. */
+function MaterialImages({ materialId, canEdit }: { materialId: string; canEdit: boolean }) {
+  const { data, loading, reload } = useApi<{ items: MaterialImageDto[] }>(`/materials/${materialId}/images`);
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const [delId, setDelId] = useState<string | null>(null);
+  const items = data?.items ?? [];
+
+  async function upload(files: FileList | File[]) {
+    const list = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (!list.length) { toast('Seleziona un file immagine', 'error'); return; }
+    setBusy(true);
+    try {
+      for (const f of list) {
+        const form = new FormData();
+        form.append('file', f);
+        await apiUpload(`/materials/${materialId}/images`, form);
+      }
+      toast(list.length > 1 ? `${list.length} immagini caricate` : 'Immagine caricata'); await reload();
+    } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error'); }
+    finally { setBusy(false); }
+  }
+  async function setPrimary(iid: string) {
+    setBusy(true);
+    try { await apiFetch(`/material-images/${iid}/set-primary`, { method: 'POST' }); toast('Immagine primaria aggiornata'); await reload(); }
+    catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
+  }
+  async function doDelete() {
+    if (!delId) return;
+    setBusy(true);
+    try { await apiFetch(`/material-images/${delId}`, { method: 'DELETE' }); toast('Immagine eliminata'); setDelId(null); await reload(); }
+    catch (e) { toast((e as Error).message, 'error'); setDelId(null); } finally { setBusy(false); }
+  }
+
+  if (loading) return <div className="dsx-empty">Carico…</div>;
+  return (
+    <div style={{ paddingTop: 8 }}>
+      {canEdit && (
+        <label
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files.length) void upload(e.dataTransfer.files); }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: busy ? 'default' : 'pointer',
+            border: `2px dashed ${drag ? 'var(--brand)' : 'var(--line)'}`, borderRadius: 'var(--r-md)',
+            background: drag ? 'var(--brand-wash)' : 'var(--surface-soft, transparent)', color: 'var(--ink-soft)',
+            padding: '18px 14px', marginBottom: 14, fontSize: 13.5,
+          }}>
+          <Upload size={18} /> {busy ? 'Carico…' : 'Trascina qui le immagini o clicca per selezionarle'}
+          <input type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={busy}
+            onChange={(e) => { if (e.target.files?.length) void upload(e.target.files); e.target.value = ''; }} />
+        </label>
+      )}
+      {items.length === 0 ? (
+        <div className="dsx-empty">Nessuna immagine.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+          {items.map((img) => (
+            <div key={img.id} style={{
+              position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden',
+              border: `2px solid ${img.isPrimary ? 'var(--brand)' : 'var(--line)'}`, background: 'var(--card)',
+            }}>
+              <div style={{ aspectRatio: '1 / 1', background: 'var(--surface-soft, #f3f4f6)', display: 'grid', placeItems: 'center' }}>
+                {img.url
+                  ? <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <ImageIcon size={28} style={{ color: 'var(--ink-faint)' }} />}
+              </div>
+              {img.isPrimary && <span className="chip" style={{ position: 'absolute', top: 6, left: 6, background: 'var(--brand-wash)', color: 'var(--brand)' }}><Star size={12} /> Primaria</span>}
+              {canEdit && (
+                <div style={{ display: 'flex', gap: 6, padding: 6, justifyContent: 'space-between' }}>
+                  <button className="btn btn-ghost btn-sm" disabled={busy || img.isPrimary} title="Imposta come primaria" onClick={() => void setPrimary(img.id)}><Star size={14} /></button>
+                  <button className="btn btn-ghost btn-sm" disabled={busy} title="Elimina" style={{ color: 'var(--danger)' }} onClick={() => setDelId(img.id)}><Trash2 size={14} /></button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <ConfirmDialog open={!!delId} danger title="Eliminare l'immagine?" message="L'immagine verrà rimossa dall'articolo."
+        confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelId(null)} />
+    </div>
   );
 }
 

@@ -3,13 +3,19 @@
  *  hanno tenant_id + RLS già a DB. */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import {
   createMaterialCategorySchema, updateMaterialCategorySchema,
-  createMaterialSupplierSchema, updateMaterialSupplierSchema,
+  createMaterialSupplierSchema, updateMaterialSupplierSchema, reorderImagesSchema,
   type MaterialCategoryDto, type MaterialSupplierDto, type MaterialImageDto,
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { config } from '../config.js';
+import { putObject, presignObject, removeObject } from '../storage.js';
+
+const IMG_BUCKET = config.storage.materialBucket;
+const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 
 function categoryDto(r: Record<string, unknown>): MaterialCategoryDto {
   return {
@@ -45,11 +51,6 @@ function imageDto(r: Record<string, unknown>): MaterialImageDto {
   };
 }
 
-const createMaterialImageSchema = z.object({
-  objectKey: z.string().min(1),
-  isPrimary: z.boolean().optional(),
-  sequence: z.coerce.number().int().optional(),
-});
 
 export async function materialCatalogRoutes(app: FastifyInstance): Promise<void> {
   // ── material_category ─────────────────────────────────────────────────
@@ -173,45 +174,100 @@ export async function materialCatalogRoutes(app: FastifyInstance): Promise<void>
       return reply.code(204).send();
     });
 
-  // ── material_image ────────────────────────────────────────────────────
+  // ── material_image (MinIO; bucket non pubblico, URL presigned) ─────────
+  async function withUrl(r: Record<string, unknown>): Promise<MaterialImageDto> {
+    const dto = imageDto(r);
+    dto.url = await presignObject(IMG_BUCKET, dto.objectKey).catch(() => null);
+    return dto;
+  }
+
   app.get<{ Params: { id: string } }>('/materials/:id/images',
     { preHandler: [app.authenticate, requirePermission('material:read')] },
     async (request) => withRls(request.ctx, async (db) => {
       const rows = await db.query(
         `SELECT id, material_id, object_key, is_primary, sequence FROM material_image
-         WHERE material_id = $1 ORDER BY sequence`,
+         WHERE material_id = $1 ORDER BY is_primary DESC, sequence`,
         [request.params.id]);
-      return { items: rows.rows.map(imageDto) };
+      return { items: await Promise.all(rows.rows.map(withUrl)) };
     }));
 
+  // upload multipart: salva su MinIO + riga material_image. Prima immagine → primaria.
   app.post<{ Params: { id: string } }>('/materials/:id/images',
     { preHandler: [app.authenticate, requirePermission('material:update')] },
     async (request, reply) => {
-      const input = createMaterialImageSchema.parse(request.body);
+      const file = await request.file();
+      if (!file) return reply.code(400).send({ error: 'bad_request', message: 'File immagine mancante', statusCode: 400 });
       const ctx = request.ctx;
+      const buf = await file.toBuffer();
+      const ext = EXT[file.mimetype] ?? 'bin';
+      const key = `${ctx.tenantId}/${request.params.id}/${randomUUID()}.${ext}`;
+      await putObject(IMG_BUCKET, key, buf, file.mimetype || 'application/octet-stream');
       const dto = await withRls(ctx, async (db) => {
+        // se è la prima immagine dell'articolo, diventa primaria
+        const cnt = await db.query(`SELECT count(*)::int AS n, COALESCE(max(sequence),-1) AS maxseq FROM material_image WHERE material_id = $1`, [request.params.id]);
+        const isFirst = (cnt.rows[0].n as number) === 0;
+        const seq = (cnt.rows[0].maxseq as number) + 1;
         const ins = await db.query(
           `INSERT INTO material_image (tenant_id, material_id, object_key, is_primary, sequence, created_by)
            VALUES ($1,$2,$3,$4,$5,$6)
            RETURNING id, material_id, object_key, is_primary, sequence`,
-          [ctx.tenantId, request.params.id, input.objectKey, input.isPrimary ?? false, input.sequence ?? 0, ctx.userId]);
-        if (input.isPrimary) {
-          await db.query(
-            `UPDATE material_image SET is_primary = false WHERE material_id = $1 AND id <> $2`,
-            [request.params.id, ins.rows[0].id as string]);
-          await db.query(
-            `UPDATE material SET primary_image_url = $2 WHERE id = $1`,
-            [request.params.id, input.objectKey]);
-        }
-        return imageDto(ins.rows[0]);
+          [ctx.tenantId, request.params.id, key, isFirst, seq, ctx.userId]);
+        return withUrl(ins.rows[0]);
       });
       return reply.code(201).send(dto);
+    });
+
+  // imposta primaria (azzera l'eventuale precedente, transazione)
+  app.post<{ Params: { iid: string } }>('/material-images/:iid/set-primary',
+    { preHandler: [app.authenticate, requirePermission('material:update')] },
+    async (request, reply) => {
+      const out = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT material_id FROM material_image WHERE id = $1`, [request.params.iid]);
+        if (!cur.rows.length) return null;
+        const materialId = cur.rows[0].material_id as string;
+        await db.query(`UPDATE material_image SET is_primary = false WHERE material_id = $1 AND id <> $2`, [materialId, request.params.iid]);
+        const r = await db.query(
+          `UPDATE material_image SET is_primary = true WHERE id = $1
+           RETURNING id, material_id, object_key, is_primary, sequence`, [request.params.iid]);
+        return withUrl(r.rows[0]);
+      });
+      if (!out) return reply.code(404).send({ error: 'not_found', message: 'Immagine non trovata', statusCode: 404 });
+      return out;
+    });
+
+  // riordino (sequence)
+  app.patch<{ Params: { id: string } }>('/materials/:id/images/reorder',
+    { preHandler: [app.authenticate, requirePermission('material:update')] },
+    async (request) => {
+      const input = reorderImagesSchema.parse(request.body);
+      return withRls(request.ctx, async (db) => {
+        for (const o of input.order) {
+          await db.query(`UPDATE material_image SET sequence = $2 WHERE id = $1 AND material_id = $3`,
+            [o.id, o.sequence, request.params.id]);
+        }
+        const rows = await db.query(
+          `SELECT id, material_id, object_key, is_primary, sequence FROM material_image
+           WHERE material_id = $1 ORDER BY is_primary DESC, sequence`, [request.params.id]);
+        return { items: await Promise.all(rows.rows.map(withUrl)) };
+      });
     });
 
   app.delete<{ Params: { iid: string } }>('/material-images/:iid',
     { preHandler: [app.authenticate, requirePermission('material:update')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`DELETE FROM material_image WHERE id = $1`, [request.params.iid]));
+      const key = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`DELETE FROM material_image WHERE id = $1 RETURNING object_key, is_primary, material_id`, [request.params.iid]);
+        if (!r.rows.length) return null;
+        // se era la primaria, promuovi la prima rimasta
+        if (r.rows[0].is_primary) {
+          await db.query(
+            `UPDATE material_image SET is_primary = true WHERE id = (
+               SELECT id FROM material_image WHERE material_id = $1 ORDER BY sequence LIMIT 1)`,
+            [r.rows[0].material_id as string]);
+        }
+        return r.rows[0].object_key as string;
+      });
+      if (key) await removeObject(IMG_BUCKET, key);
       return reply.code(204).send();
     });
 }

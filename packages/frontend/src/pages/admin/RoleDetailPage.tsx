@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, useHistory } from 'react-router';
-import { ShieldCheck, KeyRound } from 'lucide-react';
+import { ShieldCheck, KeyRound, Copy } from 'lucide-react';
 import { PERMISSION_CATALOG, type RoleDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../../components/Page';
 import { StatusPill } from '../../components/StatusPill';
@@ -63,6 +63,15 @@ export function RoleDetailPage() {
     finally { setBusy(false); }
   }
 
+  async function clone() {
+    setBusy(true);
+    try {
+      const c = await apiFetch<RoleDto>(`/roles/${id}/clone`, { method: 'POST' });
+      toast('Ruolo duplicato — ora modificabile'); history.replace(`/admin/roles/${c.id}`);
+    } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error'); }
+    finally { setBusy(false); }
+  }
+
   if (!isNew && detail.loading) return <Page title="Ruolo"><Loading /></Page>;
   if (!isNew && detail.error) return <Page title="Ruolo"><ErrorBox message={detail.error} /></Page>;
 
@@ -76,6 +85,17 @@ export function RoleDetailPage() {
         status={!isNew ? <StatusPill label={isSystem ? 'Sistema (sola lettura)' : 'Personalizzato'} token={isSystem ? 'neutral' : 'brand'} /> : undefined}
         onSave={!readOnly ? save : undefined} onCancel={() => history.push('/admin/roles')} saving={busy}
       >
+        {isSystem && canManage && (
+          <ObjectBox icon={Copy} title="Ruolo di sistema">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span className="faint" style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1, minWidth: 200 }}>
+                Questo ruolo è di sistema (sola lettura). Duplicalo per ottenere una copia personalizzabile.
+              </span>
+              <button className="btn btn-primary" disabled={busy} onClick={clone}><Copy size={16} /> Duplica per modificare</button>
+            </div>
+          </ObjectBox>
+        )}
+
         <ObjectBox icon={ShieldCheck} title="Ruolo">
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span>

@@ -11,6 +11,7 @@
     "demo:load": "tsx src/demo/load.ts",
     "demo:wipe": "tsx src/demo/wipe.ts",
     "demo:list": "tsx src/demo/list.ts",
+    "wipe:testdata": "tsx src/demo/wipeTestData.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

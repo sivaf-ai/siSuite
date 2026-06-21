@@ -103,7 +103,8 @@ export async function bootstrap(client: pg.Client): Promise<void> {
        ('stock_document', 'DDT-{YYYY}-{SEQ:4}', 'yearly'),
        ('purchase_order', 'ODA-{YYYY}-{SEQ:4}', 'yearly'),
        ('pick_list',      'PRL-{YYYY}-{SEQ:4}', 'yearly'),
-       ('stock_count',    'INV-{YYYY}-{SEQ:4}', 'yearly')
+       ('stock_count',    'INV-{YYYY}-{SEQ:4}', 'yearly'),
+       ('app_user',       'UTE-{SEQ:4}',        'never')
      ) AS s(key, format, reset_period)
      ON CONFLICT (tenant_id, key) DO NOTHING`,
     [tenantId],

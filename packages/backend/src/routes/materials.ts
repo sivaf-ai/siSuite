@@ -13,6 +13,8 @@ import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 import { validateAttributes } from '../fields.js';
 import { nextNumber } from '../numberSeries.js';
+import { presignObject } from '../storage.js';
+import { config } from '../config.js';
 
 const SORTABLE: Record<string, string> = { name: 'm.name', code: 'm.code', sku: 'm.sku', barcode: 'm.barcode', qty: 'qty_on_hand', cost: 'avg_cost' };
 const FILTER_FIELDS: Record<string, string> = {
@@ -30,7 +32,8 @@ const SELECT = `
          m.track_stock, m.tracked_by_serial, m.tracked_by_lot,
          m.costing_method, m.default_cost, m.default_sale_price, m.tax_rate_id,
          m.reorder_point, m.safety_stock, m.min_qty, m.max_qty, m.lead_time_days, m.preferred_vendor_id,
-         m.weight, m.weight_unit, m.dimensions, m.is_returnable, m.shelf_life_days, m.primary_image_url, m.note,
+         m.weight, m.weight_unit, m.dimensions, m.is_returnable, m.shelf_life_days, m.note,
+         pi.object_key AS primary_image_key,
          m.attributes,
          COALESCE(bal.qty, 0) AS qty_on_hand,
          CASE WHEN COALESCE(bal.qty,0) > 0 THEN bal.val / bal.qty ELSE m.default_cost END AS avg_cost,
@@ -38,6 +41,7 @@ const SELECT = `
             AND COALESCE(bal.qty,0) < m.reorder_point) AS low_stock
   FROM material m
   LEFT JOIN material_category cat ON cat.id = m.category_id
+  LEFT JOIN material_image pi ON pi.material_id = m.id AND pi.is_primary
   LEFT JOIN LATERAL (
     SELECT sum(b.qty_on_hand) AS qty, sum(b.value_on_hand) AS val
     FROM stock_balance b WHERE b.material_id = m.id
@@ -59,11 +63,17 @@ function toDto(r: Record<string, unknown>): MaterialDto {
     weight: num(r.weight), weightUnit: (r.weight_unit as string) ?? null,
     dimensions: (r.dimensions as Record<string, unknown>) ?? null,
     isReturnable: (r.is_returnable as boolean) ?? true, shelfLifeDays: num(r.shelf_life_days),
-    primaryImageUrl: (r.primary_image_url as string) ?? null, note: (r.note as string) ?? null,
+    primaryImageUrl: null, note: (r.note as string) ?? null,
     qtyOnHand: Number(r.qty_on_hand ?? 0), avgCost: num(r.avg_cost),
     lowStock: (r.low_stock as boolean) ?? false,
     attributes: (r.attributes as Record<string, unknown>) ?? {},
   };
+}
+
+// risolve l'URL presigned dell'immagine primaria (object_key dalla join)
+async function withPrimaryUrl(item: MaterialDto, key: unknown): Promise<MaterialDto> {
+  if (key) item.primaryImageUrl = await presignObject(config.storage.materialBucket, key as string).catch(() => null);
+  return item;
 }
 
 // colonne aggiornabili (camel→snake) per UPDATE dinamico
@@ -73,7 +83,7 @@ const MAT_COLS: Record<string, string> = {
   taxRateId: 'tax_rate_id', reorderPoint: 'reorder_point', safetyStock: 'safety_stock', minQty: 'min_qty',
   maxQty: 'max_qty', leadTimeDays: 'lead_time_days', preferredVendorId: 'preferred_vendor_id',
   weight: 'weight', weightUnit: 'weight_unit', dimensions: 'dimensions', isReturnable: 'is_returnable',
-  shelfLifeDays: 'shelf_life_days', primaryImageUrl: 'primary_image_url', note: 'note',
+  shelfLifeDays: 'shelf_life_days', note: 'note',
 };
 
 export async function materialRoutes(app: FastifyInstance): Promise<void> {
@@ -110,7 +120,8 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
         ${fromMain} ${vWhere}`, vParams);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
-      return { items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset, views: counts.rows[0] };
+      const items = await Promise.all(rows.rows.map((r) => withPrimaryUrl(toDto(r), r.primary_image_key)));
+      return { items, total: total.rows[0].n as number, limit: q.limit, offset: q.offset, views: counts.rows[0] };
     });
   });
 
@@ -118,7 +129,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => withRls(request.ctx, async (db) => {
       const r = await db.query(`${SELECT} WHERE m.id = $1`, [request.params.id]);
       if (r.rows.length === 0) return reply.code(404).send({ error: 'not_found', message: 'Articolo non trovato', statusCode: 404 });
-      return toDto(r.rows[0]);
+      return withPrimaryUrl(toDto(r.rows[0]), r.rows[0].primary_image_key);
     }));
 
   /** Unità seriali dell'articolo (password MAI nel payload, solo hasSecret).
@@ -172,8 +183,8 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
            brand, manufacturer, mpn, track_stock, tracked_by_serial, tracked_by_lot, costing_method,
            default_cost, default_sale_price, tax_rate_id, reorder_point, safety_stock, min_qty, max_qty,
            lead_time_days, preferred_vendor_id, weight, weight_unit, dimensions, is_returnable, shelf_life_days,
-           primary_image_url, note, attributes, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34) RETURNING id`,
+           note, attributes, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$33) RETURNING id`,
         [ctx.tenantId, code, input.name, input.unit, input.itemType ?? 'article', input.sku ?? null, input.barcode ?? null,
          input.categoryId ?? null, input.description ?? null, input.brand ?? null, input.manufacturer ?? null, input.mpn ?? null,
          input.trackStock ?? true, input.trackedBySerial ?? false, input.trackedByLot ?? false, input.costingMethod ?? 'avg',
@@ -181,9 +192,9 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
          input.safetyStock ?? null, input.minQty ?? null, input.maxQty ?? null, input.leadTimeDays ?? null,
          input.preferredVendorId ?? null, input.weight ?? null, input.weightUnit ?? null,
          input.dimensions ? JSON.stringify(input.dimensions) : null, input.isReturnable ?? true, input.shelfLifeDays ?? null,
-         input.primaryImageUrl ?? null, input.note ?? null, attrs, ctx.userId]);
+         input.note ?? null, attrs, ctx.userId]);
       const r = await db.query(`${SELECT} WHERE m.id = $1`, [ins.rows[0].id]);
-      return toDto(r.rows[0]);
+      return withPrimaryUrl(toDto(r.rows[0]), r.rows[0].primary_image_key);
     });
     return reply.code(201).send(dto);
   });
@@ -210,7 +221,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       add('updated_by', request.ctx.userId);
       if (sets.length) await db.query(`UPDATE material SET ${sets.join(', ')} WHERE id = $1`, vals);
       const r = await db.query(`${SELECT} WHERE m.id = $1`, [request.params.id]);
-      return toDto(r.rows[0]);
+      return withPrimaryUrl(toDto(r.rows[0]), r.rows[0].primary_image_key);
     }));
 
   app.delete<{ Params: { id: string } }>('/materials/:id', { preHandler: [app.authenticate, requirePermission('material:delete')] },

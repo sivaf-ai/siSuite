@@ -23,10 +23,12 @@ const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: str
   adjustment: { key: 'stock_adjustment', fmt: 'RET-{YYYY}-{SEQ:4}' },
 };
 
+const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active`;
 function locDto(r: Record<string, unknown>): StockLocationDto {
   return {
     id: r.id as string, parentId: (r.parent_id as string) ?? null, name: r.name as string, kind: r.kind as string,
-    resourceId: (r.resource_id as string) ?? null, holdsStock: r.holds_stock as boolean,
+    resourceId: (r.resource_id as string) ?? null, code: (r.code as string) ?? null, note: (r.note as string) ?? null,
+    managerUserId: (r.manager_user_id as string) ?? null, holdsStock: r.holds_stock as boolean,
     isDefault: r.is_default as boolean, active: r.active as boolean,
   };
 }
@@ -65,7 +67,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (fsql) where += ` AND ${fsql}`;
         const orderBy = buildOrderBy(q.sort as string | undefined, LOC_FILTER, 'name', 'asc');
         return db.query(
-          `SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
+          `SELECT ${LOC_COLS}
            FROM stock_location ${where} ORDER BY is_default DESC, ${orderBy}`, params).then((r) => r.rows);
       });
       return { items: rows.map(locDto) };
@@ -75,7 +77,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request, reply) => {
       const r = await withRls(request.ctx, (db) => db.query(
-        `SELECT id, parent_id, name, kind, resource_id, holds_stock, is_default, active
+        `SELECT ${LOC_COLS}
          FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [request.params.id]).then((x) => x.rows));
       if (!r[0]) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
       return locDto(r[0]);
@@ -86,10 +88,11 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       const input = createStockLocationSchema.parse(request.body);
       const dto = await withRls(request.ctx, async (db) => {
         const r = await db.query(
-          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, holds_stock, is_default, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,COALESCE($6,true),COALESCE($7,false),$8,$8)
-           RETURNING id, parent_id, name, kind, resource_id, holds_stock, is_default, active`,
+          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$11)
+           RETURNING ${LOC_COLS}`,
           [request.ctx.tenantId, input.parentId ?? null, input.name, input.kind, input.resourceId ?? null,
+           input.code ?? null, input.note ?? null, input.managerUserId ?? null,
            input.holdsStock ?? null, input.isDefault ?? null, request.ctx.userId]);
         return locDto(r.rows[0]);
       });
@@ -107,6 +110,9 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (input.parentId !== undefined) put('parent_id', input.parentId ?? null);
         if (input.kind !== undefined) put('kind', input.kind);
         if (input.resourceId !== undefined) put('resource_id', input.resourceId ?? null);
+        if (input.code !== undefined) put('code', input.code ?? null);
+        if (input.note !== undefined) put('note', input.note ?? null);
+        if (input.managerUserId !== undefined) put('manager_user_id', input.managerUserId ?? null);
         if (input.holdsStock !== undefined) put('holds_stock', input.holdsStock);
         if (input.isDefault !== undefined) put('is_default', input.isDefault);
         if (input.active !== undefined) put('active', input.active);
@@ -115,7 +121,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         params.push(request.params.id);
         const r = await db.query(
           `UPDATE stock_location SET ${sets.join(', ')} WHERE id = $${params.length}
-           RETURNING id, parent_id, name, kind, resource_id, holds_stock, is_default, active`, params);
+           RETURNING ${LOC_COLS}`, params);
         return r.rows[0] ? locDto(r.rows[0]) : { ok: false };
       });
     });
@@ -129,6 +135,27 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         [request.params.id, request.ctx.userId]));
       return reply.code(204).send();
     });
+
+  // ── Seriali presenti in un magazzino (Blocco K.1) ───────────────────
+  app.get<{ Params: { id: string } }>('/stock/locations/:id/serials',
+    { preHandler: [app.authenticate, requirePermission('serial:read')] },
+    async (request) => withRls(request.ctx, async (db) => {
+      const rows = await db.query(
+        `SELECT su.id, su.material_id, m.name AS material_name, su.serial, su.status, su.installed_on, su.updated_at,
+                (su.secrets <> '{}'::jsonb) AS has_secret, wo.code AS wo_code
+         FROM stock_serial_unit su
+         LEFT JOIN material m ON m.id = su.material_id
+         LEFT JOIN work_order wo ON wo.id = su.work_order_id
+         WHERE su.location_id = $1 AND su.archived_at IS NULL
+         ORDER BY su.status, su.serial`, [request.params.id]);
+      return { items: rows.rows.map((x: Record<string, unknown>) => ({
+        id: x.id as string, materialId: x.material_id as string, materialName: (x.material_name as string) ?? null,
+        serial: x.serial as string, status: x.status as string,
+        workOrderCode: (x.wo_code as string) ?? null,
+        installedOn: (x.installed_on as Date | null)?.toISOString().slice(0, 10) ?? null,
+        updatedAt: (x.updated_at as Date).toISOString(), hasSecret: (x.has_secret as boolean) ?? false,
+      })) };
+    }));
 
   // ── Giacenze ────────────────────────────────────────────────────────
   app.get<{ Querystring: { locationId?: string; materialId?: string } }>('/stock/balance',

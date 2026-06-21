@@ -4,7 +4,7 @@
  *  compongono per ruolo in role_permission. */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { createRoleSchema, updateRoleSchema, type RoleDto } from '@sisuite/shared';
+import { createRoleSchema, updateRoleSchema, PERMISSION_CATALOG, type RoleDto } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { buildFilter } from '../filterSql.js';
@@ -50,6 +50,23 @@ async function setPermissions(db: PoolClient, roleId: string, keys: string[]): P
 }
 
 export async function roleRoutes(app: FastifyInstance): Promise<void> {
+  // Catalogo permessi (fonte = PERMISSION_CATALOG) per la matrice UI + i data_scope.
+  app.get('/roles/permission-catalog', { preHandler: [app.authenticate, requirePermission('role:read')] },
+    async () => {
+      const resources = Object.entries(PERMISSION_CATALOG).map(([resource, def]) => ({
+        resource,
+        label: def.label,
+        actions: Object.entries(def.actions).map(([action, label]) => ({ action, key: `${resource}:${action}`, label })),
+      }));
+      const dataScopes = [
+        { value: 'own', label: 'Solo le proprie' },
+        { value: 'team', label: 'Del team' },
+        { value: 'tenant', label: 'Tutto il tenant' },
+        { value: 'customer', label: 'Cliente (portale)' },
+      ];
+      return { resources, dataScopes };
+    });
+
   app.get('/roles', { preHandler: [app.authenticate, requirePermission('role:read')] }, async (request) => {
     const qp = listQuery.parse(request.query);
     const sortCol = qp.sortBy === 'dataScope' ? 'r.data_scope' : 'r.name';
@@ -118,15 +135,39 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
       return out;
     });
 
+  // CLONA un ruolo (di sistema o custom) in un nuovo ruolo CUSTOM modificabile.
+  app.post<{ Params: { id: string } }>('/roles/:id/clone',
+    { preHandler: [app.authenticate, requirePermission('role:manage')] },
+    async (request, reply) => {
+      const out = await withRls(request.ctx, async (db) => {
+        const src = await loadOne(db, request.params.id);   // RLS: legge sistema (tenant NULL) e custom del tenant
+        if (!src) return null;
+        const ins = await db.query(
+          `INSERT INTO role (tenant_id, name, description, is_system, data_scope)
+           VALUES ($1,$2,$3,false,$4) RETURNING id`,
+          [request.ctx.tenantId, `${src.name} (copia)`, src.description, src.dataScope],
+        );
+        const id = ins.rows[0].id as string;
+        await setPermissions(db, id, src.permissions);
+        return (await loadOne(db, id))!;
+      });
+      if (!out) return reply.code(404).send({ error: 'not_found', message: 'Ruolo non trovato', statusCode: 404 });
+      return reply.code(201).send(out);
+    });
+
   app.delete<{ Params: { id: string } }>('/roles/:id',
     { preHandler: [app.authenticate, requirePermission('role:manage')] },
     async (request, reply) => {
-      const ok = await withRls(request.ctx, async (db) => {
+      const res = await withRls(request.ctx, async (db) => {
+        // niente delete se assegnato a utenti (errore esplicito)
+        const used = await db.query(`SELECT count(*)::int AS n FROM user_role WHERE role_id = $1`, [request.params.id]);
+        if ((used.rows[0].n as number) > 0) return 'assigned' as const;
         const r = await db.query(`DELETE FROM role WHERE id = $1 AND tenant_id = $2 RETURNING id`,
           [request.params.id, request.ctx.tenantId]);
-        return r.rows.length > 0;
+        return r.rows.length > 0 ? 'ok' as const : 'notfound' as const;
       });
-      if (!ok) return reply.code(404).send({ error: 'not_found', message: 'Ruolo non trovato o di sistema', statusCode: 404 });
+      if (res === 'assigned') return reply.code(409).send({ error: 'conflict', message: 'Ruolo assegnato a uno o più utenti: rimuovere le assegnazioni prima di eliminarlo', statusCode: 409 });
+      if (res === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Ruolo non trovato o di sistema', statusCode: 404 });
       return reply.code(204).send();
     });
 }
