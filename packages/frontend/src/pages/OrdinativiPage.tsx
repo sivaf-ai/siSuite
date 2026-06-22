@@ -57,7 +57,14 @@ export function OrdinativiPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/work-orders?${params.toString()}`);
   const rows = data?.items ?? [];
 
-  const { onDelete } = useEntityActions<WorkOrderDto>({ basePath: '/work-orders', reload, noun: t('terms.work_order') });
+  const { onDelete, onDuplicate } = useEntityActions<WorkOrderDto>({
+    basePath: '/work-orders', reload, noun: t('terms.work_order'),
+    // Duplica (standard): apre il "nuovo" precompilato (no rif. esterno: è chiave unica per gestore).
+    duplicateBody: (w) => ({
+      engagementId: w.engagementId, principalCompanyId: w.principalCompanyId, typeId: w.typeId,
+      statusId: w.statusId, assignedResourceId: w.assignedResourceId, address: w.address, attributes: w.attributes,
+    }),
+  });
 
   const statusOf = (wo: WorkOrderDto) => ({
     label: lookups.labelOf(wo.statusId) || (wo.statusCanonical ?? '—'),
@@ -117,6 +124,7 @@ export function OrdinativiPage() {
         columns={columns} rows={rows} loading={loading} error={error}
         onRowClick={(wo) => history.push(`/work-orders/${wo.id}`)}
         onDelete={can('delete') ? onDelete : undefined}
+        onDuplicate={can('create') ? onDuplicate : undefined}
         onSelectionChange={setSelRows}
         clearSelectionToken={clearTok}
         exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order" savedViewKey="work_order"

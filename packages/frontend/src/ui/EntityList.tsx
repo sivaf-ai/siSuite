@@ -71,6 +71,8 @@ interface Props<T extends { id: string }> {
   onDuplicate?: (row: T) => void;
   /** Elimina (1+ righe). EntityList chiede conferma e poi azzera la selezione. */
   onDelete?: (rows: T[]) => void | Promise<void>;
+  /** etichetta leggibile di una riga (per il popup di conferma Elimina). Default: prima colonna con `value`. */
+  rowLabel?: (row: T) => string;
   /** Esporta (1+ righe). Default: Excel dalle colonne con `value`. */
   onExport?: (rows: T[]) => void | Promise<void>;
   /** nome file per l'export di default. */
@@ -207,6 +209,13 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   const pickSelected = new Set(p.selectedIds ?? []);
   const selectedRows = viewRows.filter((r) => sel.has(r.id));
   const count = selectedRows.length;
+  // etichetta leggibile di una riga (per il popup Elimina): prop rowLabel o prima colonna con value.
+  const labelOf = (r: T): string => {
+    if (p.rowLabel) return p.rowLabel(r);
+    const col = p.columns.find((c) => c.value);
+    const v = col?.value?.(r);
+    return v != null && String(v).trim() ? String(v) : r.id;
+  };
 
   // notifica la pagina della selezione corrente (per azioni bulk custom)
   const onSelChange = p.onSelectionChange;
@@ -532,7 +541,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       )}
 
       <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}
-        message={count > 1 ? t('list.deleteManyMsg') : t('list.deleteOneMsg')}
+        message={count === 1
+          ? `Stai per eliminare «${labelOf(selectedRows[0]!)}». L'operazione non è reversibile.`
+          : `Stai per eliminare ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`}
         confirmLabel={t('list.delete')} busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
 
       {aiFilterOpen && (

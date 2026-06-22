@@ -15,6 +15,7 @@ import type {
 } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
+import { Modal } from '../ui/Modal';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { Drawer } from '../ui/Drawer';
@@ -35,15 +36,27 @@ function usePerms() {
   return { canManage: perms.has('stock:manage'), canMove: perms.has('stock:move') };
 }
 
+/** Props di SELEZIONE: la stessa lista magazzini/ubicazioni richiamata in pop-up da
+ *  un documento. Radio (single)/checkbox (multi); "+ Nuovo" e click-riga aprono la
+ *  CRUD ubicazione in modale annidato (non si lascia il documento). */
+export interface LocationPickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (l: StockLocationDto) => void;
+  onCreated?: (l: StockLocationDto) => void;
+}
+
 /* ===================================================================== */
 /* LISTA MAGAZZINI (standard EntityList + toolbar)                        */
 /* ===================================================================== */
-export function MagazzinoPage() {
+export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } = {}) {
   const history = useHistory();
   const { canManage } = usePerms();
+  const pick = pickProps?.pick;
   const [q, setQ] = useState('');
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
+  const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD ubicazione in modale (pick mode)
 
   const params = new URLSearchParams({ top: '1' });
   if (q.trim()) params.set('q', q.trim());
@@ -62,19 +75,26 @@ export function MagazzinoPage() {
     { key: 'default', header: 'Predefinito', value: (r) => (r.isDefault ? 'sì' : ''), render: (r) => (r.isDefault ? <span className="chip">predefinito</span> : <span className="faint">—</span>) },
   ];
   const exportFields: ExportField<StockLocationDto>[] = cols.map((c) => ({ key: c.key, label: c.header, value: c.value! }));
-  const rightActions: ListAction[] = [
-    { key: 'docs', icon: FileText, tip: 'Documenti (carico/trasferimento/rettifica)', onClick: () => history.push('/stock/documents') },
-    ...(canManage ? [{ key: 'new', icon: Plus, tip: 'Nuovo magazzino', variant: 'primary' as const, onClick: () => history.push('/warehouses/new') }] : []),
-  ];
+  // "+ Nuovo": in pick apre la CRUD ubicazione in modale; altrimenti naviga.
+  const rightActions: ListAction[] = pick
+    ? (canManage ? [{ key: 'new', icon: Plus, tip: 'Nuova ubicazione', variant: 'primary' as const, onClick: () => setCrud({ id: 'new' }) }] : [])
+    : [
+        { key: 'docs', icon: FileText, tip: 'Documenti (carico/trasferimento/rettifica)', onClick: () => history.push('/stock/documents') },
+        ...(canManage ? [{ key: 'new', icon: Plus, tip: 'Nuovo magazzino', variant: 'primary' as const, onClick: () => history.push('/warehouses/new') }] : []),
+      ];
+  // click riga: in pick apre la CRUD per modificare (poi si seleziona col radio); altrimenti naviga.
+  const onRowClick = (r: StockLocationDto) => (pick ? setCrud({ id: r.id }) : history.push(`/warehouses/${r.id}`));
 
-  return (
-    <Page>
+  const list = (
       <EntityList<StockLocationDto>
-        title="Magazzini" subtitle="Magazzini, furgoni e relative ubicazioni"
+        title={pick ? undefined : 'Magazzini'} subtitle={pick ? undefined : 'Magazzini, furgoni e relative ubicazioni'}
         search={q} onSearch={setQ} searchPlaceholder="Cerca magazzino…"
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={cols} rows={data?.items ?? []} loading={loading} error={error}
-        onRowClick={(r) => history.push(`/warehouses/${r.id}`)}
-        onDelete={canManage ? onDelete : undefined}
+        onRowClick={onRowClick}
+        onDelete={!pick && canManage ? onDelete : undefined}
         exportName="magazzini" exportFields={exportFields} rightActions={rightActions}
         filterFields={[
           { key: 'name', label: 'Nome', type: 'text', section: 'Magazzino' },
@@ -83,15 +103,38 @@ export function MagazzinoPage() {
         onFilterChange={(s) => setFilterParam(s ? JSON.stringify(s) : null)}
         onSortChange={(s) => setSortParam(s.length ? JSON.stringify(s) : null)}
         emptyText="Nessun magazzino. Crea il primo con “Nuovo magazzino”." />
-    </Page>
   );
+
+  // CRUD magazzino/ubicazione in modale centrato (solo in pick: "+ Nuovo" o modifica riga)
+  const crudModal = crud && (
+    <Modal open size="xl" title={crud.id === 'new' ? 'Nuovo magazzino' : 'Modifica magazzino'} onClose={() => setCrud(null)}>
+      <MagazzinoDetailPage embed={{
+        id: crud.id,
+        onClose: () => setCrud(null),
+        onSaved: (l, wasNew) => { void reload(); if (wasNew) pickProps?.onCreated?.(l); },
+      }} />
+    </Modal>
+  );
+
+  if (pick) return <>{list}{crudModal}</>;
+  return <Page>{list}{crudModal}</Page>;
 }
 
 /* ===================================================================== */
 /* SCHEDA MAGAZZINO (ObjectPage + RelatedTabs)                           */
 /* ===================================================================== */
-export function MagazzinoDetailPage() {
-  const { id } = useParams<{ id: string }>();
+/** Modalità embedded: la stessa scheda CRUD richiamata in un Modal (es. "+ Nuovo"
+ *  o modifica ubicazione dal popup di selezione di un documento). Mostra solo
+ *  l'anagrafica (niente tab) e salva via POST/PATCH /stock/locations. */
+export interface LocationEmbed {
+  id: string;                                       // 'new' o uuid
+  onClose: () => void;
+  onSaved?: (l: StockLocationDto, wasNew: boolean) => void;
+}
+
+export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
+  const routeParams = useParams<{ id: string }>();
+  const id = embed ? embed.id : routeParams.id;
   const isNew = id === 'new';
   const history = useHistory();
   const toast = useToast();
@@ -109,13 +152,19 @@ export function MagazzinoDetailPage() {
     setBusy(true);
     const body = { name: form.name.trim(), kind: form.kind, isDefault: form.isDefault, resourceId: form.resourceId || null, code: form.code.trim() || null, note: form.note.trim() || null };
     try {
-      if (isNew) { const c = await mutate<StockLocationDto>('POST', '/stock/locations', body); toast('Magazzino creato'); history.replace(`/warehouses/${c.id}`); }
-      else { await mutate('PATCH', `/stock/locations/${id}`, body); toast('Salvato'); void detail.reload(); }
+      if (isNew) {
+        const c = await mutate<StockLocationDto>('POST', '/stock/locations', body); toast('Magazzino creato');
+        if (embed) { embed.onSaved?.(c, true); embed.onClose(); } else history.replace(`/warehouses/${c.id}`);
+      } else {
+        const u = await mutate<StockLocationDto>('PATCH', `/stock/locations/${id}`, body); toast('Salvato');
+        if (embed) { embed.onSaved?.(u, false); embed.onClose(); } else void detail.reload();
+      }
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title="Magazzino"><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title="Magazzino"><ErrorBox message={detail.error} /></Page>;
+  const goBack = embed ? embed.onClose : () => history.push('/stock');
+  if (!isNew && detail.loading) return embed ? <div className="dsx-empty">Carico…</div> : <Page title="Magazzino"><Loading /></Page>;
+  if (!isNew && detail.error) return embed ? <ErrorBox message={detail.error} /> : <Page title="Magazzino"><ErrorBox message={detail.error} /></Page>;
 
   const tabs: RelTab[] = [
     { key: 'balances', label: 'Articoli & giacenze', icon: Boxes, content: <GiacenzeTab locationId={id} /> },
@@ -126,12 +175,11 @@ export function MagazzinoDetailPage() {
     { key: 'documents', label: 'Documenti', icon: FileText, content: <DocumentiTab /> },
   ];
 
-  return (
-    <Page bleed>
-      <ObjectPage backLabel="Magazzini" onBack={() => history.push('/stock')}
+  const objectPage = (
+      <ObjectPage backLabel="Magazzini" onBack={goBack}
         title={isNew ? 'Nuovo magazzino' : (form.name || 'Magazzino')}
         status={!isNew && form.isDefault ? <StatusPill label="Predefinito" token="brand" /> : undefined}
-        onSave={canManage ? save : undefined} onCancel={() => history.push('/stock')} saving={busy}>
+        onSave={canManage ? save : undefined} onCancel={goBack} saving={busy}>
         <ObjectBox icon={Warehouse} title="Anagrafica magazzino">
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Nome</span><div className="bi"><input className="flin" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={!canManage} placeholder="es. Magazzino centrale" /></div></div>
@@ -142,10 +190,11 @@ export function MagazzinoDetailPage() {
             <div className="bf c2"><span className="bl">Note</span><div className="bi"><input className="flin" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="Note interne" /></div></div>
           </div>
         </ObjectBox>
-        {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
+        {!isNew && !embed && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
       </ObjectPage>
-    </Page>
   );
+
+  return embed ? objectPage : <Page bleed>{objectPage}</Page>;
 }
 
 /* ── Tab: Articoli & giacenze (sola lettura, derivata) ─────────────── */

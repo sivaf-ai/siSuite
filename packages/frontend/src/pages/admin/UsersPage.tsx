@@ -35,7 +35,11 @@ export function UsersPage() {
   if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/users?${params.toString()}`);
 
-  const { onDelete } = useEntityActions<UserAdminDto>({ basePath: '/users', reload, noun: 'utente' });
+  const { onDelete, onDuplicate } = useEntityActions<UserAdminDto>({
+    basePath: '/users', reload, noun: 'utente', newPath: '/admin/users/new',
+    // Duplica (standard): "nuovo" precompilato (no email/password: chiavi/credenziali).
+    duplicateBody: (u) => ({ fullName: `${u.fullName} (copia)`, phone: u.phone, locale: u.locale, roleIds: u.roles.map((r) => r.id) }),
+  });
 
   const columns: ListColumn<UserAdminDto>[] = [
     { key: 'code', header: 'Codice', value: (r) => r.code ?? '', render: (r) => <span className="mono faint">{r.code ?? '—'}</span> },
@@ -82,6 +86,7 @@ export function UsersPage() {
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/admin/users/${r.id}`)}
         onDelete={canManage ? onDelete : undefined}
+        onDuplicate={canManage ? onDuplicate : undefined}
         exportName="utenti" exportFields={exportFields}
         onFilterChange={(s) => { setFilterParam(s ? JSON.stringify(s) : null); setOffset(0); }}
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}

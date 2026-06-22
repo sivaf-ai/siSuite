@@ -4,7 +4,7 @@
  * Box Risorsa collegata (PATCH resourceId) + Permessi effettivi (sola lettura).
  */
 import { useEffect, useState } from 'react';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import { UserCircle, ShieldCheck, Link2, KeyRound } from 'lucide-react';
 import type { UserAdminDto, EffectivePermissionsDto, ResourceDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../../components/Page';
@@ -43,6 +43,17 @@ export function UserDetailPage() {
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [resourceId, setResourceId] = useState<string>('');
   const [busy, setBusy] = useState(false);
+
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (no email/password).
+  const location = useLocation();
+  useEffect(() => {
+    if (!isNew) return;
+    const pf = (location.state as { prefill?: Record<string, unknown> } | null)?.prefill;
+    if (!pf) return;
+    setForm((f) => ({ ...f, fullName: (pf.fullName as string) ?? '', phone: (pf.phone as string) ?? '', locale: (pf.locale as string) ?? 'it-IT' }));
+    if (Array.isArray(pf.roleIds)) setRoleIds(pf.roleIds as string[]);
+    setMode('password');   // duplicare un utente → creazione con password (no invito implicito)
+  }, [isNew, location.state]);
 
   const d = detail.data;
   useEffect(() => {

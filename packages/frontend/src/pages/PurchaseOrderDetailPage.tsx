@@ -12,6 +12,9 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { Drawer } from '../ui/Drawer';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { PickerField } from '../ui/PickerField';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -42,10 +45,14 @@ export function PurchaseOrderDetailPage() {
   const locations = useApi<ListResp<StockLocationDto>>('/stock/locations');
 
   const [form, setForm] = useState<Record<string, string>>({ supplierId: '', destLocationId: '', orderDate: '', expectedDate: '', currency: 'EUR', note: '' });
+  const [supplierName, setSupplierName] = useState('');
+  const [destName, setDestName] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [supplierPick, setSupplierPick] = useState(false);
+  const [destPick, setDestPick] = useState(false);
 
   const d = detail.data;
   useEffect(() => {
@@ -60,6 +67,18 @@ export function PurchaseOrderDetailPage() {
       qtyReceived: l.qtyReceived, unit: l.unit, unitPrice: l.unitPrice, note: l.note,
     })));
   }, [d]);
+
+  // risolvi i nomi da mostrare dalle liste già caricate (fornitore / destinazione)
+  useEffect(() => {
+    if (form.supplierId && !supplierName) {
+      const c = companies.data?.items.find((x) => x.id === form.supplierId);
+      if (c) setSupplierName(c.displayName);
+    }
+    if (form.destLocationId && !destName) {
+      const l = locations.data?.items.find((x) => x.id === form.destLocationId);
+      if (l) setDestName(l.name);
+    }
+  }, [form.supplierId, form.destLocationId, companies.data, locations.data, supplierName, destName]);
 
   const status = d?.status ?? 'draft';
   const isDraft = isNew || status === 'draft';
@@ -102,7 +121,6 @@ export function PurchaseOrderDetailPage() {
   if (!isNew && detail.loading) return <Page title="Ordine d'acquisto"><Loading /></Page>;
   if (!isNew && detail.error) return <Page title="Ordine d'acquisto"><ErrorBox message={detail.error} /></Page>;
 
-  const companyOpts = companies.data?.items ?? [];
   const locOpts = (locations.data?.items ?? []).filter((l) => l.holdsStock);
   const canReceive = canManage && !isNew && ['draft', 'sent', 'partial'].includes(status);
 
@@ -128,13 +146,11 @@ export function PurchaseOrderDetailPage() {
         <ObjectBox icon={ShoppingCart} title="Ordine">
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Fornitore <span className="req">*</span></span>
-              <select className="bi" value={form.supplierId} onChange={(e) => set('supplierId', e.target.value)} disabled={readOnly || !isNew}>
-                <option value="">—</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-              </select></div>
+              <PickerField value={supplierName} placeholder="Scegli un fornitore…" disabled={readOnly || !isNew}
+                onOpen={() => setSupplierPick(true)} /></div>
             <div className="bf c2"><span className="bl">Destinazione</span>
-              <select className="bi" value={form.destLocationId} onChange={(e) => set('destLocationId', e.target.value)} disabled={readOnly}>
-                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              <PickerField value={destName} placeholder="Scegli una destinazione…" disabled={readOnly}
+                onOpen={() => setDestPick(true)} onClear={() => { set('destLocationId', ''); setDestName(''); }} /></div>
             <div className="bf"><span className="bl">Data ordine</span>
               <input type="date" className="bi mono" value={form.orderDate} onChange={(e) => set('orderDate', e.target.value)} disabled={readOnly || !isNew} /></div>
             <div className="bf"><span className="bl">Data prevista</span>
@@ -170,6 +186,10 @@ export function PurchaseOrderDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
+      <CompanyPickerDialog open={supplierPick} role="supplier" onClose={() => setSupplierPick(false)}
+        onPick={(cs) => { const c = cs[0]; if (c) { set('supplierId', c.id); setSupplierName(c.displayName); } }} />
+      <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
+        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); } }} />
       {receiveOpen && d && (
         <ReceiveDrawer po={d} defaultLocationId={form.destLocationId || null} locations={locOpts}
           onClose={() => setReceiveOpen(false)} onDone={() => { setReceiveOpen(false); void detail.reload(); }} />

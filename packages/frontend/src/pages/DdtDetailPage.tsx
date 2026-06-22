@@ -11,6 +11,9 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { PickerField } from '../ui/PickerField';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -42,9 +45,15 @@ export function DdtDetailPage() {
 
   const [type, setType] = useState<DocType>('receipt');
   const [form, setForm] = useState<Record<string, string>>({ docDate: '', sourceLocationId: '', destLocationId: '', companyId: '', externalRef: '', note: '' });
+  const [sourceName, setSourceName] = useState('');
+  const [destName, setDestName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
+  const [sourcePick, setSourcePick] = useState(false);
+  const [destPick, setDestPick] = useState(false);
+  const [companyPick, setCompanyPick] = useState(false);
 
   const d = detail.data;
   useEffect(() => {
@@ -59,6 +68,14 @@ export function DdtDetailPage() {
       quantity: l.quantity, unit: l.unit, unitCost: l.unitCost, note: l.note,
     })));
   }, [d]);
+
+  // risolvi i nomi (origine / destinazione / fornitore) dalle liste già caricate
+  useEffect(() => {
+    const locs = locations.data?.items;
+    if (form.sourceLocationId && !sourceName) { const l = locs?.find((x) => x.id === form.sourceLocationId); if (l) setSourceName(l.name); }
+    if (form.destLocationId && !destName) { const l = locs?.find((x) => x.id === form.destLocationId); if (l) setDestName(l.name); }
+    if (form.companyId && !companyName) { const c = companies.data?.items.find((x) => x.id === form.companyId); if (c) setCompanyName(c.displayName); }
+  }, [form.sourceLocationId, form.destLocationId, form.companyId, locations.data, companies.data, sourceName, destName, companyName]);
 
   const status = d?.status ?? 'draft';
   const isDraft = isNew || status === 'draft';
@@ -112,8 +129,6 @@ export function DdtDetailPage() {
   if (!isNew && detail.loading) return <Page title="Documento di magazzino"><Loading /></Page>;
   if (!isNew && detail.error) return <Page title="Documento di magazzino"><ErrorBox message={detail.error} /></Page>;
 
-  const locOpts = (locations.data?.items ?? []).filter((l) => l.holdsStock);
-  const companyOpts = companies.data?.items ?? [];
   const canConfirm = canManage && !isNew && status === 'draft';
 
   return (
@@ -146,17 +161,14 @@ export function DdtDetailPage() {
             <div className="bf"><span className="bl">Data</span>
               <input type="date" className="bi mono" value={form.docDate} onChange={(e) => set('docDate', e.target.value)} disabled={readOnly} /></div>
             {needsSource && <div className="bf c2"><span className="bl">Origine</span>
-              <select className="bi" value={form.sourceLocationId} onChange={(e) => set('sourceLocationId', e.target.value)} disabled={readOnly}>
-                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>}
+              <PickerField value={sourceName} placeholder="Scegli l'origine…" disabled={readOnly}
+                onOpen={() => setSourcePick(true)} onClear={() => { set('sourceLocationId', ''); setSourceName(''); }} /></div>}
             {needsDest && <div className="bf c2"><span className="bl">Destinazione</span>
-              <select className="bi" value={form.destLocationId} onChange={(e) => set('destLocationId', e.target.value)} disabled={readOnly}>
-                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>}
+              <PickerField value={destName} placeholder="Scegli la destinazione…" disabled={readOnly}
+                onOpen={() => setDestPick(true)} onClear={() => { set('destLocationId', ''); setDestName(''); }} /></div>}
             {needsCompany && <div className="bf c2"><span className="bl">Fornitore</span>
-              <select className="bi" value={form.companyId} onChange={(e) => set('companyId', e.target.value)} disabled={readOnly}>
-                <option value="">—</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-              </select></div>}
+              <PickerField value={companyName} placeholder="Scegli il fornitore…" disabled={readOnly}
+                onOpen={() => setCompanyPick(true)} onClear={() => { set('companyId', ''); setCompanyName(''); }} /></div>}
             <div className="bf"><span className="bl">Rif. esterno</span>
               <input className="bi mono" value={form.externalRef} onChange={(e) => set('externalRef', e.target.value)} disabled={readOnly} placeholder="es. DDT fornitore" /></div>
             <div className="bf c4"><span className="bl">Note</span>
@@ -187,6 +199,12 @@ export function DdtDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
+      <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
+        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); } }} />
+      <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
+        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); } }} />
+      <CompanyPickerDialog open={companyPick} role="supplier" onClose={() => setCompanyPick(false)}
+        onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); setCompanyName(c.displayName); } }} />
     </Page>
   );
 }

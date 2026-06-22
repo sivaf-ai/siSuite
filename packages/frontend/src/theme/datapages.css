@@ -136,10 +136,14 @@
 .dsx .subt { width: 100%; border-collapse: collapse; margin-top: 2px; }
 .dsx .subt th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink-faint); padding: 7px 12px; border-bottom: 1px solid var(--line-2); }
 .dsx .subt th.num { text-align: right; }
-.dsx .subt td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
+.dsx .subt td { padding: 4px 12px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
 .dsx .subt td.num { text-align: right; font-family: var(--font-mono); }
 .dsx .subt tr:last-child td { border-bottom: 0; }
-.dsx .addline { display: flex; align-items: center; gap: 7px; padding: 10px 12px; color: var(--brand-ink); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+/* righe documento compatte: input/select dentro le sotto-tabelle bassi, così entrano più righe */
+.dsx .subt td .bi,
+.dsx .subt td input,
+.dsx .subt td select { min-height: 28px; padding-top: 3px; padding-bottom: 3px; }
+.dsx .addline { display: flex; align-items: center; gap: 7px; padding: 8px 12px; color: var(--brand-ink); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .dsx .addline svg { width: 15px; height: 15px; }
 .dsx .serialtag { font-family: var(--font-mono); font-size: 11.5px; background: var(--neutral-wash); padding: 2px 7px; border-radius: 6px; color: var(--ink-2); }
 .dsx .reltabbar { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 2px; overflow-x: auto; }

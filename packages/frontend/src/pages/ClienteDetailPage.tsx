@@ -48,9 +48,18 @@ const CONTACT_FIELDS: RenderableField[] = [
   { key: 'isPrimary', label: 'Contatto principale', dataType: 'boolean' },
 ];
 
-export function ClienteDetailPage() {
+/** Modalità embedded: la stessa scheda CRUD richiamata in un Modal (es. "+ Nuovo"
+ *  o modifica fornitore dal popup di selezione di un documento) senza navigare via. */
+export interface CompanyEmbed {
+  id: string;                                    // 'new' o uuid
+  onClose: () => void;
+  onSaved?: (c: CompanyDto, wasNew: boolean) => void;
+}
+
+export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
   const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
+  const routeParams = useParams<{ id: string }>();
+  const id = embed ? embed.id : routeParams.id;
   const isNew = id === 'new';
   const { user } = useAuth();
   const toast = useToast();
@@ -107,9 +116,11 @@ export function ClienteDetailPage() {
     try {
       if (isNew) {
         const c = await apiFetch<CompanyDto>('/companies', { method: 'POST', body: JSON.stringify(body) });
-        toast('Soggetto creato'); history.replace(`/companies/${c.id}`);
+        toast('Soggetto creato');
+        if (embed) { embed.onSaved?.(c, true); embed.onClose(); } else history.replace(`/companies/${c.id}`);
       } else {
-        await mutate('PATCH', `/companies/${id}`, body); toast('Modifiche salvate'); void detail.reload();
+        const u = await mutate<CompanyDto>('PATCH', `/companies/${id}`, body); toast('Modifiche salvate');
+        if (embed) { embed.onSaved?.(u, false); embed.onClose(); } else void detail.reload();
       }
     } catch (e) {
       toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error');
@@ -130,8 +141,9 @@ export function ClienteDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title={t('terms.party')}><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title={t('terms.party')}><ErrorBox message={detail.error} /></Page>;
+  const goBack = embed ? embed.onClose : () => history.push('/companies');
+  if (!isNew && detail.loading) return embed ? <div className="dsx-empty">Carico…</div> : <Page title={t('terms.party')}><Loading /></Page>;
+  if (!isNew && detail.error) return embed ? <ErrorBox message={detail.error} /> : <Page title={t('terms.party')}><ErrorBox message={detail.error} /></Page>;
 
   const defs = fieldDefs.data?.items ?? [];
   // FISCALI = def con country valorizzato (filtrate per il country selezionato);
@@ -184,14 +196,14 @@ export function ClienteDetailPage() {
 
   const title = isNew ? `${t('terms.party')} — nuovo` : (form.displayName || t('terms.party'));
 
-  return (
-    <Page title={title} bleed>
+  const body = (
+    <>
       <ObjectPage
-        backLabel={t('terms.party_plural')} onBack={() => history.push('/companies')}
+        backLabel={t('terms.party_plural')} onBack={goBack}
         title={title} code={!isNew && d ? d.id.slice(0, 8).toUpperCase() : undefined}
         status={!isNew ? <span style={{ display: 'flex', gap: 4 }}>{form.roles.map((r) => <StatusPill key={r} label={ROLE_LABEL[r] ?? r} token="brand" />)}</span> : undefined}
         onSave={(isNew ? can('company:create') : can('company:update')) ? save : undefined}
-        onCancel={() => history.push('/companies')} saving={busy}
+        onCancel={goBack} saving={busy}
       >
         <ObjectBox icon={Building2} title="Anagrafica">
           <div className="bgrid">
@@ -275,8 +287,10 @@ export function ClienteDetailPage() {
       <ConfirmDialog open={delCompany} danger title="Archiviare il soggetto?"
         message="Il soggetto verrà archiviato. Le voci legate a storia fatturabile restano protette."
         confirmLabel="Archivia" busy={busy} onConfirm={doDeleteCompany} onCancel={() => setDelCompany(false)} />
-    </Page>
+    </>
   );
+
+  return embed ? body : <Page title={title} bleed>{body}</Page>;
 }
 
 function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, toastError, toastOk }: {

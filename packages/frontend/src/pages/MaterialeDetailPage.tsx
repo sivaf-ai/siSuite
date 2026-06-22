@@ -4,7 +4,7 @@
  * status=installed) con sblocco password gated da serial:secret_read.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router';
+import { useHistory, useParams, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Package, Settings2, ScanLine, Layers, ArrowLeftRight, FileText, Eye, Lock, Image as ImageIcon, Star, Trash2, Upload } from 'lucide-react';
 import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto, MaterialImageDto } from '@sisuite/shared';
@@ -72,13 +72,31 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const [tab, setTab] = useState('images');
   const [busy, setBusy] = useState(false);
 
+  // Duplica (standard): in creazione la scheda parte PRECOMPILATA da location.state.prefill.
+  const location = useLocation();
+  const prefill = (!embed && isNew) ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   const d = detail.data;
   useEffect(() => {
-    if (!d) { if (isNew) setForm({ trackStock: true, costingMethod: 'avg' }); return; }
+    if (!d) {
+      if (isNew) {
+        const pf = prefill;
+        setForm({
+          trackStock: true, costingMethod: 'avg',
+          ...(pf ? {
+            name: (pf.name as string) ?? '', unit: (pf.unit as string) ?? '', sku: (pf.sku as string) ?? '',
+            trackStock: (pf.trackStock as boolean) ?? true, trackedBySerial: (pf.trackedBySerial as boolean) ?? false,
+            trackedByLot: (pf.trackedByLot as boolean) ?? false, costingMethod: (pf.costingMethod as string) ?? 'avg',
+          } : {}),
+        });
+        if (pf?.attributes) setAttrs(pf.attributes as Record<string, unknown>);
+      }
+      return;
+    }
     setForm({ name: d.name, unit: d.unit, sku: d.sku ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
       trackedByLot: d.trackedByLot, costingMethod: d.costingMethod });
     setAttrs(d.attributes ?? {});
-  }, [d, isNew]);
+  }, [d, isNew, prefill]);
 
   const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const canSecret = can('serial:secret_read');

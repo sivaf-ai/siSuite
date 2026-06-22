@@ -11,6 +11,8 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { PickerField } from '../ui/PickerField';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -43,9 +45,11 @@ export function PickListDetailPage() {
   const workOrders = useApi<ListResp<WorkOrderDto>>('/work-orders?limit=200');
 
   const [form, setForm] = useState<Record<string, string>>({ sourceLocationId: '', assignedResourceId: '', engagementId: '', workOrderId: '', note: '' });
+  const [sourceName, setSourceName] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
+  const [sourcePick, setSourcePick] = useState(false);
 
   const d = detail.data;
   useEffect(() => {
@@ -59,6 +63,14 @@ export function PickListDetailPage() {
       qtyRequested: l.qtyRequested, qtyPicked: l.qtyPicked, unit: l.unit,
     })));
   }, [d]);
+
+  // risolvi il nome dell'origine dalla lista già caricata
+  useEffect(() => {
+    if (form.sourceLocationId && !sourceName) {
+      const l = locations.data?.items.find((x) => x.id === form.sourceLocationId);
+      if (l) setSourceName(l.name);
+    }
+  }, [form.sourceLocationId, locations.data, sourceName]);
 
   const status = d?.status ?? 'draft';
   const editable = isNew || status === 'draft' || status === 'assigned';
@@ -109,7 +121,6 @@ export function PickListDetailPage() {
   if (!isNew && detail.loading) return <Page title="Pick list"><Loading /></Page>;
   if (!isNew && detail.error) return <Page title="Pick list"><ErrorBox message={detail.error} /></Page>;
 
-  const locOpts = (locations.data?.items ?? []).filter((l) => l.holdsStock);
   const resOpts = resources.data?.items ?? [];
   const engOpts = engagements.data?.items ?? [];
   const woOpts = workOrders.data?.items ?? [];
@@ -137,9 +148,8 @@ export function PickListDetailPage() {
         <ObjectBox icon={ListChecks} title="Prelievo">
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Origine <span className="req">*</span></span>
-              <select className="bi" value={form.sourceLocationId} onChange={(e) => set('sourceLocationId', e.target.value)} disabled={readOnly || !isNew}>
-                <option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              <PickerField value={sourceName} placeholder="Scegli l'origine…" disabled={readOnly || !isNew}
+                onOpen={() => setSourcePick(true)} /></div>
             <div className="bf c2"><span className="bl">Assegnata a</span>
               <select className="bi" value={form.assignedResourceId} onChange={(e) => set('assignedResourceId', e.target.value)} disabled={readOnly}>
                 <option value="">—</option>{resOpts.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -179,6 +189,8 @@ export function PickListDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
+      <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
+        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); } }} />
     </Page>
   );
 }

@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useHistory, useParams } from 'react-router';
+import { useHistory, useParams, useLocation } from 'react-router';
 import {
   Cable, ShieldCheck, MapPin, Boxes, Mic, ShieldAlert, Sparkles,
   ScanLine, PackageMinus, Image as ImageIcon, History, Plus, Trash2,
@@ -52,6 +52,21 @@ export function OrdinativoDetailPage() {
   const [items, setItems] = useState<{ materialId: string; plannedQty: number; unit?: string | null }[]>([]);
   const [tab, setTab] = useState('serials');
   const [busy, setBusy] = useState(false);
+
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill.
+  const location = useLocation();
+  useEffect(() => {
+    if (!isNew) return;
+    const pf = (location.state as { prefill?: Record<string, unknown> } | null)?.prefill;
+    if (!pf) return;
+    setForm({
+      principalCompanyId: (pf.principalCompanyId as string) ?? '', principalOrderRef: '',
+      typeId: (pf.typeId as string) ?? '', statusId: (pf.statusId as string) ?? '',
+      assignedResourceId: (pf.assignedResourceId as string) ?? '', engagementId: (pf.engagementId as string) ?? '',
+      address: (pf.address as string) ?? '', scheduledOn: '',
+    });
+    if (pf.attributes) setAttrs(pf.attributes as Record<string, unknown>);
+  }, [isNew, location.state]);
 
   const d = detail.data;
   useEffect(() => {

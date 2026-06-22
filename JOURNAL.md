@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-22 (2) — Standard UI: selezione entità in popup esteso, Duplica, Elimina-nome, righe compatte (chat 01.06)
+- Solo frontend. Nessuna migrazione/backend/shared.
+- Selezione entità (popup centrato, riuso lista vera): esteso da Materiali a **Fornitori** (CompanyPickerDialog) e **Magazzini** (LocationPickerDialog) + `ui/PickerField`. Usati nelle testate PO/Pick/DDT al posto dei select. ClientiPage/ClienteDetailPage e MagazzinoPage(lista)/MagazzinoDetailPage resi pick+embeddabili.
+- **Duplica STANDARD** (in collaudo): non crea subito; `useEntityActions` naviga a `${basePath}/new` (o `newPath`) con `state.prefill`; la scheda legge `location.state.prefill` in creazione e precompila SENZA chiavi. Wired: Materiali, Ordini di lavoro, Utenti.
+- **Elimina**: ConfirmDialog mostra il nome (EntityList prop `rowLabel`/prima colonna `value`).
+- **Righe documento compatte**: `.subt` padding ridotto + input bassi (28px).
+- Memoria standard: `feedback_entity_selection_popup.md`. Typecheck FE verde.
+
 ## 2026-06-22 — Selezione entità: riuso lista vera in popup centrato (chat 01.06)
 - Nessuna migrazione/backend/shared. Solo frontend. Pattern STANDARD riusabile.
 - `ui/Modal.tsx` (nuovo, modale centrato). `EntityList`: in pick mode radio=seleziona, click-riga=apre CRUD (onRowClick) + radio cell stopPropagation. `MaterialeDetailPage`: modalità `embed` (CRUD in modale, no route). `MaterialiPage`: modalità `pickProps` (riusa la lista vera in selezione; "+ Nuovo"/riga aprono la CRUD modale). `MaterialPickerDialog`: riscritto = Modal centrato che ospita MaterialiPage in pick (sostituisce la vecchia lista ad-hoc). PO/Pick/DDT invariati (stessa API picker).

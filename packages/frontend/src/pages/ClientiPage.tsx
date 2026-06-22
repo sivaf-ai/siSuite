@@ -14,6 +14,20 @@ import { DedupDialog } from '../ui/DedupDialog';
 import { Sparkles, Plus } from '../ui/icons';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { Modal } from '../ui/Modal';
+import { ClienteDetailPage } from './ClienteDetailPage';
+
+/** Props di SELEZIONE: la stessa lista soggetti richiamata in pop-up da un documento.
+ *  Radio (single)/checkbox (multi); "+ Nuovo" e click-riga aprono la CRUD in modale
+ *  annidato (non si lascia il documento). */
+export interface CompanyPickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (c: CompanyDto) => void;
+  onCreated?: (c: CompanyDto) => void;
+  /** vista iniziale (es. 'supplier'); la lista mostra comunque tutte le aziende. */
+  role?: string;
+}
 
 const ROLE_LABEL: Record<string, string> = { customer: 'Cliente', supplier: 'Fornitore', partner: 'Partner', operator: 'Gestore' };
 const attr = (r: CompanyDto, k: string) => (r.attributes as Record<string, unknown>)[k] as string | undefined;
@@ -26,11 +40,13 @@ interface ListResp {
   views: Record<ViewKey, number>;
 }
 
-export function ClientiPage() {
+export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const can = (a: string) => !!user?.permissions.includes(`company:${a}` as never);
+  const pick = pickProps?.pick;
+  const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD soggetto in modale (pick mode)
 
   const viewLabel = (k: ViewKey): string => {
     switch (k) {
@@ -42,9 +58,9 @@ export function ClientiPage() {
     }
   };
 
-  // la vista iniziale arriva dal menu (?role=customer/supplier/operator/partner)
+  // la vista iniziale arriva dal menu (?role=…) o, in pick, da pickProps.role
   const search = useLocation().search;
-  const roleParam = new URLSearchParams(search).get('role');
+  const roleParam = pick ? (pickProps?.role ?? null) : new URLSearchParams(search).get('role');
   const initialView: ViewKey = (roleParam && (['customer', 'supplier', 'operator', 'partner'] as string[]).includes(roleParam)) ? roleParam as ViewKey : 'all';
   const [view, setView] = useState<ViewKey>(initialView);
   const [q, setQ] = useState('');
@@ -103,21 +119,27 @@ export function ClientiPage() {
   const leftActions: ListAction[] = [
     ...(can('delete') ? [{ key: 'dedup', icon: Sparkles, tip: 'Trova doppioni', variant: 'ai' as const, onClick: () => setDedupOpen(true) }] : []),
   ];
+  // "+ Nuovo": in pick apre la CRUD in modale (resti nel documento); altrimenti naviga.
   const rightActions: ListAction[] = [
-    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo soggetto', variant: 'primary' as const, onClick: () => history.push('/companies/new') }] : []),
+    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo soggetto', variant: 'primary' as const,
+      onClick: () => (pick ? setCrud({ id: 'new' }) : history.push('/companies/new')) }] : []),
   ];
+  // click riga: in pick apre la CRUD per modificare (poi si seleziona col radio); altrimenti naviga.
+  const onRowClick = (r: CompanyDto) => (pick ? setCrud({ id: r.id }) : history.push(`/companies/${r.id}`));
 
-  return (
-    <Page>
+  const list = (
       <EntityList<CompanyDto>
-        title={t('terms.party_plural')} subtitle="Anagrafica unica: clienti, fornitori, gestori, partner"
+        title={pick ? undefined : t('terms.party_plural')} subtitle={pick ? undefined : 'Anagrafica unica: clienti, fornitori, gestori, partner'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, P.IVA, città…"
-        leftActions={leftActions} rightActions={rightActions}
+        leftActions={pick ? [] : leftActions} rightActions={rightActions}
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
-        onRowClick={(r) => history.push(`/companies/${r.id}`)}
-        onDelete={can('delete') ? onDelete : undefined}
-        onDuplicate={can('create') ? onDuplicate : undefined}
+        onRowClick={onRowClick}
+        onDelete={!pick && can('delete') ? onDelete : undefined}
+        onDuplicate={!pick && can('create') ? onDuplicate : undefined}
         exportName="soggetti" exportFields={exportFields} entity="company" savedViewKey="company"
         sortFields={[{ key: 'displayName', label: 'Nome' }, { key: 'type', label: 'Tipo' }, { key: 'createdAt', label: 'Creato' }]}
         filterFields={[
@@ -140,6 +162,24 @@ export function ClientiPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun soggetto in questa vista."
       />
+  );
+
+  // CRUD soggetto in modale centrato (solo in pick: "+ Nuovo" o modifica riga)
+  const crudModal = crud && (
+    <Modal open size="xl" title={crud.id === 'new' ? 'Nuovo soggetto' : 'Modifica soggetto'} onClose={() => setCrud(null)}>
+      <ClienteDetailPage embed={{
+        id: crud.id,
+        onClose: () => setCrud(null),
+        onSaved: (c, wasNew) => { void reload(); if (wasNew) pickProps?.onCreated?.(c); },
+      }} />
+    </Modal>
+  );
+
+  if (pick) return <>{list}{crudModal}</>;
+  return (
+    <Page>
+      {list}
+      {crudModal}
       <DedupDialog open={dedupOpen} onClose={() => setDedupOpen(false)} onMerged={() => void reload()} />
     </Page>
   );
