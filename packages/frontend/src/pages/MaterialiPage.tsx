@@ -15,6 +15,19 @@ import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
 import { Package } from 'lucide-react';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { Modal } from '../ui/Modal';
+import { MaterialeDetailPage } from './MaterialeDetailPage';
+
+/** Props di SELEZIONE: la stessa lista, richiamata in pop-up da un'altra maschera
+ *  (es. righe DDT). Radio invece di checkbox; "+ Nuovo" e click-riga aprono la CRUD
+ *  in un modale annidato (non si lascia il documento). */
+export interface MaterialiPickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (m: MaterialDto) => void;
+  /** chiamato dopo aver creato un nuovo articolo con "+ Nuovo" (il chiamante decide se finalizzare/aggiungere). */
+  onCreated?: (m: MaterialDto) => void;
+}
 
 interface ListResp {
   items: MaterialDto[]; total: number; limit: number; offset: number;
@@ -52,17 +65,19 @@ function statusOf(m: MaterialDto): { label: string; token: string } {
   return { label: 'Esaurito', token: 'neutral' };
 }
 
-export function MaterialiPage() {
+export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } = {}) {
   const { user } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`material:${a}` as never);
+  const pick = pickProps?.pick;
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
+  const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD articolo in modale (pick mode)
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
@@ -113,21 +128,27 @@ export function MaterialiPage() {
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
     { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
   ];
+  // "+ Nuovo": in pick apre la CRUD in modale (resti nel documento); altrimenti naviga.
   const rightActions: ListAction[] = [
-    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo articolo', variant: 'primary' as const, onClick: () => history.push('/materials/new') }] : []),
+    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo articolo', variant: 'primary' as const,
+      onClick: () => (pick ? setCrud({ id: 'new' }) : history.push('/materials/new')) }] : []),
   ];
+  // click riga: in pick apre la CRUD per modificare (poi si seleziona col radio); altrimenti naviga.
+  const onRowClick = (m: MaterialDto) => (pick ? setCrud({ id: m.id }) : history.push(`/materials/${m.id}`));
 
-  return (
-    <Page>
+  const list = (
       <EntityList<MaterialDto>
-        title={t('terms.material_plural')} subtitle="Catalogo magazzino & servizi"
+        title={pick ? undefined : t('terms.material_plural')} subtitle={pick ? undefined : 'Catalogo magazzino & servizi'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, SKU, categoria…"
-        leftActions={leftActions} rightActions={rightActions}
+        leftActions={pick ? [] : leftActions} rightActions={rightActions}
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
-        onRowClick={(m) => history.push(`/materials/${m.id}`)}
-        onDelete={can('delete') ? onDelete : undefined}
-        onDuplicate={can('create') ? onDuplicate : undefined}
+        onRowClick={onRowClick}
+        onDelete={!pick && can('delete') ? onDelete : undefined}
+        onDuplicate={!pick && can('create') ? onDuplicate : undefined}
         exportName="articoli" exportFields={exportFields} entity="material"
         sortFields={[{ key: 'name', label: 'Articolo' }, { key: 'sku', label: 'SKU' }, { key: 'qty', label: 'Giacenza' }, { key: 'cost', label: 'Costo medio' }]}
         filterFields={[
@@ -145,6 +166,19 @@ export function MaterialiPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun articolo in questa vista."
       />
-    </Page>
   );
+
+  // CRUD articolo in modale centrato (solo in pick: "+ Nuovo" o modifica riga)
+  const crudModal = crud && (
+    <Modal open size="xl" title={crud.id === 'new' ? 'Nuovo articolo' : 'Modifica articolo'} onClose={() => setCrud(null)}>
+      <MaterialeDetailPage embed={{
+        id: crud.id,
+        onClose: () => setCrud(null),
+        onSaved: (m, wasNew) => { void reload(); if (wasNew) pickProps?.onCreated?.(m); },
+      }} />
+    </Modal>
+  );
+
+  if (pick) return <>{list}{crudModal}</>;
+  return <Page>{list}{crudModal}</Page>;
 }

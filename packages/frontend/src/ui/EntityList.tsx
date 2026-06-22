@@ -444,8 +444,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                 const isSel = pick ? pickSelected.has(row.id) : sel.has(row.id);
                 return (
                   <tr key={row.id} className={isSel ? 'sel' : undefined}
-                    onClick={() => (pick ? p.onToggleSelect?.(row) : p.onRowClick?.(row))}>
-                    {pick && <td style={{ width: 40 }}><input type={mode === 'pick-multi' ? 'checkbox' : 'radio'} checked={isSel} readOnly /></td>}
+                    onClick={() => (pick ? (p.onRowClick ? p.onRowClick(row) : p.onToggleSelect?.(row)) : p.onRowClick?.(row))}>
+                    {pick && <td style={{ width: 40 }} onClick={(e) => { e.stopPropagation(); p.onToggleSelect?.(row); }}>
+                      <input type={mode === 'pick-multi' ? 'checkbox' : 'radio'} checked={isSel} readOnly /></td>}
                     {selectable && <td className="chk" onClick={(e) => { e.stopPropagation(); toggleRow(row); }}><input type="checkbox" checked={isSel} readOnly aria-label="Seleziona riga" /></td>}
                     {effColumns.map((c) => <td key={c.key} className={c.num ? 'num' : undefined}>{c.render(row)}</td>)}
                   </tr>

@@ -23,6 +23,16 @@ Master-detail nella stessa pagina (come Ordini di Lavoro), NON RelatedTabs later
 - Typecheck **shared + backend + frontend puliti**; **79/79 test backend verdi**.
 - Smoke DDT: create (CAR-2026-0002) → GET:id (righe+nomi) → PATCH bozza (note+qtà) → confirm. PO receive / Pick confirm già verificati nella sessione precedente.
 
+## AGGIORNAMENTO — selezione articoli = LA STESSA lista Materiali in popup centrato
+Su richiesta: il picker NON usa più una lista ad-hoc, ma **riusa `MaterialiPage`** (la lista di Anagrafiche → Materiali) in **modalità selezione**, dentro un **Modal centrato** (non laterale). Meccanismo standard riutilizzabile:
+- `ui/Modal.tsx` (nuovo): finestra modale centrata (overlay + card).
+- `EntityList`: in pick mode il **radio/checkbox seleziona**, il **click sulla riga apre la CRUD** (via onRowClick).
+- `MaterialeDetailPage`: nuova **modalità embedded** (`embed={{id,onClose,onSaved}}`) → la stessa scheda CRUD si apre in un modale annidato, senza lasciare il documento. `id='new'` per creare.
+- `MaterialiPage`: nuova **modalità pick** (`pickProps`): radio invece dei checkbox di gestione; "+ Nuovo" e click-riga aprono la CRUD in modale; selezione controllata dal chiamante.
+- `MaterialPickerDialog`: riscritto come Modal centrato che ospita `MaterialiPage` in pick (single per "+ Aggiungi" puntuale, multi per selezione multipla). Crei un articolo al volo → viene selezionato; lo modifichi dalla riga → poi lo selezioni col radio.
+
+Risultato: dal DDT (e da PO/Pick) premi "+ Aggiungi articolo" → si apre **la lista articoli vera** al centro; se l'articolo non c'è premi "+ Nuovo", lo crei e viene aggiunto, senza uscire dal documento. Questo è ora il **modo standard** per scegliere entità da altre maschere (riusabile per Fornitori, Magazzini, ecc.).
+
 ## Note
 - Permessi: lettura `stock:read`, salvataggio/azioni `stock:manage`.
 - `DocumentiPage` (vecchio drawer in MagazzinoPage) non più referenziato (sostituito dalla scheda DDT master-detail).

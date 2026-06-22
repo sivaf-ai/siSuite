@@ -45,8 +45,17 @@ function SecretCell({ serialId, hasSecret, canReveal }: { serialId: string; hasS
   );
 }
 
-export function MaterialeDetailPage() {
-  const { id } = useParams<{ id: string }>();
+/** Modalità embedded: la stessa scheda CRUD richiamata in un Modal (es. "+ Nuovo"
+ *  o modifica articolo dal popup di selezione del DDT) senza navigare via dalla pagina. */
+export interface MaterialeEmbed {
+  id: string;                                   // 'new' o uuid
+  onClose: () => void;
+  onSaved?: (m: MaterialDto, wasNew: boolean) => void;
+}
+
+export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) {
+  const routeParams = useParams<{ id: string }>();
+  const id = embed ? embed.id : routeParams.id;
   const isNew = id === 'new';
   const history = useHistory();
   const toast = useToast();
@@ -88,14 +97,21 @@ export function MaterialeDetailPage() {
       attributes: attrs,
     };
     try {
-      if (isNew) { const c = await apiFetch<MaterialDto>('/materials', { method: 'POST', body: JSON.stringify(body) }); toast('Articolo creato'); history.push(`/materials/${c.id}`); }
-      else { await mutate('PATCH', `/materials/${id}`, body); toast('Modifiche salvate'); void detail.reload(); }
+      if (isNew) {
+        const c = await apiFetch<MaterialDto>('/materials', { method: 'POST', body: JSON.stringify(body) });
+        toast('Articolo creato');
+        if (embed) { embed.onSaved?.(c, true); embed.onClose(); } else history.push(`/materials/${c.id}`);
+      } else {
+        const u = await mutate<MaterialDto>('PATCH', `/materials/${id}`, body); toast('Modifiche salvate');
+        if (embed) { embed.onSaved?.(u, false); embed.onClose(); } else void detail.reload();
+      }
     } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error'); }
     finally { setBusy(false); }
   }
 
-  if (!isNew && detail.loading) return <Page title={t('terms.material')}><Loading /></Page>;
-  if (!isNew && detail.error) return <Page title={t('terms.material')}><ErrorBox message={detail.error} /></Page>;
+  const goBack = embed ? embed.onClose : () => history.push('/materials');
+  if (!isNew && detail.loading) return embed ? <div className="dsx-empty">Carico…</div> : <Page title={t('terms.material')}><Loading /></Page>;
+  if (!isNew && detail.error) return embed ? <ErrorBox message={detail.error} /> : <Page title={t('terms.material')}><ErrorBox message={detail.error} /></Page>;
 
   const itemType = (attrs.item_type as string) ?? 'article';
   const trackTag = itemType === 'service' ? { label: 'Servizio', token: 'neutral' } : form.trackedBySerial ? { label: 'A seriale', token: 'brand' } : { label: 'A magazzino', token: 'neutral' };
@@ -129,14 +145,13 @@ export function MaterialeDetailPage() {
     ] : []),
   ];
 
-  return (
-    <Page title={isNew ? `Nuovo ${t('terms.material')}` : t('terms.material')} bleed>
+  const objectPage = (
       <ObjectPage
-        backLabel={t('terms.material_plural')} onBack={() => history.push('/materials')}
+        backLabel={t('terms.material_plural')} onBack={goBack}
         title={form.name as string || `Nuovo ${t('terms.material')}`} code={!isNew ? (d?.sku ?? undefined) : undefined}
         status={!isNew ? <StatusPill label={trackTag.label} token={trackTag.token} /> : undefined}
         onSave={(isNew ? can('material:create') : can('material:update')) ? save : undefined}
-        onCancel={() => history.push('/materials')} saving={busy}
+        onCancel={goBack} saving={busy}
       >
         <ObjectBox icon={Package} title="Anagrafica articolo">
           <div className="bgrid">
@@ -177,7 +192,10 @@ export function MaterialeDetailPage() {
 
         {!isNew && d && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
       </ObjectPage>
-    </Page>
+  );
+
+  return embed ? objectPage : (
+    <Page title={isNew ? `Nuovo ${t('terms.material')}` : t('terms.material')} bleed>{objectPage}</Page>
   );
 }
 

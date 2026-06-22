@@ -1,68 +1,53 @@
 /**
- * MaterialPickerDialog — la STESSA lista Materiali in modalità SELEZIONE (popup),
- * riusata ovunque serva scegliere un articolo (righe di DDT, ordini d'acquisto,
- * pick list…). Standard: "una lista, ovunque" — qui EntityList in mode pick.
- *  - single (default): click su una riga → seleziona e chiude.
- *  - multi: spunta più righe → "Aggiungi selezionati".
- * Ritorna i MaterialDto completi (così il chiamante ha unità, nome, prezzi…).
+ * MaterialPickerDialog — pop-up CENTRATO che riusa LA STESSA lista Materiali
+ * (MaterialiPage, quella di Anagrafiche → Materiali) in modalità SELEZIONE.
+ * Standard del gestionale: la lista + la sua maschera CRUD si richiamano in
+ * popup da qualunque documento (es. righe DDT). Dalla lista puoi:
+ *   - selezionare un articolo (radio in single, checkbox in multi);
+ *   - "+ Nuovo": creare un articolo al volo (CRUD in modale) senza uscire dal documento;
+ *   - cliccare una riga: aprire la scheda articolo, modificarla, poi selezionarla.
+ * Ritorna i MaterialDto completi.
  */
 import { useState } from 'react';
 import type { MaterialDto } from '@sisuite/shared';
-import { EntityList, type ListColumn } from './EntityList';
-import { Drawer } from './Drawer';
-import { useApi } from '../api/hooks';
-
-interface ListResp { items: MaterialDto[]; total: number; limit: number; offset: number }
-
-const cols: ListColumn<MaterialDto>[] = [
-  { key: 'name', header: 'Articolo', sub: 'codice', value: (m) => m.name, render: (m) => (
-    <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.code ?? '—'}</span></div>) },
-  { key: 'sku', header: 'SKU / Barcode', value: (m) => m.sku ?? '', render: (m) => (
-    <div className="two"><span className="a mono">{m.sku ?? '—'}</span><span className="b mono">{m.barcode ?? '—'}</span></div>) },
-  { key: 'unit', header: 'Unità', value: (m) => m.unit, render: (m) => <span className="mono">{m.unit}</span> },
-  { key: 'qty', header: 'Giacenza', num: true, value: (m) => m.qtyOnHand, render: (m) => (
-    <span className="mono">{m.qtyOnHand.toLocaleString('it-IT')}</span>) },
-];
+import { Modal } from './Modal';
+import { MaterialiPage } from '../pages/MaterialiPage';
 
 export function MaterialPickerDialog({ open, multi = false, onClose, onPick }: {
   open: boolean; multi?: boolean; onClose: () => void; onPick: (mats: MaterialDto[]) => void;
 }) {
-  const [q, setQ] = useState('');
-  const [offset, setOffset] = useState(0);
   const [sel, setSel] = useState<Record<string, MaterialDto>>({});
-  const limit = 10;
+  if (!open) return null;
 
-  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (q.trim()) params.set('q', q.trim());
-  const { data, loading, error } = useApi<ListResp>(open ? `/materials?${params.toString()}` : null);
-  const rows = data?.items ?? [];
+  const close = () => { setSel({}); onClose(); };
+  const finalize = (mats: MaterialDto[]) => { onPick(mats); setSel({}); onClose(); };
 
   function toggle(m: MaterialDto) {
-    if (!multi) { onPick([m]); reset(); onClose(); return; }
+    if (!multi) { finalize([m]); return; }                       // single: seleziona e chiudi
     setSel((s) => { const n = { ...s }; if (n[m.id]) delete n[m.id]; else n[m.id] = m; return n; });
   }
-  function reset() { setSel({}); setQ(''); setOffset(0); }
-  function confirm() { onPick(Object.values(sel)); reset(); onClose(); }
+  function onCreated(m: MaterialDto) {
+    if (!multi) { finalize([m]); return; }                       // creato al volo → selezionato
+    setSel((s) => ({ ...s, [m.id]: m }));
+  }
 
   return (
-    <Drawer open={open} title="Seleziona articolo" onClose={() => { reset(); onClose(); }}
+    <Modal open size="xl" title="Seleziona articolo" onClose={close}
       footer={multi ? (
         <>
-          <button className="btn btn-ghost" onClick={() => { reset(); onClose(); }}>Annulla</button>
-          <button className="btn btn-primary" onClick={confirm} disabled={!Object.keys(sel).length}>
+          <button className="btn btn-ghost" onClick={close}>Annulla</button>
+          <button className="btn btn-primary" disabled={!Object.keys(sel).length}
+            onClick={() => finalize(Object.values(sel))}>
             Aggiungi {Object.keys(sel).length || ''} selezionati
           </button>
         </>
-      ) : <button className="btn btn-ghost" onClick={() => { reset(); onClose(); }}>Annulla</button>}>
-      <EntityList<MaterialDto>
-        mode={multi ? 'pick-multi' : 'pick-single'}
-        selectedIds={Object.keys(sel)}
-        onToggleSelect={toggle}
-        search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, codice, SKU, barcode…"
-        columns={cols} rows={rows} loading={loading} error={error}
-        total={data?.total} limit={limit} offset={offset} onPage={setOffset}
-        emptyText="Nessun articolo." exportName="materiali"
-      />
-    </Drawer>
+      ) : <button className="btn btn-ghost" onClick={close}>Annulla</button>}>
+      <MaterialiPage pickProps={{
+        pick: multi ? 'multi' : 'single',
+        selectedIds: Object.keys(sel),
+        onToggleSelect: toggle,
+        onCreated,
+      }} />
+    </Modal>
   );
 }

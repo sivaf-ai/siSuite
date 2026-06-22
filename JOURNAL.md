@@ -2,6 +2,11 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-22 — Selezione entità: riuso lista vera in popup centrato (chat 01.06)
+- Nessuna migrazione/backend/shared. Solo frontend. Pattern STANDARD riusabile.
+- `ui/Modal.tsx` (nuovo, modale centrato). `EntityList`: in pick mode radio=seleziona, click-riga=apre CRUD (onRowClick) + radio cell stopPropagation. `MaterialeDetailPage`: modalità `embed` (CRUD in modale, no route). `MaterialiPage`: modalità `pickProps` (riusa la lista vera in selezione; "+ Nuovo"/riga aprono la CRUD modale). `MaterialPickerDialog`: riscritto = Modal centrato che ospita MaterialiPage in pick (sostituisce la vecchia lista ad-hoc). PO/Pick/DDT invariati (stessa API picker).
+- Typecheck FE verde.
+
 ## 2026-06-21 (3) — Documenti master-detail PO/Pick/DDT (chat 01.06)
 - **Nessuna migrazione** (prossima libera resta 050). Solo backend(code)+frontend+shared(DTO).
 - Backend: `stock.ts` +GET `/stock/documents/:id` e PATCH (bozza). Shared: StockDocumentLineDto, StockDocumentDto esteso, updateStockDocumentSchema. (PO/Pick avevano già GET:id/PATCH/azioni.)
