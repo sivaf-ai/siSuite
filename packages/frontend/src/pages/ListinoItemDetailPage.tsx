@@ -4,7 +4,7 @@
  * rende esplicita la regola "più specifico": commessa › gestore › base.
  */
 import { useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router';
+import { useHistory, useParams, useLocation } from 'react-router';
 import { Tags, Sliders, History, Wrench, Plus, Trash2 } from 'lucide-react';
 import { marginPct, type PriceListItemDto, type PriceOverrideDto, type PriceListDto, type CompanyDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
@@ -44,12 +44,28 @@ export function ListinoItemDetailPage() {
   const [ovTarget, setOvTarget] = useState('');
   const [ovCost, setOvCost] = useState(''); const [ovRev, setOvRev] = useState('');
 
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza il codice, chiave).
+  const location = useLocation();
+  const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   const d = detail.data;
   useEffect(() => {
-    if (!d) return;
+    if (!d) {
+      if (isNew && prefill) {
+        setForm({
+          code: '',
+          description: (prefill.description as string) ?? '',
+          unit: (prefill.unit as string) ?? '',
+          category: (prefill.category as string) ?? '',
+          costPrice: prefill.costPrice != null ? String(prefill.costPrice) : '',
+          revenuePrice: prefill.revenuePrice != null ? String(prefill.revenuePrice) : '',
+        });
+      }
+      return;
+    }
     setForm({ code: d.code, description: d.description, unit: d.unit, category: d.category ?? '',
       costPrice: d.costPrice?.toString() ?? '', revenuePrice: d.revenuePrice?.toString() ?? '' });
-  }, [d]);
+  }, [d, isNew, prefill]);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const cost = form.costPrice === '' ? null : Number(form.costPrice);

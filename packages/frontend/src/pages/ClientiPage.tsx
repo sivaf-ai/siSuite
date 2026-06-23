@@ -79,7 +79,15 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
     basePath: '/companies', reload, noun: t('terms.party'),
-    duplicateBody: (r) => ({ displayName: `${r.displayName} (copia)`, type: r.type, roles: r.roles.map((role) => ({ role })), attributes: r.attributes }),
+    // niente taxId (può essere chiave/duplicato) né code (auto): si reinseriscono.
+    duplicateBody: (r) => ({
+      displayName: `${r.displayName} (copia)`, type: r.type, country: r.country,
+      email: r.email ?? null, phone: r.phone ?? null, website: r.website ?? null,
+      iban: r.iban ?? null, paymentTerms: r.paymentTerms ?? null,
+      legalAddress: r.legalAddress ?? null, operationalAddress: r.operationalAddress ?? null,
+      fiscalAttributes: r.fiscalAttributes ?? null, attributes: r.attributes,
+      roles: r.roles.map((role) => ({ role })),
+    }),
   });
 
   const views: ListView[] = VIEW_KEYS.map((k) => ({ key: k, label: viewLabel(k), count: data?.views?.[k] ?? 0 }));

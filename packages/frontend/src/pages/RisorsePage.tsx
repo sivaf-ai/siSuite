@@ -41,7 +41,11 @@ export function RisorsePage() {
 
   const { onDelete, onDuplicate } = useEntityActions<ResourceDto>({
     basePath: '/resources', reload, noun: 'risorsa',
-    duplicateBody: (r) => ({ kind: r.kind, label: `${r.label} (copia)`, active: r.active, attributes: r.attributes }),
+    // niente identificativi/collegamenti: code (sigla), email, phone, userId si reinseriscono.
+    duplicateBody: (r) => {
+      const { code: _c, email: _e, phone: _p, ...attrs } = (r.attributes ?? {}) as Record<string, unknown>;
+      return { kind: r.kind, label: `${r.label} (copia)`, active: r.active, attributes: attrs };
+    },
   });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));

@@ -593,9 +593,9 @@ export interface TimerSessionDto {
 /* ── Magazzino minimo 6A (§8) ──────────────────────────────────────── */
 export const createStockLocationSchema = z.object({
   name: z.string().min(1).max(120),
-  parentId: uuid.optional(),
+  parentId: uuid.nullable().optional(),
   kind: z.enum(['warehouse', 'sub_location', 'van']).default('warehouse'),
-  resourceId: uuid.optional(),
+  resourceId: uuid.nullable().optional(),
   code: z.string().max(40).nullable().optional(),         // sigla magazzino (K)
   note: z.string().max(2000).nullable().optional(),
   managerUserId: uuid.nullable().optional(),
@@ -648,12 +648,12 @@ export const stockDocumentLineSchema = z.object({
 });
 export const createStockDocumentSchema = z.object({
   typeCode: z.enum(['receipt', 'transfer', 'adjustment']),
-  docDate: day.optional(),
-  sourceLocationId: uuid.optional(),
-  destLocationId: uuid.optional(),
-  companyId: uuid.optional(),
-  externalRef: z.string().max(120).optional(),
-  note: z.string().max(500).optional(),
+  docDate: day.nullable().optional(),
+  sourceLocationId: uuid.nullable().optional(),
+  destLocationId: uuid.nullable().optional(),
+  companyId: uuid.nullable().optional(),
+  externalRef: z.string().max(120).nullable().optional(),
+  note: z.string().max(500).nullable().optional(),
   lines: z.array(stockDocumentLineSchema).min(1).max(500),
 });
 /** Modifica bozza DDT (testata + sostituzione righe). Solo status='draft'. */

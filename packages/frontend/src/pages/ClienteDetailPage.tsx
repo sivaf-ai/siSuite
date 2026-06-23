@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import { Building2, Contact, Receipt, MapPin, StickyNote, Plus, Pencil, Trash2, Star } from 'lucide-react';
 import type { CompanyDto, ContactDto, FieldDefinitionDto } from '@sisuite/shared';
 import { GROUP_LABEL_IT } from '@sisuite/shared';
@@ -81,9 +81,31 @@ export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
   const [delContact, setDelContact] = useState<ContactDto | null>(null);
   const [delCompany, setDelCompany] = useState(false);
 
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (no embed, senza taxId/code).
+  const location = useLocation();
+  const prefill = (!embed && isNew) ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   const d = detail.data;
   useEffect(() => {
-    if (!d) return;
+    if (!d) {
+      if (isNew && prefill) {
+        setForm({
+          displayName: (prefill.displayName as string) ?? '',
+          type: (prefill.type as string) ?? 'organization',
+          roles: Array.isArray(prefill.roles) ? (prefill.roles as { role: string }[]).map((r) => r.role) : [],
+        });
+        setTop({
+          country: (prefill.country as string) || 'IT', taxId: '', taxIdKind: '',
+          email: (prefill.email as string) ?? '', phone: (prefill.phone as string) ?? '', website: (prefill.website as string) ?? '',
+          iban: (prefill.iban as string) ?? '', paymentTerms: (prefill.paymentTerms as string) ?? '',
+        });
+        if (prefill.attributes) setAttrs(prefill.attributes as Record<string, unknown>);
+        if (prefill.fiscalAttributes) setFiscal(prefill.fiscalAttributes as Record<string, unknown>);
+        if (prefill.legalAddress) setLegalAddress(prefill.legalAddress as Record<string, unknown>);
+        if (prefill.operationalAddress) setOperationalAddress(prefill.operationalAddress as Record<string, unknown>);
+      }
+      return;
+    }
     setForm({ displayName: d.displayName, type: d.type, roles: d.roles });
     setTop({
       country: d.country || 'IT', taxId: d.taxId ?? '', taxIdKind: d.taxIdKind ?? '',
@@ -94,7 +116,7 @@ export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
     setFiscal(d.fiscalAttributes ?? {});
     setLegalAddress(d.legalAddress ?? {});
     setOperationalAddress(d.operationalAddress ?? {});
-  }, [d]);
+  }, [d, isNew, prefill, embed]);
 
   const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
   const setTopF = (k: keyof CompanyTop, v: string) => setTop((s) => ({ ...s, [k]: v }));

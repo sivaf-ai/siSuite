@@ -75,11 +75,22 @@ async function build() {
 
   app.setErrorHandler((err, request, reply) => {
     if (err instanceof ZodError) {
+      // messaggio leggibile per l'utente: elenca i campi non validi (it-IT)
+      const tr = (m: string) => {
+        if (/required/i.test(m)) return 'obbligatorio';
+        if (/invalid uuid/i.test(m)) return 'selezione non valida';
+        if (/invalid email/i.test(m)) return 'email non valida';
+        if (/expected number|nan|number/i.test(m)) return 'deve essere un numero';
+        if (/at least|maggiore|greater|>/i.test(m)) return 'valore non valido';
+        return m;
+      };
+      const issues = err.issues.map((i) => ({ path: i.path.filter((p) => p !== 'lines' || true).join('.'), message: i.message }));
+      const summary = issues.map((i) => `${i.path || 'campo'}: ${tr(i.message)}`).join(' · ');
       return reply.code(400).send({
         error: 'bad_request',
-        message: 'Dati non validi',
+        message: summary ? `Dati non validi — ${summary}` : 'Dati non validi',
         statusCode: 400,
-        issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+        issues,
       });
     }
     request.log.error(err);

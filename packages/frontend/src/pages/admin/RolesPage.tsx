@@ -32,7 +32,7 @@ export function RolesPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/roles?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<RoleDto>({
-    basePath: '/roles', reload, noun: 'ruolo',
+    basePath: '/roles', reload, noun: 'ruolo', newPath: '/admin/roles/new',
     duplicateBody: (r) => ({ name: `${r.name} (copia)`, description: r.description ?? null, dataScope: r.dataScope, permissions: r.permissions }),
   });
 

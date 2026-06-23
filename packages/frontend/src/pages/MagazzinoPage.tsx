@@ -7,7 +7,7 @@
  * Niente più tab-bar custom: tutto sullo standard (memory feedback_entity_standard).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router';
+import { useHistory, useParams, useLocation } from 'react-router';
 import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight, Boxes, ArrowLeftRight, FileText, Cpu, Layers, AlertTriangle } from 'lucide-react';
 import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, EngagementDto, PermissionKey,
@@ -17,6 +17,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../ui/Modal';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
+import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { Drawer } from '../ui/Drawer';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -64,10 +65,11 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
   if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<{ items: StockLocationDto[] }>(`/stock/locations?${params.toString()}`);
 
-  async function onDelete(rows: StockLocationDto[]) {
-    for (const r of rows) await mutate('DELETE', `/stock/locations/${r.id}`);
-    await reload();
-  }
+  const { onDelete, onDuplicate } = useEntityActions<StockLocationDto>({
+    basePath: '/stock/locations', reload, noun: 'magazzino', newPath: '/warehouses/new',
+    // niente `code` (identificativo univoco) né `isDefault` (uno solo può esserlo): si reimpostano.
+    duplicateBody: (r) => ({ name: `${r.name} (copia)`, kind: r.kind, resourceId: r.resourceId ?? null, note: r.note ?? null }),
+  });
 
   const cols: ListColumn<StockLocationDto>[] = [
     { key: 'name', header: 'Nome', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
@@ -95,6 +97,7 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
         columns={cols} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={onRowClick}
         onDelete={!pick && canManage ? onDelete : undefined}
+        onDuplicate={!pick && canManage ? onDuplicate : undefined}
         exportName="magazzini" exportFields={exportFields} rightActions={rightActions}
         filterFields={[
           { key: 'name', label: 'Nome', type: 'text', section: 'Magazzino' },
@@ -144,8 +147,14 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
   const [form, setForm] = useState<{ name: string; kind: string; isDefault: boolean; resourceId: string; code: string; note: string }>({ name: '', kind: 'warehouse', isDefault: false, resourceId: '', code: '', note: '' });
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('balances');
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (no embed, senza code/isDefault).
+  const location = useLocation();
+  const prefill = (!embed && isNew) ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
   const d = detail.data;
-  useEffect(() => { if (d) setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '', code: d.code ?? '', note: d.note ?? '' }); }, [d]);
+  useEffect(() => {
+    if (d) { setForm({ name: d.name, kind: d.kind, isDefault: d.isDefault, resourceId: d.resourceId ?? '', code: d.code ?? '', note: d.note ?? '' }); return; }
+    if (isNew && prefill) setForm({ name: (prefill.name as string) ?? '', kind: (prefill.kind as string) ?? 'warehouse', isDefault: false, resourceId: (prefill.resourceId as string) ?? '', code: '', note: (prefill.note as string) ?? '' });
+  }, [d, isNew, prefill]);
 
   async function save() {
     if (!form.name.trim()) { toast('Inserisci un nome', 'error'); return; }

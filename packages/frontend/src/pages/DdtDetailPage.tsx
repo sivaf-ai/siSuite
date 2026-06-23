@@ -50,6 +50,7 @@ export function DdtDetailPage() {
   const [companyName, setCompanyName] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const [errs, setErrs] = useState<{ source?: boolean; dest?: boolean; lines?: boolean }>({});
   const [pickOpen, setPickOpen] = useState(false);
   const [sourcePick, setSourcePick] = useState(false);
   const [destPick, setDestPick] = useState(false);
@@ -91,10 +92,25 @@ export function DdtDetailPage() {
     setRows((arr) => [...arr, ...mats.map((m) => ({
       materialId: m.id, materialName: m.name, quantity: 1, unit: m.unit, unitCost: null, note: null,
     }))]);
+    setErrs((e) => ({ ...e, lines: false }));
   }
 
   async function save() {
-    if (rows.length === 0) { toast('Aggiungi almeno una riga', 'error'); return; }
+    // validazione campi obbligatori: messaggio chiaro + evidenzia in rosso
+    const miss = {
+      lines: rows.length === 0,
+      source: needsSource && !form.sourceLocationId,
+      dest: needsDest && !form.destLocationId,
+    };
+    setErrs(miss);
+    if (miss.lines || miss.source || miss.dest) {
+      const what: string[] = [];
+      if (miss.source) what.push('Origine');
+      if (miss.dest) what.push('Destinazione');
+      if (miss.lines) what.push('almeno una riga articolo');
+      toast(`Compila i campi obbligatori: ${what.join(', ')}.`, 'error');
+      return;
+    }
     setBusy(true);
     const lines = rows.map((r) => ({ materialId: r.materialId, quantity: r.quantity, unit: r.unit, unitCost: r.unitCost ?? undefined, note: r.note ?? undefined }));
     const body = {
@@ -160,11 +176,11 @@ export function DdtDetailPage() {
               </select></div>
             <div className="bf"><span className="bl">Data</span>
               <input type="date" className="bi mono" value={form.docDate} onChange={(e) => set('docDate', e.target.value)} disabled={readOnly} /></div>
-            {needsSource && <div className="bf c2"><span className="bl">Origine</span>
-              <PickerField value={sourceName} placeholder="Scegli l'origine…" disabled={readOnly}
+            {needsSource && <div className="bf c2"><span className="bl">Origine <span className="req">*</span></span>
+              <PickerField value={sourceName} placeholder="Scegli l'origine…" disabled={readOnly} invalid={errs.source}
                 onOpen={() => setSourcePick(true)} onClear={() => { set('sourceLocationId', ''); setSourceName(''); }} /></div>}
-            {needsDest && <div className="bf c2"><span className="bl">Destinazione</span>
-              <PickerField value={destName} placeholder="Scegli la destinazione…" disabled={readOnly}
+            {needsDest && <div className="bf c2"><span className="bl">Destinazione <span className="req">*</span></span>
+              <PickerField value={destName} placeholder="Scegli la destinazione…" disabled={readOnly} invalid={errs.dest}
                 onOpen={() => setDestPick(true)} onClear={() => { set('destLocationId', ''); setDestName(''); }} /></div>}
             {needsCompany && <div className="bf c2"><span className="bl">Fornitore</span>
               <PickerField value={companyName} placeholder="Scegli il fornitore…" disabled={readOnly}
@@ -191,7 +207,7 @@ export function DdtDetailPage() {
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5}><div className="dsx-empty">Nessuna riga. Aggiungi un articolo.</div></td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5}><div className="dsx-empty" style={errs.lines ? { color: 'var(--danger)' } : undefined}>Nessuna riga. Aggiungi un articolo.</div></td></tr>}
             </tbody>
           </table>
           {!readOnly && <div className="addline" onClick={() => setPickOpen(true)}><Boxes size={15} /> + Aggiungi articolo</div>}
@@ -200,9 +216,9 @@ export function DdtDetailPage() {
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
       <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); } }} />
+        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); setErrs((e) => ({ ...e, source: false })); } }} />
       <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); } }} />
+        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); setErrs((e) => ({ ...e, dest: false })); } }} />
       <CompanyPickerDialog open={companyPick} role="supplier" onClose={() => setCompanyPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); setCompanyName(c.displayName); } }} />
     </Page>

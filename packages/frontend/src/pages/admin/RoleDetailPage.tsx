@@ -4,7 +4,7 @@
  * sistema sono in sola lettura (Salva disabilitato).
  */
 import { useEffect, useState } from 'react';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import { ShieldCheck, KeyRound, Copy } from 'lucide-react';
 import { PERMISSION_CATALOG, type RoleDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../../components/Page';
@@ -35,12 +35,26 @@ export function RoleDetailPage() {
   const [perms, setPerms] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill.
+  const location = useLocation();
+  const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   const d = detail.data;
   useEffect(() => {
-    if (!d) return;
+    if (!d) {
+      if (isNew && prefill) {
+        setForm({
+          name: (prefill.name as string) ?? '',
+          description: (prefill.description as string) ?? '',
+          dataScope: (prefill.dataScope as string) ?? 'team',
+        });
+        if (Array.isArray(prefill.permissions)) setPerms(new Set(prefill.permissions as string[]));
+      }
+      return;
+    }
     setForm({ name: d.name, description: d.description ?? '', dataScope: d.dataScope });
     setPerms(new Set(d.permissions));
-  }, [d]);
+  }, [d, isNew, prefill]);
 
   const isSystem = !isNew && !!d?.isSystem;
   const readOnly = isSystem || !canManage;

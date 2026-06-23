@@ -37,8 +37,9 @@ export function ListinoPage() {
   const { data, loading, error, reload } = useApi<ListResp>(`/price-list-items?${params.toString()}`);
 
   const { onDelete, onDuplicate } = useEntityActions<PriceListItemDto>({
-    basePath: '/price-list-items', reload, noun: 'voce',
-    duplicateBody: (v) => ({ priceListId: v.priceListId, code: `${v.code}-COPIA`, description: `${v.description} (copia)`, unit: v.unit, category: v.category ?? null, costPrice: v.costPrice, revenuePrice: v.revenuePrice }),
+    basePath: '/price-list-items', reload, noun: 'voce', newPath: '/price-list/new',
+    // niente `code` (chiave univoca del listino: lo reinserisce l'utente)
+    duplicateBody: (v) => ({ description: `${v.description} (copia)`, unit: v.unit, category: v.category ?? null, costPrice: v.costPrice, revenuePrice: v.revenuePrice }),
   });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));

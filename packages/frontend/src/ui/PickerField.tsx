@@ -6,15 +6,17 @@
  */
 import { Search } from 'lucide-react';
 
-export function PickerField({ value, placeholder = '—', onOpen, onClear, disabled }: {
+export function PickerField({ value, placeholder = '—', onOpen, onClear, disabled, invalid }: {
   value: string | null | undefined;
   placeholder?: string;
   onOpen: () => void;
   onClear?: () => void;
   disabled?: boolean;
+  invalid?: boolean;
 }) {
   return (
-    <div className="bi" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+    <div className="bi" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between',
+      ...(invalid ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : {}) }}>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: value ? 'var(--ink)' : 'var(--ink-faint)' }}>
         {value || placeholder}
       </span>

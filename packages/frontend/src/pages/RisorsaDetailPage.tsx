@@ -3,7 +3,7 @@
  *  resource.working_hours + indisponibilità resource_availability), Assegnazioni, Ore.
  *  Crea+vedi+modifica nella stessa pagina; header sticky con Salva/Annulla. */
 import { useEffect, useState } from 'react';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Plus, CalendarClock, Clock, Briefcase, UserRound, CalendarOff, Trash, UserCog } from 'lucide-react';
 import type { ResourceAvailabilityDto, ResourceDto, TenantSettingsDto, FieldDefinitionDto, UserAdminDto } from '@sisuite/shared';
@@ -46,9 +46,17 @@ export function RisorsaDetailPage() {
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
   const [savingHead, setSavingHead] = useState(false);
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza code/email/phone/userId).
+  const location = useLocation();
+  const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
   useEffect(() => {
-    if (res) { setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active }); setAttrs(res.attributes ?? {}); }
-  }, [res]);
+    if (res) { setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active }); setAttrs(res.attributes ?? {}); return; }
+    if (isNew && prefill) {
+      const pa = (prefill.attributes as Record<string, unknown>) ?? {};
+      setForm({ kind: (prefill.kind as string) ?? 'person', label: (prefill.label as string) ?? '', hourlyCost: String(pa.hourly_cost ?? ''), active: (prefill.active as boolean) ?? true });
+      setAttrs(pa);
+    }
+  }, [res, isNew, prefill]);
 
   const [tab, setTab] = useState<'avail' | 'assign' | 'hours'>('avail');
   const [editing, setEditing] = useState(false);

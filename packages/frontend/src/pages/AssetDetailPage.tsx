@@ -4,7 +4,7 @@
  * Selettore Sito popolato dai siti del cliente (entità site, Blocco C-bis).
  */
 import { useEffect, useState } from 'react';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Box, Trash2 } from 'lucide-react';
 import type { AssetDto, FieldDefinitionDto, SiteDto } from '@sisuite/shared';
@@ -35,12 +35,28 @@ export function AssetDetailPage() {
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState(false);
 
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza seriali/identificativi).
+  const location = useLocation();
+  const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   const d = detail.data;
   useEffect(() => {
-    if (!d) return;
+    if (!d) {
+      if (isNew && prefill) {
+        setForm({
+          label: (prefill.label as string) ?? '',
+          kind: (prefill.kind as string) ?? '',
+          companyId: (prefill.companyId as string) ?? '',
+          siteId: (prefill.siteId as string) ?? '',
+          installedOn: (prefill.installedOn as string) ?? '',
+        });
+        if (prefill.attributes) setAttrs(prefill.attributes as Record<string, unknown>);
+      }
+      return;
+    }
     setForm({ label: d.label, kind: d.kind, companyId: d.companyId ?? '', siteId: d.siteId ?? '', installedOn: d.installedOn ?? '' });
     setAttrs(d.attributes ?? {});
-  }, [d]);
+  }, [d, isNew, prefill]);
 
   const sites = useApi<{ items: SiteDto[] }>(form.companyId ? `/sites?company_id=${form.companyId}` : null);
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));

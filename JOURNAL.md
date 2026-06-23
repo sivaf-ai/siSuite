@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-23 — Fix errori DDT + Duplica su tutte le anagrafiche + errori chiari (chat 01.06)
+- Solo frontend + shared(zod) + backend(error handler). Nessuna migrazione.
+- **Fix 400 DDT/ubicazioni**: `createStockDocumentSchema` e `createStockLocationSchema` resi `.nullable().optional()` sui campi opzionali (la UI invia null). PO/Pick erano già nullable.
+- **Messaggi d'errore chiari**: `index.ts` setErrorHandler traduce gli errori zod elencando i campi (it-IT). DDT: validazione campi obbligatori con **rosso** (PickerField `invalid`) + toast chiaro.
+- **Duplica STANDARD** estesa a TUTTE le anagrafiche: Aziende/Clienti/Fornitori, Risorse, Asset, Listino, Magazzini, Ruoli, Commesse (oltre a Materiali/Ordini di lavoro/Utenti già fatti). Sempre via prefill senza campi chiave.
+- **Elimina con nome** verificato su tutte le liste anagrafiche.
+- Memoria standard aggiornata (Duplica/Elimina/errori promossi a tassativi). Typecheck FE+BE+shared verde.
+
 ## 2026-06-22 (2) — Standard UI: selezione entità in popup esteso, Duplica, Elimina-nome, righe compatte (chat 01.06)
 - Solo frontend. Nessuna migrazione/backend/shared.
 - Selezione entità (popup centrato, riuso lista vera): esteso da Materiali a **Fornitori** (CompanyPickerDialog) e **Magazzini** (LocationPickerDialog) + `ui/PickerField`. Usati nelle testate PO/Pick/DDT al posto dei select. ClientiPage/ClienteDetailPage e MagazzinoPage(lista)/MagazzinoDetailPage resi pick+embeddabili.

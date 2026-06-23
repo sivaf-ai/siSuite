@@ -7,7 +7,7 @@
  */
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useHistory } from 'react-router';
+import { useParams, useHistory, useLocation } from 'react-router';
 import {
   IonButton, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
   IonList, IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
@@ -85,12 +85,17 @@ export function CommessaDetailPage() {
   const [confirm, setConfirm] = useState<{ kind: 'phase' | 'activity'; id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Duplica (standard): "nuovo" precompilato da location.state.prefill.
+  const location = useLocation();
+  const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
+
   // Anagrafica editabile (header sticky Salva/Annulla) — testata commessa
   const [head, setHead] = useState({ title: '', companyId: '', type: 'build', statusId: '', startedOn: '', endedOn: '' });
   useEffect(() => {
     const e = eng.data;
-    if (e) setHead({ title: e.title, companyId: e.companyId, type: e.type, statusId: e.statusId ?? '', startedOn: e.startedOn ?? '', endedOn: e.endedOn ?? '' });
-  }, [eng.data]);
+    if (e) { setHead({ title: e.title, companyId: e.companyId, type: e.type, statusId: e.statusId ?? '', startedOn: e.startedOn ?? '', endedOn: e.endedOn ?? '' }); return; }
+    if (isNew && prefill) setHead({ title: (prefill.title as string) ?? '', companyId: (prefill.companyId as string) ?? '', type: (prefill.type as string) ?? 'build', statusId: '', startedOn: '', endedOn: '' });
+  }, [eng.data, isNew, prefill]);
   const setH = (k: keyof typeof head, v: string) => setHead((h) => ({ ...h, [k]: v }));
 
   async function saveHead() {
