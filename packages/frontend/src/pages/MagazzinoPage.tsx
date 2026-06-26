@@ -19,7 +19,6 @@ import { Modal } from '../ui/Modal';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
-import { Drawer } from '../ui/Drawer';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
@@ -469,86 +468,3 @@ function DocumentiTab() {
   );
 }
 
-/* ===================================================================== */
-/* DOCUMENTI (lista standard + drawer carico/trasferimento/rettifica)    */
-/* ===================================================================== */
-interface LineDraft { materialId: string; quantity: string; unit: string; unitCost: string }
-const emptyLine = (): LineDraft => ({ materialId: '', quantity: '', unit: '', unitCost: '' });
-
-export function DocumentiPage() {
-  const history = useHistory();
-  const lk = useLookups();
-  const { canManage } = usePerms();
-  const toast = useToast();
-  const docs = useApi<{ items: StockDocumentDto[] }>('/stock/documents');
-  const locs = useApi<{ items: StockLocationDto[] }>('/stock/locations');
-  const mats = useApi<{ items: MaterialDto[] }>('/materials');
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [type, setType] = useState<'receipt' | 'transfer' | 'adjustment'>('receipt');
-  const [source, setSource] = useState('');
-  const [dest, setDest] = useState('');
-  const [externalRef, setExternalRef] = useState('');
-  const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
-  const matById = useMemo(() => new Map((mats.data?.items ?? []).map((m) => [m.id, m])), [mats.data]);
-  const reset = () => { setType('receipt'); setSource(''); setDest(''); setExternalRef(''); setLines([emptyLine()]); };
-  const setLine = (i: number, patch: Partial<LineDraft>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-
-  async function saveDoc(confirmAfter: boolean) {
-    const cleaned = lines.filter((l) => l.materialId && Number(l.quantity) > 0).map((l) => ({ materialId: l.materialId, quantity: Number(l.quantity), unit: l.unit || 'pz', unitCost: l.unitCost ? Number(l.unitCost) : undefined }));
-    if (!cleaned.length) { toast('Aggiungi almeno una riga valida', 'error'); return; }
-    if (type !== 'transfer' && !dest) { toast('Scegli l\'ubicazione/destinazione', 'error'); return; }
-    if (type === 'transfer' && (!source || !dest || source === dest)) { toast('Trasferimento: origine e destinazione distinte', 'error'); return; }
-    setBusy(true);
-    try {
-      const created = await mutate<{ id: string }>('POST', '/stock/documents', { typeCode: type, sourceLocationId: source || undefined, destLocationId: dest || undefined, externalRef: externalRef || undefined, lines: cleaned });
-      if (confirmAfter) { const res = await mutate<{ number: string }>('POST', `/stock/documents/${created.id}/confirm`); toast(`Confermato: ${res.number}`, 'success'); } else toast('Bozza salvata', 'success');
-      setOpen(false); reset(); await docs.reload();
-    } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
-  }
-  async function confirmDoc(did: string) { setBusy(true); try { const res = await mutate<{ number: string }>('POST', `/stock/documents/${did}/confirm`); toast(`Confermato: ${res.number}`, 'success'); await docs.reload(); } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); } }
-
-  const cols: ListColumn<StockDocumentDto>[] = [
-    { key: 'number', header: 'Numero', value: (r) => r.number ?? 'bozza', render: (r) => <span className="cellname">{r.number ?? <em style={{ color: 'var(--ink-faint)' }}>bozza</em>}</span> },
-    { key: 'type', header: 'Tipo', value: (r) => lk.labelOf(r.typeId), render: (r) => { const l = lk.byId(r.typeId); return l ? <StatusPill label={lk.labelOf(r.typeId)} token={l.colorToken} /> : '—'; } },
-    { key: 'date', header: 'Data', value: (r) => new Date(r.docDate).toLocaleDateString('it-IT'), render: (r) => <span className="cellsub">{new Date(r.docDate).toLocaleDateString('it-IT')}</span> },
-    { key: 'status', header: 'Stato', value: (r) => r.status, render: (r) => <span className="chip">{r.status}</span> },
-    { key: 'act', header: 'Azioni', render: (r) => (r.status === 'draft' && canManage ? <button className="btn btn-primary btn-sm" disabled={busy} onClick={(e) => { e.stopPropagation(); confirmDoc(r.id); }}><CheckCircle2 size={15} /> Conferma</button> : null) },
-  ];
-  const exportFields: ExportField<StockDocumentDto>[] = cols.filter((c) => c.value).map((c) => ({ key: c.key, label: c.header, value: c.value! }));
-  const locOpts = locs.data?.items ?? [];
-  const rightActions: ListAction[] = [
-    { key: 'back', icon: Warehouse, tip: 'Magazzini', onClick: () => history.push('/stock') },
-    ...(canManage ? [{ key: 'new', icon: Plus, tip: 'Nuovo documento', variant: 'primary' as const, onClick: () => { reset(); setOpen(true); } }] : []),
-    { key: 'export', icon: Download, tip: 'Esporta', onClick: () => { void downloadXlsx('documenti', [{ name: 'Documenti', columns: exportFields.map((f) => ({ header: f.label, key: f.key, width: 20 })), rows: (docs.data?.items ?? []).map((r) => Object.fromEntries(exportFields.map((f) => [f.key, f.value(r) ?? '']))) }]); } },
-  ];
-
-  return (
-    <Page>
-      <EntityList<StockDocumentDto>
-        title="Documenti di magazzino" subtitle="Carico · Trasferimento · Rettifica → alla conferma generano i movimenti"
-        columns={cols} rows={docs.data?.items ?? []} loading={docs.loading} error={docs.error}
-        selectable={false} exportName="documenti" exportFields={exportFields} rightActions={rightActions}
-        emptyText="Nessun documento. Crea un carico, un trasferimento o una rettifica." />
-
-      <Drawer open={open} title="Nuovo documento" onClose={() => setOpen(false)} footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button className="btn btn-ghost" disabled={busy} onClick={() => saveDoc(false)}>Salva bozza</button><button className="btn btn-primary" disabled={busy} onClick={() => saveDoc(true)}>Salva e conferma</button></div>
-      }>
-        <div className="field"><label>Tipo</label><select className="txt" value={type} onChange={(e) => setType(e.target.value as typeof type)}><option value="receipt">Carico</option><option value="transfer">Trasferimento</option><option value="adjustment">Rettifica (giacenza contata)</option></select></div>
-        {type === 'transfer' && <div className="field"><label>Da (origine)</label><select className="txt" value={source} onChange={(e) => setSource(e.target.value)}><option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>}
-        <div className="field"><label>{type === 'transfer' ? 'A (destinazione)' : type === 'adjustment' ? 'Ubicazione' : 'Magazzino destinazione'}</label><select className="txt" value={dest} onChange={(e) => setDest(e.target.value)}><option value="">—</option>{locOpts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-        {type === 'receipt' && <div className="field"><label>Rif. DDT fornitore</label><input className="txt" value={externalRef} onChange={(e) => setExternalRef(e.target.value)} placeholder="es. DDT 1234" /></div>}
-        <div className="field"><label>Righe</label></div>
-        {lines.map((l, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-            <select className="txt" value={l.materialId} onChange={(e) => setLine(i, { materialId: e.target.value, unit: matById.get(e.target.value)?.unit ?? '' })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
-            <input className="txt" type="number" placeholder="qtà" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
-            <input className="txt" type="number" placeholder="€" value={l.unitCost} onChange={(e) => setLine(i, { unitCost: e.target.value })} />
-            <div className="act-icon danger" onClick={() => setLines((ls) => ls.length > 1 ? ls.filter((_, j) => j !== i) : ls)} title="Rimuovi"><Trash2 size={15} /></div>
-          </div>
-        ))}
-        <button className="btn btn-ghost btn-sm" onClick={() => setLines((ls) => [...ls, emptyLine()])}><Plus size={15} /> Aggiungi riga</button>
-      </Drawer>
-    </Page>
-  );
-}

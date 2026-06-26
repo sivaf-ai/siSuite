@@ -270,3 +270,12 @@
 - **Migrazioni 033-035** applicate. Prossima libera: **036**. Tutto typecheck pulito, pushato su main (ultimo `e4ca4b9`).
 - **Handoff**: `docs/analisi/2026-06-18_HANDOFF_nuova_sessione.md`. **Stato+prossimi passi per Claude AI**: `docs/analisi/2026-06-18_STATO_per_ClaudeAI.md` (proposta P1-P7 da valutare → poi piano operativo).
 - **scratch-porting/**: gestita da altra sessione, NON toccare.
+
+## 2026-06-26 — Standard UI: popup centrato ovunque, UM+Categorie, DDT, numeri (chat 01.06)
+- Solo FE + 1 migrazione (050 unit_of_measure). Tutto verde (BE+shared+FE).
+- Duplica: rimosso "(copia)" dal nome (standard). DDT/PO/Pick: toolbar standard + DELETE bozze (BE) + useReloadOnEnter (fix cache Ionic). Pulite le bozze di test.
+- Magazzino: form anagrafica campi standard .bi (Nome largo); tab Movimenti/Ubicazioni e DocumentiPage(morta, rimossa) da Drawer → Modal centrato.
+- Anagrafiche nuove: Unità di misura (050 + routes/unitsOfMeasure + UnitsPage) e Categorie articolo ad ALBERO (CategoriePage, route /material-categories già esistente); cablate nel form Articolo (select UM + select categoria albero).
+- ui/NumInput (formato it-IT migliaia/decimali) nelle righe documento; colonne allineate (colgroup).
+- SWEEP Drawer→Modal centrato: PurchaseOrder(Ricevi), ClienteDetail(contatto), Ordinativi(Assegna/Importa), Assenze, admin CustomFields/Numbers/Labels/Templates, ui/CrudList, MagazzinoPage. Nessun Drawer CRUD residuo nelle pagine.
+- Memoria standard aggiornata (feedback_entity_selection_popup: CRUD sempre Modal centrato; Duplica no (copia); liste reload-on-enter; documenti = entità complete).
