@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
 import { FileOutput, Boxes, Trash2, Check } from 'lucide-react';
-import type { StockDocumentDto, StockLocationDto, CompanyDto, MaterialDto } from '@sisuite/shared';
+import type { StockDocumentDto, StockLocationDto, CompanyDto, MaterialDto, UnitDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
@@ -15,6 +15,7 @@ import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
+import { UnitSelect } from '../ui/UnitSelect';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -43,6 +44,7 @@ export function DdtDetailPage() {
   const detail = useApi<StockDocumentDto>(isNew ? null : `/stock/documents/${id}`);
   const locations = useApi<ListResp<StockLocationDto>>('/stock/locations');
   const companies = useApi<ListResp<CompanyDto>>('/companies?limit=200');
+  const units = useApi<ListResp<UnitDto>>('/units');
 
   const [type, setType] = useState<DocType>('receipt');
   const [form, setForm] = useState<Record<string, string>>({ docDate: '', sourceLocationId: '', destLocationId: '', companyId: '', externalRef: '', note: '' });
@@ -198,7 +200,7 @@ export function DdtDetailPage() {
             <colgroup>
               <col />
               <col style={{ width: 130 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 120 }} />
               <col style={{ width: 130 }} />
               {!readOnly && <col style={{ width: 50 }} />}
             </colgroup>
@@ -209,7 +211,8 @@ export function DdtDetailPage() {
                   <td>{r.materialName}</td>
                   <td className="num"><NumInput align="right" value={r.quantity} disabled={readOnly}
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, quantity: n ?? 0 } : x))} /></td>
-                  <td>{r.unit}</td>
+                  <td><UnitSelect value={r.unit} disabled={readOnly} units={units.data?.items ?? []}
+                    onChange={(u) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unit: u } : x))} /></td>
                   <td className="num"><NumInput align="right" value={r.unitCost} disabled={readOnly} placeholder="€"
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitCost: n } : x))} /></td>
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}

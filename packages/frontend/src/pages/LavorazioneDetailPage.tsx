@@ -12,6 +12,7 @@ import type { WorkLineDto, PriceListItemDto, PhaseDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { Money } from '../ui/Num';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -93,7 +94,7 @@ export function LavorazioneDetailPage() {
             <tr key={i}>
               <td><input className="bi" style={{ minHeight: 30 }} value={m.label} placeholder="es. Tratta A — marciapiede dx" onChange={(e) => setMeasures((a) => a.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} /></td>
               <td><input className="bi mono" style={{ minHeight: 30, width: 130 }} value={m.formula} placeholder="24 × 1,00" onChange={(e) => setMeasures((a) => a.map((x, j) => j === i ? { ...x, formula: e.target.value } : x))} /></td>
-              <td className="num"><input className="bi mono" style={{ minHeight: 30, width: 90, textAlign: 'right' }} type="number" value={m.value} onChange={(e) => setMeasures((a) => a.map((x, j) => j === i ? { ...x, value: Number(e.target.value) } : x))} /></td>
+              <td className="num"><NumInput align="right" value={m.value} onChange={(n) => setMeasures((a) => a.map((x, j) => j === i ? { ...x, value: n ?? 0 } : x))} /></td>
               <td>{canWrite && <button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setMeasures((a) => a.filter((_, j) => j !== i))}><Trash2 /></button>}</td>
             </tr>
           ))}

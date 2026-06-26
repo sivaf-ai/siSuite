@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
 import { ShoppingCart, Boxes, Trash2, PackageCheck } from 'lucide-react';
-import type { PurchaseOrderDto, CompanyDto, StockLocationDto, MaterialDto } from '@sisuite/shared';
+import type { PurchaseOrderDto, CompanyDto, StockLocationDto, MaterialDto, UnitDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
@@ -16,6 +16,7 @@ import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
+import { UnitSelect } from '../ui/UnitSelect';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -44,6 +45,7 @@ export function PurchaseOrderDetailPage() {
   const detail = useApi<PurchaseOrderDto>(isNew ? null : `/purchase-orders/${id}`);
   const companies = useApi<ListResp<CompanyDto>>('/companies?limit=200');
   const locations = useApi<ListResp<StockLocationDto>>('/stock/locations');
+  const units = useApi<ListResp<UnitDto>>('/units');
 
   const [form, setForm] = useState<Record<string, string>>({ supplierId: '', destLocationId: '', orderDate: '', expectedDate: '', currency: 'EUR', note: '' });
   const [supplierName, setSupplierName] = useState('');
@@ -168,7 +170,7 @@ export function PurchaseOrderDetailPage() {
             <colgroup>
               <col />
               <col style={{ width: 130 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 120 }} />
               <col style={{ width: 130 }} />
               {!isNew && <col style={{ width: 110 }} />}
               {!readOnly && <col style={{ width: 50 }} />}
@@ -180,7 +182,8 @@ export function PurchaseOrderDetailPage() {
                   <td>{r.materialName}</td>
                   <td className="num"><NumInput align="right" value={r.qtyOrdered} disabled={readOnly}
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyOrdered: n ?? 0 } : x))} /></td>
-                  <td>{r.unit}</td>
+                  <td><UnitSelect value={r.unit} disabled={readOnly} units={units.data?.items ?? []}
+                    onChange={(u) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unit: u } : x))} /></td>
                   <td className="num"><NumInput align="right" value={r.unitPrice} disabled={readOnly} placeholder="€"
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitPrice: n } : x))} /></td>
                   {!isNew && <td className="num mono">{r.qtyReceived.toLocaleString('it-IT')}</td>}

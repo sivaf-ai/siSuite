@@ -15,6 +15,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, apiUpload, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -227,7 +228,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
                   <option value="avg">Medio mobile</option><option value="fifo">FIFO</option><option value="standard">Standard</option>
                 </select></div>
               <div className="bf"><span className="bl">Costo medio</span><div className="bi mono" style={{ justifyContent: 'flex-end' }}>{d?.avgCost != null ? `€ ${d.avgCost.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</div></div>
-              <div className="bf"><span className="bl">Scorta minima</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={(attrs.min_stock as number) ?? ''} onChange={(e) => setAttrs((a) => ({ ...a, min_stock: e.target.value === '' ? undefined : Number(e.target.value) }))} /></div>
+              <div className="bf"><span className="bl">Scorta minima</span><NumInput align="right" value={(attrs.min_stock as number) ?? null} onChange={(n) => setAttrs((a) => ({ ...a, min_stock: n ?? undefined }))} /></div>
               <div className="bf"><span className="bl">Giacenza totale</span><div className="bi green" style={{ justifyContent: 'flex-end' }}>{d?.qtyOnHand?.toLocaleString('it-IT') ?? '0'}</div></div>
             </div>
           </ObjectBox>

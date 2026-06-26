@@ -10,6 +10,7 @@ import { marginPct, type PriceListItemDto, type PriceOverrideDto, type PriceList
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { Money } from '../ui/Num';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -138,8 +139,8 @@ export function ListinoItemDetailPage() {
               ? (companies.data?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)
               : (engagements.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code ? `${e.code} · ` : ''}{e.title}</option>)}
           </select>
-          <input className="bi mono" style={{ minHeight: 32, width: 90 }} type="number" placeholder="Costo" value={ovCost} onChange={(e) => setOvCost(e.target.value)} />
-          <input className="bi mono" style={{ minHeight: 32, width: 90 }} type="number" placeholder="Ricavo" value={ovRev} onChange={(e) => setOvRev(e.target.value)} />
+          <div style={{ width: 110 }}><NumInput align="right" placeholder="Costo" value={ovCost === '' ? null : Number(ovCost)} onChange={(n) => setOvCost(n == null ? '' : String(n))} /></div>
+          <div style={{ width: 110 }}><NumInput align="right" placeholder="Ricavo" value={ovRev === '' ? null : Number(ovRev)} onChange={(n) => setOvRev(n == null ? '' : String(n))} /></div>
           <button className="btn btn-primary btn-sm" onClick={addOverride}><Plus size={14} /> Aggiungi ritocco</button>
         </div>
       )}
@@ -210,8 +211,8 @@ export function ListinoItemDetailPage() {
             <div className="bf c3"><span className="bl">Descrizione <span className="req">*</span></span><input className="bi" value={form.description ?? ''} onChange={(e) => set('description', e.target.value)} /></div>
             <div className="bf"><span className="bl">Unità <span className="req">*</span></span><input className="bi" value={form.unit ?? ''} onChange={(e) => set('unit', e.target.value)} placeholder="m, cad, m3…" /></div>
             <div className="bf c2"><span className="bl">Categoria</span><input className="bi" value={form.category ?? ''} onChange={(e) => set('category', e.target.value)} /></div>
-            <div className="bf"><span className="bl">Prezzo costo</span><input className="bi mono" style={{ justifyContent: 'flex-end' }} type="number" value={form.costPrice ?? ''} onChange={(e) => set('costPrice', e.target.value)} /></div>
-            <div className="bf"><span className="bl">Prezzo ricavo</span><input className="bi mono" type="number" value={form.revenuePrice ?? ''} onChange={(e) => set('revenuePrice', e.target.value)} /></div>
+            <div className="bf"><span className="bl">Prezzo costo</span><NumInput align="right" value={cost} onChange={(n) => set('costPrice', n == null ? '' : String(n))} /></div>
+            <div className="bf"><span className="bl">Prezzo ricavo</span><NumInput align="right" value={rev} onChange={(n) => set('revenuePrice', n == null ? '' : String(n))} /></div>
             <div className="bf"><span className="bl">Margine</span><div className="bi green" style={{ justifyContent: 'flex-end' }}>{margin == null ? '—' : `${margin.toFixed(1)}%`}</div></div>
           </div>
         </ObjectBox>

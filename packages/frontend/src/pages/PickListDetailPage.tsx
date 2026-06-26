@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
 import { ListChecks, Boxes, Trash2, Check } from 'lucide-react';
-import type { PickListDto, StockLocationDto, ResourceDto, EngagementDto, WorkOrderDto, MaterialDto } from '@sisuite/shared';
+import type { PickListDto, StockLocationDto, ResourceDto, EngagementDto, WorkOrderDto, MaterialDto, UnitDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
@@ -14,6 +14,7 @@ import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
+import { UnitSelect } from '../ui/UnitSelect';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -41,6 +42,7 @@ export function PickListDetailPage() {
 
   const detail = useApi<PickListDto>(isNew ? null : `/pick-lists/${id}`);
   const locations = useApi<ListResp<StockLocationDto>>('/stock/locations');
+  const units = useApi<ListResp<UnitDto>>('/units');
   const resources = useApi<ListResp<ResourceDto>>('/resources?kind=person&limit=200');
   const engagements = useApi<ListResp<EngagementDto>>('/engagements');
   const workOrders = useApi<ListResp<WorkOrderDto>>('/work-orders?limit=200');
@@ -173,7 +175,7 @@ export function PickListDetailPage() {
             <colgroup>
               <col />
               <col style={{ width: 130 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 120 }} />
               {!isNew && <col style={{ width: 110 }} />}
               {!readOnly && <col style={{ width: 50 }} />}
             </colgroup>
@@ -184,7 +186,8 @@ export function PickListDetailPage() {
                   <td>{r.materialName}</td>
                   <td className="num"><NumInput align="right" value={r.qtyRequested} disabled={readOnly}
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyRequested: n ?? 0 } : x))} /></td>
-                  <td>{r.unit}</td>
+                  <td><UnitSelect value={r.unit} disabled={readOnly} units={units.data?.items ?? []}
+                    onChange={(u) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unit: u } : x))} /></td>
                   {!isNew && <td className="num mono">{r.qtyPicked.toLocaleString('it-IT')}</td>}
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
