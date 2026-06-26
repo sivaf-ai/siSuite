@@ -393,6 +393,23 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
       return out.dto;
     });
 
+  // DELETE bozza ordine d'acquisto (solo 'draft').
+  app.delete<{ Params: { id: string } }>('/purchase-orders/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT status FROM purchase_order WHERE id = $1`, [request.params.id]);
+        if (!cur.rows.length) return 'notfound' as const;
+        if (cur.rows[0].status !== 'draft') return 'locked' as const;
+        await db.query(`DELETE FROM purchase_order_line WHERE order_id = $1`, [request.params.id]);
+        await db.query(`DELETE FROM purchase_order WHERE id = $1`, [request.params.id]);
+        return 'ok' as const;
+      });
+      if (res === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Ordine non trovato', statusCode: 404 });
+      if (res === 'locked') return reply.code(409).send({ error: 'conflict', message: 'Ordine non in bozza: non eliminabile', statusCode: 409 });
+      return reply.code(204).send();
+    });
+
   // receive: carico merce (movimenti 'in') in transazione + ricalcolo stato.
   app.post<{ Params: { id: string } }>('/purchase-orders/:id/receive',
     { preHandler: [app.authenticate, requirePermission('stock:manage')] },
@@ -502,6 +519,23 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
       if (out.code === 404) return reply.code(404).send({ error: 'not_found', message: 'Lista di prelievo non trovata', statusCode: 404 });
       if (out.code === 409) return reply.code(409).send({ error: 'conflict', message: 'Righe modificabili solo in bozza/assegnata', statusCode: 409 });
       return out.dto;
+    });
+
+  // DELETE bozza pick list (solo 'draft').
+  app.delete<{ Params: { id: string } }>('/pick-lists/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT status FROM pick_list WHERE id = $1`, [request.params.id]);
+        if (!cur.rows.length) return 'notfound' as const;
+        if (cur.rows[0].status !== 'draft') return 'locked' as const;
+        await db.query(`DELETE FROM pick_list_line WHERE pick_list_id = $1`, [request.params.id]);
+        await db.query(`DELETE FROM pick_list WHERE id = $1`, [request.params.id]);
+        return 'ok' as const;
+      });
+      if (res === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Pick list non trovata', statusCode: 404 });
+      if (res === 'locked') return reply.code(409).send({ error: 'conflict', message: 'Pick list non in bozza: non eliminabile', statusCode: 409 });
+      return reply.code(204).send();
     });
 
   // confirm: scarico merce (movimenti 'out') in transazione.

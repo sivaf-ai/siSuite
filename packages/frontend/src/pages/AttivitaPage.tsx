@@ -42,7 +42,7 @@ export function AttivitaPage() {
 
   const { onDelete, onDuplicate } = useEntityActions<ActivityDto>({
     basePath: '/activities', reload, noun: 'attività',
-    duplicateBody: (a) => ({ engagementId: a.engagementId, phaseId: a.phaseId ?? undefined, title: `${a.title} (copia)`, estimatedMinutes: a.estimatedMinutes ?? undefined }),
+    duplicateBody: (a) => ({ engagementId: a.engagementId, phaseId: a.phaseId ?? undefined, title: a.title, estimatedMinutes: a.estimatedMinutes ?? undefined }),
   });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));

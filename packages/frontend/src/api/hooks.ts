@@ -1,6 +1,14 @@
 /** hooks.ts — piccoli hook per leggere/mutare via API. */
 import { useCallback, useEffect, useState } from 'react';
+import { useIonViewWillEnter } from '@ionic/react';
 import { apiFetch } from './client';
+
+/** Ricarica i dati ogni volta che la pagina torna in primo piano. Ionic tiene le
+ *  pagine in cache (ion-page-hidden): senza questo, una lista resta ferma sui dati
+ *  vecchi dopo aver creato/modificato un record in una scheda. Standard per le liste. */
+export function useReloadOnEnter(reload: () => void): void {
+  useIonViewWillEnter(() => { reload(); });
+}
 
 export function useApi<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);

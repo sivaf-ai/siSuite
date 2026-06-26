@@ -68,7 +68,7 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
   const { onDelete, onDuplicate } = useEntityActions<StockLocationDto>({
     basePath: '/stock/locations', reload, noun: 'magazzino', newPath: '/warehouses/new',
     // niente `code` (identificativo univoco) né `isDefault` (uno solo può esserlo): si reimpostano.
-    duplicateBody: (r) => ({ name: `${r.name} (copia)`, kind: r.kind, resourceId: r.resourceId ?? null, note: r.note ?? null }),
+    duplicateBody: (r) => ({ name: r.name, kind: r.kind, resourceId: r.resourceId ?? null, note: r.note ?? null }),
   });
 
   const cols: ListColumn<StockLocationDto>[] = [
@@ -191,12 +191,12 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
         onSave={canManage ? save : undefined} onCancel={goBack} saving={busy}>
         <ObjectBox icon={Warehouse} title="Anagrafica magazzino">
           <div className="bgrid">
-            <div className="bf c2"><span className="bl">Nome</span><div className="bi"><input className="flin" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={!canManage} placeholder="es. Magazzino centrale" /></div></div>
-            <div className="bf"><span className="bl">Tipo</span><div className="bi"><select className="flin" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}><option value="warehouse">Magazzino</option><option value="van">Furgone</option></select></div></div>
-            <div className="bf"><span className="bl">Predefinito</span><div className="bi"><select className="flin" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div></div>
-            {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><div className="bi"><select className="flin" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div></div>}
-            <div className="bf"><span className="bl">Codice</span><div className="bi"><input className="flin" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="es. MAG-01" /></div></div>
-            <div className="bf c2"><span className="bl">Note</span><div className="bi"><input className="flin" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="Note interne" /></div></div>
+            <div className="bf c3"><span className="bl">Nome</span><input className="bi" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={!canManage} placeholder="es. Magazzino centrale" /></div>
+            <div className="bf"><span className="bl">Tipo</span><select className="bi" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}><option value="warehouse">Magazzino</option><option value="van">Furgone</option></select></div>
+            <div className="bf"><span className="bl">Codice</span><input className="bi" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="es. MAG-01" /></div>
+            <div className="bf"><span className="bl">Predefinito</span><select className="bi" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div>
+            {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><select className="bi" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div>}
+            <div className="bf c4"><span className="bl">Note</span><input className="bi" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="Note interne" /></div>
           </div>
         </ObjectBox>
         {!isNew && !embed && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
@@ -290,17 +290,19 @@ function MovimentiTab({ locationId }: { locationId: string }) {
         </tbody>
       </table>
 
-      <Drawer open={open} title="Nuovo movimento" onClose={() => setOpen(false)} footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Registra</button></div>
+      <Modal open={open} title="Nuovo movimento" size="md" onClose={() => setOpen(false)} footer={
+        <><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Registra</button></>
       }>
-        <div className="field"><label>Tipo</label><select className="txt" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
-        <div className="field"><label>Articolo<span className="req">*</span></label><select className="txt" value={d.materialId} onChange={(e) => setD({ ...d, materialId: e.target.value })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-        <div className="field"><label>Quantità<span className="req">*</span> {d.materialId && <span style={{ color: 'var(--ink-faint)' }}>({matById.get(d.materialId)?.unit})</span>}</label><input className="txt" type="number" value={d.quantity} onChange={(e) => setD({ ...d, quantity: e.target.value })} /></div>
-        <div className="field"><label>Costo unitario (opz.)</label><input className="txt" type="number" value={d.unitCost} onChange={(e) => setD({ ...d, unitCost: e.target.value })} placeholder="€" /></div>
-        <div className="field"><label>Commessa (opz.)</label><select className="txt" value={d.engagementId} onChange={(e) => setD({ ...d, engagementId: e.target.value })}><option value="">—</option>{(engs.data?.items ?? []).map((en) => <option key={en.id} value={en.id}>{en.code} · {en.title}</option>)}</select></div>
-        <div className="field"><label>Data (opz.)</label><input className="txt" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
-        <div className="field"><label>Note (opz.)</label><input className="txt" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>
-      </Drawer>
+        <div className="bgrid">
+          <div className="bf c2"><span className="bl">Tipo</span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
+          <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span><select className="bi" value={d.materialId} onChange={(e) => setD({ ...d, materialId: e.target.value })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+          <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialId && <span style={{ color: 'var(--ink-faint)' }}> ({matById.get(d.materialId)?.unit})</span>}</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={d.quantity} onChange={(e) => setD({ ...d, quantity: e.target.value })} /></div>
+          <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={d.unitCost} onChange={(e) => setD({ ...d, unitCost: e.target.value })} placeholder="€" /></div>
+          <div className="bf c2"><span className="bl">Commessa (opz.)</span><select className="bi" value={d.engagementId} onChange={(e) => setD({ ...d, engagementId: e.target.value })}><option value="">—</option>{(engs.data?.items ?? []).map((en) => <option key={en.id} value={en.id}>{en.code} · {en.title}</option>)}</select></div>
+          <div className="bf c2"><span className="bl">Data (opz.)</span><input className="bi mono" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
+          <div className="bf c4"><span className="bl">Note (opz.)</span><input className="bi" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>
+        </div>
+      </Modal>
       <ConfirmDialog open={!!revId} title="Rettifica / storna movimento" message="Crea un movimento compensativo (quantità opposta). L'originale resta (registro immutabile)."
         confirmLabel="Crea rettifica" busy={busy} onConfirm={() => revId && void reverse(revId)} onCancel={() => setRevId(null)} />
     </>
@@ -349,12 +351,14 @@ function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: b
           {rows.length === 0 && <tr><td colSpan={3}><div className="dsx-empty">Nessuna ubicazione interna. Aggiungine una.</div></td></tr>}
         </tbody>
       </table>
-      <Drawer open={open} title={editId ? 'Modifica ubicazione' : 'Nuova ubicazione'} onClose={() => setOpen(false)} footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Salva</button></div>
+      <Modal open={open} title={editId ? 'Modifica ubicazione' : 'Nuova ubicazione'} size="md" onClose={() => setOpen(false)} footer={
+        <><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Salva</button></>
       }>
-        <div className="field"><label>Nome<span className="req">*</span></label><input className="txt" value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Scaffale A / Ripiano 2" /></div>
-        <div className="field"><label>Tipo</label><select className="txt" value={kind} onChange={(e) => setKind(e.target.value)}><option value="sub_location">Ubicazione</option><option value="van">Furgone</option></select></div>
-      </Drawer>
+        <div className="bgrid">
+          <div className="bf c4"><span className="bl">Nome <span className="req">*</span></span><input className="bi" value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Scaffale A / Ripiano 2" /></div>
+          <div className="bf c2"><span className="bl">Tipo</span><select className="bi" value={kind} onChange={(e) => setKind(e.target.value)}><option value="sub_location">Ubicazione</option><option value="van">Furgone</option></select></div>
+        </div>
+      </Modal>
       <ConfirmDialog open={!!delRow} danger title="Eliminare?" message={`«${delRow?.name ?? ''}» verrà archiviato.`} confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRow(null)} />
     </>
   );

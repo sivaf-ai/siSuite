@@ -33,7 +33,7 @@ export function RolesPage() {
 
   const { onDelete, onDuplicate } = useEntityActions<RoleDto>({
     basePath: '/roles', reload, noun: 'ruolo', newPath: '/admin/roles/new',
-    duplicateBody: (r) => ({ name: `${r.name} (copia)`, description: r.description ?? null, dataScope: r.dataScope, permissions: r.permissions }),
+    duplicateBody: (r) => ({ name: r.name, description: r.description ?? null, dataScope: r.dataScope, permissions: r.permissions }),
   });
 
   const columns: ListColumn<RoleDto>[] = [

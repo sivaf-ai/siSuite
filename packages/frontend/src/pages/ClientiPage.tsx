@@ -81,7 +81,7 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
     basePath: '/companies', reload, noun: t('terms.party'),
     // niente taxId (può essere chiave/duplicato) né code (auto): si reinseriscono.
     duplicateBody: (r) => ({
-      displayName: `${r.displayName} (copia)`, type: r.type, country: r.country,
+      displayName: r.displayName, type: r.type, country: r.country,
       email: r.email ?? null, phone: r.phone ?? null, website: r.website ?? null,
       iban: r.iban ?? null, paymentTerms: r.paymentTerms ?? null,
       legalAddress: r.legalAddress ?? null, operationalAddress: r.operationalAddress ?? null,

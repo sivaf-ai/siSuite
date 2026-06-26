@@ -44,7 +44,7 @@ export function RisorsePage() {
     // niente identificativi/collegamenti: code (sigla), email, phone, userId si reinseriscono.
     duplicateBody: (r) => {
       const { code: _c, email: _e, phone: _p, ...attrs } = (r.attributes ?? {}) as Record<string, unknown>;
-      return { kind: r.kind, label: `${r.label} (copia)`, active: r.active, attributes: attrs };
+      return { kind: r.kind, label: r.label, active: r.active, attributes: attrs };
     },
   });
 

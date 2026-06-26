@@ -38,7 +38,7 @@ export function UsersPage() {
   const { onDelete, onDuplicate } = useEntityActions<UserAdminDto>({
     basePath: '/users', reload, noun: 'utente', newPath: '/admin/users/new',
     // Duplica (standard): "nuovo" precompilato (no email/password: chiavi/credenziali).
-    duplicateBody: (u) => ({ fullName: `${u.fullName} (copia)`, phone: u.phone, locale: u.locale, roleIds: u.roles.map((r) => r.id) }),
+    duplicateBody: (u) => ({ fullName: u.fullName, phone: u.phone, locale: u.locale, roleIds: u.roles.map((r) => r.id) }),
   });
 
   const columns: ListColumn<UserAdminDto>[] = [

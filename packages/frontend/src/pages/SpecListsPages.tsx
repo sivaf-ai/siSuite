@@ -10,8 +10,9 @@ import type { PurchaseOrderDto, PickListDto, StockCountDto, SkillDto, TaxRateDto
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
+import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
 const dfmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('it-IT') : '—');
@@ -40,7 +41,9 @@ export function PurchaseOrdersPage() {
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error } = useApi<{ items: PurchaseOrderDto[] }>('/purchase-orders');
+  const { data, loading, error, reload } = useApi<{ items: PurchaseOrderDto[] }>('/purchase-orders');
+  useReloadOnEnter(reload);
+  const { onDelete } = useEntityActions<PurchaseOrderDto>({ basePath: '/purchase-orders', reload, noun: "ordine d'acquisto" });
   const cols: ListColumn<PurchaseOrderDto>[] = [
     { key: 'number', header: 'Numero', value: (r) => r.number ?? 'bozza', render: (r) => numberCell(r.number) },
     { key: 'supplier', header: 'Fornitore', value: (r) => r.supplierName ?? '', render: (r) => r.supplierName ?? '—' },
@@ -53,8 +56,9 @@ export function PurchaseOrdersPage() {
   return (
     <Page>
       <EntityList<PurchaseOrderDto> title="Ordini d'acquisto" subtitle="Ordini ai fornitori e ricezione merce"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, fornitore…" selectable={false}
+        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, fornitore…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/purchase-orders/${r.id}`)}
+        onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
         columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.supplierName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
         loading={loading} error={error} exportName="ordini-acquisto" emptyText="Nessun ordine d'acquisto." />
     </Page>
@@ -67,7 +71,9 @@ export function PickListsPage() {
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error } = useApi<{ items: PickListDto[] }>('/pick-lists');
+  const { data, loading, error, reload } = useApi<{ items: PickListDto[] }>('/pick-lists');
+  useReloadOnEnter(reload);
+  const { onDelete } = useEntityActions<PickListDto>({ basePath: '/pick-lists', reload, noun: 'pick list' });
   const cols: ListColumn<PickListDto>[] = [
     { key: 'number', header: 'Numero', value: (r) => r.number ?? 'bozza', render: (r) => numberCell(r.number) },
     { key: 'source', header: 'Origine', value: (r) => r.sourceLocationName ?? '', render: (r) => r.sourceLocationName ?? '—' },
@@ -79,8 +85,9 @@ export function PickListsPage() {
   return (
     <Page>
       <EntityList<PickListDto> title="Pick list" subtitle="Prelievi di magazzino assegnati al campo"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, origine…" selectable={false}
+        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, origine…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/pick-lists/${r.id}`)}
+        onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
         columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.sourceLocationName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
         loading={loading} error={error} exportName="pick-list" emptyText="Nessuna pick list." />
     </Page>
@@ -93,7 +100,9 @@ export function DdtPage() {
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error } = useApi<{ items: StockDocumentDto[] }>('/stock/documents');
+  const { data, loading, error, reload } = useApi<{ items: StockDocumentDto[] }>('/stock/documents');
+  useReloadOnEnter(reload);
+  const { onDelete } = useEntityActions<StockDocumentDto>({ basePath: '/stock/documents', reload, noun: 'documento' });
   const cols: ListColumn<StockDocumentDto>[] = [
     { key: 'number', header: 'Numero', value: (r) => r.number ?? 'bozza', render: (r) => numberCell(r.number) },
     { key: 'type', header: 'Tipo', value: (r) => DOC_TYPE[r.typeCanonical ?? ''] ?? (r.typeCanonical ?? '—'), render: (r) => <span className="chip">{DOC_TYPE[r.typeCanonical ?? ''] ?? (r.typeCanonical ?? '—')}</span> },
@@ -104,9 +113,10 @@ export function DdtPage() {
   const rightActions: ListAction[] = canManage ? [{ key: 'new', icon: Plus, tip: 'Nuovo documento', variant: 'primary', onClick: () => history.push('/stock/documents/new') }] : [];
   return (
     <Page>
-      <EntityList<StockDocumentDto> title="Documenti di magazzino" subtitle="DDT · Carichi · Trasferimenti · Rettifiche"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, magazzino…" selectable={false}
+      <EntityList<StockDocumentDto> title="Documenti di magazzino" subtitle="DDT · Carichi · Trasferimenti · Rettifiche · solo le bozze sono eliminabili"
+        search={q} onSearch={setQ} searchPlaceholder="Cerca numero, magazzino…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/stock/documents/${r.id}`)}
+        onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
         columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.sourceLocationName ?? ''} ${r.destLocationName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
         loading={loading} error={error} exportName="documenti-magazzino" emptyText="Nessun documento di magazzino." />
     </Page>

@@ -328,6 +328,23 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(204).send();
     });
 
+  // DELETE bozza: solo documenti 'draft' (i confermati hanno già generato movimenti).
+  app.delete<{ Params: { id: string } }>('/stock/documents/:id',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT status FROM stock_document WHERE id = $1`, [request.params.id]);
+        if (!cur.rows.length) return 'notfound' as const;
+        if (cur.rows[0].status !== 'draft') return 'locked' as const;
+        await db.query(`DELETE FROM stock_document_line WHERE document_id = $1`, [request.params.id]);
+        await db.query(`DELETE FROM stock_document WHERE id = $1`, [request.params.id]);
+        return 'ok' as const;
+      });
+      if (res === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Documento non trovato', statusCode: 404 });
+      if (res === 'locked') return reply.code(409).send({ error: 'conflict', message: 'Documento confermato: non eliminabile (storna con una rettifica)', statusCode: 409 });
+      return reply.code(204).send();
+    });
+
   app.post('/stock/documents', { preHandler: [app.authenticate, requirePermission('stock:manage')] },
     async (request, reply) => {
       const input = createStockDocumentSchema.parse(request.body);

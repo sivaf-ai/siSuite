@@ -32,7 +32,7 @@ export function AssetPage() {
 
   const { onDelete, onDuplicate } = useEntityActions<AssetDto>({
     basePath: '/assets', reload, noun: 'asset',
-    duplicateBody: (a) => ({ companyId: a.companyId, label: `${a.label} (copia)`, kind: a.kind, siteId: a.siteId ?? null, installedOn: a.installedOn ?? undefined, attributes: a.attributes }),
+    duplicateBody: (a) => ({ companyId: a.companyId, label: a.label, kind: a.kind, siteId: a.siteId ?? null, installedOn: a.installedOn ?? undefined, attributes: a.attributes }),
   });
 
   const columns: ListColumn<AssetDto>[] = [

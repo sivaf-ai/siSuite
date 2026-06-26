@@ -46,7 +46,7 @@ export function EngagementsPage() {
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
     basePath: '/engagements', reload, noun: t('terms.engagement'),
-    duplicateBody: (e) => ({ companyId: e.companyId, type: e.type, title: `${e.title} (copia)` }),
+    duplicateBody: (e) => ({ companyId: e.companyId, type: e.type, title: e.title }),
   });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views?.[k] ?? 0 }));

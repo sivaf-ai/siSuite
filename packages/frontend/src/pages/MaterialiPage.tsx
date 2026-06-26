@@ -88,7 +88,7 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
 
   const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
     basePath: '/materials', reload, noun: 'articolo',
-    duplicateBody: (m) => ({ name: `${m.name} (copia)`, unit: m.unit, sku: null, trackStock: m.trackStock, trackedBySerial: m.trackedBySerial, trackedByLot: m.trackedByLot, costingMethod: m.costingMethod, attributes: m.attributes }),
+    duplicateBody: (m) => ({ name: m.name, unit: m.unit, sku: null, trackStock: m.trackStock, trackedBySerial: m.trackedBySerial, trackedByLot: m.trackedByLot, costingMethod: m.costingMethod, attributes: m.attributes }),
   });
 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
