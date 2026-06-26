@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { NumberSeriesDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
-import { Drawer } from '../../ui/Drawer';
+import { Modal } from '../../ui/Modal';
 import { Field, type RenderableField } from '../../ui/Field';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
@@ -76,7 +76,7 @@ export function NumbersSettings() {
       </p>
 
       {editing !== undefined && (
-        <NumberDrawer editing={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
+        <NumberModal editing={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
           onDelete={editing ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined} toast={toast} />
       )}
       <ConfirmDialog open={!!confirm} danger title="Eliminare il numeratore?"
@@ -85,7 +85,7 @@ export function NumbersSettings() {
   );
 }
 
-function NumberDrawer({ editing, onClose, onSaved, onDelete, toast }: {
+function NumberModal({ editing, onClose, onSaved, onDelete, toast }: {
   editing: NumberSeriesDto | null; onClose: () => void; onSaved: () => void; onDelete?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({ key: editing?.key ?? '', format: editing?.format ?? '{YYYY}-{SEQ:4}', resetPeriod: editing?.resetPeriod ?? 'yearly' }));
@@ -112,13 +112,13 @@ function NumberDrawer({ editing, onClose, onSaved, onDelete, toast }: {
     finally { setBusy(false); }
   }
   return (
-    <Drawer open title={editing ? 'Modifica numeratore' : 'Nuovo numeratore'} onClose={onClose}
+    <Modal open title={editing ? 'Modifica numeratore' : 'Nuovo numeratore'} size="md" onClose={onClose}
       footer={<>
         {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>
       <div className="form-group">{fields.map((f) => <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />)}</div>
-    </Drawer>
+    </Modal>
   );
 }

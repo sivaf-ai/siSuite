@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Plus, Trash2, GripVertical, RotateCcw } from 'lucide-react';
 import type { LookupDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
-import { Drawer } from '../../ui/Drawer';
+import { Modal } from '../../ui/Modal';
 import { Field, type RenderableField } from '../../ui/Field';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
@@ -97,7 +97,7 @@ export function LabelsSettings() {
       </p>
 
       {editing !== undefined && (
-        <LabelDrawer
+        <LabelModal
           category={cat} canonicals={canonicals} editing={editing}
           onClose={() => setEditing(undefined)}
           onSaved={() => { setEditing(undefined); void reload(); }}
@@ -113,7 +113,7 @@ export function LabelsSettings() {
   );
 }
 
-function LabelDrawer({ category, canonicals, editing, onClose, onSaved, onDelete, onReset, toast }: {
+function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete, onReset, toast }: {
   category: string; canonicals: string[]; editing: LookupDto | null;
   onClose: () => void; onSaved: () => void; onDelete?: () => void; onReset?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
@@ -162,7 +162,7 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, onDelete
   }
 
   return (
-    <Drawer open title={editing ? 'Modifica etichetta' : 'Nuova etichetta'} onClose={onClose}
+    <Modal open title={editing ? 'Modifica etichetta' : 'Nuova etichetta'} size="md" onClose={onClose}
       footer={<>
         {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
         {onReset && <button className="btn btn-ghost" onClick={onReset} disabled={busy} style={{ marginRight: 'auto' }}><RotateCcw size={15} /> Ripristina default</button>}
@@ -176,6 +176,6 @@ function LabelDrawer({ category, canonicals, editing, onClose, onSaved, onDelete
           <ColorSwatchPicker includeSemantic value={(v.colorToken as string) ?? 'neutral'} onChange={(key) => setV((s) => ({ ...s, colorToken: key }))} />
         </div>
       </div>
-    </Drawer>
+    </Modal>
   );
 }

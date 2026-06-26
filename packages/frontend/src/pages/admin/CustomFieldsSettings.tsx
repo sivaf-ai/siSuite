@@ -2,13 +2,13 @@
  *  Il tenant aggiunge/edita campi alle entità senza codice: compaiono SUBITO nei form
  *  (EntityForm/AttrBoxes leggono /field-definitions). I campi di SISTEMA sono sola lettura
  *  (RLS). settings:manage per scrivere. Righe cliccabili (v2, niente icone-azione);
- *  delete + toggle attivo + anteprima live nel Drawer editor. */
+ *  delete + toggle attivo + anteprima live nel Modal editor. */
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FieldDefinitionDto, FieldDataType, FieldOption } from '@sisuite/shared';
 import { FIELD_DATA_TYPES, GROUP_LABEL_IT } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
-import { Drawer } from '../../ui/Drawer';
+import { Modal } from '../../ui/Modal';
 import { Field, type RenderableField } from '../../ui/Field';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
@@ -99,7 +99,7 @@ export function CustomFieldsSettings() {
       </p>
 
       {editing !== undefined && (
-        <FieldDrawer entity={entity} editing={editing}
+        <FieldModal entity={entity} editing={editing}
           onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
           onDelete={editing ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined} toast={toast} />
       )}
@@ -120,7 +120,7 @@ function parseOptions(text: string): FieldOption[] {
 }
 const optionsToText = (opts: FieldOption[] | null) => (opts ?? []).map((o) => `${o.value}=${o.label['it-IT'] ?? o.value}`).join('\n');
 
-function FieldDrawer({ entity, editing, onClose, onSaved, onDelete, toast }: {
+function FieldModal({ entity, editing, onClose, onSaved, onDelete, toast }: {
   entity: string; editing: FieldDefinitionDto | null;
   onClose: () => void; onSaved: () => void; onDelete?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
@@ -202,7 +202,7 @@ function FieldDrawer({ entity, editing, onClose, onSaved, onDelete, toast }: {
   };
 
   return (
-    <Drawer open title={editing ? 'Modifica campo' : 'Nuovo campo'} onClose={onClose}
+    <Modal open title={editing ? 'Modifica campo' : 'Nuovo campo'} size="md" onClose={onClose}
       footer={<>
         {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
@@ -225,6 +225,6 @@ function FieldDrawer({ entity, editing, onClose, onSaved, onDelete, toast }: {
           </div>
         </div>
       </div>
-    </Drawer>
+    </Modal>
   );
 }

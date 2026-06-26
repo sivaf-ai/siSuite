@@ -7,7 +7,7 @@ import { useHistory } from 'react-router';
 import { Plus, Trash2, FileStack } from 'lucide-react';
 import type { CompanyDto, EngagementTemplateDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
-import { Drawer } from '../../ui/Drawer';
+import { Modal } from '../../ui/Modal';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
@@ -58,7 +58,7 @@ export function TemplatesSettings() {
         Un modello cattura <b>fasi, attività e dipendenze</b> di una commessa-tipo. “Usa” crea una nuova commessa pronta da pianificare.
       </p>
 
-      {use && <InstantiateDrawer template={use} onClose={() => setUse(null)}
+      {use && <InstantiateModal template={use} onClose={() => setUse(null)}
         onDone={(id) => { setUse(null); toast('Commessa creata dal modello'); history.push(`/engagements/${id}`); }} toast={toast} />}
       <ConfirmDialog open={!!confirm} danger title="Eliminare il modello?"
         message={`“${confirm?.name}” verrà rimosso. Le commesse già create non sono toccate.`}
@@ -67,7 +67,7 @@ export function TemplatesSettings() {
   );
 }
 
-function InstantiateDrawer({ template, onClose, onDone, toast }: {
+function InstantiateModal({ template, onClose, onDone, toast }: {
   template: EngagementTemplateDto; onClose: () => void; onDone: (id: string) => void; toast: (m: string, t?: 'error') => void;
 }) {
   const companies = useApi<{ items: CompanyDto[] }>('/companies');
@@ -90,22 +90,20 @@ function InstantiateDrawer({ template, onClose, onDone, toast }: {
   }
 
   return (
-    <Drawer open title={`Nuova commessa da “${template.name}”`} onClose={onClose}
+    <Modal open title={`Nuova commessa da “${template.name}”`} size="md" onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={create} disabled={busy}>Crea commessa</button>
       </>}>
-      <div className="form-group">
-        <div className="field">
-          <label>Cliente<span className="req">*</span></label>
-          <select className="txt" value={companyId || companies.data?.items[0]?.id || ''} onChange={(e) => setCompanyId(e.target.value)}>
+      <div className="bgrid">
+        <div className="bf c4"><span className="bl">Cliente <span className="req">*</span></span>
+          <select className="bi" value={companyId || companies.data?.items[0]?.id || ''} onChange={(e) => setCompanyId(e.target.value)}>
             {(companies.data?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-          </select>
-        </div>
-        <div className="field"><label>Titolo</label><input className="txt" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-        <div className="field"><label>Inizio (opz.)</label><input className="txt" type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} /></div>
-        <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)' }}>Verranno create {template.phaseCount} fasi e {template.activityCount} attività con le relative dipendenze.</p>
+          </select></div>
+        <div className="bf c2"><span className="bl">Titolo</span><input className="bi" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+        <div className="bf c2"><span className="bl">Inizio (opz.)</span><input className="bi mono" type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} /></div>
       </div>
-    </Drawer>
+      <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', marginTop: 12 }}>Verranno create {template.phaseCount} fasi e {template.activityCount} attività con le relative dipendenze.</p>
+    </Modal>
   );
 }

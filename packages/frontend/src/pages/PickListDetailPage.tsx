@@ -13,6 +13,7 @@ import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -169,15 +170,22 @@ export function PickListDetailPage() {
 
         <ObjectBox icon={Boxes} title="Righe">
           <table className="subt">
-            <thead><tr><th>Articolo</th><th className="num">Qtà richiesta</th><th>Unità</th>{!isNew && <th className="num">Prelevata</th>}{!readOnly && <th style={{ width: 50 }} />}</tr></thead>
+            <colgroup>
+              <col />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 70 }} />
+              {!isNew && <col style={{ width: 110 }} />}
+              {!readOnly && <col style={{ width: 50 }} />}
+            </colgroup>
+            <thead><tr><th>Articolo</th><th className="num">Qtà richiesta</th><th>Unità</th>{!isNew && <th className="num">Prelevata</th>}{!readOnly && <th />}</tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.materialName}</td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} value={r.qtyRequested}
-                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyRequested: Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  <td className="num"><NumInput align="right" value={r.qtyRequested} disabled={readOnly}
+                    onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyRequested: n ?? 0 } : x))} /></td>
                   <td>{r.unit}</td>
-                  {!isNew && <td className="num mono">{r.qtyPicked}</td>}
+                  {!isNew && <td className="num mono">{r.qtyPicked.toLocaleString('it-IT')}</td>}
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}

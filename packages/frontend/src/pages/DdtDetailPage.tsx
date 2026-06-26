@@ -14,6 +14,7 @@ import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -194,16 +195,23 @@ export function DdtDetailPage() {
 
         <ObjectBox icon={Boxes} title="Righe">
           <table className="subt">
-            <thead><tr><th>Articolo</th><th className="num">Quantità</th><th>Unità</th><th className="num">Costo unit.</th>{!readOnly && <th style={{ width: 50 }} />}</tr></thead>
+            <colgroup>
+              <col />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 130 }} />
+              {!readOnly && <col style={{ width: 50 }} />}
+            </colgroup>
+            <thead><tr><th>Articolo</th><th className="num">Quantità</th><th>Unità</th><th className="num">Costo unit.</th>{!readOnly && <th />}</tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.materialName}</td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} step="0.01" value={r.quantity}
-                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, quantity: Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  <td className="num"><NumInput align="right" value={r.quantity} disabled={readOnly}
+                    onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, quantity: n ?? 0 } : x))} /></td>
                   <td>{r.unit}</td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} step="0.01" value={r.unitCost ?? ''}
-                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitCost: e.target.value === '' ? null : Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  <td className="num"><NumInput align="right" value={r.unitCost} disabled={readOnly} placeholder="€"
+                    onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitCost: n } : x))} /></td>
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}

@@ -1,9 +1,9 @@
 /**
  * AssenzePage — MODULO ORE §4.4: assenze e saldi, su EntityList v2. Due schede:
- *  - Richieste: lista (EntityList) + crea (Drawer) ; click riga → scheda /absences/:id.
+ *  - Richieste: lista (EntityList) + crea (Modal) ; click riga → scheda /absences/:id.
  *    Viste "Tutte/In attesa/Approvate" (filtro client sul canonical dell'approvazione).
  *  - Saldi: EntityList in sola lettura (maturato/goduto/residuo per risorsa+tipo+anno).
- * L'approvazione e l'eliminazione vivono nella scheda; la creazione resta nel Drawer.
+ * L'approvazione e l'eliminazione vivono nella scheda; la creazione resta in Modal.
  */
 import { useMemo, useState } from 'react';
 import { useHistory } from 'react-router';
@@ -12,7 +12,7 @@ import type { AbsenceDto, AbsenceBalanceDto, ResourceDto, PermissionKey } from '
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction, type ExportField } from '../ui/EntityList';
-import { Drawer } from '../ui/Drawer';
+import { Modal } from '../ui/Modal';
 import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
@@ -39,7 +39,7 @@ export function AssenzePage() {
   const types = lk.byCategory('absence_type');
 
   const [busy, setBusy] = useState(false);
-  // crea richiesta (Drawer preservato)
+  // crea richiesta (Modal centrato)
   const [open, setOpen] = useState(false);
   const [rRes, setRRes] = useState('');
   const [rType, setRType] = useState('');
@@ -150,29 +150,29 @@ export function AssenzePage() {
         />
       )}
 
-      <Drawer open={open} title="Nuova richiesta di assenza" onClose={() => setOpen(false)} footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <Modal open={open} title="Nuova richiesta di assenza" size="md" onClose={() => setOpen(false)} footer={
+        <>
           <button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button>
           <button className="btn btn-primary" disabled={busy} onClick={createAbsence}>Crea</button>
-        </div>
+        </>
       }>
-        <div className="field"><label>Risorsa<span className="req">*</span></label>
-          <select className="txt" value={rRes} onChange={(e) => setRRes(e.target.value)}>
-            <option value="">—</option>
-            {(ress.data?.items ?? []).filter((r) => r.kind === 'person').map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select></div>
-        <div className="field"><label>Tipo<span className="req">*</span></label>
-          <select className="txt" value={rType} onChange={(e) => setRType(e.target.value)}>
-            <option value="">—</option>
-            {types.map((t) => <option key={t.id} value={t.id}>{lk.labelOf(t.id)}</option>)}
-          </select></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>Dal<span className="req">*</span></label><input className="txt" type="date" value={rFrom} onChange={(e) => setRFrom(e.target.value)} /></div>
-          <div className="field"><label>Al<span className="req">*</span></label><input className="txt" type="date" value={rTo} onChange={(e) => setRTo(e.target.value)} /></div>
+        <div className="bgrid">
+          <div className="bf c2"><span className="bl">Risorsa <span className="req">*</span></span>
+            <select className="bi" value={rRes} onChange={(e) => setRRes(e.target.value)}>
+              <option value="">—</option>
+              {(ress.data?.items ?? []).filter((r) => r.kind === 'person').map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </select></div>
+          <div className="bf c2"><span className="bl">Tipo <span className="req">*</span></span>
+            <select className="bi" value={rType} onChange={(e) => setRType(e.target.value)}>
+              <option value="">—</option>
+              {types.map((t) => <option key={t.id} value={t.id}>{lk.labelOf(t.id)}</option>)}
+            </select></div>
+          <div className="bf c2"><span className="bl">Dal <span className="req">*</span></span><input className="bi mono" type="date" value={rFrom} onChange={(e) => setRFrom(e.target.value)} /></div>
+          <div className="bf c2"><span className="bl">Al <span className="req">*</span></span><input className="bi mono" type="date" value={rTo} onChange={(e) => setRTo(e.target.value)} /></div>
+          <div className="bf c2"><span className="bl">Ore (solo permessi a ore)</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={rHours} onChange={(e) => setRHours(e.target.value)} placeholder="vuoto = giornate intere" /></div>
+          <div className="bf c4"><span className="bl">Note</span><input className="bi" value={rNote} onChange={(e) => setRNote(e.target.value)} /></div>
         </div>
-        <div className="field"><label>Ore (solo per permessi a ore)</label><input className="txt" type="number" value={rHours} onChange={(e) => setRHours(e.target.value)} placeholder="lascia vuoto = giornate intere" /></div>
-        <div className="field"><label>Note</label><textarea className="txt" value={rNote} onChange={(e) => setRNote(e.target.value)} /></div>
-      </Drawer>
+      </Modal>
     </Page>
   );
 }

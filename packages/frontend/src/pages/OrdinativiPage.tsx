@@ -12,7 +12,7 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { Drawer } from '../ui/Drawer';
+import { Modal } from '../ui/Modal';
 import { SlidersHorizontal, Columns3, Sparkles, Upload, Users, Plus } from '../ui/icons';
 import { useApi, mutate } from '../api/hooks';
 import { useToast } from '../ui/Toast';
@@ -144,18 +144,18 @@ export function OrdinativiPage() {
       />
 
       {assignOpen && (
-        <AssignDrawer ids={selRows.map((r) => r.id)} onClose={() => setAssignOpen(false)}
+        <AssignModal ids={selRows.map((r) => r.id)} onClose={() => setAssignOpen(false)}
           onDone={() => { setAssignOpen(false); setClearTok((t) => t + 1); void reload(); }} />
       )}
       {importOpen && (
-        <ImportDrawer onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); void reload(); }} />
+        <ImportModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); void reload(); }} />
       )}
     </Page>
   );
 }
 
 /* ── Assegna a squadra (bulk) ─────────────────────────────────────────── */
-function AssignDrawer({ ids, onClose, onDone }: { ids: string[]; onClose: () => void; onDone: () => void }) {
+function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const resources = useApi<{ items: ResourceDto[] }>('/resources?kind=person&limit=200');
   const [resId, setResId] = useState('');
@@ -171,18 +171,20 @@ function AssignDrawer({ ids, onClose, onDone }: { ids: string[]; onClose: () => 
   }
 
   return (
-    <Drawer open title={`Assegna ${ids.length} ordini`} onClose={onClose}
+    <Modal open title={`Assegna ${ids.length} ordini`} size="md" onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={assign} disabled={busy}>Assegna</button>
       </>}>
-      <div className="field"><label>Squadra / tecnico</label>
-        <select className="txt" value={resId} onChange={(e) => setResId(e.target.value)}>
-          <option value="">— rimuovi assegnazione —</option>
-          {(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-        </select></div>
-      <p className="help">Gli ordini selezionati passano alla squadra scelta (o restano da assegnare se vuoto).</p>
-    </Drawer>
+      <div className="bgrid">
+        <div className="bf c4"><span className="bl">Squadra / tecnico</span>
+          <select className="bi" value={resId} onChange={(e) => setResId(e.target.value)}>
+            <option value="">— rimuovi assegnazione —</option>
+            {(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select></div>
+      </div>
+      <p className="help" style={{ marginTop: 10 }}>Gli ordini selezionati passano alla squadra scelta (o restano da assegnare se vuoto).</p>
+    </Modal>
   );
 }
 
@@ -212,7 +214,7 @@ function parseCsv(text: string): { header: string[]; rows: string[][] } {
   return { header: out[0] ?? [], rows: out.slice(1) };
 }
 
-function ImportDrawer({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const [engId, setEngId] = useState('');
@@ -276,37 +278,40 @@ function ImportDrawer({ onClose, onDone }: { onClose: () => void; onDone: () => 
   }
 
   return (
-    <Drawer open title="Importa ordini da CSV" onClose={onClose}
+    <Modal open title="Importa ordini da CSV" size="lg" onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={doImport} disabled={busy || !parsed}>Importa</button>
       </>}>
-      <div className="field"><label>Commessa di destinazione <span className="req">*</span></label>
-        <select className="txt" value={engId} onChange={(e) => setEngId(e.target.value)}>
-          <option value="">—</option>
-          {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
-        </select></div>
-      <div className="field"><label>File CSV</label>
-        <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></div>
+      <div className="bgrid">
+        <div className="bf c2"><span className="bl">Commessa di destinazione <span className="req">*</span></span>
+          <select className="bi" value={engId} onChange={(e) => setEngId(e.target.value)}>
+            <option value="">—</option>
+            {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
+          </select></div>
+        <div className="bf c2"><span className="bl">File CSV</span>
+          <input className="bi" type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></div>
+      </div>
 
       {parsed && (
         <>
-          <div className="field"><label>Mappatura colonne</label></div>
-          {TARGET_FIELDS.map((f) => (
-            <div key={f.key} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 13 }}>{f.label}</span>
-              <select className="txt" value={map[f.key] ?? ''} onChange={(e) => setMap((m) => ({ ...m, [f.key]: e.target.value }))}>
-                <option value="">— non importare —</option>
-                {parsed.header.map((h, i) => <option key={i} value={String(i)}>{h || `Colonna ${i + 1}`}</option>)}
-              </select>
-            </div>
-          ))}
-          <div className="field" style={{ marginTop: 10 }}><label>Anteprima ({parsed.rows.length} righe)</label></div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--ink-faint)', margin: '16px 0 10px' }}>Mappatura colonne</div>
+          <div className="bgrid">
+            {TARGET_FIELDS.map((f) => (
+              <div className="bf c2" key={f.key}><span className="bl">{f.label}</span>
+                <select className="bi" value={map[f.key] ?? ''} onChange={(e) => setMap((m) => ({ ...m, [f.key]: e.target.value }))}>
+                  <option value="">— non importare —</option>
+                  {parsed.header.map((h, i) => <option key={i} value={String(i)}>{h || `Colonna ${i + 1}`}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--ink-faint)', margin: '16px 0 6px' }}>Anteprima ({parsed.rows.length} righe)</div>
           <table className="subt"><thead><tr><th>Rif.</th><th>Indirizzo</th><th>Intestatario</th></tr></thead>
             <tbody>{preview.map((p, i) => <tr key={i}><td className="mono">{p.ref || '—'}</td><td>{p.addr || '—'}</td><td>{p.name || '—'}</td></tr>)}</tbody>
           </table>
         </>
       )}
-    </Drawer>
+    </Modal>
   );
 }

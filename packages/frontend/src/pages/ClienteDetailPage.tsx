@@ -15,7 +15,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes, AttrField } from '../ui/AttrFields';
 import { AddressField } from '../ui/AddressField';
-import { Drawer } from '../ui/Drawer';
+import { Modal } from '../ui/Modal';
 import { SiteTree } from '../ui/SiteTree';
 import { Field, type RenderableField } from '../ui/Field';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -298,7 +298,7 @@ export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
       </ObjectPage>
 
       {editing !== undefined && d && (
-        <ContactDrawer companyId={d.id} editing={editing} busy={busy} setBusy={setBusy}
+        <ContactModal companyId={d.id} editing={editing} busy={busy} setBusy={setBusy}
           onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void detail.reload(); }}
           toastError={(m) => toast(m, 'error')} toastOk={(m) => toast(m)} />
       )}
@@ -315,7 +315,7 @@ export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
   return embed ? body : <Page title={title} bleed>{body}</Page>;
 }
 
-function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, toastError, toastOk }: {
+function ContactModal({ companyId, editing, busy, setBusy, onClose, onSaved, toastError, toastOk }: {
   companyId: string; editing: ContactDto | null; busy: boolean; setBusy: (b: boolean) => void;
   onClose: () => void; onSaved: () => void; toastError: (m: string) => void; toastOk: (m: string) => void;
 }) {
@@ -345,7 +345,7 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
   }
 
   return (
-    <Drawer open title={editing ? 'Modifica contatto' : 'Nuovo contatto'} onClose={onClose}
+    <Modal open title={editing ? 'Modifica contatto' : 'Nuovo contatto'} size="md" onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva modifiche' : 'Crea'}</button>
@@ -355,6 +355,6 @@ function ContactDrawer({ companyId, editing, busy, setBusy, onClose, onSaved, to
           <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />
         ))}
       </div>
-    </Drawer>
+    </Modal>
   );
 }

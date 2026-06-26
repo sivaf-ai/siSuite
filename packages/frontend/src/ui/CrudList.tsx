@@ -8,7 +8,7 @@ import { apiFetch, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable, type Column } from './DataTable';
 import { Toolbar } from './Toolbar';
-import { Drawer } from './Drawer';
+import { Modal } from './Modal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { EmptyState } from './EmptyState';
 import { EntityForm, type TypedGroup } from './EntityForm';
@@ -144,7 +144,7 @@ export function CrudList<T extends { id: string }>(p: CrudListProps<T>) {
           onNew={can('create') && !q ? () => setEditing(null) : undefined} newLabel={p.createLabel} />}
       />
 
-      <Drawer open={editing !== undefined} title={editing ? `Modifica ${p.noun ?? ''}` : `Nuovo ${p.noun ?? ''}`} onClose={() => setEditing(undefined)}>
+      <Modal open={editing !== undefined} size="md" title={editing ? `Modifica ${p.noun ?? ''}` : `Nuovo ${p.noun ?? ''}`} onClose={() => setEditing(undefined)}>
         {editing !== undefined && (
           <EntityForm
             entityKey={p.entityKey}
@@ -156,7 +156,7 @@ export function CrudList<T extends { id: string }>(p: CrudListProps<T>) {
             onCancel={() => setEditing(undefined)}
           />
         )}
-      </Drawer>
+      </Modal>
 
       <ConfirmDialog
         open={!!confirming}

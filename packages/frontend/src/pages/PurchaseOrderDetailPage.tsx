@@ -1,7 +1,7 @@
 /**
  * PurchaseOrderDetailPage — Scheda ordine d'acquisto (master-detail come Ordini di
  * lavoro): testata in ObjectBox + righe in tabella .subt nella STESSA pagina.
- * Righe SOLO via MaterialPickerDialog. Azione "Ricevi merce" in Drawer.
+ * Righe SOLO via MaterialPickerDialog. Azione "Ricevi merce" in Modal centrato.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router';
@@ -10,11 +10,12 @@ import type { PurchaseOrderDto, CompanyDto, StockLocationDto, MaterialDto } from
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
-import { Drawer } from '../ui/Drawer';
+import { Modal } from '../ui/Modal';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
 import { PickerField } from '../ui/PickerField';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -164,17 +165,25 @@ export function PurchaseOrderDetailPage() {
 
         <ObjectBox icon={Boxes} title="Righe">
           <table className="subt">
-            <thead><tr><th>Articolo</th><th className="num">Qtà ordinata</th><th>Unità</th><th className="num">Prezzo unit.</th>{!isNew && <th className="num">Ricevuta</th>}{!readOnly && <th style={{ width: 50 }} />}</tr></thead>
+            <colgroup>
+              <col />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 130 }} />
+              {!isNew && <col style={{ width: 110 }} />}
+              {!readOnly && <col style={{ width: 50 }} />}
+            </colgroup>
+            <thead><tr><th>Articolo</th><th className="num">Qtà ordinata</th><th>Unità</th><th className="num">Prezzo unit.</th>{!isNew && <th className="num">Ricevuta</th>}{!readOnly && <th />}</tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.materialName}</td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} value={r.qtyOrdered}
-                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyOrdered: Number(e.target.value) } : x))} disabled={readOnly} /></td>
+                  <td className="num"><NumInput align="right" value={r.qtyOrdered} disabled={readOnly}
+                    onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyOrdered: n ?? 0 } : x))} /></td>
                   <td>{r.unit}</td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 90, textAlign: 'right' }} type="number" min={0} step="0.01" value={r.unitPrice ?? ''}
-                    onChange={(e) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitPrice: e.target.value === '' ? null : Number(e.target.value) } : x))} disabled={readOnly} /></td>
-                  {!isNew && <td className="num mono">{r.qtyReceived}</td>}
+                  <td className="num"><NumInput align="right" value={r.unitPrice} disabled={readOnly} placeholder="€"
+                    onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitPrice: n } : x))} /></td>
+                  {!isNew && <td className="num mono">{r.qtyReceived.toLocaleString('it-IT')}</td>}
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}
@@ -191,7 +200,7 @@ export function PurchaseOrderDetailPage() {
       <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
         onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); } }} />
       {receiveOpen && d && (
-        <ReceiveDrawer po={d} defaultLocationId={form.destLocationId || null} locations={locOpts}
+        <ReceiveModal po={d} defaultLocationId={form.destLocationId || null} locations={locOpts}
           onClose={() => setReceiveOpen(false)} onDone={() => { setReceiveOpen(false); void detail.reload(); }} />
       )}
     </Page>
@@ -199,7 +208,7 @@ export function PurchaseOrderDetailPage() {
 }
 
 /* ── Ricevi merce ─────────────────────────────────────────────────────── */
-function ReceiveDrawer({ po, defaultLocationId, locations, onClose, onDone }: {
+function ReceiveModal({ po, defaultLocationId, locations, onClose, onDone }: {
   po: PurchaseOrderDto; defaultLocationId: string | null; locations: StockLocationDto[];
   onClose: () => void; onDone: () => void;
 }) {
@@ -224,31 +233,39 @@ function ReceiveDrawer({ po, defaultLocationId, locations, onClose, onDone }: {
   }
 
   return (
-    <Drawer open title="Ricevi merce" onClose={onClose}
+    <Modal open title="Ricevi merce" size="lg" onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={confirm} disabled={busy || total <= 0}>Registra carico</button>
       </>}>
-      <div className="field"><label>Magazzino di destinazione</label>
-        <select className="txt" value={locId} onChange={(e) => setLocId(e.target.value)}>
-          <option value="">— predefinito ordine —</option>
-          {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select></div>
-      <table className="subt" style={{ marginTop: 8 }}>
+      <div className="bgrid">
+        <div className="bf c4"><span className="bl">Magazzino di destinazione</span>
+          <select className="bi" value={locId} onChange={(e) => setLocId(e.target.value)}>
+            <option value="">— predefinito ordine —</option>
+            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select></div>
+      </div>
+      <table className="subt" style={{ marginTop: 14 }}>
+        <colgroup>
+          <col />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 130 }} />
+        </colgroup>
         <thead><tr><th>Articolo</th><th className="num">Ord.</th><th className="num">Già ric.</th><th className="num">Ricevi ora</th></tr></thead>
         <tbody>
           {lines.map((l) => (
             <tr key={l.id}>
               <td>{l.materialName ?? '—'}</td>
-              <td className="num mono">{l.qtyOrdered}</td>
-              <td className="num mono">{l.qtyReceived}</td>
-              <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 80, textAlign: 'right' }} type="number" min={0} value={qty[l.id] ?? 0}
-                onChange={(e) => setQty((q) => ({ ...q, [l.id]: Number(e.target.value) }))} /></td>
+              <td className="num mono">{l.qtyOrdered.toLocaleString('it-IT')}</td>
+              <td className="num mono">{l.qtyReceived.toLocaleString('it-IT')}</td>
+              <td className="num"><NumInput align="right" value={qty[l.id] ?? 0}
+                onChange={(n) => setQty((q) => ({ ...q, [l.id]: n ?? 0 }))} /></td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="help">Le quantità &gt; 0 generano i carichi a magazzino; lo stato dell'ordine si aggiorna a parziale o ricevuto.</p>
-    </Drawer>
+      <p className="help" style={{ marginTop: 10 }}>Le quantità &gt; 0 generano i carichi a magazzino; lo stato dell'ordine si aggiorna a parziale o ricevuto.</p>
+    </Modal>
   );
 }
