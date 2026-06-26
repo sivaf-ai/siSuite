@@ -56,6 +56,7 @@ import { listPresetRoutes } from './routes/listPresets.js';
 import { savedReportRoutes } from './routes/savedReports.js';
 import { taxRateRoutes } from './routes/taxRates.js';
 import { materialCatalogRoutes } from './routes/materialCatalog.js';
+import { unitOfMeasureRoutes } from './routes/unitsOfMeasure.js';
 import { warehouseRoutes } from './routes/warehouse.js';
 import { resourceExtrasRoutes } from './routes/resourceExtras.js';
 
@@ -147,6 +148,7 @@ async function build() {
   await app.register(savedReportRoutes);
   await app.register(taxRateRoutes);
   await app.register(materialCatalogRoutes);
+  await app.register(unitOfMeasureRoutes);
   await app.register(warehouseRoutes);
   await app.register(resourceExtrasRoutes);
 

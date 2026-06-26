@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Package, Settings2, ScanLine, Layers, ArrowLeftRight, FileText, Eye, Lock, Image as ImageIcon, Star, Trash2, Upload } from 'lucide-react';
-import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto, MaterialImageDto } from '@sisuite/shared';
+import type { MaterialDto, SerialUnitDto, FieldDefinitionDto, StockBalanceDto, StockMovementDto, MaterialImageDto, UnitDto, MaterialCategoryDto } from '@sisuite/shared';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useLookups } from '../context/Lookups';
 import { Money } from '../ui/Num';
@@ -66,6 +66,8 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const detail = useApi<MaterialDto>(isNew ? null : `/materials/${id}`);
   const serials = useApi<ListResp<SerialUnitDto>>(isNew ? null : `/materials/${id}/serials`);
   const fieldDefs = useApi<ListResp<FieldDefinitionDto>>('/field-definitions?entity=material');
+  const units = useApi<ListResp<UnitDto>>('/units');
+  const categories = useApi<ListResp<MaterialCategoryDto>>('/material-categories');
 
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
@@ -85,6 +87,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
           trackStock: true, costingMethod: 'avg',
           ...(pf ? {
             name: (pf.name as string) ?? '', unit: (pf.unit as string) ?? '', sku: (pf.sku as string) ?? '',
+            categoryId: (pf.categoryId as string) ?? '',
             trackStock: (pf.trackStock as boolean) ?? true, trackedBySerial: (pf.trackedBySerial as boolean) ?? false,
             trackedByLot: (pf.trackedByLot as boolean) ?? false, costingMethod: (pf.costingMethod as string) ?? 'avg',
           } : {}),
@@ -93,7 +96,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
       }
       return;
     }
-    setForm({ name: d.name, unit: d.unit, sku: d.sku ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
+    setForm({ name: d.name, unit: d.unit, sku: d.sku ?? '', categoryId: d.categoryId ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
       trackedByLot: d.trackedByLot, costingMethod: d.costingMethod });
     setAttrs(d.attributes ?? {});
   }, [d, isNew, prefill]);
@@ -103,12 +106,27 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   // NB: gli hook devono stare PRIMA dei return condizionali (loading/error) sotto,
   // altrimenti il conteggio hook cambia tra i render → React crasha (pagina vuota).
   const catOptions = useMemo(() => (fieldDefs.data?.items ?? []).find((f) => f.key === 'item_type')?.options ?? [], [fieldDefs.data]);
+  const unitOptions = useMemo(() => units.data?.items ?? [], [units.data]);
+  // categorie ordinate ad albero con indentazione per livello (per il select)
+  const categoryOptions = useMemo(() => {
+    const items = categories.data?.items ?? [];
+    const byParent = new Map<string | null, MaterialCategoryDto[]>();
+    for (const c of items) { const k = c.parentId; if (!byParent.has(k)) byParent.set(k, []); byParent.get(k)!.push(c); }
+    byParent.forEach((arr) => arr.sort((a, b) => a.name.localeCompare(b.name, 'it')));
+    const out: { id: string; label: string }[] = [];
+    const walk = (parent: string | null, depth: number) => {
+      for (const c of byParent.get(parent) ?? []) { out.push({ id: c.id, label: `${'  '.repeat(depth)}${c.name}` }); walk(c.id, depth + 1); }
+    };
+    walk(null, 0);
+    return out;
+  }, [categories.data]);
 
   async function save() {
     if (!form.name || !form.unit) { toast('Nome e unità sono obbligatori', 'error'); return; }
     setBusy(true);
     const body = {
       name: form.name, unit: form.unit, sku: (form.sku as string) || null,
+      categoryId: (form.categoryId as string) || null,
       trackStock: !!form.trackStock, trackedBySerial: !!form.trackedBySerial, trackedByLot: !!form.trackedByLot,
       costingMethod: form.costingMethod || 'avg',
       defaultCost: attrs.__default_cost != null ? Number(attrs.__default_cost) : (d?.defaultCost ?? null),
@@ -175,8 +193,18 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span><input className="bi" value={form.name as string ?? ''} onChange={(e) => set('name', e.target.value)} /></div>
             <div className="bf"><span className="bl">SKU</span><input className="bi mono" value={form.sku as string ?? ''} onChange={(e) => set('sku', e.target.value)} /></div>
-            <div className="bf"><span className="bl">Unità di misura <span className="req">*</span></span><input className="bi" value={form.unit as string ?? ''} onChange={(e) => set('unit', e.target.value)} placeholder="pz, m, cad…" /></div>
-            <div className="bf c2"><span className="bl">Categoria</span><input className="bi" value={(attrs.category as string) ?? ''} onChange={(e) => setAttrs((a) => ({ ...a, category: e.target.value || undefined }))} /></div>
+            <div className="bf"><span className="bl">Unità di misura <span className="req">*</span></span>
+              <select className="bi" value={form.unit as string ?? ''} onChange={(e) => set('unit', e.target.value)}>
+                <option value="">— Seleziona —</option>
+                {unitOptions.map((u) => <option key={u.id} value={u.code}>{u.code} — {u.name}</option>)}
+                {/* fallback: l'unità salvata non è (più) in catalogo → la mostro comunque */}
+                {form.unit && !unitOptions.some((u) => u.code === form.unit) && <option value={form.unit as string}>{form.unit as string}</option>}
+              </select></div>
+            <div className="bf c2"><span className="bl">Categoria</span>
+              <select className="bi" value={(form.categoryId as string) ?? ''} onChange={(e) => set('categoryId', e.target.value)}>
+                <option value="">— Nessuna —</option>
+                {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select></div>
             <div className="bf"><span className="bl">Tipo</span>
               <select className="bi" value={itemType} onChange={(e) => setAttrs((a) => ({ ...a, item_type: e.target.value }))}>
                 {(catOptions.length ? catOptions : [{ value: 'article', label: { 'it-IT': 'Articolo' } }, { value: 'service', label: { 'it-IT': 'Servizio' } }]).map((o) => <option key={o.value} value={o.value}>{o.label['it-IT'] ?? o.value}</option>)}

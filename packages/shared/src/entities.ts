@@ -816,6 +816,17 @@ export interface TaxRateDto {
   label: string; percent: number; isDefault: boolean; active: boolean; isSystem: boolean;
 }
 
+/* ── unit_of_measure (anagrafica unità di misura) ────────────────────── */
+export const createUnitSchema = z.object({
+  code: z.string().min(1).max(40),
+  name: z.string().min(1).max(120),
+  active: z.boolean().optional(),
+});
+export const updateUnitSchema = createUnitSchema.partial();
+export interface UnitDto {
+  id: string; tenantId: string | null; code: string; name: string; active: boolean; isSystem: boolean;
+}
+
 /* ── material_category (gerarchica) — Blocco B.2 ─────────────────────── */
 export const createMaterialCategorySchema = z.object({
   name: z.string().min(1).max(120),

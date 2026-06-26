@@ -149,6 +149,8 @@ export const NAV: NavSection[] = [
       { caption: 'Configurazione dati', items: [
         { id: 'skills', label: 'Competenze', route: '/skills', icon: 'graduation-cap', permission: 'resource:read' },
         { id: 'tax-rates', label: 'Aliquote IVA', route: '/tax-rates', icon: 'percent', permission: 'material:read' },
+        { id: 'units', label: 'Unità di misura', route: '/units', icon: 'ruler', permission: 'material:read' },
+        { id: 'material-categories', label: 'Categorie articolo', route: '/material-categories', icon: 'folder-tree', permission: 'material:read' },
       ] },
     ],
   },

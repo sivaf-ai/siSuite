@@ -51,6 +51,8 @@ import { TimeEntriesPage } from '../pages/TimeEntriesPage';
 import { TimeEntryDetailPage } from '../pages/TimeEntryDetailPage';
 import { MagazzinoPage, MagazzinoDetailPage } from '../pages/MagazzinoPage';
 import { PurchaseOrdersPage, PickListsPage, DdtPage, StockCountsPage, SkillsPage, TaxRatesPage } from '../pages/SpecListsPages';
+import { UnitsPage } from '../pages/UnitsPage';
+import { CategoriePage } from '../pages/CategoriePage';
 import { PurchaseOrderDetailPage } from '../pages/PurchaseOrderDetailPage';
 import { PickListDetailPage } from '../pages/PickListDetailPage';
 import { DdtDetailPage } from '../pages/DdtDetailPage';
@@ -121,6 +123,8 @@ const ROUTES: RouteDef[] = [
   { path: '/stock-counts', render: () => <StockCountsPage />, perm: 'stock:read' },
   { path: '/skills', render: () => <SkillsPage />, perm: 'resource:read' },
   { path: '/tax-rates', render: () => <TaxRatesPage />, perm: 'material:read' },
+  { path: '/units', render: () => <UnitsPage />, perm: 'material:read' },
+  { path: '/material-categories', render: () => <CategoriePage />, perm: 'material:read' },
   { path: '/agenda', render: () => <PlaceholderPage title="Agenda" />, perm: 'activity:read' },
   { path: '/captures', render: () => <CapturePage />, perm: 'capture:read' },
   { path: '/admin/users', render: () => <UsersPage />, perm: 'user:read' },
