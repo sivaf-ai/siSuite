@@ -2,6 +2,16 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-27 (3) — Chiusura TOTALE residui audit (chat 01.06)
+- Solo frontend + 2 route backend (nessuna migrazione nuova; prossima libera resta **054**). Commit `e44d761` su `main`.
+- **Picker entità** (riuso lista vera in Modal): nuovi `ui/ResourcePickerDialog` (con "+ Nuovo"), `EngagementPickerDialog`, `WorkOrderPickerDialog`. `RisorsePage`/`EngagementsPage`/`OrdinativiPage` con `pickProps`; `RisorsaDetailPage` embed. Cablati al posto dei `<select>` entità in: PickList (risorsa/commessa/WO), Ordinativo (commessa/squadra), Lavorazioni (commessa), UserDetail (risorsa), CommessaDetail (cliente in creazione).
+- **Liste documenti magazzino**: backend `warehouse.ts`/`stock.ts` GET `/purchase-orders`,`/pick-lists`,`/stock/documents` con `?q/?filter/?sort` (buildFilter/buildOrderBy + SORTABLE); `SpecListsPages.tsx` cablato (filterFields/sortFields/entity) → toolbar completa.
+- **AttivitaDetailPage**: rebuild da legacy Ionic a `ObjectPage` + `RelatedTabs` (Risorse/Bloccata-da/Ore/Materiali) con picker + NumInput.
+- **CommessaDetailPage**: sub-CRUD Fase/Attività + SaveAsTemplate da `IonModal` a `ui/Modal` centrato; durata → NumInput; cliente(creazione) → CompanyPicker.
+- **/agenda**: rimossa rotta+voce placeholder morta (`AppShell.tsx`, `shared/nav.ts`); menu mobile (`shared/menu.ts`) ripuntato a `/planning`.
+- **Residuo unico documentato**: sito in AssetDetail resta `<select>` (SiteTree = albero per-cliente, popolato da endpoint reale, non lista ad-hoc). Tab `.tabs` Commessa lasciata (design-system, contenuto ricco).
+- Verifica: typecheck shared+BE+FE puliti, 79/79 test BE, smoke 200 (doc-list filtri) + integrità 409 attiva, app up (5173/3010). Vedi `docs/analisi/DONE_TOTALE_3.md` §Residui-CHIUSI.
+
 ## 2026-06-27 (2) — AUDIT TOTALE + bonifica integrità + standardizzazione (chat 01.06)
 - **Migrazioni 052→053 applicate** (prossima libera **054**). Vedi `docs/analisi/DONE_TOTALE_3.md` + ADR-0010 + `AUDIT_conformita_DB.md`/`AUDIT_conformita_UI.md` (FASE 0) + schema rigenerato `2026-06-27_schema_db_completo_post_audit.md` (001→053).
 - **052**: 11 colonne `unit`/`weight_unit` text → `unit_id`/`weight_unit_id` **FK** `unit_of_measure(id)` `ON DELETE RESTRICT`, DROP testo (CLEAN SLATE). Vista `job_cost_ledger` ricreata. Helper `app_resolve_unit`. **Contratto DTO invariato** (join code in lettura, resolve in scrittura): frontend `UnitSelect` immutato. Backend toccato: consumptions/prices/materials/warehouse/stock/workReports/workOrders/workLines/unitsOfMeasure + ai/applier + demo/runner.

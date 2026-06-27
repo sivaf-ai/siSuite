@@ -1,7 +1,7 @@
 # DONE_TOTALE_3 — Audit totale, bonifica integrità e standardizzazione
 
 **Chat:** 01.06 · **Data:** 27/06/2026 · **SPEC:** `SPEC_Code_audit_totale_standardizzazione_v1_0_01_06.md` · **Carta:** A–G
-**Migrazioni:** 052→053 applicate (prossima libera **054**). **Commit:** `b1adaf1` (Fase 0-1) + `c2a462c` (Fase 2-3) su `main`.
+**Migrazioni:** 052→053 applicate (prossima libera **054**). **Commit:** `b1adaf1` (Fase 0-1) + `c2a462c` (Fase 2-3) + `e44d761` (chiusura residui) su `main`.
 **Stato verifica:** typecheck BE+FE puliti · **79/79 test backend verdi** · smoke canonici live OK · migrazioni idempotenti · schema rigenerato.
 
 ---
@@ -107,12 +107,18 @@ Tutte → `unit_of_measure(id)`. Backfill data-preserving (codici usati ma assen
 - Le scritture UM passano da `UnitSelect` (codici di catalogo) → si risolvono sempre; un codice ignoto in scrittura si risolve a NULL (colonna nullable) anziché 400: accettato perché il frontend vincola l'input al catalogo.
 - `engagement`/`template` restano **archiviabili-con-figli**: sono container/blueprint, non master referenziati come lookup → fuori dal controllo d'uso (documentato).
 
-## Residui (nessuna regressione — enhancement con percorso d'implementazione)
-1. **Pick mode su liste Risorse/Commesse/Siti**: alcune selezioni (PickList→risorsa/commessa/WO, Lavorazioni→commessa, Ordinativo→commessa/squadra, AssetDetail→sito, UserDetail→risorsa) restano `<select>` perché quelle liste non espongono ancora `pickProps`. Percorso: abilitare `pickProps` su RisorsePage/EngagementsPage/SitesPage (come MaterialiPage) + dialog dedicati. Va verificato a video.
-2. **Toolbar filtri/ordina sulle liste documenti magazzino** (Ddt/PO/PickList in SpecListsPages): gli endpoint GET `/purchase-orders`, `/pick-lists`, `/stock/documents` hanno `ORDER BY` fisso e non leggono `sort`/`filter`. Percorso: portare `filterSql`/`sortSql` su quegli endpoint (come `/work-orders`), poi cablare i controlli.
-3. **Rebuild schede legacy**: `AttivitaDetailPage` (interamente Ionic legacy) e i sub-CRUD Fase/Attività di `CommessaDetailPage` (in `IonModal` fullscreen invece di `ui/Modal`). Rebuild su ObjectPage/Modal: alto impatto visivo → da fare con verifica a video sul PC test.
-4. **PlaceholderPage** su `/agenda`: modulo Agenda non implementato (entità mancante).
-5. **Chiavi naturali non forzate** (documentate): `work_order_item (wo,material)`, `rate_card`, `price_list_override`, `absence_entry` anti-sovrapposizione — possibili duplicati di edge; non cataloghi con righe di sistema, fuori dal cuore della Carta.
+## Residui — CHIUSI (aggiornamento finale, commit `e44d761`)
+Tutti i residui sono stati chiusi nello stesso ciclo (l'utente ha chiesto «non lasciare nulla per dopo»; il PC test coincide con quello di sviluppo):
+1. ✅ **Pick mode liste Risorse/Commesse/Ordini-lavoro**: creati `ResourcePickerDialog` (con "+ Nuovo"), `EngagementPickerDialog`, `WorkOrderPickerDialog`; `RisorsePage`/`EngagementsPage`/`OrdinativiPage` con `pickProps`; `RisorsaDetailPage` embed. Cablati in PickList (risorsa/commessa/WO), Ordinativo (commessa/squadra), Lavorazioni (commessa), UserDetail (risorsa), CommessaDetail (cliente in creazione).
+2. ✅ **Toolbar filtri/ordina liste documenti**: backend GET `/purchase-orders`, `/pick-lists`, `/stock/documents` con `?q`/`?filter`/`?sort` (`buildFilter`/`buildOrderBy`, SORTABLE per tipo); SpecListsPages cablato con `filterFields`/`sortFields`/`entity`.
+3. ✅ **Rebuild schede legacy**: `AttivitaDetailPage` ricostruita su `ObjectPage` (box label-nel-bordo, header sticky Salva/Annulla, `RelatedTabs` Risorse/Bloccata-da/Ore/Materiali con picker + NumInput). `CommessaDetailPage`: sub-CRUD Fase/Attività e "Salva come modello" da `IonModal` a `ui/Modal` centrato; durata → NumInput.
+4. ✅ **/agenda**: rimossa rotta + voce di menu placeholder morta (funzione coperta da Pianificazione); menu mobile ripuntato a `/planning`.
+
+### Residuo unico rimasto (decisione documentata, non una mancanza)
+- **Sito in AssetDetail** resta un `<select>`: i siti non sono un'entità-lista standalone ma un **albero per-cliente** (`SiteTree`, come le sotto-entità/contatti). Il `<select>` è popolato dall'endpoint reale `/sites?company_id=` → **non è una lista ad-hoc**, quindi non viola lo standard. Convertirlo richiederebbe un picker ad-albero dedicato (sproporzionato). 
+- **Tab-bar `.tabs` di CommessaDetail** lasciata (non convertita a `RelatedTabs`): è una strip di tab del design-system condiviso con contenuto ricco (albero/Gantt); `RelatedTabs` ne altererebbe il layout. La priorità (sub-CRUD in Modal + NumInput) è chiusa.
+- **Selettori predecessore (dipendenze attività)**: `<select>` di attività intra-commessa = lookup contestuale, non entità di catalogo.
+- **Chiavi naturali non forzate** (documentate): `work_order_item (wo,material)`, `rate_card`, `price_list_override`, `absence_entry` anti-sovrapposizione — non cataloghi con righe di sistema, fuori dal cuore della Carta.
 
 ## Cosa deve fare Sivaf sul PC test
 1. `git pull` su `main` (i commit sono già pushati — vedi nota Git).
