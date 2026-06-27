@@ -83,19 +83,20 @@ export async function unitOfMeasureRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('material:delete')] },
     async (request, reply) => {
       const res = await withRls(request.ctx, async (db) => {
-        const u = await db.query(`SELECT code FROM unit_of_measure WHERE id = $1 AND tenant_id = $2`,
+        const u = await db.query(`SELECT id, code FROM unit_of_measure WHERE id = $1 AND tenant_id = $2`,
           [request.params.id, request.ctx.tenantId]);
         if (!u.rows.length) return { code: 'notfound' as const };
+        const id = u.rows[0].id as string;
         const code = u.rows[0].code as string;
         const t = request.ctx.tenantId;
         const usage = await db.query(
           `SELECT
-             (SELECT count(*) FROM material WHERE tenant_id=$1 AND unit=$2 AND archived_at IS NULL)::int AS articoli,
-             (SELECT count(*) FROM stock_movement WHERE tenant_id=$1 AND unit=$2)::int AS movimenti,
-             (SELECT count(*) FROM purchase_order_line WHERE tenant_id=$1 AND unit=$2)::int AS ordini,
-             (SELECT count(*) FROM pick_list_line WHERE tenant_id=$1 AND unit=$2)::int AS pick,
-             (SELECT count(*) FROM stock_document_line WHERE tenant_id=$1 AND unit=$2)::int AS documenti`,
-          [t, code]);
+             (SELECT count(*) FROM material WHERE tenant_id=$1 AND (unit_id=$2 OR weight_unit_id=$2) AND archived_at IS NULL)::int AS articoli,
+             (SELECT count(*) FROM stock_movement WHERE tenant_id=$1 AND unit_id=$2)::int AS movimenti,
+             (SELECT count(*) FROM purchase_order_line WHERE tenant_id=$1 AND unit_id=$2)::int AS ordini,
+             (SELECT count(*) FROM pick_list_line WHERE tenant_id=$1 AND unit_id=$2)::int AS pick,
+             (SELECT count(*) FROM stock_document_line WHERE tenant_id=$1 AND unit_id=$2)::int AS documenti`,
+          [t, id]);
         const u0 = usage.rows[0] as Record<string, number>;
         const used: string[] = [];
         if (u0.articoli) used.push(`${u0.articoli} articoli`);

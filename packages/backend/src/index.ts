@@ -121,9 +121,17 @@ async function build() {
       });
     }
     if (pg.code === '23505') { // unique_violation: chiave duplicata → mai consentita
+      // detail tipico: «Key (tenant_id, code)=(…, pz) already exists.»
+      const dv = /\)=\(([^)]*)\) already exists/.exec(pg.detail ?? '');
+      const raw = dv?.[1]?.split(',').map((s) => s.trim()).filter((s) => s && !/^[0-9a-f-]{36}$/i.test(s));
+      const val = raw && raw.length ? raw.join(' · ') : null;
+      const where = pg.table ? ENTITY_IT[pg.table] : undefined;
+      const subj = where ? ` in ${where}` : '';
       return reply.code(409).send({
         error: 'conflict',
-        message: 'Esiste già un record con questi dati (valore duplicato): scegli un valore diverso.',
+        message: val
+          ? `Valore duplicato${subj}: «${val}» esiste già. Scegli un valore diverso.`
+          : `Esiste già un record con questi dati${subj}: scegli un valore diverso.`,
         statusCode: 409,
       });
     }

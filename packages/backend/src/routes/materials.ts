@@ -9,6 +9,7 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { findUsage, usageMessage, MATERIAL_REFS } from '../context/usageGuard.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 import { validateAttributes } from '../fields.js';
@@ -18,7 +19,7 @@ import { config } from '../config.js';
 
 const SORTABLE: Record<string, string> = { name: 'm.name', code: 'm.code', sku: 'm.sku', barcode: 'm.barcode', qty: 'qty_on_hand', cost: 'avg_cost' };
 const FILTER_FIELDS: Record<string, string> = {
-  name: 'm.name', code: 'm.code', sku: 'm.sku', barcode: 'm.barcode', unit: 'm.unit',
+  name: 'm.name', code: 'm.code', sku: 'm.sku', barcode: 'm.barcode', unit: 'mu.code',
   costingMethod: 'm.costing_method', itemType: 'm.item_type', brand: 'm.brand',
   category: 'cat.name', categoryId: 'm.category_id',
 };
@@ -27,12 +28,12 @@ const FILTER_ANY = ['m.name', 'm.code', 'm.sku', 'm.barcode'];
 const num = (v: unknown): number | null => (v != null ? Number(v) : null);
 
 const SELECT = `
-  SELECT m.id, m.code, m.name, m.unit, m.item_type, m.sku, m.barcode, m.category_id, cat.name AS category_name,
+  SELECT m.id, m.code, m.name, mu.code AS unit, m.item_type, m.sku, m.barcode, m.category_id, cat.name AS category_name,
          m.description, m.brand, m.manufacturer, m.mpn,
          m.track_stock, m.tracked_by_serial, m.tracked_by_lot,
          m.costing_method, m.default_cost, m.default_sale_price, m.tax_rate_id,
          m.reorder_point, m.safety_stock, m.min_qty, m.max_qty, m.lead_time_days, m.preferred_vendor_id,
-         m.weight, m.weight_unit, m.dimensions, m.is_returnable, m.shelf_life_days, m.note,
+         m.weight, wu.code AS weight_unit, m.dimensions, m.is_returnable, m.shelf_life_days, m.note,
          pi.object_key AS primary_image_key,
          m.attributes,
          COALESCE(bal.qty, 0) AS qty_on_hand,
@@ -41,6 +42,8 @@ const SELECT = `
             AND COALESCE(bal.qty,0) < m.reorder_point) AS low_stock
   FROM material m
   LEFT JOIN material_category cat ON cat.id = m.category_id
+  LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
+  LEFT JOIN unit_of_measure wu ON wu.id = m.weight_unit_id
   LEFT JOIN material_image pi ON pi.material_id = m.id AND pi.is_primary
   LEFT JOIN LATERAL (
     SELECT sum(b.qty_on_hand) AS qty, sum(b.value_on_hand) AS val
@@ -82,7 +85,7 @@ const MAT_COLS: Record<string, string> = {
   brand: 'brand', manufacturer: 'manufacturer', mpn: 'mpn', defaultSalePrice: 'default_sale_price',
   taxRateId: 'tax_rate_id', reorderPoint: 'reorder_point', safetyStock: 'safety_stock', minQty: 'min_qty',
   maxQty: 'max_qty', leadTimeDays: 'lead_time_days', preferredVendorId: 'preferred_vendor_id',
-  weight: 'weight', weightUnit: 'weight_unit', dimensions: 'dimensions', isReturnable: 'is_returnable',
+  weight: 'weight', dimensions: 'dimensions', isReturnable: 'is_returnable',
   shelfLifeDays: 'shelf_life_days', note: 'note',
 };
 
@@ -179,12 +182,12 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       const attrs = await validateAttributes(db, ctx.tenantId, 'material', input.attributes);
       const code = await nextNumber(db, 'material');
       const ins = await db.query(
-        `INSERT INTO material (tenant_id, code, name, unit, item_type, sku, barcode, category_id, description,
+        `INSERT INTO material (tenant_id, code, name, unit_id, item_type, sku, barcode, category_id, description,
            brand, manufacturer, mpn, track_stock, tracked_by_serial, tracked_by_lot, costing_method,
            default_cost, default_sale_price, tax_rate_id, reorder_point, safety_stock, min_qty, max_qty,
-           lead_time_days, preferred_vendor_id, weight, weight_unit, dimensions, is_returnable, shelf_life_days,
+           lead_time_days, preferred_vendor_id, weight, weight_unit_id, dimensions, is_returnable, shelf_life_days,
            note, attributes, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$33) RETURNING id`,
+         VALUES ($1,$2,$3,public.app_resolve_unit(public.app_current_tenant(),$4),$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,public.app_resolve_unit(public.app_current_tenant(),$27),$28,$29,$30,$31,$32,$33,$33) RETURNING id`,
         [ctx.tenantId, code, input.name, input.unit, input.itemType ?? 'article', input.sku ?? null, input.barcode ?? null,
          input.categoryId ?? null, input.description ?? null, input.brand ?? null, input.manufacturer ?? null, input.mpn ?? null,
          input.trackStock ?? true, input.trackedBySerial ?? false, input.trackedByLot ?? false, input.costingMethod ?? 'avg',
@@ -204,15 +207,21 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       const input = updateMaterialSchema.parse(request.body);
       const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'material', input.attributes) : null;
       const sets: string[] = []; const vals: unknown[] = [request.params.id];
-      const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+      const add = (col: string, val: unknown, expr?: (p: string) => string) => {
+        vals.push(val);
+        const p = `$${vals.length}`;
+        sets.push(`${col} = ${expr ? expr(p) : p}`);
+      };
+      const resolveUnit = (p: string) => `public.app_resolve_unit(public.app_current_tenant(),${p})`;
       if (input.name !== undefined) add('name', input.name);
-      if (input.unit !== undefined) add('unit', input.unit);
+      if (input.unit !== undefined) add('unit_id', input.unit, resolveUnit);
       if (input.sku !== undefined) add('sku', input.sku);
       if (input.trackStock !== undefined) add('track_stock', input.trackStock);
       if (input.trackedBySerial !== undefined) add('tracked_by_serial', input.trackedBySerial);
       if (input.trackedByLot !== undefined) add('tracked_by_lot', input.trackedByLot);
       if (input.costingMethod !== undefined) add('costing_method', input.costingMethod);
       if (input.defaultCost !== undefined) add('default_cost', input.defaultCost);
+      if (input.weightUnit !== undefined) add('weight_unit_id', input.weightUnit, resolveUnit);
       for (const [k, col] of Object.entries(MAT_COLS)) {
         const v = (input as Record<string, unknown>)[k];
         if (v !== undefined) add(col, col === 'dimensions' && v ? JSON.stringify(v) : v);
@@ -226,7 +235,16 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete<{ Params: { id: string } }>('/materials/:id', { preHandler: [app.authenticate, requirePermission('material:delete')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`UPDATE material SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]));
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name FROM material WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        const used = await findUsage(db, request.params.id, MATERIAL_REFS);
+        if (used.length) return { code: 'used' as const, name: r.rows[0].name as string, used };
+        await db.query(`UPDATE material SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Articolo non trovato', statusCode: 404 });
+      if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
       return reply.code(204).send();
     });
 }

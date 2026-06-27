@@ -33,7 +33,7 @@ function lineDto(r: Record<string, unknown>): WorkLineDto {
 
 /** Prezzo "fotografato" via resolvePrice nel contesto della commessa (gestore = engagement.company_id). */
 async function snapshotPrice(db: PoolClient, itemId: string, engagementId: string): Promise<{ cost: number | null; rev: number | null; unit: string | null }> {
-  const b = await db.query(`SELECT cost_price, revenue_price, unit FROM price_list_item WHERE id = $1`, [itemId]);
+  const b = await db.query(`SELECT i.cost_price, i.revenue_price, u.code AS unit FROM price_list_item i LEFT JOIN unit_of_measure u ON u.id = i.unit_id WHERE i.id = $1`, [itemId]);
   if (b.rows.length === 0) return { cost: null, rev: null, unit: null };
   const eng = await db.query(`SELECT company_id FROM engagement WHERE id = $1`, [engagementId]);
   const companyId = (eng.rows[0]?.company_id as string) ?? null;
@@ -51,11 +51,12 @@ async function snapshotPrice(db: PoolClient, itemId: string, engagementId: strin
 const SELECT = `
   SELECT wl.id, wl.engagement_id, wl.phase_id, p.name AS phase_name, p.wbs_code,
          wl.price_list_item_id, pli.code AS item_code, pli.description AS item_description,
-         wl.description, wl.quantity, wl.unit, wl.cost_price, wl.revenue_price, wl.occurred_on,
+         wl.description, wl.quantity, wlu.code AS unit, wl.cost_price, wl.revenue_price, wl.occurred_on,
          wl.source_capture_id, wl.attributes,
          (SELECT count(*)::int FROM work_line_measure m WHERE m.work_line_id = wl.id) AS measure_count
   FROM work_line wl
   LEFT JOIN phase p ON p.id = wl.phase_id
+  LEFT JOIN unit_of_measure wlu ON wlu.id = wl.unit_id
   LEFT JOIN price_list_item pli ON pli.id = wl.price_list_item_id`;
 
 async function replaceMeasures(db: PoolClient, tenantId: string, lineId: string, measures: { label?: string | null; formula?: string | null; value: number }[]): Promise<number> {
@@ -84,7 +85,7 @@ export async function workLineRoutes(app: FastifyInstance): Promise<void> {
       else if (view === 'from_capture') where += ` AND wl.source_capture_id IS NOT NULL`;
       else if (view === 'manual') where += ` AND wl.price_list_item_id IS NULL`;
       const fsql = buildFilter(qq.filter as string | undefined,
-        { voce: 'COALESCE(pli.description, wl.description)', code: 'pli.code', occurredOn: 'wl.occurred_on', quantity: 'wl.quantity', unit: 'wl.unit', revenue: 'wl.revenue_price' },
+        { voce: 'COALESCE(pli.description, wl.description)', code: 'pli.code', occurredOn: 'wl.occurred_on', quantity: 'wl.quantity', unit: '(SELECT code FROM unit_of_measure u WHERE u.id = wl.unit_id)', revenue: 'wl.revenue_price' },
         ['pli.code', 'pli.description', 'wl.description'], params);
       if (fsql) where += ` AND ${fsql}`;
       const total = await db.query(`SELECT count(*)::int AS n FROM work_line wl LEFT JOIN price_list_item pli ON pli.id=wl.price_list_item_id ${where}`, params);
@@ -126,8 +127,8 @@ export async function workLineRoutes(app: FastifyInstance): Promise<void> {
       const qty = measures.length ? measures.reduce((a, m) => a + Number(m.value), 0) : (input.quantity ?? 0);
       if (qty <= 0) throw Object.assign(new Error('Quantità mancante: indica una quantità o un libretto misure'), { statusCode: 400 });
       const ins = await db.query(
-        `INSERT INTO work_line (tenant_id, engagement_id, phase_id, work_order_id, price_list_item_id, description, quantity, unit, cost_price, revenue_price, occurred_on, resource_id, attributes, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11,CURRENT_DATE),$12,$13,$14,$14) RETURNING id`,
+        `INSERT INTO work_line (tenant_id, engagement_id, phase_id, work_order_id, price_list_item_id, description, quantity, unit_id, cost_price, revenue_price, occurred_on, resource_id, attributes, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,public.app_resolve_unit(public.app_current_tenant(),$8),$9,$10,COALESCE($11,CURRENT_DATE),$12,$13,$14,$14) RETURNING id`,
         [ctx.tenantId, input.engagementId, input.phaseId ?? null, input.workOrderId ?? null, input.priceListItemId ?? null,
          input.description ?? null, qty, unit, cost, rev, input.occurredOn ?? null, input.resourceId ?? null, attrsVal, ctx.userId]);
       const id = ins.rows[0].id as string;
@@ -144,7 +145,7 @@ export async function workLineRoutes(app: FastifyInstance): Promise<void> {
       const attrsVal = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'work_line', input.attributes) : null;
       await db.query(
         `UPDATE work_line SET phase_id=COALESCE($2,phase_id), description=COALESCE($3,description),
-           quantity=COALESCE($4,quantity), unit=COALESCE($5,unit), occurred_on=COALESCE($6,occurred_on),
+           quantity=COALESCE($4,quantity), unit_id=COALESCE(public.app_resolve_unit(public.app_current_tenant(),$5), unit_id), occurred_on=COALESCE($6,occurred_on),
            attributes=COALESCE($7,attributes), updated_by=$8 WHERE id=$1`,
         [request.params.id, input.phaseId ?? null, input.description ?? null, input.quantity ?? null, input.unit ?? null, input.occurredOn ?? null, attrsVal, request.ctx.userId]);
       const r = await db.query(`${SELECT} WHERE wl.id = $1`, [request.params.id]);

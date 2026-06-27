@@ -86,6 +86,9 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
     await db.query('BEGIN');
     const tenantId = await ins(`INSERT INTO tenant (name, vertical, default_locale, timezone) VALUES ($1,$2,$3,$4) RETURNING id`,
       [T.name, T.vertical, T.default_locale ?? 'it-IT', T.timezone ?? 'Europe/Rome']);
+    // imposta il tenant corrente di sessione: serve a app_resolve_unit() (UM testo→FK)
+    // per risolvere i codici UM tenant-specifici creati implicitamente dal seed.
+    await db.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
     if (pack.subscription) {
       await db.query(`INSERT INTO subscription (tenant_id, plan_id, status, current_period_end)
         SELECT $1, p.id, 'active', now() + ($2 || ' days')::interval FROM plan p WHERE p.code = $3 LIMIT 1`,
@@ -137,8 +140,8 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
     }
     const materialId = new Map<string, string>();
     for (const m of pack.materials ?? []) materialId.set(m.key, await ins(
-      `INSERT INTO material (tenant_id, name, unit, sku, track_stock, tracked_by_serial, default_cost, attributes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      `INSERT INTO material (tenant_id, name, unit_id, sku, track_stock, tracked_by_serial, default_cost, attributes)
+       VALUES ($1,$2,public.app_resolve_unit(public.app_current_tenant(),$3),$4,$5,$6,$7,$8) RETURNING id`,
       [tenantId, m.name, m.unit, m.sku ?? null, m.track_stock ?? false, m.tracked_by_serial ?? false, m.default_cost ?? null, withMarker(m.attributes, packName)]));
 
     // ── LISTINI (price_list + voci) ── overrides applicati dopo gli engagement (servono i loro id)
@@ -149,7 +152,7 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
         [tenantId, pl.code, pl.name, pl.currency ?? 'EUR', pl.is_default ?? false, pl.valid_from ?? null, pl.valid_to ?? null]);
       priceListId.set(pl.key, plId);
       for (const it of pl.items ?? []) priceItemId.set(it.key, await ins(
-        `INSERT INTO price_list_item (tenant_id, price_list_id, code, description, unit, category, cost_price, revenue_price, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true) RETURNING id`,
+        `INSERT INTO price_list_item (tenant_id, price_list_id, code, description, unit_id, category, cost_price, revenue_price, active) VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,true) RETURNING id`,
         [tenantId, plId, it.code, it.description, it.unit, it.category ?? null, it.cost_price ?? null, it.revenue_price ?? null]));
     }
     const applyOverride = async (o: Record<string, unknown>, engId: string | null) => {
@@ -202,7 +205,7 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
          status('time_entry_status', t.approval ?? 'approved')]));
       for (const mc of e.material_consumption ?? []) {
         const mid = materialId.get(mc.material); if (!mid) throw new Error(`consumo in ${e.key}: '${mc.material}' non trovato`);
-        await db.query(`INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit, occurred_on) VALUES ($1,$2,$3,$4,$5,$6)`,
+        await db.query(`INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit_id, occurred_on) VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
           [tenantId, mc.activity ? activityId.get(mc.activity) ?? null : null, mid, mc.quantity, mc.unit, mc.occurred_on]);
       }
       for (const cap of e.captures ?? []) await db.query(`INSERT INTO capture (tenant_id, user_id, channel, raw_text, status, processed_at) VALUES ($1,$2,$3,$4,$5,$6)`,
@@ -210,14 +213,14 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
 
       // ── LAVORAZIONI + libretto misure (contabilità produzione → pivot) ──
       for (const wl of e.work_lines ?? []) {
-        const wlId = await ins(`INSERT INTO work_line (tenant_id, engagement_id, phase_id, price_list_item_id, description, quantity, unit, cost_price, revenue_price, occurred_on, resource_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        const wlId = await ins(`INSERT INTO work_line (tenant_id, engagement_id, phase_id, price_list_item_id, description, quantity, unit_id, cost_price, revenue_price, occurred_on, resource_id) VALUES ($1,$2,$3,$4,$5,$6,public.app_resolve_unit(public.app_current_tenant(),$7),$8,$9,$10,$11) RETURNING id`,
           [tenantId, engId, wl.phase ? phaseId.get(wl.phase) ?? null : null, wl.item ? priceItemId.get(wl.item) ?? null : null, wl.description ?? null, wl.quantity, wl.unit, wl.cost_price ?? null, wl.revenue_price ?? null, wl.occurred_on, wl.resource ? resourceId.get(wl.resource) ?? null : null]);
         let seq = 0;
         for (const ms of wl.measures ?? []) await db.query(`INSERT INTO work_line_measure (tenant_id, work_line_id, label, formula, value, seq) VALUES ($1,$2,$3,$4,$5,$6)`,
           [tenantId, wlId, ms.label ?? null, ms.formula ?? null, ms.value, seq++]);
       }
       // ── ATTREZZATURE/MEZZI usati ──
-      for (const eu of e.equipment_usage ?? []) await db.query(`INSERT INTO equipment_usage (tenant_id, engagement_id, phase_id, resource_id, occurred_on, quantity, unit, unit_cost, note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      for (const eu of e.equipment_usage ?? []) await db.query(`INSERT INTO equipment_usage (tenant_id, engagement_id, phase_id, resource_id, occurred_on, quantity, unit_id, unit_cost, note) VALUES ($1,$2,$3,$4,$5,$6,public.app_resolve_unit(public.app_current_tenant(),$7),$8,$9)`,
         [tenantId, engId, eu.phase ? phaseId.get(eu.phase) ?? null : null, resourceId.get(eu.resource)!, eu.occurred_on, eu.quantity, eu.unit ?? 'h', eu.unit_cost ?? null, eu.note ?? null]);
       // ── SUBAPPALTI ──
       for (const sc of e.subcontracts ?? []) await db.query(`INSERT INTO subcontract_line (tenant_id, engagement_id, phase_id, company_id, description, amount, occurred_on, note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -263,7 +266,7 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
       for (const mc of w.consumed ?? []) {
         const mid = materialId.get(mc.material); if (!mid) throw new Error(`consumo WO: materiale '${mc.material}' non trovato`);
         const on = mc.occurred_on ?? w.completed_on ?? w.scheduled_on ?? null;
-        await db.query(`INSERT INTO material_consumption (tenant_id, material_id, quantity, unit, occurred_on, work_order_id) VALUES ($1,$2,$3,$4,$5,$6)`,
+        await db.query(`INSERT INTO material_consumption (tenant_id, material_id, quantity, unit_id, occurred_on, work_order_id) VALUES ($1,$2,$3,public.app_resolve_unit(public.app_current_tenant(),$4),$5,$6)`,
           [tenantId, mid, mc.quantity, mc.unit, on, woId]);
         woIssues.push({ woId, mid, qty: mc.quantity, unit: mc.unit, on });
       }
@@ -283,11 +286,11 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
         [tenantId, status('stock_document_type', doc.type ?? 'receipt'), doc.number ?? null, doc.doc_date, src, dest, doc.company ? companyId.get(doc.company) ?? null : null, doc.external_ref ?? null, doc.status ?? 'confirmed', doc.note ?? null]);
       for (const ln of doc.lines ?? []) {
         const mid = materialId.get(ln.material); if (!mid) throw new Error(`DDT ${doc.number}: materiale '${ln.material}' non trovato`);
-        await db.query(`INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit, unit_cost) VALUES ($1,$2,$3,$4,$5,$6)`,
+        await db.query(`INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost) VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
           [tenantId, docId, mid, ln.quantity, ln.unit, ln.unit_cost ?? null]);
         // un DDT di carico genera il movimento 'in' sull'ubicazione di destinazione → giacenza
         if ((doc.type ?? 'receipt') === 'receipt' && dest)
-          await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, unit_cost, occurred_on, stock_document_id, document_ref) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, unit_cost, occurred_on, stock_document_id, document_ref) VALUES ($1,$2,$3,$4,$5,public.app_resolve_unit(public.app_current_tenant(),$6),$7,$8,$9,$10)`,
             [tenantId, mid, dest, moveType('in'), ln.quantity, ln.unit, ln.unit_cost ?? null, doc.doc_date, docId, doc.number ?? null]);
       }
     }
@@ -297,7 +300,7 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
       // il trigger apply_stock_movement usa il SEGNO della quantità: in=+, out/transfer=−, adjust=delta dato
       const t = mv.type ?? 'out';
       const qty = t === 'in' ? Math.abs(mv.quantity) : t === 'adjust' ? mv.quantity : -Math.abs(mv.quantity);
-      await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, unit_cost, occurred_on, note, engagement_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, unit_cost, occurred_on, note, engagement_id) VALUES ($1,$2,$3,$4,$5,public.app_resolve_unit(public.app_current_tenant(),$6),$7,$8,$9,$10)`,
         [tenantId, mid, lid, moveType(t), qty, mv.unit, mv.unit_cost ?? null, mv.occurred_on, mv.note ?? null, mv.engagement ? engagementId.get(mv.engagement) ?? null : null]);
     }
     // scarichi su ordine di lavoro: movimento 'out' (segno negativo) con work_order_id, sull'ubicazione predefinita
@@ -305,7 +308,7 @@ export async function loadPack(packName: string): Promise<LoadSummary> {
     const defLoc = defLocKey ? locationId.get(defLocKey) : undefined;
     if (defLoc) {
       for (const is of woIssues) {
-        await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, occurred_on, work_order_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        await db.query(`INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, occurred_on, work_order_id) VALUES ($1,$2,$3,$4,$5,public.app_resolve_unit(public.app_current_tenant(),$6),$7,$8)`,
           [tenantId, is.mid, defLoc, moveType('out'), -Math.abs(is.qty), is.unit, is.on, is.woId]);
       }
     }

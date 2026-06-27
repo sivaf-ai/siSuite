@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createAssetSchema, updateAssetSchema, listQuerySchema, type AssetDto } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { findUsage, usageMessage, ASSET_REFS } from '../context/usageGuard.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
@@ -115,7 +116,16 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string } }>('/assets/:id',
     { preHandler: [app.authenticate, requirePermission('asset:delete')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`UPDATE asset SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]));
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT label FROM asset WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        const used = await findUsage(db, request.params.id, ASSET_REFS);
+        if (used.length) return { code: 'used' as const, name: r.rows[0].label as string, used };
+        await db.query(`UPDATE asset SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Asset non trovato', statusCode: 404 });
+      if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
       return reply.code(204).send();
     });
 }

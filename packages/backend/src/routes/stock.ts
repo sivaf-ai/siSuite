@@ -42,9 +42,9 @@ async function insertMovement(db: PoolClient, tenantId: string, userId: string, 
 }): Promise<string> {
   const typeId = await lookupIdByCanonical(db, 'stock_movement_type', m.typeCode);
   const r = await db.query(
-    `INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, unit_cost, unit_price,
+    `INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, unit_cost, unit_price,
        currency, occurred_on, document_ref, stock_document_id, engagement_id, activity_id, transfer_group_id, note, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,CURRENT_DATE),$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+     VALUES ($1,$2,$3,$4,$5,public.app_resolve_unit(public.app_current_tenant(),$6),$7,$8,$9,COALESCE($10,CURRENT_DATE),$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
     [tenantId, m.materialId, m.locationId, typeId, m.signedQty, m.unit, m.unitCost ?? null, m.unitPrice ?? null,
      m.currency ?? null, m.occurredOn ?? null, m.documentRef ?? null, m.stockDocumentId ?? null, m.engagementId ?? null,
      m.activityId ?? null, m.transferGroupId ?? null, m.note ?? null, userId],
@@ -167,9 +167,10 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (request.query.materialId) { params.push(request.query.materialId); conds.push(`b.material_id = $${params.length}`); }
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(
-          `SELECT b.material_id, m.name AS material_name, m.unit, b.location_id, l.name AS location_name,
+          `SELECT b.material_id, m.name AS material_name, mu.code AS unit, b.location_id, l.name AS location_name,
                   b.qty_on_hand, b.avg_cost, b.value_on_hand
            FROM stock_balance b JOIN material m ON m.id = b.material_id JOIN stock_location l ON l.id = b.location_id
+           LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
            ${where} ORDER BY m.name, l.name LIMIT 1000`, params).then((r) => r.rows);
       });
       const items: StockBalanceDto[] = rows.map((r) => ({
@@ -193,9 +194,10 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(
           `SELECT sm.id, sm.material_id, m.name AS material_name, sm.location_id, l.name AS location_name,
-                  sm.type_id, sm.quantity, sm.unit, sm.unit_cost, sm.unit_price, sm.currency, sm.occurred_on,
+                  sm.type_id, sm.quantity, smu.code AS unit, sm.unit_cost, sm.unit_price, sm.currency, sm.occurred_on,
                   sm.engagement_id, sm.activity_id, sm.work_order_id, sm.document_ref, sm.note, sm.created_at
            FROM stock_movement sm JOIN material m ON m.id = sm.material_id JOIN stock_location l ON l.id = sm.location_id
+           LEFT JOIN unit_of_measure smu ON smu.id = sm.unit_id
            ${where} ORDER BY sm.occurred_on DESC, sm.created_at DESC LIMIT 500`, params).then((r) => r.rows);
       });
       const items: StockMovementDto[] = rows.map((r) => ({
@@ -230,8 +232,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const newId = await withRls(request.ctx, async (db) => {
         const o = await db.query(
-          `SELECT material_id, location_id, quantity, unit, unit_cost, unit_price, currency, occurred_on, engagement_id, activity_id
-           FROM stock_movement WHERE id = $1`, [request.params.id]);
+          `SELECT sm.material_id, sm.location_id, sm.quantity, u.code AS unit, sm.unit_cost, sm.unit_price, sm.currency, sm.occurred_on, sm.engagement_id, sm.activity_id
+           FROM stock_movement sm LEFT JOIN unit_of_measure u ON u.id = sm.unit_id WHERE sm.id = $1`, [request.params.id]);
         const m = o.rows[0];
         if (!m) return null;
         return insertMovement(db, request.ctx.tenantId, request.ctx.userId, {
@@ -278,8 +280,9 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       const r = await db.query(`${DOC_SELECT} WHERE d.id = $1`, [request.params.id]);
       if (!r.rows.length) return reply.code(404).send({ error: 'not_found', message: 'Documento non trovato', statusCode: 404 });
       const lines = await db.query(
-        `SELECT dl.id, dl.material_id, m.name AS material_name, dl.quantity, dl.unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
+        `SELECT dl.id, dl.material_id, m.name AS material_name, dl.quantity, dlu.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
          FROM stock_document_line dl LEFT JOIN material m ON m.id = dl.material_id
+         LEFT JOIN unit_of_measure dlu ON dlu.id = dl.unit_id
          WHERE dl.document_id = $1 ORDER BY dl.created_at`, [request.params.id]);
       return {
         ...docDto(r.rows[0]),
@@ -315,8 +318,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM stock_document_line WHERE document_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit, unit_cost, unit_price, currency, note)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note)
+               VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9)`,
               [request.ctx.tenantId, request.params.id, ln.materialId, ln.quantity, ln.unit, ln.unitCost ?? null,
                ln.unitPrice ?? null, ln.currency ?? null, ln.note ?? null]);
           }
@@ -359,8 +362,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         const docId = doc.rows[0].id as string;
         for (const ln of input.lines) {
           await db.query(
-            `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit, unit_cost, unit_price, currency, note)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note)
+             VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9)`,
             [request.ctx.tenantId, docId, ln.materialId, ln.quantity, ln.unit, ln.unitCost ?? null, ln.unitPrice ?? null,
              ln.currency ?? null, ln.note ?? null]);
         }
@@ -382,7 +385,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (doc.status !== 'draft') return reply.code(409).send({ error: 'conflict', message: 'Documento già confermato/annullato', statusCode: 409 });
         const type = doc.type_code as 'receipt' | 'transfer' | 'adjustment';
         const lines = (await db.query(
-          `SELECT material_id, quantity, unit, unit_cost, unit_price, currency, note FROM stock_document_line WHERE document_id = $1`,
+          `SELECT dl.material_id, dl.quantity, u.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
+           FROM stock_document_line dl LEFT JOIN unit_of_measure u ON u.id = dl.unit_id WHERE dl.document_id = $1`,
           [doc.id])).rows;
         if (!lines.length) return reply.code(400).send({ error: 'bad_request', message: 'Documento senza righe', statusCode: 400 });
 

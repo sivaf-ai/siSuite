@@ -47,14 +47,14 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
       if (view === 'inactive') where += ` AND NOT i.active`; else where += ` AND i.active`;
       if (view === 'overrides') where += ` AND EXISTS (SELECT 1 FROM price_list_override o WHERE o.base_item_id = i.id)`;
       const fsql = buildFilter(qq.filter as string | undefined,
-        { code: 'i.code', description: 'i.description', category: 'i.category', unit: 'i.unit', costPrice: 'i.cost_price', revenuePrice: 'i.revenue_price' },
+        { code: 'i.code', description: 'i.description', category: 'i.category', unit: 'iu.code', costPrice: 'i.cost_price', revenuePrice: 'i.revenue_price' },
         ['i.code', 'i.description', 'i.category'], params);
       if (fsql) where += ` AND ${fsql}`;
       const sel = `
-        SELECT i.id, i.price_list_id, i.code, i.description, i.unit, i.category, i.cost_price, i.revenue_price, i.active, i.attributes,
+        SELECT i.id, i.price_list_id, i.code, i.description, iu.code AS unit, i.category, i.cost_price, i.revenue_price, i.active, i.attributes,
                (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id = i.id) AS override_count
-        FROM price_list_item i ${where}`;
-      const total = await db.query(`SELECT count(*)::int AS n FROM price_list_item i ${where}`, params);
+        FROM price_list_item i LEFT JOIN unit_of_measure iu ON iu.id = i.unit_id ${where}`;
+      const total = await db.query(`SELECT count(*)::int AS n FROM price_list_item i LEFT JOIN unit_of_measure iu ON iu.id = i.unit_id ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${sel} ORDER BY ${sortCol} ${q.sortDir} NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
       // conteggi viste
@@ -72,8 +72,8 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string } }>('/price-list-items/:id', { preHandler: [app.authenticate, requirePermission('report:read')] },
     async (request, reply) => withRls(request.ctx, async (db) => {
       const r = await db.query(
-        `SELECT i.*, (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id=i.id) AS override_count
-         FROM price_list_item i WHERE i.id = $1`, [request.params.id]);
+        `SELECT i.*, iu.code AS unit, (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id=i.id) AS override_count
+         FROM price_list_item i LEFT JOIN unit_of_measure iu ON iu.id = i.unit_id WHERE i.id = $1`, [request.params.id]);
       if (r.rows.length === 0) return reply.code(404).send({ error: 'not_found', message: 'Voce non trovata', statusCode: 404 });
       const ov = await db.query(
         `SELECT o.id, o.base_item_id, o.scope_type, o.company_id, c.display_name AS company_name,
@@ -97,9 +97,10 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string } }>('/price-list-items/:id/usage', { preHandler: [app.authenticate, requirePermission('report:read')] },
     async (request) => withRls(request.ctx, async (db) => {
       const r = await db.query(
-        `SELECT wl.id, wl.description, wl.quantity, wl.unit, wl.cost_price, wl.revenue_price, wl.occurred_on,
+        `SELECT wl.id, wl.description, wl.quantity, wlu.code AS unit, wl.cost_price, wl.revenue_price, wl.occurred_on,
                 wl.engagement_id, e.code AS engagement_code, e.title AS engagement_title
          FROM work_line wl LEFT JOIN engagement e ON e.id = wl.engagement_id
+         LEFT JOIN unit_of_measure wlu ON wlu.id = wl.unit_id
          WHERE wl.price_list_item_id = $1 ORDER BY wl.occurred_on DESC, wl.created_at DESC`, [request.params.id]);
       const items = r.rows.map((w) => ({
         id: w.id as string, description: (w.description as string) ?? null,
@@ -117,9 +118,9 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
     const input = createPriceListItemSchema.parse(request.body);
     const dto = await withRls(request.ctx, async (db) => {
       const r = await db.query(
-        `INSERT INTO price_list_item (tenant_id, price_list_id, code, description, unit, category, cost_price, revenue_price, active, attributes, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
-         RETURNING *, 0 AS override_count`,
+        `INSERT INTO price_list_item (tenant_id, price_list_id, code, description, unit_id, category, cost_price, revenue_price, active, attributes, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9,$10,$11,$11)
+         RETURNING *, (SELECT code FROM unit_of_measure u WHERE u.id = price_list_item.unit_id) AS unit, 0 AS override_count`,
         [request.ctx.tenantId, input.priceListId, input.code, input.description, input.unit, input.category ?? null,
          input.costPrice ?? null, input.revenuePrice ?? null, input.active ?? true, input.attributes ?? {}, request.ctx.userId]);
       return itemDto(r.rows[0]);
@@ -131,10 +132,11 @@ export async function priceRoutes(app: FastifyInstance): Promise<void> {
     async (request) => withRls(request.ctx, async (db) => {
       const input = updatePriceListItemSchema.parse(request.body);
       const r = await db.query(
-        `UPDATE price_list_item SET code=COALESCE($2,code), description=COALESCE($3,description), unit=COALESCE($4,unit),
+        `UPDATE price_list_item SET code=COALESCE($2,code), description=COALESCE($3,description),
+           unit_id=COALESCE(public.app_resolve_unit(public.app_current_tenant(),$4), unit_id),
            category=COALESCE($5,category), cost_price=COALESCE($6,cost_price), revenue_price=COALESCE($7,revenue_price),
            active=COALESCE($8,active), attributes=COALESCE($9,attributes), updated_by=$10
-         WHERE id=$1 RETURNING *, (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id=price_list_item.id) AS override_count`,
+         WHERE id=$1 RETURNING *, (SELECT code FROM unit_of_measure u WHERE u.id=price_list_item.unit_id) AS unit, (SELECT count(*)::int FROM price_list_override o WHERE o.base_item_id=price_list_item.id) AS override_count`,
         [request.params.id, input.code ?? null, input.description ?? null, input.unit ?? null, input.category ?? null,
          input.costPrice ?? null, input.revenuePrice ?? null, input.active ?? null, input.attributes ?? null, request.ctx.userId]);
       return itemDto(r.rows[0]);

@@ -10,6 +10,7 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { findUsage, usageMessage, COMPANY_REFS } from '../context/usageGuard.js';
 import { validateAttributes, validateFiscalAttributes } from '../fields.js';
 import { nextNumber } from '../numberSeries.js';
 import { buildFilter } from '../filterSql.js';
@@ -224,9 +225,17 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string } }>('/companies/:id',
     { preHandler: [app.authenticate, requirePermission('company:delete')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) =>
-        db.query(`UPDATE company SET archived_at = now(), updated_by = $2 WHERE id = $1`,
-          [request.params.id, request.ctx.userId]));
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT display_name FROM company WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        const used = await findUsage(db, request.params.id, COMPANY_REFS);
+        if (used.length) return { code: 'used' as const, name: r.rows[0].display_name as string, used };
+        await db.query(`UPDATE company SET archived_at = now(), updated_by = $2 WHERE id = $1`,
+          [request.params.id, request.ctx.userId]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Azienda non trovata', statusCode: 404 });
+      if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
       return reply.code(204).send();
     });
 

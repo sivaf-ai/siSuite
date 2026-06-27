@@ -148,15 +148,17 @@ export async function workReportRoutes(app: FastifyInstance): Promise<void> {
           }));
 
         const equip = (await db.query(
-          `SELECT COALESCE(r.label, eu.note, 'attrezzatura') AS label, eu.occurred_on, eu.quantity, eu.unit, eu.unit_cost
+          `SELECT COALESCE(r.label, eu.note, 'attrezzatura') AS label, eu.occurred_on, eu.quantity, euu.code AS unit, eu.unit_cost
            FROM equipment_usage eu LEFT JOIN resource r ON r.id=eu.resource_id
+           LEFT JOIN unit_of_measure euu ON euu.id=eu.unit_id
            WHERE eu.engagement_id=$1 ${dateClause('eu.occurred_on')} ORDER BY eu.occurred_on`, [engId])).rows
           .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: Number(r.quantity), unit: (r.unit as string) ?? '', cost: Math.round(Number(r.quantity) * Number(r.unit_cost ?? 0) * 100) / 100, revenue: 0 }));
 
         const materials = (await db.query(
-          `SELECT m.name AS label, mc.occurred_on, mc.quantity, m.unit, m.default_cost
+          `SELECT m.name AS label, mc.occurred_on, mc.quantity, mu.code AS unit, m.default_cost
            FROM material_consumption mc
            JOIN material m ON m.id=mc.material_id
+           LEFT JOIN unit_of_measure mu ON mu.id=m.unit_id
            LEFT JOIN activity a ON a.id=mc.activity_id
            LEFT JOIN work_order wo ON wo.id=mc.work_order_id
            WHERE (a.engagement_id=$1 OR wo.engagement_id=$1) ${dateClause('mc.occurred_on')} ORDER BY mc.occurred_on`, [engId])).rows
@@ -169,8 +171,9 @@ export async function workReportRoutes(app: FastifyInstance): Promise<void> {
           .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: 1, unit: '', cost: Number(r.amount ?? 0), revenue: 0 }));
 
         const works = (await db.query(
-          `SELECT COALESCE(wl.description, 'lavorazione') AS label, wl.occurred_on, wl.quantity, wl.unit, wl.cost_price, wl.revenue_price
-           FROM work_line wl WHERE wl.engagement_id=$1 ${dateClause('wl.occurred_on')} ORDER BY wl.occurred_on`, [engId])).rows
+          `SELECT COALESCE(wl.description, 'lavorazione') AS label, wl.occurred_on, wl.quantity, wlu.code AS unit, wl.cost_price, wl.revenue_price
+           FROM work_line wl LEFT JOIN unit_of_measure wlu ON wlu.id=wl.unit_id
+           WHERE wl.engagement_id=$1 ${dateClause('wl.occurred_on')} ORDER BY wl.occurred_on`, [engId])).rows
           .map((r) => ({ label: r.label as string, date: r.occurred_on as string, qty: Number(r.quantity), unit: (r.unit as string) ?? '', cost: Math.round(Number(r.quantity) * Number(r.cost_price ?? 0) * 100) / 100, revenue: Math.round(Number(r.quantity) * Number(r.revenue_price ?? 0) * 100) / 100 }));
 
         const photos = (await db.query(

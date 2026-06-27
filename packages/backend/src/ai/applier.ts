@@ -22,8 +22,8 @@ async function applyOne(db: PoolClient, ctx: UserContext, captureId: string, op:
     }
     case 'log_material': {
       await db.query(
-        `INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit, occurred_on, source_capture_id, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)`,
+        `INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit_id, occurred_on, source_capture_id, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$8)`,
         [ctx.tenantId, op.activityId, op.materialId, op.quantity, op.unit ?? 'pz', op.occurredOn, captureId, ctx.userId],
       );
       return true;

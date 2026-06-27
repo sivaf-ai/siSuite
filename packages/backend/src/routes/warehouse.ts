@@ -35,9 +35,9 @@ async function insertMovement(db: PoolClient, tenantId: string, userId: string, 
 }): Promise<string> {
   const typeId = await lookupIdByCanonical(db, 'stock_movement_type', m.typeCode);
   const r = await db.query(
-    `INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit, unit_cost, unit_price,
+    `INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, unit_cost, unit_price,
        currency, occurred_on, document_ref, stock_document_id, engagement_id, activity_id, work_order_id, transfer_group_id, note, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,CURRENT_DATE),$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
+     VALUES ($1,$2,$3,$4,$5,public.app_resolve_unit(public.app_current_tenant(),$6),$7,$8,$9,COALESCE($10,CURRENT_DATE),$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
     [tenantId, m.materialId, m.locationId, typeId, m.signedQty, m.unit, m.unitCost ?? null, m.unitPrice ?? null,
      m.currency ?? null, m.occurredOn ?? null, m.documentRef ?? null, m.stockDocumentId ?? null, m.engagementId ?? null,
      m.activityId ?? null, m.workOrderId ?? null, m.transferGroupId ?? null, m.note ?? null, userId],
@@ -116,8 +116,10 @@ async function loadCount(db: PoolClient, id: string): Promise<StockCountDto | nu
      FROM stock_count sc LEFT JOIN stock_location l ON l.id = sc.location_id WHERE sc.id = $1`, [id]);
   if (!h.rows[0]) return null;
   const ln = await db.query(
-    `SELECT scl.id, scl.material_id, m.name AS material_name, scl.lot_id, scl.expected_qty, scl.counted_qty, scl.unit, scl.note
-     FROM stock_count_line scl LEFT JOIN material m ON m.id = scl.material_id WHERE scl.count_id = $1 ORDER BY m.name`, [id]);
+    `SELECT scl.id, scl.material_id, m.name AS material_name, scl.lot_id, scl.expected_qty, scl.counted_qty, sclu.code AS unit, scl.note
+     FROM stock_count_line scl LEFT JOIN material m ON m.id = scl.material_id
+     LEFT JOIN unit_of_measure sclu ON sclu.id = scl.unit_id
+     WHERE scl.count_id = $1 ORDER BY m.name`, [id]);
   return countDto(h.rows[0], ln.rows.map(countLineDto));
 }
 async function loadPo(db: PoolClient, id: string): Promise<PurchaseOrderDto | null> {
@@ -128,8 +130,10 @@ async function loadPo(db: PoolClient, id: string): Promise<PurchaseOrderDto | nu
        LEFT JOIN stock_location l ON l.id = po.dest_location_id WHERE po.id = $1`, [id]);
   if (!h.rows[0]) return null;
   const ln = await db.query(
-    `SELECT pol.id, pol.material_id, m.name AS material_name, pol.qty_ordered, pol.qty_received, pol.unit, pol.unit_price, pol.note
-     FROM purchase_order_line pol LEFT JOIN material m ON m.id = pol.material_id WHERE pol.order_id = $1 ORDER BY m.name`, [id]);
+    `SELECT pol.id, pol.material_id, m.name AS material_name, pol.qty_ordered, pol.qty_received, polu.code AS unit, pol.unit_price, pol.note
+     FROM purchase_order_line pol LEFT JOIN material m ON m.id = pol.material_id
+     LEFT JOIN unit_of_measure polu ON polu.id = pol.unit_id
+     WHERE pol.order_id = $1 ORDER BY m.name`, [id]);
   return poDto(h.rows[0], ln.rows.map(poLineDto));
 }
 async function loadPick(db: PoolClient, id: string): Promise<PickListDto | null> {
@@ -140,8 +144,10 @@ async function loadPick(db: PoolClient, id: string): Promise<PickListDto | null>
        LEFT JOIN resource r ON r.id = pl.assigned_resource_id WHERE pl.id = $1`, [id]);
   if (!h.rows[0]) return null;
   const ln = await db.query(
-    `SELECT pll.id, pll.material_id, m.name AS material_name, pll.qty_requested, pll.qty_picked, pll.unit, pll.lot_id
-     FROM pick_list_line pll LEFT JOIN material m ON m.id = pll.material_id WHERE pll.pick_list_id = $1 ORDER BY m.name`, [id]);
+    `SELECT pll.id, pll.material_id, m.name AS material_name, pll.qty_requested, pll.qty_picked, pllu.code AS unit, pll.lot_id
+     FROM pick_list_line pll LEFT JOIN material m ON m.id = pll.material_id
+     LEFT JOIN unit_of_measure pllu ON pllu.id = pll.unit_id
+     WHERE pll.pick_list_id = $1 ORDER BY m.name`, [id]);
   return pickDto(h.rows[0], ln.rows.map(pickLineDto));
 }
 
@@ -248,8 +254,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
             expected = Number(cur.rows[0].q);
           }
           await db.query(
-            `INSERT INTO stock_count_line (tenant_id, count_id, material_id, lot_id, expected_qty, counted_qty, unit, note)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            `INSERT INTO stock_count_line (tenant_id, count_id, material_id, lot_id, expected_qty, counted_qty, unit_id, note)
+             VALUES ($1,$2,$3,$4,$5,$6,public.app_resolve_unit(public.app_current_tenant(),$7),$8)`,
             [request.ctx.tenantId, countId, ln.materialId, ln.lotId ?? null, expected,
              ln.countedQty ?? null, ln.unit, ln.note ?? null]);
         }
@@ -276,8 +282,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM stock_count_line WHERE count_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO stock_count_line (tenant_id, count_id, material_id, lot_id, expected_qty, counted_qty, unit, note)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              `INSERT INTO stock_count_line (tenant_id, count_id, material_id, lot_id, expected_qty, counted_qty, unit_id, note)
+               VALUES ($1,$2,$3,$4,$5,$6,public.app_resolve_unit(public.app_current_tenant(),$7),$8)`,
               [request.ctx.tenantId, request.params.id, ln.materialId, ln.lotId ?? null, ln.expectedQty ?? null,
                ln.countedQty ?? null, ln.unit, ln.note ?? null]);
           }
@@ -301,7 +307,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         if (!['draft', 'counting', 'review'].includes(h.status as string))
           return reply.code(409).send({ error: 'conflict', message: 'Conteggio non registrabile nello stato attuale', statusCode: 409 });
         const lines = (await db.query(
-          `SELECT material_id, lot_id, expected_qty, counted_qty, unit FROM stock_count_line WHERE count_id = $1`, [h.id])).rows;
+          `SELECT scl.material_id, scl.lot_id, scl.expected_qty, scl.counted_qty, u.code AS unit
+           FROM stock_count_line scl LEFT JOIN unit_of_measure u ON u.id = scl.unit_id WHERE scl.count_id = $1`, [h.id])).rows;
         const tid = request.ctx.tenantId, uid = request.ctx.userId;
         let movements = 0;
         for (const ln of lines) {
@@ -352,8 +359,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         const orderId = h.rows[0].id as string;
         for (const ln of input.lines ?? []) {
           await db.query(
-            `INSERT INTO purchase_order_line (tenant_id, order_id, material_id, qty_ordered, qty_received, unit, unit_price, note)
-             VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+            `INSERT INTO purchase_order_line (tenant_id, order_id, material_id, qty_ordered, qty_received, unit_id, unit_price, note)
+             VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7)`,
             [request.ctx.tenantId, orderId, ln.materialId, ln.qtyOrdered, ln.unit, ln.unitPrice ?? null, ln.note ?? null]);
         }
         return loadPo(db, orderId);
@@ -381,8 +388,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM purchase_order_line WHERE order_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO purchase_order_line (tenant_id, order_id, material_id, qty_ordered, qty_received, unit, unit_price, note)
-               VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+              `INSERT INTO purchase_order_line (tenant_id, order_id, material_id, qty_ordered, qty_received, unit_id, unit_price, note)
+               VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7)`,
               [request.ctx.tenantId, request.params.id, ln.materialId, ln.qtyOrdered, ln.unit, ln.unitPrice ?? null, ln.note ?? null]);
           }
         }
@@ -423,8 +430,9 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         const tid = request.ctx.tenantId, uid = request.ctx.userId;
         for (const rc of input.receipts) {
           const lq = await db.query(
-            `SELECT id, material_id, qty_ordered, qty_received, unit, unit_price FROM purchase_order_line
-             WHERE id = $1 AND order_id = $2 FOR UPDATE`, [rc.lineId, h.id]);
+            `SELECT pol.id, pol.material_id, pol.qty_ordered, pol.qty_received, u.code AS unit, pol.unit_price
+             FROM purchase_order_line pol LEFT JOIN unit_of_measure u ON u.id = pol.unit_id
+             WHERE pol.id = $1 AND pol.order_id = $2 FOR UPDATE OF pol`, [rc.lineId, h.id]);
           const ln = lq.rows[0];
           if (!ln) return reply.code(409).send({ error: 'conflict', message: 'Riga non appartenente all\'ordine', statusCode: 409 });
           const already = Number(ln.qty_received), ordered = Number(ln.qty_ordered);
@@ -481,8 +489,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         const pickId = h.rows[0].id as string;
         for (const ln of input.lines ?? []) {
           await db.query(
-            `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit, lot_id)
-             VALUES ($1,$2,$3,$4,0,$5,$6)`,
+            `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id)
+             VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
             [request.ctx.tenantId, pickId, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null]);
         }
         return loadPick(db, pickId);
@@ -509,8 +517,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM pick_list_line WHERE pick_list_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit, lot_id)
-               VALUES ($1,$2,$3,$4,0,$5,$6)`,
+              `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id)
+               VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
               [request.ctx.tenantId, request.params.id, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null]);
           }
         }
@@ -551,7 +559,8 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         if (!['assigned', 'picking', 'draft'].includes(h.status as string))
           return reply.code(409).send({ error: 'conflict', message: 'Lista non confermabile nello stato attuale', statusCode: 409 });
         const lines = (await db.query(
-          `SELECT material_id, qty_requested, qty_picked, unit, lot_id FROM pick_list_line WHERE pick_list_id = $1`, [h.id])).rows;
+          `SELECT pll.material_id, pll.qty_requested, pll.qty_picked, u.code AS unit, pll.lot_id
+           FROM pick_list_line pll LEFT JOIN unit_of_measure u ON u.id = pll.unit_id WHERE pll.pick_list_id = $1`, [h.id])).rows;
         const tid = request.ctx.tenantId, uid = request.ctx.userId;
         let movements = 0;
         for (const ln of lines) {

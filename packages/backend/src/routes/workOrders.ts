@@ -223,8 +223,9 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
         const sub = await db.query(`SELECT * FROM work_order_subject WHERE work_order_id = $1`, [request.params.id]);
         dto.subject = subjectDto(sub.rows[0], level) ?? { fullName: null, phone: null, phoneAlt: null, email: null, fiscalCode: null, address: null, unmasked: level === 'full' };
         const items = await db.query(
-          `SELECT wi.id, wi.material_id, m.name AS material_name, m.unit, wi.planned_qty, wi.note, m.tracked_by_serial
+          `SELECT wi.id, wi.material_id, m.name AS material_name, mu.code AS unit, wi.planned_qty, wi.note, m.tracked_by_serial
            FROM work_order_item wi LEFT JOIN material m ON m.id = wi.material_id
+           LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
            WHERE wi.work_order_id = $1 ORDER BY wi.created_at`, [request.params.id]);
         dto.items = items.rows.map((x): WorkOrderItemDto => ({
           id: x.id as string, materialId: x.material_id as string, materialName: (x.material_name as string) ?? null,

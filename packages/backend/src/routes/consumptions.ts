@@ -5,8 +5,9 @@ import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 
 const SELECT = `
-  SELECT mc.id, mc.activity_id, mc.material_id, m.name AS material_name, mc.quantity, mc.unit, mc.occurred_on, mc.created_at
+  SELECT mc.id, mc.activity_id, mc.material_id, m.name AS material_name, mc.quantity, mcu.code AS unit, mc.occurred_on, mc.created_at
   FROM material_consumption mc LEFT JOIN material m ON m.id = mc.material_id
+  LEFT JOIN unit_of_measure mcu ON mcu.id = mc.unit_id
 `;
 function toDto(r: Record<string, unknown>): ConsumptionDto {
   return {
@@ -37,8 +38,8 @@ export async function consumptionRoutes(app: FastifyInstance): Promise<void> {
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
         const ins = await db.query(
-          `INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit, occurred_on, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id`,
+          `INSERT INTO material_consumption (tenant_id, activity_id, material_id, quantity, unit_id, occurred_on, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$7) RETURNING id`,
           [ctx.tenantId, input.activityId ?? null, input.materialId, input.quantity, input.unit, input.occurredOn, ctx.userId],
         );
         const r = await db.query(`${SELECT} WHERE mc.id = $1`, [ins.rows[0].id]);
