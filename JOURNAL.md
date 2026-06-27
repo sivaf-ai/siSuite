@@ -279,3 +279,11 @@
 - ui/NumInput (formato it-IT migliaia/decimali) nelle righe documento; colonne allineate (colgroup).
 - SWEEP Drawer→Modal centrato: PurchaseOrder(Ricevi), ClienteDetail(contatto), Ordinativi(Assegna/Importa), Assenze, admin CustomFields/Numbers/Labels/Templates, ui/CrudList, MagazzinoPage. Nessun Drawer CRUD residuo nelle pagine.
 - Memoria standard aggiornata (feedback_entity_selection_popup: CRUD sempre Modal centrato; Duplica no (copia); liste reload-on-enter; documenti = entità complete).
+
+## 2026-06-27 — Regole canoniche DB + UI Categorie/UM/IVA (chat 01.06)
+- Migrazione 051 (material_category.icon). Prossima libera 052.
+- INTEGRITÀ: handler globale 23503 (FK)→409 con entità; 23505 (unique)→409. UM: codice univoco vs sistema+tenant; delete bloccata se usata (articoli/movimenti/righe). material_category: delete (soft) bloccata se usata (articoli/sotto-categorie). Messaggi chiari in popup.
+- AUTO-REFRESH: api/cache.ts (bus invalidazione) — apiFetch/apiUpload invalidano la risorsa, useApi si ricarica → niente logout/login; risolve anche cache pagine Ionic.
+- UI: Categorie modal standard + IconPicker (palette lucide, ui/categoryIcons) + icona/colore nell'albero; UM modal standard + Duplica (anche da righe sistema); Aliquote IVA CRUD completo (toolbar + modal).
+- Memoria: feedback_db_integrity_canonical (regole tassative ogni app).
+- Typecheck shared+BE+FE verde.
