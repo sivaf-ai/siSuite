@@ -1,4 +1,6 @@
 /** client.ts — wrapper fetch verso il backend, con Bearer token. */
+import { invalidatePath } from './cache';
+
 const API_URL = (import.meta.env.VITE_API_URL as string) ?? 'http://localhost:3010';
 const TOKEN_KEY = 'sisuite_token';
 
@@ -28,6 +30,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, body);
+  // mutazione andata a buon fine → invalida la risorsa: liste/maschere che la usano si ricaricano
+  const method = (init.method ?? 'GET').toUpperCase();
+  if (method !== 'GET') invalidatePath(path);
   return body as T;
 }
 
@@ -40,5 +45,6 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, body);
+  invalidatePath(path);
   return body as T;
 }

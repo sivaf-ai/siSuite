@@ -832,11 +832,12 @@ export const createMaterialCategorySchema = z.object({
   name: z.string().min(1).max(120),
   parentId: uuid.nullable().optional(),
   color: z.string().max(40).nullable().optional(),
+  icon: z.string().max(60).nullable().optional(),   // nome icona lucide (SVG pubblica)
   active: z.boolean().optional(),
 });
 export const updateMaterialCategorySchema = createMaterialCategorySchema.partial();
 export interface MaterialCategoryDto {
-  id: string; parentId: string | null; name: string; color: string | null; active: boolean;
+  id: string; parentId: string | null; name: string; color: string | null; icon: string | null; active: boolean;
 }
 
 /* ── material_supplier (più fornitori per articolo) — Blocco B.4 ────── */

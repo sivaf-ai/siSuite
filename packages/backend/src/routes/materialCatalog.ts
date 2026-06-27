@@ -23,6 +23,7 @@ function categoryDto(r: Record<string, unknown>): MaterialCategoryDto {
     parentId: (r.parent_id as string) ?? null,
     name: r.name as string,
     color: (r.color as string) ?? null,
+    icon: (r.icon as string) ?? null,
     active: (r.active as boolean) ?? false,
   };
 }
@@ -57,7 +58,7 @@ export async function materialCatalogRoutes(app: FastifyInstance): Promise<void>
   app.get('/material-categories', { preHandler: [app.authenticate, requirePermission('material:read')] },
     async (request) => withRls(request.ctx, async (db) => {
       const rows = await db.query(
-        `SELECT id, parent_id, name, color, active FROM material_category
+        `SELECT id, parent_id, name, color, icon, active FROM material_category
          WHERE archived_at IS NULL ORDER BY name`);
       return { items: rows.rows.map(categoryDto) };
     }));
@@ -68,10 +69,10 @@ export async function materialCatalogRoutes(app: FastifyInstance): Promise<void>
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
         const r = await db.query(
-          `INSERT INTO material_category (tenant_id, parent_id, name, color, active, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$6)
-           RETURNING id, parent_id, name, color, active`,
-          [ctx.tenantId, input.parentId ?? null, input.name, input.color ?? null, input.active ?? true, ctx.userId]);
+          `INSERT INTO material_category (tenant_id, parent_id, name, color, icon, active, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
+           RETURNING id, parent_id, name, color, icon, active`,
+          [ctx.tenantId, input.parentId ?? null, input.name, input.color ?? null, input.icon ?? null, input.active ?? true, ctx.userId]);
         return categoryDto(r.rows[0]);
       });
       return reply.code(201).send(dto);
@@ -86,20 +87,36 @@ export async function materialCatalogRoutes(app: FastifyInstance): Promise<void>
       if (input.name !== undefined) add('name', input.name);
       if (input.parentId !== undefined) add('parent_id', input.parentId);
       if (input.color !== undefined) add('color', input.color);
+      if (input.icon !== undefined) add('icon', input.icon);
       if (input.active !== undefined) add('active', input.active);
       vals.push(request.ctx.userId); sets.push(`updated_by = $${vals.length}`);
       const r = await db.query(
         `UPDATE material_category SET ${sets.join(', ')} WHERE id = $1
-         RETURNING id, parent_id, name, color, active`, vals);
+         RETURNING id, parent_id, name, color, icon, active`, vals);
       return categoryDto(r.rows[0]);
     }));
 
+  // soft-delete (archivia): la FK non scatta sull'UPDATE, quindi controllo l'uso
+  // a mano — una categoria usata da articoli o con sotto-categorie non si elimina.
   app.delete<{ Params: { id: string } }>('/material-categories/:id',
     { preHandler: [app.authenticate, requirePermission('material:update')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) =>
-        db.query(`UPDATE material_category SET archived_at = now(), updated_by = $2 WHERE id = $1`,
-          [request.params.id, request.ctx.userId]));
+      const res = await withRls(request.ctx, async (db) => {
+        const used = await db.query(
+          `SELECT
+             (SELECT count(*) FROM material WHERE category_id = $1 AND archived_at IS NULL)::int AS articoli,
+             (SELECT count(*) FROM material_category WHERE parent_id = $1 AND archived_at IS NULL)::int AS figlie`,
+          [request.params.id]);
+        const u = used.rows[0] as Record<string, number>;
+        const parts: string[] = [];
+        if (u.articoli) parts.push(`${u.articoli} articoli`);
+        if (u.figlie) parts.push(`${u.figlie} sotto-categorie`);
+        if (parts.length) return { used: parts };
+        await db.query(`UPDATE material_category SET archived_at = now(), updated_by = $2 WHERE id = $1`,
+          [request.params.id, request.ctx.userId]);
+        return { used: null };
+      });
+      if (res.used) return reply.code(409).send({ error: 'conflict', message: `Impossibile eliminare la categoria: è utilizzata in ${res.used.join(', ')}. Rimuovi prima i collegamenti.`, statusCode: 409 });
       return reply.code(204).send();
     });
 

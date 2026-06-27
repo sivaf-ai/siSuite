@@ -94,6 +94,40 @@ async function build() {
         issues,
       });
     }
+    // ── Integrità referenziale e unicità (regole canoniche del DB) ──────
+    const pg = err as { code?: string; detail?: string; table?: string; constraint?: string };
+    // mappa tabella tecnica → nome leggibile (per messaggi professionali)
+    const ENTITY_IT: Record<string, string> = {
+      material: 'articoli', material_supplier: 'fornitori articolo', material_image: 'immagini articolo',
+      material_category: 'categorie articolo', stock_movement: 'movimenti di magazzino', stock_balance: 'giacenze',
+      stock_document: 'documenti di magazzino', stock_document_line: 'righe documento', stock_serial_unit: 'unità seriali',
+      stock_lot: 'lotti', stock_count: 'conteggi', stock_count_line: 'righe conteggio', stock_location: 'magazzini/ubicazioni',
+      purchase_order: "ordini d'acquisto", purchase_order_line: "righe ordine d'acquisto",
+      pick_list: 'pick list', pick_list_line: 'righe pick list', resource: 'risorse', resource_skill: 'competenze risorsa',
+      resource_certification: 'certificazioni', skill: 'competenze', company: 'soggetti', company_role: 'ruoli soggetto',
+      company_contact: 'contatti', site: 'siti', asset: 'asset', engagement: 'commesse', phase: 'fasi', activity: 'attività',
+      work_order: 'ordini di lavoro', work_order_item: 'apparati ordine', work_order_subject: 'intestatari',
+      time_entry: 'ore', work_line: 'lavorazioni', material_consumption: 'consumi', tax_rate: 'aliquote IVA',
+      unit_of_measure: 'unità di misura', price_list_item: 'voci di listino', app_user: 'utenti', role: 'ruoli', user_role: 'assegnazioni ruolo',
+    };
+    if (pg.code === '23503') { // foreign_key_violation: il record è ancora referenziato → non cancellabile
+      const m = /referenced from table "([^"]+)"/.exec(pg.detail ?? '');
+      const refTable = m?.[1];
+      const where = refTable ? (ENTITY_IT[refTable] ?? refTable) : 'altre entità';
+      return reply.code(409).send({
+        error: 'conflict',
+        message: `Impossibile eliminare: il record è utilizzato in ${where}. Rimuovi prima i collegamenti, poi riprova.`,
+        statusCode: 409,
+      });
+    }
+    if (pg.code === '23505') { // unique_violation: chiave duplicata → mai consentita
+      return reply.code(409).send({
+        error: 'conflict',
+        message: 'Esiste già un record con questi dati (valore duplicato): scegli un valore diverso.',
+        statusCode: 409,
+      });
+    }
+
     request.log.error(err);
     const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
     return reply.code(statusCode).send({

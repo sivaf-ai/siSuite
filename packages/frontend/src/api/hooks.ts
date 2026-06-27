@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useIonViewWillEnter } from '@ionic/react';
 import { apiFetch } from './client';
+import { resourceOf, subscribe } from './cache';
 
 /** Ricarica i dati ogni volta che la pagina torna in primo piano. Ionic tiene le
  *  pagine in cache (ion-page-hidden): senza questo, una lista resta ferma sui dati
@@ -29,6 +30,13 @@ export function useApi<T>(path: string | null) {
   }, [path]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // auto-refresh: se un'altra parte dell'app muta questa risorsa, ricarico (no logout/login).
+  useEffect(() => {
+    if (!path) return;
+    return subscribe(resourceOf(path), () => { void reload(); });
+  }, [path, reload]);
+
   return { data, loading, error, reload, setData };
 }
 
