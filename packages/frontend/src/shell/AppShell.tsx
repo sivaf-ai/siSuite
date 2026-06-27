@@ -74,7 +74,6 @@ import { TemplatesSettings } from '../pages/admin/TemplatesSettings';
 import { NumbersSettings } from '../pages/admin/NumbersSettings';
 import { BillingContent } from '../pages/admin/BillingPage';
 import { SuperAdminPage } from '../pages/admin/SuperAdminPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
 import '../theme/nav2.css';
 
 /** Rotte fisse (liste + dettagli). `perm` = permesso minimo per accedere (route-guard). */
@@ -125,7 +124,6 @@ const ROUTES: RouteDef[] = [
   { path: '/tax-rates', render: () => <TaxRatesPage />, perm: 'material:read' },
   { path: '/units', render: () => <UnitsPage />, perm: 'material:read' },
   { path: '/material-categories', render: () => <CategoriePage />, perm: 'material:read' },
-  { path: '/agenda', render: () => <PlaceholderPage title="Agenda" />, perm: 'activity:read' },
   { path: '/captures', render: () => <CapturePage />, perm: 'capture:read' },
   { path: '/admin/users', render: () => <UsersPage />, perm: 'user:read' },
   { path: '/admin/users/:id', render: () => <UserDetailPage />, perm: 'user:read' },

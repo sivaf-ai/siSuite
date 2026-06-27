@@ -15,6 +15,14 @@ import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 
+/** Props di SELEZIONE (solo selezione: creare una commessa inline è oneroso/atipico).
+ *  Radio invece di checkbox; click-riga = seleziona invece di navigare. */
+export interface EngagementsPickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (e: EngagementDto) => void;
+}
+
 type ViewKey = 'all' | 'build' | 'maintenance';
 const VIEW_LABEL: Record<ViewKey, string> = { all: 'Tutte', build: 'Realizzazione', maintenance: 'Manutenzione' };
 
@@ -23,12 +31,13 @@ interface ListResp {
   views: Record<ViewKey, number>;
 }
 
-export function EngagementsPage() {
+export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProps } = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const lk = useLookups();
   const can = (a: string) => !!user?.permissions.includes(`engagement:${a}` as never);
+  const pick = pickProps?.pick;
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
@@ -73,21 +82,23 @@ export function EngagementsPage() {
     { key: 'createdAt', label: 'Creata', value: (r: EngagementDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];
 
-  const rightActions: ListAction[] = [
+  const rightActions: ListAction[] = pick ? [] : [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova commessa', variant: 'primary' as const, onClick: () => history.push('/engagements/new') }] : []),
   ];
 
-  return (
-    <Page>
+  const list = (
       <EntityList<EngagementDto>
-        title={t('terms.engagement_plural')} subtitle="Lavori di realizzazione e manutenzione"
+        title={pick ? undefined : t('terms.engagement_plural')} subtitle={pick ? undefined : 'Lavori di realizzazione e manutenzione'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per codice o titolo…"
         rightActions={rightActions}
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
-        onRowClick={(r) => history.push(`/engagements/${r.id}`)}
-        onDelete={can('delete') ? onDelete : undefined}
-        onDuplicate={can('create') ? onDuplicate : undefined}
+        onRowClick={pick ? undefined : (r) => history.push(`/engagements/${r.id}`)}
+        onDelete={!pick && can('delete') ? onDelete : undefined}
+        onDuplicate={!pick && can('create') ? onDuplicate : undefined}
         exportName="commesse" exportFields={exportFields} entity="engagement"
         sortFields={[{ key: 'code', label: 'Codice' }, { key: 'title', label: 'Titolo' }, { key: 'createdAt', label: 'Creato' }]}
         filterFields={[
@@ -105,6 +116,8 @@ export function EngagementsPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna commessa in questa vista."
       />
-    </Page>
   );
+
+  if (pick) return list;
+  return <Page>{list}</Page>;
 }

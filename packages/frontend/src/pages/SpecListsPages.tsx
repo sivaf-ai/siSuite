@@ -45,10 +45,17 @@ const pill = (m: Record<string, { label: string; token: string }>, s: string) =>
 /* ── Ordini d'acquisto ─────────────────────────────────────────────── */
 export function PurchaseOrdersPage() {
   const [q, setQ] = useState('');
+  const [sortParam, setSortParam] = useState<string | null>(null);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error, reload } = useApi<{ items: PurchaseOrderDto[] }>('/purchase-orders');
+  const params = new URLSearchParams();
+  if (q.trim()) params.set('q', q.trim());
+  if (sortParam) params.set('sort', sortParam);
+  if (filterParam) params.set('filter', filterParam);
+  const qs = params.toString();
+  const { data, loading, error, reload } = useApi<{ items: PurchaseOrderDto[] }>(`/purchase-orders${qs ? `?${qs}` : ''}`);
   useReloadOnEnter(reload);
   const { onDelete } = useEntityActions<PurchaseOrderDto>({ basePath: '/purchase-orders', reload, noun: "ordine d'acquisto" });
   const cols: ListColumn<PurchaseOrderDto>[] = [
@@ -66,7 +73,20 @@ export function PurchaseOrdersPage() {
         search={q} onSearch={setQ} searchPlaceholder="Cerca numero, fornitore…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/purchase-orders/${r.id}`)}
         onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
-        columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.supplierName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
+        entity="purchase_order"
+        sortFields={[{ key: 'number', label: 'Numero' }, { key: 'date', label: 'Data ordine' }, { key: 'expected', label: 'Prevista' }, { key: 'status', label: 'Stato' }, { key: 'supplier', label: 'Fornitore' }, { key: 'dest', label: 'Destinazione' }]}
+        filterFields={[
+          { key: 'number', label: 'Numero', type: 'text', section: 'Ordine' },
+          { key: 'supplier', label: 'Fornitore', type: 'text', section: 'Ordine' },
+          { key: 'dest', label: 'Destinazione', type: 'text', section: 'Ordine' },
+          { key: 'status', label: 'Stato', type: 'enum', section: 'Ordine', values: Object.entries(PO_STATUS).map(([value, v]) => ({ value, label: v.label })) },
+          { key: 'date', label: 'Data ordine', type: 'date', section: 'Date' },
+          { key: 'expected', label: 'Prevista', type: 'date', section: 'Date' },
+          { key: 'currency', label: 'Valuta', type: 'text', section: 'Altro' },
+        ]}
+        onSortChange={(s) => setSortParam(s.length ? JSON.stringify(s) : null)}
+        onFilterChange={(s) => setFilterParam(s ? JSON.stringify(s) : null)}
+        columns={cols} rows={data?.items ?? []}
         loading={loading} error={error} exportName="ordini-acquisto" emptyText="Nessun ordine d'acquisto." />
     </Page>
   );
@@ -75,10 +95,17 @@ export function PurchaseOrdersPage() {
 /* ── Pick list ─────────────────────────────────────────────────────── */
 export function PickListsPage() {
   const [q, setQ] = useState('');
+  const [sortParam, setSortParam] = useState<string | null>(null);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error, reload } = useApi<{ items: PickListDto[] }>('/pick-lists');
+  const params = new URLSearchParams();
+  if (q.trim()) params.set('q', q.trim());
+  if (sortParam) params.set('sort', sortParam);
+  if (filterParam) params.set('filter', filterParam);
+  const qs = params.toString();
+  const { data, loading, error, reload } = useApi<{ items: PickListDto[] }>(`/pick-lists${qs ? `?${qs}` : ''}`);
   useReloadOnEnter(reload);
   const { onDelete } = useEntityActions<PickListDto>({ basePath: '/pick-lists', reload, noun: 'pick list' });
   const cols: ListColumn<PickListDto>[] = [
@@ -95,7 +122,18 @@ export function PickListsPage() {
         search={q} onSearch={setQ} searchPlaceholder="Cerca numero, origine…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/pick-lists/${r.id}`)}
         onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
-        columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.sourceLocationName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
+        entity="pick_list"
+        sortFields={[{ key: 'number', label: 'Numero' }, { key: 'status', label: 'Stato' }, { key: 'source', label: 'Origine' }, { key: 'resource', label: 'Assegnata a' }, { key: 'created', label: 'Creata' }]}
+        filterFields={[
+          { key: 'number', label: 'Numero', type: 'text', section: 'Prelievo' },
+          { key: 'source', label: 'Origine', type: 'text', section: 'Prelievo' },
+          { key: 'resource', label: 'Assegnata a', type: 'text', section: 'Prelievo' },
+          { key: 'status', label: 'Stato', type: 'enum', section: 'Prelievo', values: Object.entries(PICK_STATUS).map(([value, v]) => ({ value, label: v.label })) },
+          { key: 'created', label: 'Creata', type: 'date', section: 'Date' },
+        ]}
+        onSortChange={(s) => setSortParam(s.length ? JSON.stringify(s) : null)}
+        onFilterChange={(s) => setFilterParam(s ? JSON.stringify(s) : null)}
+        columns={cols} rows={data?.items ?? []}
         loading={loading} error={error} exportName="pick-list" emptyText="Nessuna pick list." />
     </Page>
   );
@@ -104,10 +142,17 @@ export function PickListsPage() {
 /* ── DDT / Documenti di magazzino ──────────────────────────────────── */
 export function DdtPage() {
   const [q, setQ] = useState('');
+  const [sortParam, setSortParam] = useState<string | null>(null);
+  const [filterParam, setFilterParam] = useState<string | null>(null);
   const history = useHistory();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('stock:manage' as never);
-  const { data, loading, error, reload } = useApi<{ items: StockDocumentDto[] }>('/stock/documents');
+  const params = new URLSearchParams();
+  if (q.trim()) params.set('q', q.trim());
+  if (sortParam) params.set('sort', sortParam);
+  if (filterParam) params.set('filter', filterParam);
+  const qs = params.toString();
+  const { data, loading, error, reload } = useApi<{ items: StockDocumentDto[] }>(`/stock/documents${qs ? `?${qs}` : ''}`);
   useReloadOnEnter(reload);
   const { onDelete } = useEntityActions<StockDocumentDto>({ basePath: '/stock/documents', reload, noun: 'documento' });
   const cols: ListColumn<StockDocumentDto>[] = [
@@ -124,7 +169,21 @@ export function DdtPage() {
         search={q} onSearch={setQ} searchPlaceholder="Cerca numero, magazzino…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/stock/documents/${r.id}`)}
         onDelete={canManage ? onDelete : undefined} rowLabel={(r) => r.number ?? 'bozza'}
-        columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.number ?? ''} ${r.sourceLocationName ?? ''} ${r.destLocationName ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
+        entity="stock_document"
+        sortFields={[{ key: 'number', label: 'Numero' }, { key: 'date', label: 'Data' }, { key: 'status', label: 'Stato' }, { key: 'type', label: 'Tipo' }, { key: 'source', label: 'Origine' }, { key: 'dest', label: 'Destinazione' }]}
+        filterFields={[
+          { key: 'number', label: 'Numero', type: 'text', section: 'Documento' },
+          { key: 'type', label: 'Tipo', type: 'enum', section: 'Documento', values: Object.entries(DOC_TYPE).map(([value, label]) => ({ value, label })) },
+          { key: 'status', label: 'Stato', type: 'enum', section: 'Documento', values: Object.entries(DOC_STATUS).map(([value, v]) => ({ value, label: v.label })) },
+          { key: 'source', label: 'Origine', type: 'text', section: 'Flusso' },
+          { key: 'dest', label: 'Destinazione', type: 'text', section: 'Flusso' },
+          { key: 'company', label: 'Controparte', type: 'text', section: 'Flusso' },
+          { key: 'date', label: 'Data', type: 'date', section: 'Date' },
+          { key: 'externalRef', label: 'Rif. esterno', type: 'text', section: 'Altro' },
+        ]}
+        onSortChange={(s) => setSortParam(s.length ? JSON.stringify(s) : null)}
+        onFilterChange={(s) => setFilterParam(s ? JSON.stringify(s) : null)}
+        columns={cols} rows={data?.items ?? []}
         loading={loading} error={error} exportName="documenti-magazzino" emptyText="Nessun documento di magazzino." />
     </Page>
   );

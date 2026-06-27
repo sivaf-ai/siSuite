@@ -10,6 +10,8 @@ import type { UserAdminDto, EffectivePermissionsDto, ResourceDto } from '@sisuit
 import { Page, Loading, ErrorBox } from '../../components/Page';
 import { StatusPill } from '../../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../../ui/ObjectPage';
+import { ResourcePickerDialog } from '../../ui/ResourcePickerDialog';
+import { PickerField } from '../../ui/PickerField';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
 import { apiFetch, ApiError } from '../../api/client';
@@ -42,6 +44,8 @@ export function UserDetailPage() {
   const [form, setForm] = useState({ fullName: '', email: '', password: '', phone: '', locale: 'it-IT', active: true });
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [resourceId, setResourceId] = useState<string>('');
+  const [resourceName, setResourceName] = useState('');
+  const [resPick, setResPick] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill (no email/password).
@@ -61,7 +65,13 @@ export function UserDetailPage() {
     setForm({ fullName: d.fullName, email: d.email ?? '', password: '', phone: d.phone ?? '', locale: d.locale ?? 'it-IT', active: d.active });
     setRoleIds(d.roles.map((r) => r.id));
     setResourceId(d.resourceId ?? '');
+    setResourceName(d.resourceLabel ?? '');
   }, [d]);
+
+  // risolvi l'etichetta della risorsa dalla lista già caricata (se non già nota dal detail)
+  useEffect(() => {
+    if (resourceId && !resourceName) { const r = resources.data?.items.find((x) => x.id === resourceId); if (r) setResourceName(r.label); }
+  }, [resourceId, resources.data, resourceName]);
 
   const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const toggleRole = (rid: string) => setRoleIds((s) => s.includes(rid) ? s.filter((x) => x !== rid) : [...s, rid]);
@@ -94,7 +104,6 @@ export function UserDetailPage() {
   if (!isNew && detail.error) return <Page title="Utente"><ErrorBox message={detail.error} /></Page>;
 
   const roleOpts = roles.data?.items ?? [];
-  const resOpts = resources.data?.items ?? [];
   const title = isNew ? 'Nuovo utente' : (form.fullName || 'Utente');
   const statusKey = d?.status ?? (form.active ? 'active' : 'disabled');
   const sp = STATUS_PILL[statusKey] ?? { label: form.active ? 'Attivo' : 'Disattivato', token: form.active ? 'success' : 'neutral' };
@@ -158,14 +167,11 @@ export function UserDetailPage() {
         <ObjectBox icon={Link2} title="Risorsa collegata">
           <div className="bgrid">
             <div className="bf c3"><span className="bl">Risorsa (persona)</span>
-              <select className="bi" value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
-                <option value="">— Nessuna —</option>
-                {resOpts.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                {/* mantieni l'etichetta corrente anche se non in lista (es. risorsa non-person) */}
-                {resourceId && !resOpts.some((r) => r.id === resourceId) && d?.resourceLabel && <option value={resourceId}>{d.resourceLabel}</option>}
-              </select></div>
+              <PickerField value={resourceName} placeholder="Scegli la risorsa…"
+                onOpen={() => setResPick(true)}
+                onClear={() => { setResourceId(''); setResourceName(''); }} /></div>
             <div className="bf"><span className="bl">Collegata</span>
-              <div className="bi">{resourceId ? (d?.resourceLabel ?? resOpts.find((r) => r.id === resourceId)?.label ?? '—') : <span className="faint">non collegata</span>}</div></div>
+              <div className="bi">{resourceId ? (resourceName || '—') : <span className="faint">non collegata</span>}</div></div>
           </div>
           <p className="faint" style={{ fontSize: 12.5, marginTop: 8, color: 'var(--ink-faint)' }}>
             Collega questo account alla risorsa-persona corrispondente (per ore, pianificazione, costi). Lascia vuoto per scollegare.
@@ -193,6 +199,9 @@ export function UserDetailPage() {
           </ObjectBox>
         )}
       </ObjectPage>
+
+      <ResourcePickerDialog open={resPick} onClose={() => setResPick(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) { setResourceId(r.id); setResourceName(r.label); } }} />
     </Page>
   );
 }

@@ -267,10 +267,31 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     externalRef: (r.external_ref as string) ?? null, note: (r.note as string) ?? null, createdAt: r.created_at as string,
   });
 
+  const DOC_SORTABLE: Record<string, string> = {
+    number: 'd.number', date: 'd.doc_date', status: 'd.status', type: 'lv.canonical',
+    source: 'sl.name', dest: 'dl.name', company: 'c.display_name',
+  };
+  const DOC_FILTER: Record<string, string> = { ...DOC_SORTABLE, externalRef: 'd.external_ref', note: 'd.note' };
+  const DOC_FILTER_ANY = ['d.number', 'c.display_name', 'd.external_ref'];
+
   app.get('/stock/documents', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
-      const rows = await withRls(request.ctx, (db) =>
-        db.query(`${DOC_SELECT} ORDER BY d.doc_date DESC, d.created_at DESC LIMIT 500`).then((r) => r.rows));
+      const query = request.query as Record<string, unknown>;
+      const orderBy = buildOrderBy(query.sort as string | undefined, DOC_SORTABLE, 'd.doc_date', 'desc');
+      const rows = await withRls(request.ctx, (db) => {
+        const params: unknown[] = [];
+        let where = '';
+        const conds: string[] = [];
+        const q = typeof query.q === 'string' ? query.q.trim() : '';
+        if (q) {
+          params.push(`%${q}%`); const i = params.length;
+          conds.push(`(d.number ILIKE $${i} OR c.display_name ILIKE $${i})`);
+        }
+        const fsql = buildFilter(query.filter as string | undefined, DOC_FILTER, DOC_FILTER_ANY, params);
+        if (fsql) conds.push(fsql);
+        if (conds.length) where = `WHERE ${conds.join(' AND ')}`;
+        return db.query(`${DOC_SELECT} ${where} ORDER BY ${orderBy}, d.created_at DESC LIMIT 500`, params).then((r) => r.rows);
+      });
       return { items: rows.map(docDto) };
     });
 

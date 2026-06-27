@@ -84,7 +84,6 @@ export const NAV: NavSection[] = [
     groups: [
       { caption: 'Operatività', items: [
         { id: 'work-orders', label: 'Ordini di lavoro', route: '/work-orders', icon: 'cable', permission: 'work_order:read' },
-        { id: 'agenda', label: 'Agenda & pianificazione', route: '/agenda', icon: 'calendar', permission: 'activity:read' },
         { id: 'work-reports', label: 'Rapportini', route: '/work-reports', icon: 'clipboard-list', permission: 'work_report:read' },
       ] },
       { caption: 'Tempi & presenze', items: [

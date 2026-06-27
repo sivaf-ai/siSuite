@@ -9,10 +9,6 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useHistory, useLocation } from 'react-router';
 import {
-  IonButton, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
-  IonList, IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
-} from '@ionic/react';
-import {
   ChevronDown, ChevronRight, Folder, Plus, Pencil, Trash2, Pin, ArrowRight, GanttChartSquare, List, ListTree, Sparkles, Users, Copy,
 } from 'lucide-react';
 import type {
@@ -21,6 +17,10 @@ import type {
 import { Page, Loading, ErrorBox, Empty } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { Modal } from '../ui/Modal';
+import { NumInput } from '../ui/NumInput';
+import { PickerField } from '../ui/PickerField';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { Briefcase } from '../ui/icons';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
@@ -61,7 +61,8 @@ export function CommessaDetailPage() {
   const acts = useApi<{ items: ActivityDto[] }>(isNew ? null : `/activities?engagementId=${id}`);
   const sched = useApi<{ items: ScheduleItem[]; conflicts: ScheduleItem[] }>(isNew ? null : `/engagements/${id}/schedule`);
   const deps = useApi<{ items: DependencyEdgeDto[] }>(isNew ? null : `/engagements/${id}/dependencies`);
-  const companies = useApi<{ items: { id: string; displayName: string }[] }>('/companies?limit=200');
+  const [companyPick, setCompanyPick] = useState(false);
+  const [companyName, setCompanyName] = useState('');
 
   const can = (p: string) => !!user?.permissions.includes(p as never);
 
@@ -243,7 +244,6 @@ export function CommessaDetailPage() {
 
   const e = eng.data;
   const statusOpts = lk.byCategory('engagement_status');
-  const companyOpts = companies.data?.items ?? [];
   const canEdit = isNew ? can('engagement:create') : can('engagement:update');
 
   return (
@@ -263,9 +263,11 @@ export function CommessaDetailPage() {
               {isNew
                 ? <select className="bi" value={head.type} onChange={(ev) => setH('type', ev.target.value)}><option value="build">Realizzazione</option><option value="maintenance">Manutenzione</option></select>
                 : <div className="bi">{head.type === 'build' ? 'Realizzazione' : 'Manutenzione'}</div>}</div>
-            <div className="bf"><span className="bl">Cliente</span>
+            <div className="bf"><span className="bl">Cliente {isNew && <span className="req">*</span>}</span>
               {isNew
-                ? <select className="bi" value={head.companyId} onChange={(ev) => setH('companyId', ev.target.value)}><option value="">— seleziona —</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}</select>
+                ? <PickerField value={companyName || undefined} placeholder="Scegli cliente…"
+                    onOpen={() => setCompanyPick(true)}
+                    onClear={head.companyId ? () => { setH('companyId', ''); setCompanyName(''); } : undefined} />
                 : <div className="bi">{e?.companyName ?? '—'}</div>}</div>
             {!isNew && (
               <div className="bf"><span className="bl">Stato</span>
@@ -353,6 +355,10 @@ export function CommessaDetailPage() {
         title={confirm?.kind === 'phase' ? 'Eliminare la fase?' : 'Eliminare l\'attività?'}
         message={confirm?.kind === 'phase' ? `“${confirm?.name}” e le sue sotto-fasi verranno eliminate. Le attività restano (scollegate).` : `“${confirm?.name}” verrà eliminata.`}
         confirmLabel="Elimina" busy={busy} onConfirm={doDelete} onCancel={() => setConfirm(null)} />
+      {companyPick && (
+        <CompanyPickerDialog open onClose={() => setCompanyPick(false)}
+          onPick={(cs) => { const c = cs[0]; if (c) { setH('companyId', c.id); setCompanyName(c.displayName); } setCompanyPick(false); }} />
+      )}
     </Page>
   );
 }
@@ -460,30 +466,35 @@ function PhaseModal({ open, engagementId, editing, phases, nextSeq, statusOption
       onSaved();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
+  if (!open) return null;
   return (
-    <IonModal isOpen={open} onDidDismiss={onClose}>
-      <IonHeader><IonToolbar><IonTitle>{editing ? 'Modifica fase' : 'Nuova fase'}</IonTitle>
-        <IonButtons slot="end"><IonButton onClick={onClose}>Chiudi</IonButton></IonButtons></IonToolbar></IonHeader>
-      <IonContent className="ion-padding">
-        <IonList>
-          <IonItem><IonInput label="Nome fase" labelPlacement="stacked" value={name} onIonInput={(e) => setName(e.detail.value ?? '')} /></IonItem>
+    <Modal open size="md" title={editing ? 'Modifica fase' : 'Nuova fase'} onClose={onClose}
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
+        <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea fase'}</button>
+      </>}>
+      <div className="dsx">
+        <div className="bgrid">
+          <div className="bf c4"><span className="bl">Nome fase <span className="req">*</span></span>
+            <input className="bi" value={name} onChange={(ev) => setName(ev.target.value)} /></div>
           {!editing && (
-            <IonItem><IonSelect label="Fase superiore (opzionale)" labelPlacement="stacked" value={parentId} onIonChange={(e) => setParentId(e.detail.value)}>
-              <IonSelectOption value="">— (fase radice)</IonSelectOption>
-              {parentChoices.map((p) => <IonSelectOption key={p.id} value={p.id}>{p.name}</IonSelectOption>)}
-            </IonSelect></IonItem>
+            <div className="bf c4"><span className="bl">Fase superiore (opzionale)</span>
+              <select className="bi" value={parentId} onChange={(ev) => setParentId(ev.target.value)}>
+                <option value="">— (fase radice)</option>
+                {parentChoices.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select></div>
           )}
           {statusOptions.length > 0 && (
-            <IonItem><IonSelect label="Stato" labelPlacement="stacked" value={statusId} onIonChange={(e) => setStatusId(e.detail.value)}>
-              <IonSelectOption value="">— (default)</IonSelectOption>
-              {statusOptions.map((s) => <IonSelectOption key={s.id} value={s.id}>{s.label['it-IT'] ?? s.code}</IonSelectOption>)}
-            </IonSelect></IonItem>
+            <div className="bf c4"><span className="bl">Stato</span>
+              <select className="bi" value={statusId} onChange={(ev) => setStatusId(ev.target.value)}>
+                <option value="">— (default)</option>
+                {statusOptions.map((s) => <option key={s.id} value={s.id}>{s.label['it-IT'] ?? s.code}</option>)}
+              </select></div>
           )}
-        </IonList>
-        {err && <IonText color="danger"><p>{err}</p></IonText>}
-        <IonButton expand="block" style={{ marginTop: 16 }} disabled={busy} onClick={submit}>{busy ? <IonSpinner name="crescent" /> : (editing ? 'Salva' : 'Crea fase')}</IonButton>
-      </IonContent>
-    </IonModal>
+        </div>
+        {err && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{err}</p>}
+      </div>
+    </Modal>
   );
 }
 
@@ -495,7 +506,7 @@ function ActivityModal({ open, engagementId, editing, presetPhaseId, phases, sta
   const [title, setTitle] = useState(editing?.title ?? '');
   const [phaseId, setPhaseId] = useState<string>(editing?.phaseId ?? presetPhaseId ?? '');
   const [statusId, setStatusId] = useState<string>(editing?.statusId ?? '');
-  const [estimatedMinutes, setEst] = useState<string>(editing?.estimatedMinutes ? String(editing.estimatedMinutes) : '120');
+  const [estimatedMinutes, setEst] = useState<number | null>(editing?.estimatedMinutes ?? 120);
   const [scheduledStart, setStart] = useState<string>(editing?.scheduledStart ? editing.scheduledStart.slice(0, 16) : '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -507,37 +518,44 @@ function ActivityModal({ open, engagementId, editing, presetPhaseId, phases, sta
       const body: Record<string, unknown> = { title: title.trim() };
       if (phaseId) body.phaseId = phaseId;
       if (statusId) body.statusId = statusId;
-      if (estimatedMinutes) body.estimatedMinutes = Number(estimatedMinutes);
+      if (estimatedMinutes != null) body.estimatedMinutes = estimatedMinutes;
       if (scheduledStart) body.scheduledStart = new Date(scheduledStart).toISOString();
       if (editing) await mutate('PATCH', `/activities/${editing.id}`, body);
       else await mutate('POST', '/activities', { engagementId, ...body });
       onSaved();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
+  if (!open) return null;
   return (
-    <IonModal isOpen={open} onDidDismiss={onClose}>
-      <IonHeader><IonToolbar><IonTitle>{editing ? 'Modifica attività' : 'Nuova attività'}</IonTitle>
-        <IonButtons slot="end"><IonButton onClick={onClose}>Chiudi</IonButton></IonButtons></IonToolbar></IonHeader>
-      <IonContent className="ion-padding">
-        <IonList>
-          <IonItem><IonInput label="Titolo" labelPlacement="stacked" value={title} onIonInput={(e) => setTitle(e.detail.value ?? '')} /></IonItem>
-          <IonItem><IonSelect label="Fase (opzionale)" labelPlacement="stacked" value={phaseId} onIonChange={(e) => setPhaseId(e.detail.value)}>
-            <IonSelectOption value="">—</IonSelectOption>
-            {phases.map((p) => <IonSelectOption key={p.id} value={p.id}>{p.name}</IonSelectOption>)}
-          </IonSelect></IonItem>
+    <Modal open size="md" title={editing ? 'Modifica attività' : 'Nuova attività'} onClose={onClose}
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
+        <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea attività'}</button>
+      </>}>
+      <div className="dsx">
+        <div className="bgrid">
+          <div className="bf c4"><span className="bl">Titolo <span className="req">*</span></span>
+            <input className="bi" value={title} onChange={(ev) => setTitle(ev.target.value)} /></div>
+          <div className="bf c4"><span className="bl">Fase (opzionale)</span>
+            <select className="bi" value={phaseId} onChange={(ev) => setPhaseId(ev.target.value)}>
+              <option value="">—</option>
+              {phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select></div>
           {statusOptions.length > 0 && (
-            <IonItem><IonSelect label="Stato" labelPlacement="stacked" value={statusId} onIonChange={(e) => setStatusId(e.detail.value)}>
-              <IonSelectOption value="">— (default)</IonSelectOption>
-              {statusOptions.map((s) => <IonSelectOption key={s.id} value={s.id}>{s.label['it-IT'] ?? s.code}</IonSelectOption>)}
-            </IonSelect></IonItem>
+            <div className="bf c4"><span className="bl">Stato</span>
+              <select className="bi" value={statusId} onChange={(ev) => setStatusId(ev.target.value)}>
+                <option value="">— (default)</option>
+                {statusOptions.map((s) => <option key={s.id} value={s.id}>{s.label['it-IT'] ?? s.code}</option>)}
+              </select></div>
           )}
-          <IonItem><IonInput type="number" label="Durata stimata (min)" labelPlacement="stacked" value={estimatedMinutes} onIonInput={(e) => setEst(e.detail.value ?? '')} /></IonItem>
-          <IonItem><IonInput type="datetime-local" label="Inizio fisso (vuoto = dinamica)" labelPlacement="stacked" value={scheduledStart} onIonInput={(e) => setStart(e.detail.value ?? '')} /></IonItem>
-        </IonList>
-        {err && <IonText color="danger"><p>{err}</p></IonText>}
-        <IonButton expand="block" style={{ marginTop: 16 }} disabled={busy} onClick={submit}>{busy ? <IonSpinner name="crescent" /> : (editing ? 'Salva' : 'Crea attività')}</IonButton>
-      </IonContent>
-    </IonModal>
+          <div className="bf c2"><span className="bl">Durata stimata (min)</span>
+            <NumInput value={estimatedMinutes} onChange={setEst} /></div>
+          <div className="bf c2"><span className="bl">Inizio fisso (vuoto = dinamica)</span>
+            <input className="bi" type="datetime-local" value={scheduledStart} onChange={(ev) => setStart(ev.target.value)} /></div>
+        </div>
+        {err && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{err}</p>}
+      </div>
+    </Modal>
   );
 }
 
@@ -595,15 +613,21 @@ function SaveAsTemplate({ engagementId }: { engagementId: string }) {
   return (
     <>
       <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => setOpen(true)}><Copy size={14} />Salva come modello</button>
-      <IonModal isOpen={open} onDidDismiss={() => setOpen(false)}>
-        <IonHeader><IonToolbar><IonTitle>Salva come modello</IonTitle>
-          <IonButtons slot="end"><IonButton onClick={() => setOpen(false)}>Chiudi</IonButton></IonButtons></IonToolbar></IonHeader>
-        <IonContent className="ion-padding">
-          <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>Cattura fasi, attività e dipendenze di questa commessa in un modello riutilizzabile.</p>
-          <IonInput label="Nome del modello" labelPlacement="stacked" value={name} onIonInput={(e) => setName(e.detail.value ?? '')} placeholder="es. Allaccio FTTH standard" />
-          <IonButton expand="block" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? <IonSpinner name="crescent" /> : 'Salva modello'}</IonButton>
-        </IonContent>
-      </IonModal>
+      {open && (
+        <Modal open size="md" title="Salva come modello" onClose={() => setOpen(false)}
+          footer={<>
+            <button className="btn btn-ghost" onClick={() => setOpen(false)} disabled={busy}>Annulla</button>
+            <button className="btn btn-primary" onClick={save} disabled={busy}>Salva modello</button>
+          </>}>
+          <div className="dsx">
+            <p className="muted" style={{ fontSize: 14, marginBottom: 16 }}>Cattura fasi, attività e dipendenze di questa commessa in un modello riutilizzabile.</p>
+            <div className="bgrid">
+              <div className="bf c4"><span className="bl">Nome del modello</span>
+                <input className="bi" value={name} onChange={(ev) => setName(ev.target.value)} placeholder="es. Allaccio FTTH standard" /></div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

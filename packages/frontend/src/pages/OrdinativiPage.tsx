@@ -32,12 +32,21 @@ function fmtDate(iso: string | null): string {
   const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`;
 }
 
-export function OrdinativiPage() {
+/** Props di SELEZIONE (solo selezione): radio invece di checkbox; click-riga =
+ *  seleziona. Niente azioni bulk/assign/import/nuovo. */
+export interface OrdinativiPickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (w: WorkOrderDto) => void;
+}
+
+export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps } = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
   const lookups = useLookups();
   const can = (a: string) => !!user?.permissions.includes(`work_order:${a}` as never);
+  const pick = pickProps?.pick;
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
@@ -103,29 +112,31 @@ export function OrdinativiPage() {
     { key: 'scheduledOn', label: 'Programmato', value: (w: WorkOrderDto) => (w.scheduledOn ? fmtDate(w.scheduledOn) : '') },
   ];
 
-  const leftActions: ListAction[] = [
+  const leftActions: ListAction[] = pick ? [] : [
     { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
     { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
     { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
     ...(can('assign') ? [{ key: 'assign', icon: Users, tip: selRows.length ? `Assegna ${selRows.length} a squadra` : 'Assegna a squadra (seleziona righe)', disabled: selRows.length < 1, onClick: () => setAssignOpen(true) } as ListAction] : []),
   ];
-  const rightActions: ListAction[] = [
+  const rightActions: ListAction[] = pick ? [] : [
     ...(can('import') ? [{ key: 'import', icon: Upload, tip: 'Importa da CSV', onClick: () => setImportOpen(true) } as ListAction] : []),
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo ordine di lavoro', variant: 'primary' as const, onClick: () => history.push('/work-orders/new') }] : []),
   ];
 
-  return (
-    <Page>
+  const list = (
       <EntityList<WorkOrderDto>
-        title={t('terms.work_order_plural')} subtitle="Ordini di lavoro · gestione a pezzi"
+        title={pick ? undefined : t('terms.work_order_plural')} subtitle={pick ? undefined : 'Ordini di lavoro · gestione a pezzi'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca rif. esterno, indirizzo, seriale…"
         leftActions={leftActions} rightActions={rightActions}
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={columns} rows={rows} loading={loading} error={error}
-        onRowClick={(wo) => history.push(`/work-orders/${wo.id}`)}
-        onDelete={can('delete') ? onDelete : undefined}
-        onDuplicate={can('create') ? onDuplicate : undefined}
-        onSelectionChange={setSelRows}
+        onRowClick={pick ? undefined : (wo) => history.push(`/work-orders/${wo.id}`)}
+        onDelete={!pick && can('delete') ? onDelete : undefined}
+        onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        onSelectionChange={pick ? undefined : setSelRows}
         clearSelectionToken={clearTok}
         exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order" savedViewKey="work_order"
         sortFields={[{ key: 'code', label: 'Codice' }, { key: 'scheduled', label: 'Data pianificata' }, { key: 'operator', label: 'Gestore' }, { key: 'status', label: 'Stato' }]}
@@ -142,7 +153,13 @@ export function OrdinativiPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessun ordinativo in questa vista."
       />
+  );
 
+  if (pick) return list;
+
+  return (
+    <Page>
+      {list}
       {assignOpen && (
         <AssignModal ids={selRows.map((r) => r.id)} onClose={() => setAssignOpen(false)}
           onDone={() => { setAssignOpen(false); setClearTok((t) => t + 1); void reload(); }} />

@@ -12,6 +12,9 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { WorkOrderPickerDialog } from '../ui/WorkOrderPickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
 import { UnitSelect } from '../ui/UnitSelect';
@@ -49,10 +52,16 @@ export function PickListDetailPage() {
 
   const [form, setForm] = useState<Record<string, string>>({ sourceLocationId: '', assignedResourceId: '', engagementId: '', workOrderId: '', note: '' });
   const [sourceName, setSourceName] = useState('');
+  const [resourceName, setResourceName] = useState('');
+  const [engagementName, setEngagementName] = useState('');
+  const [workOrderName, setWorkOrderName] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
   const [sourcePick, setSourcePick] = useState(false);
+  const [resPick, setResPick] = useState(false);
+  const [engPick, setEngPick] = useState(false);
+  const [woPick, setWoPick] = useState(false);
 
   const d = detail.data;
   useEffect(() => {
@@ -74,6 +83,20 @@ export function PickListDetailPage() {
       if (l) setSourceName(l.name);
     }
   }, [form.sourceLocationId, locations.data, sourceName]);
+
+  // risolvi i nomi di risorsa/commessa/ordine dalle liste già caricate
+  useEffect(() => {
+    if (form.assignedResourceId) { const r = resources.data?.items.find((x) => x.id === form.assignedResourceId); if (r) setResourceName(r.label); }
+    else setResourceName('');
+  }, [form.assignedResourceId, resources.data]);
+  useEffect(() => {
+    if (form.engagementId) { const e = engagements.data?.items.find((x) => x.id === form.engagementId); if (e) setEngagementName(`${e.code ? `${e.code} · ` : ''}${e.title}`); }
+    else setEngagementName('');
+  }, [form.engagementId, engagements.data]);
+  useEffect(() => {
+    if (form.workOrderId) { const w = workOrders.data?.items.find((x) => x.id === form.workOrderId); if (w) setWorkOrderName(`${w.code}${w.address ? ` · ${w.address}` : ''}`); }
+    else setWorkOrderName('');
+  }, [form.workOrderId, workOrders.data]);
 
   const status = d?.status ?? 'draft';
   const editable = isNew || status === 'draft' || status === 'assigned';
@@ -124,9 +147,6 @@ export function PickListDetailPage() {
   if (!isNew && detail.loading) return <Page title="Pick list"><Loading /></Page>;
   if (!isNew && detail.error) return <Page title="Pick list"><ErrorBox message={detail.error} /></Page>;
 
-  const resOpts = resources.data?.items ?? [];
-  const engOpts = engagements.data?.items ?? [];
-  const woOpts = workOrders.data?.items ?? [];
   const canConfirm = canManage && !isNew && ['draft', 'assigned', 'picking'].includes(status);
 
   return (
@@ -154,17 +174,17 @@ export function PickListDetailPage() {
               <PickerField value={sourceName} placeholder="Scegli l'origine…" disabled={readOnly || !isNew}
                 onOpen={() => setSourcePick(true)} /></div>
             <div className="bf c2"><span className="bl">Assegnata a</span>
-              <select className="bi" value={form.assignedResourceId} onChange={(e) => set('assignedResourceId', e.target.value)} disabled={readOnly}>
-                <option value="">—</option>{resOpts.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </select></div>
+              <PickerField value={resourceName} placeholder="Scegli la risorsa…" disabled={readOnly}
+                onOpen={() => setResPick(true)}
+                onClear={() => { set('assignedResourceId', ''); setResourceName(''); }} /></div>
             <div className="bf c2"><span className="bl">Commessa</span>
-              <select className="bi" value={form.engagementId} onChange={(e) => set('engagementId', e.target.value)} disabled={readOnly || !isNew}>
-                <option value="">—</option>{engOpts.map((e) => <option key={e.id} value={e.id}>{e.code ? `${e.code} · ` : ''}{e.title}</option>)}
-              </select></div>
+              <PickerField value={engagementName} placeholder="Scegli la commessa…" disabled={readOnly || !isNew}
+                onOpen={() => setEngPick(true)}
+                onClear={() => { set('engagementId', ''); setEngagementName(''); }} /></div>
             <div className="bf c2"><span className="bl">Ordine di lavoro</span>
-              <select className="bi" value={form.workOrderId} onChange={(e) => set('workOrderId', e.target.value)} disabled={readOnly || !isNew}>
-                <option value="">—</option>{woOpts.map((w) => <option key={w.id} value={w.id}>{w.code}{w.address ? ` · ${w.address}` : ''}</option>)}
-              </select></div>
+              <PickerField value={workOrderName} placeholder="Scegli l'ordine di lavoro…" disabled={readOnly || !isNew}
+                onOpen={() => setWoPick(true)}
+                onClear={() => { set('workOrderId', ''); setWorkOrderName(''); }} /></div>
             <div className="bf c4"><span className="bl">Note</span>
               <input className="bi" value={form.note} onChange={(e) => set('note', e.target.value)} disabled={readOnly} /></div>
           </div>
@@ -202,6 +222,12 @@ export function PickListDetailPage() {
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
       <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
         onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); } }} />
+      <ResourcePickerDialog open={resPick} onClose={() => setResPick(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) { set('assignedResourceId', r.id); setResourceName(r.label); } }} />
+      <EngagementPickerDialog open={engPick} onClose={() => setEngPick(false)}
+        onPick={(es) => { const e = es[0]; if (e) { set('engagementId', e.id); setEngagementName(`${e.code ? `${e.code} · ` : ''}${e.title}`); } }} />
+      <WorkOrderPickerDialog open={woPick} onClose={() => setWoPick(false)}
+        onPick={(ws) => { const w = ws[0]; if (w) { set('workOrderId', w.id); setWorkOrderName(`${w.code}${w.address ? ` · ${w.address}` : ''}`); } }} />
     </Page>
   );
 }

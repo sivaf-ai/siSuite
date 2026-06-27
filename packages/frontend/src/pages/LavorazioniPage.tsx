@@ -11,6 +11,8 @@ import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Plus } from '../ui/icons';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { PickerField } from '../ui/PickerField';
 import { useApi } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import '../theme/datapages.css';
@@ -32,7 +34,14 @@ export function LavorazioniPage() {
 
   const engs = useApi<{ items: Eng[] }>('/engagements');
   const [eng, setEng] = useState('');
-  useEffect(() => { const first = engs.data?.items[0]; if (!eng && first) setEng(first.id); }, [engs.data, eng]);
+  const [engName, setEngName] = useState('');
+  const [engPick, setEngPick] = useState(false);
+  const fmtEng = (e: { code?: string; title?: string }) => `${e.code ? `${e.code} · ` : ''}${e.title ?? ''}`;
+  useEffect(() => { const first = engs.data?.items[0]; if (!eng && first) { setEng(first.id); setEngName(fmtEng(first)); } }, [engs.data, eng]);
+  // risolvi l'etichetta della commessa selezionata dalla lista già caricata
+  useEffect(() => {
+    if (eng && !engName) { const e = engs.data?.items.find((x) => x.id === eng); if (e) setEngName(fmtEng(e)); }
+  }, [eng, engs.data, engName]);
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
@@ -83,9 +92,9 @@ export function LavorazioniPage() {
           <div className="lh"><h1>{t('terms.work_line_plural')}</h1><span className="sub">Contabilità lavori · ricavo per voce di capitolato</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="faint" style={{ fontSize: 12.5 }}>Commessa</span>
-            <select className="bi" style={{ minHeight: 34, maxWidth: 380 }} value={eng} onChange={(e) => { setEng(e.target.value); setOffset(0); }}>
-              {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code ? `${e.code} · ` : ''}{e.title}</option>)}
-            </select>
+            <div style={{ minWidth: 280, maxWidth: 380 }}>
+              <PickerField value={engName} placeholder="Scegli la commessa…" onOpen={() => setEngPick(true)} />
+            </div>
           </div>
         </div>
       </div>
@@ -101,6 +110,8 @@ export function LavorazioniPage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna lavorazione in questa vista."
       />
+      <EngagementPickerDialog open={engPick} onClose={() => setEngPick(false)}
+        onPick={(es) => { const e = es[0]; if (e) { setEng(e.id); setEngName(fmtEng(e)); setOffset(0); } }} />
     </Page>
   );
 }

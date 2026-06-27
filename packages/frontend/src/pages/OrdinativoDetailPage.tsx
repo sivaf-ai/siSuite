@@ -20,6 +20,8 @@ import { MaskedField } from '../components/MaskedField';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
@@ -59,6 +61,10 @@ export function OrdinativoDetailPage() {
   const [companyPick, setCompanyPick] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [matPick, setMatPick] = useState(false);
+  const [engPick, setEngPick] = useState(false);
+  const [engagementName, setEngagementName] = useState('');
+  const [resPick, setResPick] = useState(false);
+  const [resourceName, setResourceName] = useState('');
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill.
   const location = useLocation();
@@ -99,6 +105,16 @@ export function OrdinativoDetailPage() {
     } else { setCompanyName(''); }
   }, [form.principalCompanyId, companies.data]);
 
+  // risolvi i nomi di commessa e squadra dalle liste già caricate
+  useEffect(() => {
+    if (form.engagementId) { const e = engagements.data?.items.find((x) => x.id === form.engagementId); if (e) setEngagementName(`${e.code ? `${e.code} · ` : ''}${e.title ?? ''}`); }
+    else setEngagementName('');
+  }, [form.engagementId, engagements.data]);
+  useEffect(() => {
+    if (form.assignedResourceId) { const r = resources.data?.items.find((x) => x.id === form.assignedResourceId); if (r) setResourceName(r.label); }
+    else setResourceName('');
+  }, [form.assignedResourceId, resources.data]);
+
   const canEditPii = isNew || (d?.subject?.unmasked ?? false);
   const statusToken = useMemo(() => lookups.byId(form.statusId)?.colorToken ?? 'neutral', [form.statusId, lookups]);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -137,8 +153,6 @@ export function OrdinativoDetailPage() {
   if (!isNew && detail.loading) return <Page title={t('terms.work_order')}><Loading /></Page>;
   if (!isNew && detail.error) return <Page title={t('terms.work_order')}><ErrorBox message={detail.error} /></Page>;
 
-  const engOpts = engagements.data?.items ?? [];
-  const resOpts = (resources.data?.items ?? []).filter((r) => r.kind === 'person');
   const matOpts = materials.data?.items ?? [];
   const defs = fieldDefs.data?.items ?? [];
   const loc = user?.locale ?? 'it-IT';
@@ -201,13 +215,12 @@ export function OrdinativoDetailPage() {
                 {statuses.map((s) => <option key={s.id} value={s.id}>{lookups.labelOf(s.id)}</option>)}
               </select></div>
             <div className="bf c2"><span className="bl">Commessa <span className="req">*</span></span>
-              <select className="bi" value={form.engagementId} onChange={(e) => set('engagementId', e.target.value)} disabled={!isNew}>
-                <option value="">—</option>{engOpts.map((e) => <option key={e.id} value={e.id}>{e.code ? `${e.code} · ` : ''}{e.title}</option>)}
-              </select></div>
+              <PickerField value={engagementName} placeholder="Scegli la commessa…" disabled={!isNew} invalid={!form.engagementId}
+                onOpen={() => setEngPick(true)} /></div>
             <div className="bf"><span className="bl">Squadra assegnata</span>
-              <select className="bi" value={form.assignedResourceId} onChange={(e) => set('assignedResourceId', e.target.value)}>
-                <option value="">—</option>{resOpts.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </select></div>
+              <PickerField value={resourceName} placeholder="Scegli la squadra…"
+                onOpen={() => setResPick(true)}
+                onClear={() => { set('assignedResourceId', ''); setResourceName(''); }} /></div>
             <div className="bf"><span className="bl">Programmato</span>
               <input type="date" className="bi mono" value={form.scheduledOn ?? ''} onChange={(e) => set('scheduledOn', e.target.value)} /></div>
           </div>
@@ -285,6 +298,10 @@ export function OrdinativoDetailPage() {
       <CompanyPickerDialog open={companyPick} onClose={() => setCompanyPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('principalCompanyId', c.id); setCompanyName(c.displayName); } }} />
       <MaterialPickerDialog open={matPick} multi onClose={() => setMatPick(false)} onPick={addMaterials} />
+      <EngagementPickerDialog open={engPick} onClose={() => setEngPick(false)}
+        onPick={(es) => { const e = es[0]; if (e) { set('engagementId', e.id); setEngagementName(`${e.code ? `${e.code} · ` : ''}${e.title}`); } }} />
+      <ResourcePickerDialog open={resPick} onClose={() => setResPick(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) { set('assignedResourceId', r.id); setResourceName(r.label); } }} />
     </Page>
   );
 }

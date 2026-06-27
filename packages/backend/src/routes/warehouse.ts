@@ -18,6 +18,21 @@ import { withRls } from '../context/rls.js';
 import type { PoolClient } from '../db/pool.js';
 import { lookupIdByCanonical } from '../lookupResolve.js';
 import { nextNumber } from '../numberSeries.js';
+import { buildFilter } from '../filterSql.js';
+import { buildOrderBy } from '../sortSql.js';
+
+const PO_SORTABLE: Record<string, string> = {
+  number: 'po.number', date: 'po.order_date', expected: 'po.expected_date', status: 'po.status',
+  supplier: 's.display_name', dest: 'l.name',
+};
+const PO_FILTER: Record<string, string> = { ...PO_SORTABLE, currency: 'po.currency', note: 'po.note' };
+const PO_FILTER_ANY = ['po.number', 's.display_name'];
+
+const PICK_SORTABLE: Record<string, string> = {
+  number: 'pl.number', status: 'pl.status', source: 'l.name', resource: 'r.label', created: 'pl.created_at',
+};
+const PICK_FILTER: Record<string, string> = { ...PICK_SORTABLE, note: 'pl.note' };
+const PICK_FILTER_ANY = ['pl.number', 'l.name', 'r.label'];
 
 const day = (v: unknown): string | null => {
   if (v == null) return null;
@@ -329,12 +344,25 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
   // ═══════════════════════════════════ PURCHASE_ORDER (ordini d'acquisto) ══
   app.get('/purchase-orders', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
-      const rows = await withRls(request.ctx, (db) => db.query(
-        `SELECT po.id, po.number, po.supplier_id, s.display_name AS supplier_name, po.dest_location_id,
-                l.name AS dest_location_name, po.status, po.order_date, po.expected_date, po.currency, po.note, po.created_at
-         FROM purchase_order po LEFT JOIN company s ON s.id = po.supplier_id
-           LEFT JOIN stock_location l ON l.id = po.dest_location_id
-         WHERE po.archived_at IS NULL ORDER BY po.order_date DESC, po.created_at DESC LIMIT 500`).then((r) => r.rows));
+      const query = request.query as Record<string, unknown>;
+      const orderBy = buildOrderBy(query.sort as string | undefined, PO_SORTABLE, 'po.order_date', 'desc');
+      const rows = await withRls(request.ctx, (db) => {
+        const params: unknown[] = [];
+        let where = `WHERE po.archived_at IS NULL`;
+        const q = typeof query.q === 'string' ? query.q.trim() : '';
+        if (q) {
+          params.push(`%${q}%`); const i = params.length;
+          where += ` AND (po.number ILIKE $${i} OR s.display_name ILIKE $${i})`;
+        }
+        const fsql = buildFilter(query.filter as string | undefined, PO_FILTER, PO_FILTER_ANY, params);
+        if (fsql) where += ` AND ${fsql}`;
+        return db.query(
+          `SELECT po.id, po.number, po.supplier_id, s.display_name AS supplier_name, po.dest_location_id,
+                  l.name AS dest_location_name, po.status, po.order_date, po.expected_date, po.currency, po.note, po.created_at
+           FROM purchase_order po LEFT JOIN company s ON s.id = po.supplier_id
+             LEFT JOIN stock_location l ON l.id = po.dest_location_id
+           ${where} ORDER BY ${orderBy}, po.created_at DESC LIMIT 500`, params).then((r) => r.rows);
+      });
       return { items: rows.map((r) => poDto(r)) };
     });
 
@@ -459,12 +487,26 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
   // ════════════════════════════════════════ PICK_LIST (prelievo) ══════
   app.get('/pick-lists', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
-      const rows = await withRls(request.ctx, (db) => db.query(
-        `SELECT pl.id, pl.number, pl.source_location_id, l.name AS source_location_name, pl.assigned_resource_id,
-                r.label AS assigned_resource_label, pl.work_order_id, pl.engagement_id, pl.status, pl.note, pl.created_at
-         FROM pick_list pl LEFT JOIN stock_location l ON l.id = pl.source_location_id
-           LEFT JOIN resource r ON r.id = pl.assigned_resource_id
-         ORDER BY pl.created_at DESC LIMIT 500`).then((rr) => rr.rows));
+      const query = request.query as Record<string, unknown>;
+      const orderBy = buildOrderBy(query.sort as string | undefined, PICK_SORTABLE, 'pl.created_at', 'desc');
+      const rows = await withRls(request.ctx, (db) => {
+        const params: unknown[] = [];
+        const conds: string[] = [];
+        const q = typeof query.q === 'string' ? query.q.trim() : '';
+        if (q) {
+          params.push(`%${q}%`); const i = params.length;
+          conds.push(`(pl.number ILIKE $${i} OR l.name ILIKE $${i} OR r.label ILIKE $${i})`);
+        }
+        const fsql = buildFilter(query.filter as string | undefined, PICK_FILTER, PICK_FILTER_ANY, params);
+        if (fsql) conds.push(fsql);
+        const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+        return db.query(
+          `SELECT pl.id, pl.number, pl.source_location_id, l.name AS source_location_name, pl.assigned_resource_id,
+                  r.label AS assigned_resource_label, pl.work_order_id, pl.engagement_id, pl.status, pl.note, pl.created_at
+           FROM pick_list pl LEFT JOIN stock_location l ON l.id = pl.source_location_id
+             LEFT JOIN resource r ON r.id = pl.assigned_resource_id
+           ${where} ORDER BY ${orderBy}, pl.created_at DESC LIMIT 500`, params).then((rr) => rr.rows);
+      });
       return { items: rows.map((r) => pickDto(r)) };
     });
 

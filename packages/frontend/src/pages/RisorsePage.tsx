@@ -14,6 +14,19 @@ import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
 import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { Modal } from '../ui/Modal';
+import { RisorsaDetailPage } from './RisorsaDetailPage';
+
+/** Props di SELEZIONE: la stessa lista, richiamata in pop-up da un'altra maschera
+ *  (es. risorsa assegnata di una pick list). Radio invece di checkbox; "+ Nuovo" e
+ *  click-riga aprono la CRUD in un modale annidato (non si lascia il documento). */
+export interface RisorsePickProps {
+  pick: 'single' | 'multi';
+  selectedIds?: string[];
+  onToggleSelect?: (r: ResourceDto) => void;
+  /** chiamato dopo aver creato una nuova risorsa con "+ Nuovo". */
+  onCreated?: (r: ResourceDto) => void;
+}
 
 const KIND_LABEL: Record<string, string> = { person: 'Persona', vehicle: 'Mezzo', equipment: 'Attrezzatura' };
 type ViewKey = 'all' | 'person' | 'vehicle' | 'equipment';
@@ -21,16 +34,18 @@ const VIEW_LABEL: Record<ViewKey, string> = { all: 'Tutte', person: 'Persone', v
 
 interface ListResp { items: ResourceDto[]; total: number; limit: number; offset: number; views: Record<ViewKey, number> }
 
-export function RisorsePage() {
+export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}) {
   const { user } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
   const can = (a: string) => !!user?.permissions.includes(`resource:${a}` as never);
+  const pick = pickProps?.pick;
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
+  const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD risorsa in modale (pick mode)
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
@@ -66,21 +81,27 @@ export function RisorsePage() {
     { key: 'userName', label: 'Utente collegato', value: (r: ResourceDto) => r.userName ?? '' },
   ];
 
+  // "+ Nuovo": in pick apre la CRUD in modale (resti nel documento); altrimenti naviga.
   const rightActions: ListAction[] = [
-    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova risorsa', variant: 'primary' as const, onClick: () => history.push('/resources/new') }] : []),
+    ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova risorsa', variant: 'primary' as const,
+      onClick: () => (pick ? setCrud({ id: 'new' }) : history.push('/resources/new')) }] : []),
   ];
+  // click riga: in pick apre la CRUD per modificare (poi si seleziona col radio); altrimenti naviga.
+  const onRowClick = (r: ResourceDto) => (pick ? setCrud({ id: r.id }) : history.push(`/resources/${r.id}`));
 
-  return (
-    <Page>
+  const list = (
       <EntityList<ResourceDto>
-        title={t('terms.resource_plural')} subtitle="Persone, mezzi e attrezzature"
+        title={pick ? undefined : t('terms.resource_plural')} subtitle={pick ? undefined : 'Persone, mezzi e attrezzature'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome…"
         rightActions={rightActions}
+        mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
+        selectedIds={pick ? pickProps?.selectedIds : undefined}
+        onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
-        onRowClick={(r) => history.push(`/resources/${r.id}`)}
-        onDelete={can('delete') ? onDelete : undefined}
-        onDuplicate={can('create') ? onDuplicate : undefined}
+        onRowClick={onRowClick}
+        onDelete={!pick && can('delete') ? onDelete : undefined}
+        onDuplicate={!pick && can('create') ? onDuplicate : undefined}
         exportName="risorse" exportFields={exportFields} entity="resource"
         filterFields={[
           { key: 'label', label: 'Nome', type: 'text', section: 'Anagrafica', span: 2 },
@@ -92,6 +113,19 @@ export function RisorsePage() {
         total={data?.total} limit={limit} offset={offset} onPage={setOffset}
         emptyText="Nessuna risorsa in questa vista."
       />
-    </Page>
   );
+
+  // CRUD risorsa in modale centrato (solo in pick: "+ Nuovo" o modifica riga)
+  const crudModal = crud && (
+    <Modal open size="xl" title={crud.id === 'new' ? 'Nuova risorsa' : 'Modifica risorsa'} onClose={() => setCrud(null)}>
+      <RisorsaDetailPage embed={{
+        id: crud.id,
+        onClose: () => setCrud(null),
+        onSaved: (r, wasNew) => { void reload(); if (wasNew) pickProps?.onCreated?.(r); },
+      }} />
+    </Modal>
+  );
+
+  if (pick) return <>{list}{crudModal}</>;
+  return <Page>{list}{crudModal}</Page>;
 }

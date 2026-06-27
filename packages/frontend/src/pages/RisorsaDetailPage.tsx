@@ -27,8 +27,17 @@ const KIND_LABEL: Record<string, string> = { person: 'Persona', vehicle: 'Mezzo'
 const fmtHH = (iv: [string, string][] | undefined) => (iv && iv.length ? iv.map(([a, b]) => `${a}–${b}`).join(' · ') : '—');
 const fmtRange = (a: string, b: string) => `${new Date(a).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} → ${new Date(b).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}`;
 
-export function RisorsaDetailPage() {
-  const { id } = useParams<{ id: string }>();
+/** Modalità embedded: la stessa scheda CRUD richiamata in un Modal (es. "+ Nuovo"
+ *  o modifica risorsa dal popup di selezione) senza navigare via dalla pagina. */
+export interface RisorsaEmbed {
+  id: string;                                   // 'new' o uuid
+  onClose: () => void;
+  onSaved?: (r: ResourceDto, wasNew: boolean) => void;
+}
+
+export function RisorsaDetailPage({ embed }: { embed?: RisorsaEmbed } = {}) {
+  const routeParams = useParams<{ id: string }>();
+  const id = embed ? embed.id : routeParams.id;
   const isNew = id === 'new';
   const { user } = useAuth();
   const toast = useToast();
@@ -83,8 +92,14 @@ export function RisorsaDetailPage() {
       attributes: { ...attrs, hourly_cost: form.hourlyCost },
     };
     try {
-      if (isNew) { const c = await apiFetch<ResourceDto>('/resources', { method: 'POST', body: JSON.stringify({ kind: form.kind, ...body }) }); toast('Risorsa creata'); history.replace(`/resources/${c.id}`); }
-      else { await mutate('PATCH', `/resources/${id}`, body); toast('Modifiche salvate'); void reload(); }
+      if (isNew) {
+        const c = await apiFetch<ResourceDto>('/resources', { method: 'POST', body: JSON.stringify({ kind: form.kind, ...body }) }); toast('Risorsa creata');
+        if (embed) { embed.onSaved?.(c, true); embed.onClose(); } else history.replace(`/resources/${c.id}`);
+      }
+      else {
+        const u = await mutate<ResourceDto>('PATCH', `/resources/${id}`, body); toast('Modifiche salvate');
+        if (embed) { embed.onSaved?.(u, false); embed.onClose(); } else void reload();
+      }
     } catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message, 'error'); }
     finally { setSavingHead(false); }
   }
@@ -120,8 +135,8 @@ export function RisorsaDetailPage() {
     catch (e) { toast((e as Error).message, 'error'); }
   }
 
-  if (!isNew && loading) return <Page title={t('terms.resource')}><Loading /></Page>;
-  if (!isNew && error) return <Page title={t('terms.resource')}><ErrorBox message={error} /></Page>;
+  if (!isNew && loading) return embed ? <div className="dsx-empty">Carico…</div> : <Page title={t('terms.resource')}><Loading /></Page>;
+  if (!isNew && error) return embed ? <ErrorBox message={error} /> : <Page title={t('terms.resource')}><ErrorBox message={error} /></Page>;
 
   const availContent = (
     <>
@@ -210,15 +225,15 @@ export function RisorsaDetailPage() {
   ];
 
   const title = isNew ? `Nuova ${t('terms.resource')}` : (form.label || t('terms.resource'));
+  const goBack = embed ? embed.onClose : () => history.push('/resources');
 
-  return (
-    <Page title={title} bleed>
+  const objectPage = (
       <ObjectPage
-        backLabel={t('terms.resource_plural')} onBack={() => history.push('/resources')}
+        backLabel={t('terms.resource_plural')} onBack={goBack}
         title={title} code={!isNew ? KIND_LABEL[form.kind]?.toUpperCase() : undefined}
         status={!isNew ? <StatusPill label={form.active ? 'Attiva' : 'Disattivata'} token={form.active ? 'success' : 'neutral'} /> : undefined}
         onSave={(isNew ? canCreate : canManage) ? saveHead : undefined}
-        onCancel={() => history.push('/resources')} saving={savingHead}
+        onCancel={goBack} saving={savingHead}
       >
         <ObjectBox icon={UserRound} title="Anagrafica risorsa">
           <div className="bgrid">
@@ -247,8 +262,9 @@ export function RisorsaDetailPage() {
         {isNew ? <div className="dsx-empty" style={{ marginTop: 4 }}>Salva la risorsa per gestire orario, indisponibilità e assegnazioni.</div>
           : <RelatedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as typeof tab)} />}
       </ObjectPage>
-    </Page>
   );
+
+  return embed ? objectPage : <Page title={title} bleed>{objectPage}</Page>;
 }
 
 /* Utente collegato a questa risorsa (SPEC D.4/H.4): se userId valorizzato mostra utente + ruoli

@@ -33,7 +33,7 @@ export interface MenuItem {
 export const MENU: MenuItem[] = [
   // ── App tecnico (mobile) ──────────────────────────────────────────
   { id: 'today',    label: 'Oggi',     route: '/today',    icon: 'today-outline',    permission: 'activity:read',   shells: ['mobile'] },
-  { id: 'agenda',   label: 'Agenda',   route: '/agenda',   icon: 'calendar-outline', permission: 'activity:read',   shells: ['mobile'] },
+  { id: 'planning', label: 'Agenda',   route: '/planning', icon: 'calendar-outline', permission: 'activity:read',   shells: ['mobile'] },
   { id: 'captures', label: 'Catture',  route: '/captures', icon: 'sparkles-outline', permission: 'capture:read',    shells: ['mobile'] },
 
   // ── Pannello pianificatore/admin (desktop) ────────────────────────
