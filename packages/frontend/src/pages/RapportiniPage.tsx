@@ -10,7 +10,7 @@ import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { SlidersHorizontal, Sparkles, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useAuth } from '../auth/AuthContext';
 
@@ -24,6 +24,7 @@ export function RapportiniPage() {
   const canDelete = !!user?.permissions.includes('work_report:delete' as never);
 
   const wr = useApi<{ items: WorkReportDto[] }>('/work-reports');
+  useReloadOnEnter(wr.reload);
   const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const engById = useMemo(() => new Map((engs.data?.items ?? []).map((e) => [e.id, e])), [engs.data]);
 

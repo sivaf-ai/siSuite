@@ -12,7 +12,7 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { DedupDialog } from '../ui/DedupDialog';
 import { Sparkles, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Modal } from '../ui/Modal';
 import { ClienteDetailPage } from './ClienteDetailPage';
@@ -76,6 +76,7 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/companies?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
     basePath: '/companies', reload, noun: t('terms.party'),

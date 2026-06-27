@@ -89,7 +89,7 @@ export function AbsenceDetailPage() {
       </ObjectPage>
 
       <ConfirmDialog open={delOpen} danger title="Eliminare l'assenza?"
-        message="La richiesta di assenza verrà eliminata. Il saldo eventualmente già imputato non viene ripristinato automaticamente."
+        message={`Stai per eliminare l'assenza «${lk.labelOf(a.typeId) || 'assenza'}» di ${resLabel} dal ${a.startsOn} al ${a.endsOn}. Il saldo eventualmente già imputato non viene ripristinato automaticamente.`}
         confirmLabel="Elimina" busy={busy} onConfirm={() => void remove()} onCancel={() => setDelOpen(false)} />
     </Page>
   );

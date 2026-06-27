@@ -218,6 +218,8 @@ function ReceiveModal({ po, defaultLocationId, locations, onClose, onDone }: {
   const toast = useToast();
   const lines = po.lines ?? [];
   const [locId, setLocId] = useState(defaultLocationId ?? '');
+  const [locName, setLocName] = useState(() => locations.find((l) => l.id === (defaultLocationId ?? ''))?.name ?? '');
+  const [locPick, setLocPick] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>(() => Object.fromEntries(
     lines.map((l) => [l.id, Math.max(0, l.qtyOrdered - l.qtyReceived)])));
   const [busy, setBusy] = useState(false);
@@ -243,11 +245,12 @@ function ReceiveModal({ po, defaultLocationId, locations, onClose, onDone }: {
       </>}>
       <div className="bgrid">
         <div className="bf c4"><span className="bl">Magazzino di destinazione</span>
-          <select className="bi" value={locId} onChange={(e) => setLocId(e.target.value)}>
-            <option value="">— predefinito ordine —</option>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select></div>
+          <PickerField value={locName} placeholder="— predefinito ordine —"
+            onOpen={() => setLocPick(true)}
+            onClear={() => { setLocId(''); setLocName(''); }} /></div>
       </div>
+      <LocationPickerDialog open={locPick} onClose={() => setLocPick(false)}
+        onPick={(ls) => { const l = ls[0]; if (l) { setLocId(l.id); setLocName(l.name); } }} />
       <table className="subt" style={{ marginTop: 14 }}>
         <colgroup>
           <col />

@@ -15,7 +15,7 @@ import type { TimeEntryDto, EngagementDto, ResourceDto, ActivityDto, PermissionK
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
-import { useApi, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { PromptDialog } from '../ui/PromptDialog';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
@@ -49,6 +49,7 @@ export function TimeEntriesPage() {
   const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const ress = useApi<{ items: ResourceDto[] }>('/resources');
   const acts = useApi<{ items: ActivityDto[] }>('/activities');
+  useReloadOnEnter(te.reload);
 
   const [view, setView] = useState<ViewKey>('all');
   const [q, setQ] = useState('');

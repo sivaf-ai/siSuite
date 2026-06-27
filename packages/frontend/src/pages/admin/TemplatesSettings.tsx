@@ -5,9 +5,11 @@
 import { useState } from 'react';
 import { useHistory } from 'react-router';
 import { Plus, Trash2, FileStack } from 'lucide-react';
-import type { CompanyDto, EngagementTemplateDto } from '@sisuite/shared';
+import type { EngagementTemplateDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { Modal } from '../../ui/Modal';
+import { CompanyPickerDialog } from '../../ui/CompanyPickerDialog';
+import { PickerField } from '../../ui/PickerField';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
@@ -70,14 +72,15 @@ export function TemplatesSettings() {
 function InstantiateModal({ template, onClose, onDone, toast }: {
   template: EngagementTemplateDto; onClose: () => void; onDone: (id: string) => void; toast: (m: string, t?: 'error') => void;
 }) {
-  const companies = useApi<{ items: CompanyDto[] }>('/companies');
   const [companyId, setCompanyId] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyPick, setCompanyPick] = useState(false);
   const [title, setTitle] = useState(template.name);
   const [startedOn, setStartedOn] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function create() {
-    const cid = companyId || companies.data?.items[0]?.id;
+    const cid = companyId;
     if (!cid) { toast('Seleziona un cliente', 'error'); return; }
     setBusy(true);
     try {
@@ -97,13 +100,15 @@ function InstantiateModal({ template, onClose, onDone, toast }: {
       </>}>
       <div className="bgrid">
         <div className="bf c4"><span className="bl">Cliente <span className="req">*</span></span>
-          <select className="bi" value={companyId || companies.data?.items[0]?.id || ''} onChange={(e) => setCompanyId(e.target.value)}>
-            {(companies.data?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-          </select></div>
+          <PickerField value={companyName} placeholder="Scegli il cliente…"
+            onOpen={() => setCompanyPick(true)}
+            onClear={() => { setCompanyId(''); setCompanyName(''); }} /></div>
         <div className="bf c2"><span className="bl">Titolo</span><input className="bi" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div className="bf c2"><span className="bl">Inizio (opz.)</span><input className="bi mono" type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} /></div>
       </div>
       <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', marginTop: 12 }}>Verranno create {template.phaseCount} fasi e {template.activityCount} attività con le relative dipendenze.</p>
+      <CompanyPickerDialog open={companyPick} onClose={() => setCompanyPick(false)}
+        onPick={(cs) => { const c = cs[0]; if (c) { setCompanyId(c.id); setCompanyName(c.displayName); } }} />
     </Modal>
   );
 }

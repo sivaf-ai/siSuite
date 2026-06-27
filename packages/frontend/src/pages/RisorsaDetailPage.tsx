@@ -11,6 +11,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -42,7 +43,7 @@ export function RisorsaDetailPage() {
 
   // Anagrafica editabile + attributi (field_definition: sigla/colore/icona/email/…)
   const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=resource');
-  const [form, setForm] = useState({ kind: 'person', label: '', hourlyCost: '', active: true });
+  const [form, setForm] = useState<{ kind: string; label: string; hourlyCost: number | null; active: boolean }>({ kind: 'person', label: '', hourlyCost: null, active: true });
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
   const [savingHead, setSavingHead] = useState(false);
@@ -50,10 +51,10 @@ export function RisorsaDetailPage() {
   const location = useLocation();
   const prefill = isNew ? (location.state as { prefill?: Record<string, unknown> } | null)?.prefill : undefined;
   useEffect(() => {
-    if (res) { setForm({ kind: res.kind, label: res.label, hourlyCost: String((res.attributes as Record<string, unknown>)?.hourly_cost ?? ''), active: res.active }); setAttrs(res.attributes ?? {}); return; }
+    if (res) { setForm({ kind: res.kind, label: res.label, hourlyCost: ((res.attributes as Record<string, unknown>)?.hourly_cost as number) ?? null, active: res.active }); setAttrs(res.attributes ?? {}); return; }
     if (isNew && prefill) {
       const pa = (prefill.attributes as Record<string, unknown>) ?? {};
-      setForm({ kind: (prefill.kind as string) ?? 'person', label: (prefill.label as string) ?? '', hourlyCost: String(pa.hourly_cost ?? ''), active: (prefill.active as boolean) ?? true });
+      setForm({ kind: (prefill.kind as string) ?? 'person', label: (prefill.label as string) ?? '', hourlyCost: (pa.hourly_cost as number) ?? null, active: (prefill.active as boolean) ?? true });
       setAttrs(pa);
     }
   }, [res, isNew, prefill]);
@@ -79,7 +80,7 @@ export function RisorsaDetailPage() {
     const body = {
       ...(isNew ? { kind: form.kind } : {}),
       label: form.label.trim(), active: form.active,
-      attributes: { ...attrs, hourly_cost: form.hourlyCost === '' ? null : Number(form.hourlyCost) },
+      attributes: { ...attrs, hourly_cost: form.hourlyCost },
     };
     try {
       if (isNew) { const c = await apiFetch<ResourceDto>('/resources', { method: 'POST', body: JSON.stringify({ kind: form.kind, ...body }) }); toast('Risorsa creata'); history.replace(`/resources/${c.id}`); }
@@ -230,7 +231,7 @@ export function RisorsaDetailPage() {
             <div className="bf c2"><span className="bl">Nome / Etichetta <span className="req">*</span></span>
               <input className="bi" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} /></div>
             <div className="bf"><span className="bl">Costo orario (€/h)</span>
-              <input className="bi mono" style={{ textAlign: 'right' }} type="number" value={form.hourlyCost} onChange={(e) => setForm((f) => ({ ...f, hourlyCost: e.target.value }))} /></div>
+              <NumInput align="right" value={form.hourlyCost} onChange={(n) => setForm((f) => ({ ...f, hourlyCost: n }))} /></div>
             <div className="bf"><span className="bl">Attiva</span>
               <label className="bi" style={{ justifyContent: 'space-between', cursor: 'pointer' }}>{form.active ? 'Sì' : 'No'}
                 <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /></label></div>

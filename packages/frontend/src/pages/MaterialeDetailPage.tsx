@@ -16,6 +16,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
 import { NumInput } from '../ui/NumInput';
+import { UnitSelect } from '../ui/UnitSelect';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, apiUpload, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -195,12 +196,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
             <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span><input className="bi" value={form.name as string ?? ''} onChange={(e) => set('name', e.target.value)} /></div>
             <div className="bf"><span className="bl">SKU</span><input className="bi mono" value={form.sku as string ?? ''} onChange={(e) => set('sku', e.target.value)} /></div>
             <div className="bf"><span className="bl">Unità di misura <span className="req">*</span></span>
-              <select className="bi" value={form.unit as string ?? ''} onChange={(e) => set('unit', e.target.value)}>
-                <option value="">— Seleziona —</option>
-                {unitOptions.map((u) => <option key={u.id} value={u.code}>{u.code} — {u.name}</option>)}
-                {/* fallback: l'unità salvata non è (più) in catalogo → la mostro comunque */}
-                {form.unit && !unitOptions.some((u) => u.code === form.unit) && <option value={form.unit as string}>{form.unit as string}</option>}
-              </select></div>
+              <UnitSelect value={(form.unit as string) ?? ''} units={unitOptions} onChange={(code) => set('unit', code)} /></div>
             <div className="bf c2"><span className="bl">Categoria</span>
               <select className="bi" value={(form.categoryId as string) ?? ''} onChange={(e) => set('categoryId', e.target.value)}>
                 <option value="">— Nessuna —</option>

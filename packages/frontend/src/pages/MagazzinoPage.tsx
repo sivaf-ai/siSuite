@@ -17,6 +17,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../ui/Modal';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
+import { NumInput } from '../ui/NumInput';
 import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -229,8 +230,8 @@ function GiacenzeTab({ locationId }: { locationId: string }) {
 }
 
 /* ── Tab: Movimenti (immutabile: Nuovo movimento + Rettifica) ──────── */
-interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; quantity: string; unitCost: string; engagementId: string; occurredOn: string; note: string }
-const emptyMov = (): MovDraft => ({ typeCode: 'in', materialId: '', quantity: '', unitCost: '', engagementId: '', occurredOn: '', note: '' });
+interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
+const emptyMov = (): MovDraft => ({ typeCode: 'in', materialId: '', quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
 
 function MovimentiTab({ locationId }: { locationId: string }) {
   const toast = useToast();
@@ -247,12 +248,12 @@ function MovimentiTab({ locationId }: { locationId: string }) {
   const rows = mv.data?.items ?? [];
 
   async function save() {
-    if (!d.materialId || !Number(d.quantity)) { toast('Articolo e quantità obbligatori', 'error'); return; }
+    if (!d.materialId || !d.quantity) { toast('Articolo e quantità obbligatori', 'error'); return; }
     setBusy(true);
     try {
       await mutate('POST', '/stock/movements', {
-        typeCode: d.typeCode, materialId: d.materialId, locationId, quantity: Number(d.quantity),
-        unit: matById.get(d.materialId)?.unit ?? 'pz', unitCost: d.unitCost ? Number(d.unitCost) : undefined,
+        typeCode: d.typeCode, materialId: d.materialId, locationId, quantity: d.quantity,
+        unit: matById.get(d.materialId)?.unit ?? 'pz', unitCost: d.unitCost ?? undefined,
         engagementId: d.engagementId || undefined, occurredOn: d.occurredOn || undefined, note: d.note || undefined,
       });
       toast('Movimento registrato', 'success'); setOpen(false); setD(emptyMov()); await mv.reload();
@@ -295,8 +296,8 @@ function MovimentiTab({ locationId }: { locationId: string }) {
         <div className="bgrid">
           <div className="bf c2"><span className="bl">Tipo</span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
           <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span><select className="bi" value={d.materialId} onChange={(e) => setD({ ...d, materialId: e.target.value })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-          <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialId && <span style={{ color: 'var(--ink-faint)' }}> ({matById.get(d.materialId)?.unit})</span>}</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={d.quantity} onChange={(e) => setD({ ...d, quantity: e.target.value })} /></div>
-          <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={d.unitCost} onChange={(e) => setD({ ...d, unitCost: e.target.value })} placeholder="€" /></div>
+          <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialId && <span style={{ color: 'var(--ink-faint)' }}> ({matById.get(d.materialId)?.unit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
+          <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
           <div className="bf c2"><span className="bl">Commessa (opz.)</span><select className="bi" value={d.engagementId} onChange={(e) => setD({ ...d, engagementId: e.target.value })}><option value="">—</option>{(engs.data?.items ?? []).map((en) => <option key={en.id} value={en.id}>{en.code} · {en.title}</option>)}</select></div>
           <div className="bf c2"><span className="bl">Data (opz.)</span><input className="bi mono" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
           <div className="bf c4"><span className="bl">Note (opz.)</span><input className="bi" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>

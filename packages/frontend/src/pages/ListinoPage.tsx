@@ -9,8 +9,8 @@ import { Page } from '../components/Page';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { Plus } from '../ui/icons';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
 interface ListResp {
@@ -35,6 +35,7 @@ export function ListinoPage() {
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/price-list-items?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<PriceListItemDto>({
     basePath: '/price-list-items', reload, noun: 'voce', newPath: '/price-list/new',
@@ -68,10 +69,6 @@ export function ListinoPage() {
     { key: 'overrideCount', label: 'Ritocchi', value: (v: PriceListItemDto) => v.overrideCount },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-  ];
   const rightActions: ListAction[] = canManage
     ? [{ key: 'new', icon: Plus, tip: 'Nuova voce', variant: 'primary' as const, onClick: () => history.push('/price-list/new') }] : [];
 
@@ -81,7 +78,7 @@ export function ListinoPage() {
         title="Listino voci di capitolato" subtitle="Prezzi costo/ricavo · regola: commessa › gestore › base"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca voce, codice, categoria…"
-        leftActions={leftActions} rightActions={rightActions}
+        rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(v) => history.push(`/price-list/${v.id}`)}
         onDelete={canManage ? onDelete : undefined}

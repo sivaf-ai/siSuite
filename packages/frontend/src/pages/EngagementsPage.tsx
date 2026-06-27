@@ -10,8 +10,8 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { Plus } from '../ui/icons';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 
@@ -43,6 +43,7 @@ export function EngagementsPage() {
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/engagements?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
     basePath: '/engagements', reload, noun: t('terms.engagement'),
@@ -72,11 +73,6 @@ export function EngagementsPage() {
     { key: 'createdAt', label: 'Creata', value: (r: EngagementDto) => new Date(r.createdAt).toLocaleDateString('it-IT') },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
-  ];
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova commessa', variant: 'primary' as const, onClick: () => history.push('/engagements/new') }] : []),
   ];
@@ -87,7 +83,7 @@ export function EngagementsPage() {
         title={t('terms.engagement_plural')} subtitle="Lavori di realizzazione e manutenzione"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per codice o titolo…"
-        leftActions={leftActions} rightActions={rightActions}
+        rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/engagements/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}

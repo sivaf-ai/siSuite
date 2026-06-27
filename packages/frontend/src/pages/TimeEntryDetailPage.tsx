@@ -179,7 +179,9 @@ export function TimeEntryDetailPage() {
       </ObjectPage>
 
       <ConfirmDialog open={delOpen} danger title="Eliminare la registrazione ore?"
-        message="La riga verrà eliminata definitivamente. Le righe bloccate sono protette dal sistema."
+        message={d
+          ? `Stai per eliminare la registrazione del ${dateIt(d.occurredOn)} · ${hhmm(d.minutes)}${engName !== '—' ? ` — ${engName}` : ''}${actName !== '—' ? ` · ${actName}` : ''}. La riga verrà eliminata definitivamente (le righe bloccate sono protette dal sistema).`
+          : 'La riga verrà eliminata definitivamente. Le righe bloccate sono protette dal sistema.'}
         confirmLabel="Elimina" busy={busy} onConfirm={doDelete} onCancel={() => setDelOpen(false)} />
     </Page>
   );

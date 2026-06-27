@@ -18,6 +18,10 @@ import { StatusPill } from '../components/StatusPill';
 import { Money } from '../ui/Num';
 import { MaskedField } from '../components/MaskedField';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
+import { PickerField } from '../ui/PickerField';
+import { NumInput } from '../ui/NumInput';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -52,6 +56,9 @@ export function OrdinativoDetailPage() {
   const [items, setItems] = useState<{ materialId: string; plannedQty: number; unit?: string | null }[]>([]);
   const [tab, setTab] = useState('serials');
   const [busy, setBusy] = useState(false);
+  const [companyPick, setCompanyPick] = useState(false);
+  const [companyName, setCompanyName] = useState('');
+  const [matPick, setMatPick] = useState(false);
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill.
   const location = useLocation();
@@ -84,9 +91,21 @@ export function OrdinativoDetailPage() {
     setItems((d.items ?? []).map((it) => ({ materialId: it.materialId, plannedQty: it.plannedQty, unit: it.unit })));
   }, [d]);
 
+  // risolvi il nome del committente dalla lista già caricata
+  useEffect(() => {
+    if (form.principalCompanyId) {
+      const c = companies.data?.items.find((x) => x.id === form.principalCompanyId);
+      if (c) setCompanyName(c.displayName);
+    } else { setCompanyName(''); }
+  }, [form.principalCompanyId, companies.data]);
+
   const canEditPii = isNew || (d?.subject?.unmasked ?? false);
   const statusToken = useMemo(() => lookups.byId(form.statusId)?.colorToken ?? 'neutral', [form.statusId, lookups]);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  function addMaterials(mats: MaterialDto[]) {
+    setItems((arr) => [...arr, ...mats.map((m) => ({ materialId: m.id, plannedQty: 1, unit: m.unit }))]);
+  }
 
   async function save() {
     if (!form.engagementId) { toast('Seleziona la commessa', 'error'); return; }
@@ -118,7 +137,6 @@ export function OrdinativoDetailPage() {
   if (!isNew && detail.loading) return <Page title={t('terms.work_order')}><Loading /></Page>;
   if (!isNew && detail.error) return <Page title={t('terms.work_order')}><ErrorBox message={detail.error} /></Page>;
 
-  const companyOpts = companies.data?.items ?? [];
   const engOpts = engagements.data?.items ?? [];
   const resOpts = (resources.data?.items ?? []).filter((r) => r.kind === 'person');
   const matOpts = materials.data?.items ?? [];
@@ -169,9 +187,9 @@ export function OrdinativoDetailPage() {
           <div className="bgrid">
             <div className="bf"><span className="bl">Codice</span><div className="bi green">{isNew ? 'auto' : d?.code}</div></div>
             <div className="bf"><span className="bl">Committente</span>
-              <select className="bi" value={form.principalCompanyId} onChange={(e) => set('principalCompanyId', e.target.value)}>
-                <option value="">—</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-              </select></div>
+              <PickerField value={companyName} placeholder="Scegli il committente…"
+                onOpen={() => setCompanyPick(true)}
+                onClear={() => { set('principalCompanyId', ''); setCompanyName(''); }} /></div>
             <div className="bf"><span className="bl">Rif. esterno</span>
               <input className="bi mono" value={form.principalOrderRef ?? ''} onChange={(e) => set('principalOrderRef', e.target.value)} placeholder="es. FEN-…" /></div>
             <div className="bf"><span className="bl">Tipo</span>
@@ -248,24 +266,25 @@ export function OrdinativoDetailPage() {
             <tbody>
               {items.map((it, i) => (
                 <tr key={i}>
-                  <td>
-                    <select className="bi" style={{ minHeight: 32 }} value={it.materialId}
-                      onChange={(e) => setItems((arr) => arr.map((x, j) => j === i ? { ...x, materialId: e.target.value, unit: matOpts.find((m) => m.id === e.target.value)?.unit } : x))}>
-                      <option value="">— scegli —</option>{matOpts.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select></td>
-                  <td className="num"><input className="bi mono" style={{ minHeight: 32, width: 70, textAlign: 'right' }} type="number" value={it.plannedQty}
-                    onChange={(e) => setItems((arr) => arr.map((x, j) => j === i ? { ...x, plannedQty: Number(e.target.value) } : x))} /></td>
+                  <td>{matOpts.find((m) => m.id === it.materialId)?.name ?? '—'}</td>
+                  <td className="num"><NumInput align="right" value={it.plannedQty}
+                    onChange={(n) => setItems((arr) => arr.map((x, j) => j === i ? { ...x, plannedQty: n ?? 0 } : x))} /></td>
                   <td>{it.unit ?? matOpts.find((m) => m.id === it.materialId)?.unit ?? '—'}</td>
                   <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setItems((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>
                 </tr>
               ))}
+              {items.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessun apparato. Aggiungi un articolo.</div></td></tr>}
             </tbody>
           </table>
-          <div className="addline" onClick={() => setItems((arr) => [...arr, { materialId: '', plannedQty: 1 }])}><Plus /> Aggiungi apparato</div>
+          <div className="addline" onClick={() => setMatPick(true)}><Plus /> Aggiungi apparato</div>
         </ObjectBox>
 
         {!isNew && <RelatedTabs tabs={tabs} active={tab} onChange={setTab} />}
       </ObjectPage>
+
+      <CompanyPickerDialog open={companyPick} onClose={() => setCompanyPick(false)}
+        onPick={(cs) => { const c = cs[0]; if (c) { set('principalCompanyId', c.id); setCompanyName(c.displayName); } }} />
+      <MaterialPickerDialog open={matPick} multi onClose={() => setMatPick(false)} onPick={addMaterials} />
     </Page>
   );
 }

@@ -13,7 +13,8 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction, type ExportField } from '../ui/EntityList';
 import { Modal } from '../ui/Modal';
-import { useApi, mutate } from '../api/hooks';
+import { NumInput } from '../ui/NumInput';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
@@ -33,6 +34,7 @@ export function AssenzePage() {
   const [view, setView] = useState<ReqView>('all');
 
   const abs = useApi<{ items: AbsenceDto[] }>('/absences');
+  useReloadOnEnter(abs.reload);
   const bal = useApi<{ items: AbsenceBalanceDto[] }>('/absence-balances');
   const ress = useApi<{ items: ResourceDto[] }>('/resources');
   const resById = useMemo(() => new Map((ress.data?.items ?? []).map((r) => [r.id, r])), [ress.data]);
@@ -45,7 +47,7 @@ export function AssenzePage() {
   const [rType, setRType] = useState('');
   const [rFrom, setRFrom] = useState('');
   const [rTo, setRTo] = useState('');
-  const [rHours, setRHours] = useState('');
+  const [rHours, setRHours] = useState<number | null>(null);
   const [rNote, setRNote] = useState('');
 
   async function createAbsence() {
@@ -54,10 +56,10 @@ export function AssenzePage() {
     try {
       await mutate('POST', '/absences', {
         resourceId: rRes, typeId: rType, startsOn: rFrom, endsOn: rTo,
-        hours: rHours ? Number(rHours) : undefined, note: rNote || undefined,
+        hours: rHours != null ? rHours : undefined, note: rNote || undefined,
       });
       toast('Richiesta creata', 'success');
-      setOpen(false); setRRes(''); setRType(''); setRFrom(''); setRTo(''); setRHours(''); setRNote('');
+      setOpen(false); setRRes(''); setRType(''); setRFrom(''); setRTo(''); setRHours(null); setRNote('');
       await abs.reload();
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
@@ -169,7 +171,7 @@ export function AssenzePage() {
             </select></div>
           <div className="bf c2"><span className="bl">Dal <span className="req">*</span></span><input className="bi mono" type="date" value={rFrom} onChange={(e) => setRFrom(e.target.value)} /></div>
           <div className="bf c2"><span className="bl">Al <span className="req">*</span></span><input className="bi mono" type="date" value={rTo} onChange={(e) => setRTo(e.target.value)} /></div>
-          <div className="bf c2"><span className="bl">Ore (solo permessi a ore)</span><input className="bi mono" style={{ textAlign: 'right' }} type="number" value={rHours} onChange={(e) => setRHours(e.target.value)} placeholder="vuoto = giornate intere" /></div>
+          <div className="bf c2"><span className="bl">Ore (solo permessi a ore)</span><NumInput align="right" value={rHours} onChange={setRHours} placeholder="vuoto = giornate intere" /></div>
           <div className="bf c4"><span className="bl">Note</span><input className="bi" value={rNote} onChange={(e) => setRNote(e.target.value)} /></div>
         </div>
       </Modal>

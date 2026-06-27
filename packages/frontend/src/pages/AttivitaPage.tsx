@@ -9,10 +9,9 @@ import type { ActivityDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Dur } from '../ui/Num';
-import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
+import { EntityList, type ListColumn, type ListView } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
 
@@ -39,6 +38,7 @@ export function AttivitaPage() {
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/activities?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<ActivityDto>({
     basePath: '/activities', reload, noun: 'attività',
@@ -66,19 +66,12 @@ export function AttivitaPage() {
     { key: 'kind', label: 'Tipo', value: (r: ActivityDto) => r.kind ?? '' },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
-  ];
-
   return (
     <Page>
       <EntityList<ActivityDto>
         title={t('terms.activity_plural')} subtitle="Tutte le attività delle commesse"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca attività o commessa…"
-        leftActions={leftActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/activities/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}

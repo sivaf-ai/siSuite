@@ -11,6 +11,8 @@ import type { AssetDto, FieldDefinitionDto, SiteDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { PickerField } from '../ui/PickerField';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
@@ -34,6 +36,8 @@ export function AssetDetailPage() {
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState(false);
+  const [companyPick, setCompanyPick] = useState(false);
+  const [companyName, setCompanyName] = useState('');
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza seriali/identificativi).
   const location = useLocation();
@@ -60,6 +64,14 @@ export function AssetDetailPage() {
 
   const sites = useApi<{ items: SiteDto[] }>(form.companyId ? `/sites?company_id=${form.companyId}` : null);
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // risolvi il nome del cliente dalla lista già caricata (modalità nuovo)
+  useEffect(() => {
+    if (isNew && form.companyId) {
+      const c = companies.data?.items.find((x) => x.id === form.companyId);
+      if (c) setCompanyName(c.displayName);
+    }
+  }, [isNew, form.companyId, companies.data]);
   const setAttr = (k: string, v: unknown) => setAttrs((a) => ({ ...a, [k]: v }));
 
   async function save() {
@@ -87,7 +99,6 @@ export function AssetDetailPage() {
   if (!isNew && detail.loading) return <Page title={t('terms.asset')}><Loading /></Page>;
   if (!isNew && detail.error) return <Page title={t('terms.asset')}><ErrorBox message={detail.error} /></Page>;
 
-  const companyOpts = companies.data?.items ?? [];
   const siteOpts = sites.data?.items ?? [];
   const title = isNew ? `Nuovo ${t('terms.asset')}` : (form.label || t('terms.asset'));
 
@@ -107,9 +118,11 @@ export function AssetDetailPage() {
               <input className="bi" value={form.kind} onChange={(e) => set('kind', e.target.value)} placeholder="pv_plant, pool, software_system…" /></div>
             <div className="bf"><span className="bl">Installato il</span>
               <input className="bi" type="date" value={form.installedOn ? form.installedOn.slice(0, 10) : ''} onChange={(e) => set('installedOn', e.target.value)} /></div>
-            <div className="bf c2"><span className="bl">Cliente</span>
+            <div className="bf c2"><span className="bl">Cliente {isNew && <span className="req">*</span>}</span>
               {isNew
-                ? <select className="bi" value={form.companyId} onChange={(e) => { set('companyId', e.target.value); set('siteId', ''); }}><option value="">— seleziona —</option>{companyOpts.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}</select>
+                ? <PickerField value={companyName} placeholder="Scegli il cliente…"
+                    onOpen={() => setCompanyPick(true)}
+                    onClear={() => { set('companyId', ''); set('siteId', ''); setCompanyName(''); }} />
                 : <div className="bi">{d?.companyName ?? '—'}</div>}</div>
             <div className="bf c2"><span className="bl">Sito / Località</span>
               <select className="bi" value={form.siteId} onChange={(e) => set('siteId', e.target.value)} disabled={!form.companyId}>
@@ -131,6 +144,8 @@ export function AssetDetailPage() {
       <ConfirmDialog open={del} danger title="Archiviare l'asset?"
         message={`“${form.label}” verrà archiviato.`} confirmLabel="Archivia" busy={busy}
         onConfirm={doDelete} onCancel={() => setDel(false)} />
+      <CompanyPickerDialog open={companyPick} onClose={() => setCompanyPick(false)}
+        onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); set('siteId', ''); setCompanyName(c.displayName); } }} />
     </Page>
   );
 }

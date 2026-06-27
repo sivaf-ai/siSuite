@@ -11,8 +11,8 @@ import { StatusPill } from '../components/StatusPill';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { Plus } from '../ui/icons';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
 const KIND_LABEL: Record<string, string> = { person: 'Persona', vehicle: 'Mezzo', equipment: 'Attrezzatura' };
@@ -38,6 +38,7 @@ export function RisorsePage() {
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/resources?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<ResourceDto>({
     basePath: '/resources', reload, noun: 'risorsa',
@@ -65,11 +66,6 @@ export function RisorsePage() {
     { key: 'userName', label: 'Utente collegato', value: (r: ResourceDto) => r.userName ?? '' },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
-  ];
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuova risorsa', variant: 'primary' as const, onClick: () => history.push('/resources/new') }] : []),
   ];
@@ -80,7 +76,7 @@ export function RisorsePage() {
         title={t('terms.resource_plural')} subtitle="Persone, mezzi e attrezzature"
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca per nome…"
-        leftActions={leftActions} rightActions={rightActions}
+        rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/resources/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}

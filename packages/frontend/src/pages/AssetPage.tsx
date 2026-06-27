@@ -8,8 +8,8 @@ import type { AssetDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
-import { useApi } from '../api/hooks';
+import { Plus } from '../ui/icons';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 
 interface ListResp { items: AssetDto[]; total: number; limit: number; offset: number }
@@ -29,6 +29,7 @@ export function AssetPage() {
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/assets?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<AssetDto>({
     basePath: '/assets', reload, noun: 'asset',
@@ -51,11 +52,6 @@ export function AssetPage() {
     { key: 'installedOn', label: 'Installato il', value: (r: AssetDto) => (r.installedOn ? new Date(r.installedOn).toLocaleDateString('it-IT') : '') },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
-  ];
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo asset', variant: 'primary' as const, onClick: () => history.push('/assets/new') }] : []),
   ];
@@ -65,7 +61,7 @@ export function AssetPage() {
       <EntityList<AssetDto>
         title={t('terms.asset_plural')} subtitle="Oggetti gestiti: impianti, sistemi, apparati"
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca etichetta o tipo…"
-        leftActions={leftActions} rightActions={rightActions}
+        rightActions={rightActions}
         columns={columns} rows={data?.items ?? []} loading={loading} error={error}
         onRowClick={(r) => history.push(`/assets/${r.id}`)}
         onDelete={can('delete') ? onDelete : undefined}

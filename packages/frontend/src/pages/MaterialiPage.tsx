@@ -11,9 +11,9 @@ import { StatusPill } from '../components/StatusPill';
 import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
-import { SlidersHorizontal, Columns3, Sparkles, Plus } from '../ui/icons';
+import { Plus } from '../ui/icons';
 import { Package } from 'lucide-react';
-import { useApi } from '../api/hooks';
+import { useApi, useReloadOnEnter } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Modal } from '../ui/Modal';
 import { MaterialeDetailPage } from './MaterialeDetailPage';
@@ -85,6 +85,7 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
   const { data, loading, error, reload } = useApi<ListResp>(`/materials?${params.toString()}`);
+  useReloadOnEnter(reload);
 
   const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
     basePath: '/materials', reload, noun: 'articolo',
@@ -123,11 +124,6 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
     { key: 'status', label: 'Stato', value: (m: MaterialDto) => statusOf(m).label },
   ];
 
-  const leftActions: ListAction[] = [
-    { key: 'filters', icon: SlidersHorizontal, tip: 'Filtri', disabled: true },
-    { key: 'cols', icon: Columns3, tip: 'Colonne', disabled: true },
-    { key: 'ai', icon: Sparkles, tip: 'Azioni AI (presto)', variant: 'ai', disabled: true },
-  ];
   // "+ Nuovo": in pick apre la CRUD in modale (resti nel documento); altrimenti naviga.
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo articolo', variant: 'primary' as const,
@@ -141,7 +137,7 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
         title={pick ? undefined : t('terms.material_plural')} subtitle={pick ? undefined : 'Catalogo magazzino & servizi'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, SKU, categoria…"
-        leftActions={pick ? [] : leftActions} rightActions={rightActions}
+        rightActions={rightActions}
         mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
         selectedIds={pick ? pickProps?.selectedIds : undefined}
         onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
