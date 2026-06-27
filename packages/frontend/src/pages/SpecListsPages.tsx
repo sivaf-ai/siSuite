@@ -11,9 +11,16 @@ import { Page } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
+import { Modal } from '../ui/Modal';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { NumInput } from '../ui/NumInput';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter } from '../api/hooks';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
+import { apiFetch, ApiError } from '../api/client';
+import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 const dfmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('it-IT') : '—');
 const numberCell = (n: string | null) => <span className="cellname mono">{n ?? <em style={{ color: 'var(--ink-faint)' }}>bozza</em>}</span>;
@@ -163,22 +170,124 @@ export function SkillsPage() {
 }
 
 /* ── Aliquote IVA (tax_rate) ───────────────────────────────────────── */
+/** Gestione COMPLETA come UnitsPage: toolbar standard + CRUD in Modal centrato.
+ *  Le righe di SISTEMA (isSystem) sono in sola lettura; la Duplica è consentita
+ *  anche su di esse (senza copiare lo stato di sistema). */
+const COUNTRIES = ['IT', 'AR'];
+
 export function TaxRatesPage() {
   const [q, setQ] = useState('');
-  const { data, loading, error } = useApi<{ items: TaxRateDto[] }>('/tax-rates');
+  const toast = useToast();
+  const { user } = useAuth();
+  const canWrite = !!user?.permissions.includes('settings:manage' as never);
+  const { data, loading, error, reload } = useApi<{ items: TaxRateDto[] }>('/tax-rates');
+  useReloadOnEnter(reload);
+
+  // editing: undefined = chiuso, null = nuovo, TaxRateDto = modifica
+  const [editing, setEditing] = useState<TaxRateDto | null | undefined>(undefined);
+  const [form, setForm] = useState<{ country: string; code: string; label: string; percent: number | null; isDefault: boolean; active: boolean }>(
+    { country: 'IT', code: '', label: '', percent: null, isDefault: false, active: true });
+  const [busy, setBusy] = useState(false);
+  const [delRows, setDelRows] = useState<TaxRateDto[] | null>(null);
+
+  function openNew(prefill?: TaxRateDto) {
+    setForm({
+      country: prefill?.country ?? 'IT', code: prefill?.code ?? '', label: prefill?.label ?? '',
+      percent: prefill?.percent ?? null, isDefault: prefill?.isDefault ?? false, active: prefill?.active ?? true,
+    });
+    setEditing(null);
+  }
+  function openEdit(row: TaxRateDto) {
+    if (row.isSystem) { toast('Voce di sistema: in sola lettura', 'error'); return; }
+    setForm({ country: row.country, code: row.code, label: row.label, percent: row.percent, isDefault: row.isDefault, active: row.active });
+    setEditing(row);
+  }
+
+  async function save() {
+    if (form.country.trim().length !== 2) { toast('Il paese deve essere un codice di 2 lettere', 'error'); return; }
+    if (!form.code.trim() || !form.label.trim()) { toast('Codice e descrizione sono obbligatori', 'error'); return; }
+    if (form.percent == null) { toast("L'aliquota è obbligatoria", 'error'); return; }
+    setBusy(true);
+    try {
+      const body = { country: form.country.trim().toUpperCase(), code: form.code.trim(), label: form.label.trim(), percent: form.percent, isDefault: form.isDefault, active: form.active };
+      if (editing) await mutate('PATCH', `/tax-rates/${editing.id}`, body);
+      else await apiFetch('/tax-rates', { method: 'POST', body: JSON.stringify(body) });
+      toast(editing ? 'Modifiche salvate' : 'Aliquota creata');
+      setEditing(undefined); reload();
+    } catch (e) { toast(errMsg(e), 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function doDelete() {
+    if (!delRows) return;
+    setBusy(true);
+    try {
+      for (const r of delRows) await mutate('DELETE', `/tax-rates/${r.id}`);
+      toast(delRows.length > 1 ? `${delRows.length} aliquote eliminate` : 'Aliquota eliminata');
+      setDelRows(null); reload();
+    } catch (e) { toast(errMsg(e), 'error'); setDelRows(null); }
+    finally { setBusy(false); }
+  }
+
   const cols: ListColumn<TaxRateDto>[] = [
     { key: 'code', header: 'Codice', value: (r) => r.code, render: (r) => <span className="cellname mono">{r.code}</span> },
     { key: 'label', header: 'Descrizione', value: (r) => r.label, render: (r) => r.label },
     { key: 'country', header: 'Paese', value: (r) => r.country, render: (r) => <span className="chip">{r.country}</span> },
     { key: 'percent', header: 'Aliquota', num: true, value: (r) => r.percent, render: (r) => <span className="mono">{r.percent}%</span> },
     { key: 'default', header: 'Predefinita', value: (r) => (r.isDefault ? 'sì' : ''), render: (r) => (r.isDefault ? <span className="chip">predefinita</span> : <span className="faint">—</span>) },
+    { key: 'system', header: 'Origine', value: (r) => (r.isSystem ? 'Sistema' : 'Tenant'), render: (r) => <span className="chip">{r.isSystem ? 'Sistema' : 'Personalizzata'}</span> },
   ];
+  const rightActions: ListAction[] = canWrite ? [{ key: 'new', icon: Plus, tip: 'Nuova aliquota IVA', variant: 'primary', onClick: () => openNew() }] : [];
+
+  const rows = (data?.items ?? []).filter((r) => !q.trim() || `${r.code} ${r.label} ${r.country}`.toLowerCase().includes(q.toLowerCase()));
+
   return (
     <Page>
-      <EntityList<TaxRateDto> title="Aliquote IVA" subtitle="Catalogo imposte per paese"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca codice, descrizione…" selectable={false}
-        columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.code} ${r.label} ${r.country}`.toLowerCase().includes(q.toLowerCase()))}
-        loading={loading} error={error} exportName="aliquote-iva" emptyText="Nessuna aliquota." />
+      <EntityList<TaxRateDto> title="Aliquote IVA" subtitle="Catalogo imposte per paese — le voci di sistema sono in sola lettura"
+        search={q} onSearch={setQ} searchPlaceholder="Cerca codice, descrizione…"
+        rightActions={rightActions}
+        onRowClick={canWrite ? openEdit : undefined}
+        onEdit={canWrite ? openEdit : undefined}
+        onDuplicate={canWrite ? (r) => openNew(r) : undefined}
+        onDelete={canWrite ? (rs) => {
+          const sys = rs.filter((r) => r.isSystem);
+          const own = rs.filter((r) => !r.isSystem);
+          if (sys.length) toast('Le aliquote di sistema non sono eliminabili', 'error');
+          if (own.length) setDelRows(own);
+        } : undefined}
+        rowLabel={(r) => r.code}
+        columns={cols} rows={rows} loading={loading} error={error}
+        exportName="aliquote-iva" emptyText="Nessuna aliquota." />
+
+      <Modal open={editing !== undefined} size="md" title={editing ? 'Modifica aliquota IVA' : 'Nuova aliquota IVA'} onClose={() => setEditing(undefined)}
+        footer={<>
+          <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
+          <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
+        </>}>
+        <div className="dsx">
+          <div className="bgrid">
+            <div className="bf c2"><span className="bl">Paese <span className="req">*</span></span>
+              <select className="bi" value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>
+                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div className="bf c2"><span className="bl">Codice <span className="req">*</span></span>
+              <input className="bi mono" autoFocus value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="IVA22, IVA10…" /></div>
+            <div className="bf c4"><span className="bl">Descrizione <span className="req">*</span></span>
+              <input className="bi" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="IVA ordinaria 22%…" /></div>
+            <div className="bf c2"><span className="bl">Aliquota %</span>
+              <NumInput value={form.percent} onChange={(n) => setForm((f) => ({ ...f, percent: n }))} align="right" placeholder="22" /></div>
+            <div className="bf c2"><span className="bl">Predefinita</span>
+              <select className="bi" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.value === '1' }))}>
+                <option value="0">No</option><option value="1">Sì</option></select></div>
+            <div className="bf c2"><span className="bl">Attiva</span>
+              <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
+                <option value="1">Sì</option><option value="0">No</option></select></div>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog open={!!delRows} danger title="Eliminare l'aliquota IVA?"
+        message={delRows && delRows.length === 1 && delRows[0] ? `«${delRows[0].code} — ${delRows[0].label}» verrà eliminata.` : `${delRows?.length ?? 0} aliquote verranno eliminate.`}
+        confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRows(null)} />
     </Page>
   );
 }

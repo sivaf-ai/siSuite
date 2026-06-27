@@ -5,10 +5,12 @@
  * Niente popup nativi: elimina via ConfirmDialog con il nome. Riusa material:*.
  */
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Pencil, Trash2, FolderTree, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Pencil, Trash2, FolderTree } from 'lucide-react';
 import type { MaterialCategoryDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { Modal } from '../ui/Modal';
+import { IconPicker } from '../ui/IconPicker';
+import { CategoryIcon } from '../ui/categoryIcons';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
@@ -50,7 +52,7 @@ export function CategoriePage() {
   const [open, setOpen] = useState<Set<string>>(new Set());
   // editing: undefined = chiuso; altrimenti { id?: per modifica } + form
   const [editing, setEditing] = useState<{ id?: string } | undefined>(undefined);
-  const [form, setForm] = useState<{ name: string; color: string; parentId: string }>({ name: '', color: '', parentId: '' });
+  const [form, setForm] = useState<{ name: string; color: string; icon: string; parentId: string }>({ name: '', color: '', icon: '', parentId: '' });
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState<MaterialCategoryDto | null>(null);
 
@@ -58,11 +60,11 @@ export function CategoriePage() {
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   function openNew(parentId?: string) {
-    setForm({ name: '', color: '', parentId: parentId ?? '' });
+    setForm({ name: '', color: '', icon: '', parentId: parentId ?? '' });
     setEditing({});
   }
   function openEdit(c: MaterialCategoryDto) {
-    setForm({ name: c.name, color: c.color ?? '', parentId: c.parentId ?? '' });
+    setForm({ name: c.name, color: c.color ?? '', icon: c.icon ?? '', parentId: c.parentId ?? '' });
     setEditing({ id: c.id });
   }
 
@@ -73,7 +75,7 @@ export function CategoriePage() {
     if (!form.name.trim()) { toast('Il nome è obbligatorio', 'error'); return; }
     setBusy(true);
     try {
-      const body = { name: form.name.trim(), color: form.color.trim() || null, parentId: form.parentId || null };
+      const body = { name: form.name.trim(), color: form.color.trim() || null, icon: form.icon.trim() || null, parentId: form.parentId || null };
       if (editing?.id) await mutate('PATCH', `/material-categories/${editing.id}`, body);
       else await apiFetch('/material-categories', { method: 'POST', body: JSON.stringify(body) });
       toast(editing?.id ? 'Modifiche salvate' : 'Categoria creata');
@@ -100,7 +102,7 @@ export function CategoriePage() {
           <button className="cat-chev" onClick={() => hasKids && toggle(n.id)} style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
             {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
           </button>
-          <Folder size={15} className="cat-ico" style={n.color ? { color: n.color } : undefined} />
+          <span className="cat-ico" style={n.color ? { color: n.color } : undefined}><CategoryIcon name={n.icon} size={15} color={n.color} /></span>
           <span className="cat-name">{n.name}</span>
           {!n.active && <span className="serialtag">disattivata</span>}
           {canWrite && (
@@ -126,7 +128,7 @@ export function CategoriePage() {
         .cat-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;font-size:13.5px}
         .cat-row:hover{background:var(--paper)}
         .cat-chev{background:none;border:0;color:var(--ink-faint);cursor:pointer;display:grid;place-items:center;width:18px}
-        .cat-ico{color:var(--brand);flex:0 0 auto}
+        .cat-ico{color:var(--brand);flex:0 0 auto;display:inline-flex;align-items:center}
         .cat-name{font-weight:600;color:var(--ink)}
         .cat-acts{margin-left:auto;display:flex;gap:2px;opacity:0}
         .cat-row:hover .cat-acts{opacity:1}
@@ -150,16 +152,21 @@ export function CategoriePage() {
           <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
           <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
         </>}>
-        <div className="bgrid">
-          <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span>
-            <input className="bi" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Es. Cavi, Connettori…" /></div>
-          <div className="bf"><span className="bl">Colore</span>
-            <input className="bi" type="color" value={form.color || '#888888'} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} style={{ padding: 4, height: 38 }} /></div>
-          <div className="bf"><span className="bl">Categoria padre</span>
-            <select className="bi" value={form.parentId} onChange={(e) => setForm((f) => ({ ...f, parentId: e.target.value }))}>
-              <option value="">— Radice —</option>
-              {parentOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select></div>
+        <div className="dsx">
+          <div className="bgrid">
+            <div className="bf c4"><span className="bl">Nome <span className="req">*</span></span>
+              <input className="bi" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Es. Cavi, Connettori…" /></div>
+            <div className="bf c2"><span className="bl">Colore</span>
+              <input className="bi" type="color" value={form.color || '#888888'} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} style={{ padding: 4, minHeight: 38 }} /></div>
+            <div className="bf c2"><span className="bl">Categoria padre</span>
+              <select className="bi" value={form.parentId} onChange={(e) => setForm((f) => ({ ...f, parentId: e.target.value }))}>
+                <option value="">— Radice —</option>
+                {parentOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select></div>
+            <div className="bf c4"><span className="bl">Icona</span>
+              <div style={{ border: '1.5px solid var(--line)', borderRadius: 9, padding: '14px 11px 11px', background: 'var(--card)' }}>
+                <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} /></div></div>
+          </div>
         </div>
       </Modal>
 

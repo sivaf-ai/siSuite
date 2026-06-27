@@ -100,14 +100,16 @@ export function UnitsPage() {
           <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
           <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
         </>}>
-        <div className="bgrid">
-          <div className="bf"><span className="bl">Codice <span className="req">*</span></span>
-            <input className="bi mono" autoFocus value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="pz, m, kg…" /></div>
-          <div className="bf"><span className="bl">Nome <span className="req">*</span></span>
-            <input className="bi" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Pezzo, Metro…" /></div>
-          <div className="bf c2"><span className="bl">Attiva</span>
-            <label className="bi" style={{ justifyContent: 'space-between', cursor: 'pointer' }}>{form.active ? 'Sì' : 'No'}
-              <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /></label></div>
+        <div className="dsx">
+          <div className="bgrid">
+            <div className="bf c2"><span className="bl">Codice <span className="req">*</span></span>
+              <input className="bi mono" autoFocus value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="pz, m, kg…" /></div>
+            <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span>
+              <input className="bi" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Pezzo, Metro…" /></div>
+            <div className="bf c2"><span className="bl">Attiva</span>
+              <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
+                <option value="1">Sì</option><option value="0">No</option></select></div>
+          </div>
         </div>
       </Modal>
 
