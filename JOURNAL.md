@@ -2,6 +2,16 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-27 (2) — AUDIT TOTALE + bonifica integrità + standardizzazione (chat 01.06)
+- **Migrazioni 052→053 applicate** (prossima libera **054**). Vedi `docs/analisi/DONE_TOTALE_3.md` + ADR-0010 + `AUDIT_conformita_DB.md`/`AUDIT_conformita_UI.md` (FASE 0) + schema rigenerato `2026-06-27_schema_db_completo_post_audit.md` (001→053).
+- **052**: 11 colonne `unit`/`weight_unit` text → `unit_id`/`weight_unit_id` **FK** `unit_of_measure(id)` `ON DELETE RESTRICT`, DROP testo (CLEAN SLATE). Vista `job_cost_ledger` ricreata. Helper `app_resolve_unit`. **Contratto DTO invariato** (join code in lettura, resolve in scrittura): frontend `UnitSelect` immutato. Backend toccato: consumptions/prices/materials/warehouse/stock/workReports/workOrders/workLines/unitsOfMeasure + ai/applier + demo/runner.
+- **053**: unicità incl. righe di sistema (`unit_of_measure`/`tax_rate` indici parziali `WHERE tenant_id IS NULL`) + chiavi naturali (material_category, template, resource.code, app_user.code, numeri documento stock_document/stock_count/purchase_order/pick_list).
+- **Backend**: soft-delete con controllo d'uso (`context/usageGuard.ts`) su material/company/resource/site/asset → 409 col nome+entità. tax_rate anti-dup sistema-aware (create+update). handler 23505 nomina il valore.
+- **Frontend (no migrazioni)**: `useReloadOnEnter` su 10 liste; NumInput (Risorsa/Assenze/Magazzino/Ordinativo); UnitSelect (scheda Articolo); Elimina-col-nome (Ore/Assenza); picker (PO-Ricevi/Ordinativo/Asset/Template). Rimossi leftActions placeholder morti (EntityList ha già la toolbar reale).
+- **`category` lasciata testo** dove è tassonomia/metadato (lookup_value/canonical_state/field_definition/skill/price_list_item.category): non cataloghi → no FK (documentato). `material` ha già `category_id` FK.
+- Verifica: typecheck BE+FE puliti, **79/79 test BE verdi**, smoke canonici live (UM dup 409, articolo referenziato archive 409, UM sistema 404), migrazioni idempotenti.
+- **Residui documentati** (no regressioni): pick mode su liste Risorse/Commesse/Siti; toolbar filtri liste-documenti (endpoint GET con ORDER BY fisso); rebuild AttivitaDetailPage + sub-CRUD CommessaDetailPage (richiedono verifica a video); /agenda PlaceholderPage.
+
 ## 2026-06-23 — Fix errori DDT + Duplica su tutte le anagrafiche + errori chiari (chat 01.06)
 - Solo frontend + shared(zod) + backend(error handler). Nessuna migrazione.
 - **Fix 400 DDT/ubicazioni**: `createStockDocumentSchema` e `createStockLocationSchema` resi `.nullable().optional()` sui campi opzionali (la UI invia null). PO/Pick erano già nullable.
