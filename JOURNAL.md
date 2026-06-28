@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 (4) — Soft-delete cataloghi + Competenze anagrafica + hub AI + fix toggle (chat 01.06)
+- Migr **056** (prossima libera **057**): archived_at/archived_by su unit_of_measure, tax_rate, skill. Commit `d0cd616`+`3c300ba`.
+- **Toggle "Mostra archiviati" EFFIMERO** (`useArchivedView`, reset su ionViewWillEnter) → rientrando in una maschera torna a "Mostra archiviati" e mostra gli attivi (fix #4); rimosso `useStickyState` per archived (risolve anche la desync di Materiali con l'istanza picker).
+- **Soft-delete completo** esteso a **Unità di misura, Aliquote IVA, Competenze** (archivia+controllo d'uso+?archived+restore+purge+audit; righe di sistema UM/IVA non archiviabili).
+- **Competenze (skill)**: da sola-lettura ad **anagrafica completa** (EntityList + "+ Nuova" + CRUD Modal Nome/Categoria/Attiva + soft-delete).
+- **Hub AI**: l'unica icona stella apre un popup con le funzioni AI (`aiActions`); Soggetti non ha più la doppia stella → "Trova doppioni" dentro l'hub. Standard G-4-bis.
+- Standard: L-7 (overflow), G-4-bis (hub AI), DB-5-bis aggiornato. Verifica: typecheck shared+BE+FE puliti, 79/79 test, smoke.
+
 ## 2026-06-28 (3) — Soft-delete esteso + menu overflow (⋮) + documenti (chat 01.06)
 - Frontend + 3 route backend (nessuna migrazione nuova; prossima libera **056**). Commit `9d553a0`.
 - **Menu overflow (⋮)** in `ui/EntityList`: le azioni secondarie (Esporta, Storico, Mostra archiviati) vanno nel ⋮ (MoreVertical), in toolbar restano Modifica/Duplica/Elimina (o Ripristina/Elimina-definitiva). Stesso metodo per il mobile. CSS `.tib-of-*`. Standard L-7.

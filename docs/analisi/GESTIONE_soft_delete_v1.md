@@ -85,8 +85,11 @@ Anagrafiche/entità con lista `EntityList` e `archived_at`:
 | Commesse (engagement) | EngagementsPage | `/engagements` |
 | Ordini di lavoro (work_order) | OrdinativiPage | `/work-orders` |
 | Magazzini/Ubicazioni (stock_location) | MagazzinoPage | `/stock/locations` |
+| Unità di misura (unit_of_measure) | UnitsPage | `/units` (righe sistema non archiviabili) |
+| Aliquote IVA (tax_rate) | TaxRatesPage | `/tax-rates` (righe sistema non archiviabili) |
+| Competenze (skill) | SkillsPage | `/skills` (ora anagrafica completa con CRUD) |
 
-Tutte: archivia(+controllo d'uso dove anagrafica) · vista archiviati · ripristina · purge · storico · audit.
+Tutte: archivia(+controllo d'uso dove anagrafica) · vista archiviati · ripristina · purge · storico · audit. Le azioni soft-delete sono nel **menu ⋮** della toolbar (le 2-3 principali restano a vista). Il toggle "Mostra archiviati" è **effimero** (`useArchivedView`): si azzera rientrando nella maschera.
 
 ---
 
