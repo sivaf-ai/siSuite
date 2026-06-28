@@ -180,7 +180,8 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
     const ctx = request.ctx;
     const dto = await withRls(ctx, async (db) => {
       const attrs = await validateAttributes(db, ctx.tenantId, 'material', input.attributes);
-      const code = await nextNumber(db, 'material');
+      // Codice articolo: se l'utente lo fornisce lo usiamo; altrimenti auto da number_series.
+      const code = input.code?.trim() || await nextNumber(db, 'material');
       const ins = await db.query(
         `INSERT INTO material (tenant_id, code, name, unit_id, item_type, sku, barcode, category_id, description,
            brand, manufacturer, mpn, track_stock, tracked_by_serial, tracked_by_lot, costing_method,
@@ -214,6 +215,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
       };
       const resolveUnit = (p: string) => `public.app_resolve_unit(public.app_current_tenant(),${p})`;
       if (input.name !== undefined) add('name', input.name);
+      if (input.code !== undefined && input.code !== null && input.code.trim()) add('code', input.code.trim());
       if (input.unit !== undefined) add('unit_id', input.unit, resolveUnit);
       if (input.sku !== undefined) add('sku', input.sku);
       if (input.trackStock !== undefined) add('track_stock', input.trackStock);

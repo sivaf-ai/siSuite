@@ -98,7 +98,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
       }
       return;
     }
-    setForm({ name: d.name, unit: d.unit, sku: d.sku ?? '', categoryId: d.categoryId ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
+    setForm({ name: d.name, code: d.code ?? '', unit: d.unit, sku: d.sku ?? '', categoryId: d.categoryId ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
       trackedByLot: d.trackedByLot, costingMethod: d.costingMethod });
     setAttrs(d.attributes ?? {});
   }, [d, isNew, prefill]);
@@ -127,7 +127,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
     if (!form.name || !form.unit) { toast('Nome e unità sono obbligatori', 'error'); return; }
     setBusy(true);
     const body = {
-      name: form.name, unit: form.unit, sku: (form.sku as string) || null,
+      name: form.name, code: (form.code as string)?.trim() || null, unit: form.unit, sku: (form.sku as string) || null,
       categoryId: (form.categoryId as string) || null,
       trackStock: !!form.trackStock, trackedBySerial: !!form.trackedBySerial, trackedByLot: !!form.trackedByLot,
       costingMethod: form.costingMethod || 'avg',
@@ -186,7 +186,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const objectPage = (
       <ObjectPage
         backLabel={t('terms.material_plural')} onBack={goBack}
-        title={form.name as string || `Nuovo ${t('terms.material')}`} code={!isNew ? (d?.sku ?? undefined) : undefined}
+        title={form.name as string || `Nuovo ${t('terms.material')}`} code={!isNew ? (d?.code ?? undefined) : undefined}
         status={!isNew ? <StatusPill label={trackTag.label} token={trackTag.token} /> : undefined}
         onSave={(isNew ? can('material:create') : can('material:update')) ? save : undefined}
         onCancel={goBack} saving={busy}
@@ -194,6 +194,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
         <ObjectBox icon={Package} title="Anagrafica articolo">
           <div className="bgrid">
             <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span><input className="bi" value={form.name as string ?? ''} onChange={(e) => set('name', e.target.value)} /></div>
+            <div className="bf"><span className="bl">Codice</span><input className="bi mono" value={form.code as string ?? ''} placeholder={isNew ? 'auto se vuoto' : ''} onChange={(e) => set('code', e.target.value)} /></div>
             <div className="bf"><span className="bl">SKU</span><input className="bi mono" value={form.sku as string ?? ''} onChange={(e) => set('sku', e.target.value)} /></div>
             <div className="bf"><span className="bl">Unità di misura <span className="req">*</span></span>
               <UnitSelect value={(form.unit as string) ?? ''} units={unitOptions} onChange={(code) => set('unit', code)} /></div>

@@ -214,6 +214,7 @@ export interface ResourceAvailabilityDto {
 const num = z.coerce.number().nullable().optional();
 export const createMaterialSchema = z.object({
   name: z.string().min(1).max(200),
+  code: z.string().max(40).nullable().optional(),   // Codice articolo: vuoto → auto da number_series
   unit: z.string().min(1).max(40),
   itemType: z.enum(['article', 'service', 'kit']).optional(),
   sku: z.string().max(60).nullable().optional(),

@@ -95,10 +95,10 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
   const views: ListView[] = (Object.keys(VIEW_LABEL) as ViewKey[]).map((k) => ({ key: k, label: VIEW_LABEL[k], count: data?.views[k] ?? 0 }));
 
   const columns: ListColumn<MaterialDto>[] = [
-    { key: 'name', header: t('cols.articolo'), sub: t('cols.sku'), value: (m) => m.name, render: (m) => (
+    { key: 'name', header: t('cols.articolo'), sub: 'Codice', value: (m) => m.name, render: (m) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <Thumb url={m.primaryImageUrl} />
-        <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.sku ?? '—'}</span></div>
+        <div className="two"><span className="a">{m.name}</span><span className="b mono">{m.code ?? m.sku ?? '—'}</span></div>
       </div>) },
     { key: 'cat', header: t('cols.categoria'), sub: t('cols.tracciamento'), value: (m) => attr(m, 'category') ?? '', render: (m) => (
       <div className="two"><span className="a">{attr(m, 'category') ?? '—'}</span><span className="b"><span className="serialtag">{trackingTag(m)}</span></span></div>) },
