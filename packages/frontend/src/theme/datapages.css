@@ -40,6 +40,25 @@
   border: 1px solid var(--line); background: var(--card); color: var(--ink-soft); display: grid; place-items: center; cursor: pointer; }
 .dsx .tib:hover { background: var(--paper); color: var(--ink); }
 .dsx .tib svg { width: 16px; height: 16px; }
+.dsx .tib .tib-lbl { display: none; }   /* etichetta nascosta su desktop (c'è il tooltip) */
+
+/* ── HINT/tooltip su hover per OGNI icona-azione (regola standard U-1) ──────
+   Mostra il testo di data-tip sotto il pulsante. Scope .dsx (liste/schede). */
+.dsx [data-tip] { position: relative; }
+.dsx [data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  z-index: 50; white-space: nowrap; background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 500;
+  padding: 4px 8px; border-radius: 6px; box-shadow: var(--shadow-2); pointer-events: none; }
+.dsx [data-tip]:hover::before {
+  content: ''; position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-bottom-color: var(--ink); z-index: 50; pointer-events: none; }
+
+/* ── MOBILE: niente hover → l'icona mostra l'ETICHETTA scritta accanto ────── */
+@media (max-width: 768px) {
+  .dsx .tib { width: auto; min-width: var(--ctrl-h, 36px); padding: 0 11px; gap: 7px; }
+  .dsx .tib .tib-lbl { display: inline; font-size: 12.5px; font-weight: 600; }
+  .dsx [data-tip]:hover::after, .dsx [data-tip]:hover::before { display: none; } /* su mobile c'è già l'etichetta */
+}
 .dsx .tib.ai { background: var(--brand-wash); color: var(--brand-ink); border-color: transparent; }
 .dsx .tib.primary { background: var(--brand); color: #fff; border-color: transparent; box-shadow: var(--shadow-pop); }
 .dsx .tib.primary:hover { background: var(--brand-press); }

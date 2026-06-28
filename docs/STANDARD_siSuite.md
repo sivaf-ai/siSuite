@@ -69,6 +69,10 @@
 - **G-3 — Messaggi d'errore leggibili e localizzati (it-IT):** zod (campi non validi elencati) + 23503 (nomina l'entità bloccante) + 23505 (nomina il valore duplicato). Mai errore tecnico grezzo.
 - **G-4 — AI-first preservato:** la toolbar standard espone lo **slot Azioni AI** su ogni entità; lo strato deterministico (FK, unicità, reattività) è ciò che rende affidabile «l'AI propone, il deterministico conferma».
 
+## U. Affordance & accessibilità (hint sulle icone)
+
+- **U-1 — Ogni pulsante-icona ha SEMPRE un hint (tassativo).** Nessuna icona "muta": ogni azione a sola icona deve esporre il suo significato. Implementazione: `title` + `aria-label` + tooltip su hover (desktop) e, in **mobile** (niente hover), l'**etichetta testuale visibile** accanto all'icona. In EntityList è centralizzato nel componente `Tib` (toolbar liste) + CSS `[data-tip]` in `datapages.css` (`.tib-lbl` mostra il testo sotto i 768px). Per icone fuori da EntityList (azioni di riga, picker, ecc.) usare sempre `title`/`aria-label` (e, dove serve, l'etichetta su mobile). Quando aggiungi una nuova azione a icona, **devi** darle un `tip`/`title`.
+
 ## H. Definition of Done (per ogni entità toccata)
 
 I **3 test canonici** devono passare prima del "fatto":

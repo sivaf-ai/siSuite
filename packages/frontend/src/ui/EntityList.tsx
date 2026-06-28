@@ -167,9 +167,12 @@ function fieldDefToFilterMeta(d: FieldDefinitionDto): FilterFieldMeta {
 
 function Tib({ a }: { a: ListAction }) {
   const I = a.icon;
+  // hint SEMPRE presente: tooltip su hover (desktop, via data-tip) + title/aria-label (accessibilità
+  // e long-press), + etichetta testuale visibile su mobile (.tib-lbl). Vedi STANDARD U-1.
   return (
-    <button className={`tib${a.variant ? ' ' + a.variant : ''}`} data-tip={a.tip} onClick={a.onClick} disabled={a.disabled}>
-      <I />
+    <button className={`tib${a.variant ? ' ' + a.variant : ''}`} data-tip={a.tip} title={a.tip} aria-label={a.tip}
+      onClick={a.onClick} disabled={a.disabled}>
+      <I /><span className="tib-lbl">{a.tip}</span>
     </button>
   );
 }
