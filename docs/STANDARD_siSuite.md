@@ -25,7 +25,8 @@
 
 - **L-1 — Ogni entità standard usa `ui/EntityList`** sia per vedere sia per selezionare (mai `DataTable`/`CrudList`/liste custom per entità standard).
 - **L-2 — Toolbar RICCA** (ordine canonico): **Filtra (Gruppo) · Ordina · Colonne · Report · Esporta · AI** + azioni su selezione (**Modifica · Duplica · Elimina**) + **Nuovo +**. Tutte icone+tooltip. La toolbar built-in è generata da EntityList: NON aggiungere `leftActions` placeholder disabilitati.
-- **L-3 — Testata lista FISSA (sticky).** Header (titolo/viste) + toolbar + barra filtro attivo restano in alto durante lo scroll: **scrollano solo le righe**, non la maschera intera. Implementato centralmente in EntityList (`.dsx-head { position: sticky }`) → vale per tutte le liste. *(Aggiunta sessione 28/06.)*
+- **L-3 — Testata lista FISSA (sticky) e A FILO.** Header (titolo/viste) + toolbar + barra filtro attivo restano in alto durante lo scroll: **scrollano solo le righe**, non la maschera intera. Implementato centralmente in EntityList (`.dsx-head { position: sticky }`) → vale per tutte le liste. *(Aggiunta sessione 28/06.)*
+- **L-3-bis — MAI un buco sopra la barra sticky (tassativo, ribadito più volte).** La barra del titolo/toolbar (liste) e la barra Salva/Annulla (schede) devono stare **a filo** del bordo superiore dello scroll: niente padding-top dove le righe possano comparire tra la barra e il menu dell'app. Meccanismo: `Page` usa layout *flush* (niente `--padding-top`) sia per le schede (`bleed`) sia per le liste (Page senza header), e `.dsx-head`/`.op-head` fanno bleed orizzontale e `top:0`. Quando aggiungi una nuova lista/scheda **non reintrodurre il gap**.
 - **L-4 — Reload all'ingresso:** `useReloadOnEnter(reload)` su ogni lista (Ionic tiene le pagine in cache → senza, restano dati stantii).
 - **L-5 — Click riga → scheda** `/<entity>/:id`; **Nuovo +** → `/<entity>/new` (o CRUD in Modal in pick mode).
 - **L-6 — Esporta/Filtra/Ordina server-side** dove l'endpoint lo supporta (`?q/?filter/?sort` con `buildFilter`/`buildOrderBy`); altrimenti documentare il limite.
@@ -43,6 +44,7 @@
 
 - **D-1 — Scegliere un'entità = riuso della SUA lista vera** in modalità selezione (EntityList `pick-single`/`pick-multi`), dentro un **`ui/Modal` CENTRATO** (mai pannello laterale, mai `<select>` per entità, mai lista ad-hoc). I `<select>` restano SOLO per enum/lookup (stato, tipo, priorità…).
 - **D-2 — "+ Nuovo" nel picker:** dal popup si crea l'entità al volo (CRUD embeddata in Modal) senza uscire dal documento. Pattern: `*PickerDialog` + `ui/PickerField` (campo "scegli" con label nel bordo). Dialog esistenti: Material/Company/Location/Resource/Engagement/WorkOrder.
+- **D-2-bis — Apertura picker = sola icona lente** (niente testo "Scegli"/"Cambia"); l'etichetta resta in `title`/`aria-label`.
 - **D-3 — UUID mai a video:** i picker mostrano nomi/codici, ritornano i DTO completi.
 - **D-4 — Estendere a OGNI punto di scelta** entità, presente e futuro.
 
