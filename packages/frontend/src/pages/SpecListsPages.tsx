@@ -12,7 +12,6 @@ import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { NumInput } from '../ui/NumInput';
 import { Plus } from '../ui/icons';
 import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
@@ -247,7 +246,6 @@ export function TaxRatesPage() {
   const [form, setForm] = useState<{ country: string; code: string; label: string; percent: number | null; isDefault: boolean; active: boolean }>(
     { country: 'IT', code: '', label: '', percent: null, isDefault: false, active: true });
   const [busy, setBusy] = useState(false);
-  const [delRows, setDelRows] = useState<TaxRateDto[] | null>(null);
 
   function openNew(prefill?: TaxRateDto) {
     setForm({
@@ -277,15 +275,16 @@ export function TaxRatesPage() {
     finally { setBusy(false); }
   }
 
-  async function doDelete() {
-    if (!delRows) return;
-    setBusy(true);
+  // Cancellazione DIRETTA: EntityList ha già chiesto conferma (col nome). Niente seconda conferma.
+  async function deleteRates(rs: TaxRateDto[]) {
+    const own = rs.filter((r) => !r.isSystem);
+    if (rs.some((r) => r.isSystem)) toast('Le aliquote di sistema non sono eliminabili', 'error');
+    if (!own.length) return;
     try {
-      for (const r of delRows) await mutate('DELETE', `/tax-rates/${r.id}`);
-      toast(delRows.length > 1 ? `${delRows.length} aliquote eliminate` : 'Aliquota eliminata');
-      setDelRows(null); reload();
-    } catch (e) { toast(errMsg(e), 'error'); setDelRows(null); }
-    finally { setBusy(false); }
+      for (const r of own) await mutate('DELETE', `/tax-rates/${r.id}`);
+      toast(own.length > 1 ? `${own.length} aliquote eliminate` : 'Aliquota eliminata');
+      reload();
+    } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   const cols: ListColumn<TaxRateDto>[] = [
@@ -308,12 +307,7 @@ export function TaxRatesPage() {
         onRowClick={canWrite ? openEdit : undefined}
         onEdit={canWrite ? openEdit : undefined}
         onDuplicate={canWrite ? (r) => openNew(r) : undefined}
-        onDelete={canWrite ? (rs) => {
-          const sys = rs.filter((r) => r.isSystem);
-          const own = rs.filter((r) => !r.isSystem);
-          if (sys.length) toast('Le aliquote di sistema non sono eliminabili', 'error');
-          if (own.length) setDelRows(own);
-        } : undefined}
+        onDelete={canWrite ? deleteRates : undefined}
         rowLabel={(r) => r.code}
         columns={cols} rows={rows} loading={loading} error={error}
         exportName="aliquote-iva" emptyText="Nessuna aliquota." />
@@ -343,10 +337,6 @@ export function TaxRatesPage() {
           </div>
         </div>
       </Modal>
-
-      <ConfirmDialog open={!!delRows} danger title="Eliminare l'aliquota IVA?"
-        message={delRows && delRows.length === 1 && delRows[0] ? `«${delRows[0].code} — ${delRows[0].label}» verrà eliminata.` : `${delRows?.length ?? 0} aliquote verranno eliminate.`}
-        confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRows(null)} />
     </Page>
   );
 }

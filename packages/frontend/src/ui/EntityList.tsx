@@ -383,6 +383,9 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
 
   return (
     <div className="dsx">
+      {/* Testata FISSA: titolo/viste + toolbar + filtro attivo restano in alto;
+          scrollano solo le righe della lista (regola standard liste). */}
+      <div className="dsx-head">
       {(p.title || (p.views && p.views.length > 0) || p.savedViewKey) && (
         <div className="lhrow">
           {p.title && <div className="lh"><h1>{p.title}</h1>{p.subtitle && <span className="sub">{p.subtitle}</span>}</div>}
@@ -437,6 +440,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           <button className="aif-clear" title="Rimuovi filtro" onClick={() => { setFilterConds([]); setFilterDesc(''); p.onFilterChange?.(null); }}>✕</button>
         </div>
       )}
+      </div>{/* /dsx-head */}
 
       {p.loading ? <Loading /> : p.error ? <ErrorBox message={p.error} /> : (
         <div className="card">

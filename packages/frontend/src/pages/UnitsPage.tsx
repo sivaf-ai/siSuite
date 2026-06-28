@@ -10,7 +10,6 @@ import type { UnitDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { Modal } from '../ui/Modal';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Plus } from '../ui/icons';
 import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
@@ -31,7 +30,6 @@ export function UnitsPage() {
   const [editing, setEditing] = useState<UnitDto | null | undefined>(undefined);
   const [form, setForm] = useState<{ code: string; name: string; active: boolean }>({ code: '', name: '', active: true });
   const [busy, setBusy] = useState(false);
-  const [delRows, setDelRows] = useState<UnitDto[] | null>(null);
 
   function openNew(prefill?: UnitDto) {
     setForm({ code: prefill?.code ?? '', name: prefill?.name ?? '', active: prefill?.active ?? true });
@@ -56,15 +54,16 @@ export function UnitsPage() {
     finally { setBusy(false); }
   }
 
-  async function doDelete() {
-    if (!delRows) return;
-    setBusy(true);
+  // Cancellazione DIRETTA: EntityList ha già chiesto conferma (col nome). Niente seconda conferma.
+  async function deleteUnits(rs: UnitDto[]) {
+    const own = rs.filter((r) => !r.isSystem);
+    if (rs.some((r) => r.isSystem)) toast('Le unità di sistema non sono eliminabili', 'error');
+    if (!own.length) return;
     try {
-      for (const r of delRows) await mutate('DELETE', `/units/${r.id}`);
-      toast(delRows.length > 1 ? `${delRows.length} unità eliminate` : 'Unità eliminata');
-      setDelRows(null); reload();
-    } catch (e) { toast(errMsg(e), 'error'); setDelRows(null); }
-    finally { setBusy(false); }
+      for (const r of own) await mutate('DELETE', `/units/${r.id}`);
+      toast(own.length > 1 ? `${own.length} unità eliminate` : 'Unità eliminata');
+      reload();
+    } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   const cols: ListColumn<UnitDto>[] = [
@@ -85,12 +84,7 @@ export function UnitsPage() {
         onRowClick={canWrite ? openEdit : undefined}
         onEdit={canWrite ? openEdit : undefined}
         onDuplicate={canWrite ? (r) => openNew(r) : undefined}
-        onDelete={canWrite ? (rs) => {
-          const sys = rs.filter((r) => r.isSystem);
-          const own = rs.filter((r) => !r.isSystem);
-          if (sys.length) toast('Le unità di sistema non sono eliminabili', 'error');
-          if (own.length) setDelRows(own);
-        } : undefined}
+        onDelete={canWrite ? deleteUnits : undefined}
         rowLabel={(r) => `${r.code} — ${r.name}`}
         columns={cols} rows={rows} loading={loading} error={error}
         exportName="unita-di-misura" emptyText="Nessuna unità di misura." />
@@ -112,10 +106,6 @@ export function UnitsPage() {
           </div>
         </div>
       </Modal>
-
-      <ConfirmDialog open={!!delRows} danger title="Eliminare l'unità di misura?"
-        message={delRows && delRows.length === 1 && delRows[0] ? `«${delRows[0].code} — ${delRows[0].name}» verrà eliminata.` : `${delRows?.length ?? 0} unità verranno eliminate.`}
-        confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRows(null)} />
     </Page>
   );
 }
