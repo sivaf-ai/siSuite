@@ -11,10 +11,11 @@ import { Page } from '../components/Page';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { Modal } from '../ui/Modal';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+import { AuditDialog } from '../ui/AuditDialog';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
@@ -23,7 +24,10 @@ export function UnitsPage() {
   const toast = useToast();
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('material:create' as never);
-  const { data, loading, error, reload } = useApi<{ items: UnitDto[] }>('/units');
+  const [archived, setArchived] = useArchivedView();
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
+  const { data, loading, error, reload } = useApi<{ items: UnitDto[] }>(`/units${archived ? '?archived=1' : ''}`);
   useReloadOnEnter(reload);
 
   // editing: undefined = chiuso, null = nuovo, UnitDto = modifica
@@ -55,6 +59,7 @@ export function UnitsPage() {
   }
 
   // Cancellazione DIRETTA: EntityList ha già chiesto conferma (col nome). Niente seconda conferma.
+  // Il backend ora ARCHIVIA (soft-delete) la riga tenant.
   async function deleteUnits(rs: UnitDto[]) {
     const own = rs.filter((r) => !r.isSystem);
     if (rs.some((r) => r.isSystem)) toast('Le unità di sistema non sono eliminabili', 'error');
@@ -62,8 +67,23 @@ export function UnitsPage() {
     try {
       for (const r of own) await mutate('DELETE', `/units/${r.id}`);
       toast(own.length > 1 ? `${own.length} unità eliminate` : 'Unità eliminata');
-      reload();
+      setClearTok((x) => x + 1); reload();
     } catch (e) { toast(errMsg(e), 'error'); }
+  }
+
+  async function onRestore(rs: UnitDto[]) {
+    try {
+      for (const r of rs) await mutate('POST', `/units/${r.id}/restore`);
+      toast(rs.length > 1 ? `${rs.length} unità ripristinate` : 'Unità ripristinata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  }
+  async function onPurge(rs: UnitDto[]) {
+    try {
+      for (const r of rs) await mutate('DELETE', `/units/${r.id}/purge`);
+      toast(rs.length > 1 ? `${rs.length} unità eliminate definitivamente` : 'Unità eliminata definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
   }
 
   const cols: ListColumn<UnitDto>[] = [
@@ -86,8 +106,17 @@ export function UnitsPage() {
         onDuplicate={canWrite ? (r) => openNew(r) : undefined}
         onDelete={canWrite ? deleteUnits : undefined}
         rowLabel={(r) => `${r.code} — ${r.name}`}
+        archived={archived}
+        clearSelectionToken={clearTok}
+        onToggleArchived={(v) => { setArchived(v); setClearTok((x) => x + 1); }}
+        onRestore={canWrite ? onRestore : undefined}
+        onPurge={canWrite ? onPurge : undefined}
+        onHistory={(row) => setAudit({ id: row.id, title: `${row.code} — ${row.name}` })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
         columns={cols} rows={rows} loading={loading} error={error}
         exportName="unita-di-misura" emptyText="Nessuna unità di misura." />
+
+      {audit && <AuditDialog entity="unit_of_measure" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />}
 
       <Modal open={editing !== undefined} size="md" title={editing ? 'Modifica unità di misura' : 'Nuova unità di misura'} onClose={() => setEditing(undefined)}
         footer={<>

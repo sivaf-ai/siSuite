@@ -14,10 +14,11 @@ import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
 import { NumInput } from '../ui/NumInput';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
+import { AuditDialog } from '../ui/AuditDialog';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
@@ -209,20 +210,120 @@ export function StockCountsPage() {
 }
 
 /* ── Competenze (skill) ────────────────────────────────────────────── */
+/** Anagrafica COMPLETA come UnitsPage: toolbar standard + CRUD in Modal centrato +
+ *  soft-delete (archivia/ripristina/elimina-definitiva/storico). Riusa i permessi
+ *  resource:create/update/read. La Elimina lato backend archivia + controllo d'uso
+ *  (409 se la competenza è assegnata a risorse → messaggio via toast). */
 export function SkillsPage() {
   const [q, setQ] = useState('');
-  const { data, loading, error } = useApi<{ items: SkillDto[] }>('/skills');
+  const toast = useToast();
+  const { user } = useAuth();
+  const canWrite = !!user?.permissions.includes('resource:create' as never) || !!user?.permissions.includes('resource:update' as never);
+  const [archived, setArchived] = useArchivedView();
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
+  const { data, loading, error, reload } = useApi<{ items: SkillDto[] }>(`/skills${archived ? '?archived=1' : ''}`);
+  useReloadOnEnter(reload);
+
+  // editing: undefined = chiuso, null = nuovo, SkillDto = modifica
+  const [editing, setEditing] = useState<SkillDto | null | undefined>(undefined);
+  const [form, setForm] = useState<{ name: string; category: string; active: boolean }>({ name: '', category: '', active: true });
+  const [busy, setBusy] = useState(false);
+
+  function openNew(prefill?: SkillDto) {
+    setForm({ name: prefill?.name ?? '', category: prefill?.category ?? '', active: prefill?.active ?? true });
+    setEditing(null);
+  }
+  function openEdit(row: SkillDto) {
+    setForm({ name: row.name, category: row.category ?? '', active: row.active });
+    setEditing(row);
+  }
+
+  async function save() {
+    if (!form.name.trim()) { toast('Il nome è obbligatorio', 'error'); return; }
+    setBusy(true);
+    try {
+      const body = { name: form.name.trim(), category: form.category.trim() || null, active: form.active };
+      if (editing) await mutate('PATCH', `/skills/${editing.id}`, body);
+      else await apiFetch('/skills', { method: 'POST', body: JSON.stringify(body) });
+      toast(editing ? 'Modifiche salvate' : 'Competenza creata');
+      setEditing(undefined); reload();
+    } catch (e) { toast(errMsg(e), 'error'); }
+    finally { setBusy(false); }
+  }
+
+  // Cancellazione DIRETTA: EntityList ha già chiesto conferma (col nome). Niente seconda conferma.
+  // Il backend archivia + 409 se la competenza è assegnata a risorse.
+  async function deleteSkills(rs: SkillDto[]) {
+    try {
+      for (const r of rs) await mutate('DELETE', `/skills/${r.id}`);
+      toast(rs.length > 1 ? `${rs.length} competenze eliminate` : 'Competenza eliminata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e), 'error'); }
+  }
+  async function onRestore(rs: SkillDto[]) {
+    try {
+      for (const r of rs) await mutate('POST', `/skills/${r.id}/restore`);
+      toast(rs.length > 1 ? `${rs.length} competenze ripristinate` : 'Competenza ripristinata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  }
+  async function onPurge(rs: SkillDto[]) {
+    try {
+      for (const r of rs) await mutate('DELETE', `/skills/${r.id}/purge`);
+      toast(rs.length > 1 ? `${rs.length} competenze eliminate definitivamente` : 'Competenza eliminata definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  }
+
   const cols: ListColumn<SkillDto>[] = [
     { key: 'name', header: 'Competenza', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
     { key: 'category', header: 'Categoria', value: (r) => r.category ?? '', render: (r) => r.category ?? '—' },
     { key: 'active', header: 'Attiva', value: (r) => (r.active ? 'sì' : 'no'), render: (r) => <span className="chip">{r.active ? 'attiva' : 'disattivata'}</span> },
   ];
+  const rightActions: ListAction[] = canWrite ? [{ key: 'new', icon: Plus, tip: 'Nuova competenza', variant: 'primary', onClick: () => openNew() }] : [];
+
+  const rows = (data?.items ?? []).filter((r) => !q.trim() || `${r.name} ${r.category ?? ''}`.toLowerCase().includes(q.toLowerCase()));
+
   return (
     <Page>
       <EntityList<SkillDto> title="Competenze" subtitle="Catalogo competenze assegnabili alle risorse"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca competenza…" selectable={false}
-        columns={cols} rows={(data?.items ?? []).filter((r) => !q.trim() || `${r.name} ${r.category ?? ''}`.toLowerCase().includes(q.toLowerCase()))}
-        loading={loading} error={error} exportName="competenze" emptyText="Nessuna competenza." />
+        search={q} onSearch={setQ} searchPlaceholder="Cerca competenza…"
+        rightActions={rightActions}
+        onRowClick={canWrite ? openEdit : undefined}
+        onEdit={canWrite ? openEdit : undefined}
+        onDuplicate={canWrite ? (r) => openNew(r) : undefined}
+        onDelete={canWrite ? deleteSkills : undefined}
+        rowLabel={(r) => r.name}
+        archived={archived}
+        clearSelectionToken={clearTok}
+        onToggleArchived={(v) => { setArchived(v); setClearTok((x) => x + 1); }}
+        onRestore={canWrite ? onRestore : undefined}
+        onPurge={canWrite ? onPurge : undefined}
+        onHistory={(row) => setAudit({ id: row.id, title: row.name })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        columns={cols} rows={rows} loading={loading} error={error}
+        exportName="competenze" emptyText="Nessuna competenza." />
+
+      <Modal open={editing !== undefined} size="md" title={editing ? 'Modifica competenza' : 'Nuova competenza'} onClose={() => setEditing(undefined)}
+        footer={<>
+          <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
+          <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
+        </>}>
+        <div className="dsx">
+          <div className="bgrid">
+            <div className="bf c4"><span className="bl">Nome <span className="req">*</span></span>
+              <input className="bi" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Saldatura, Cablaggio…" /></div>
+            <div className="bf c2"><span className="bl">Categoria</span>
+              <input className="bi" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="Elettrico, Meccanico…" /></div>
+            <div className="bf c2"><span className="bl">Attiva</span>
+              <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
+                <option value="1">Sì</option><option value="0">No</option></select></div>
+          </div>
+        </div>
+      </Modal>
+
+      {audit && <AuditDialog entity="skill" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />}
     </Page>
   );
 }
@@ -238,7 +339,10 @@ export function TaxRatesPage() {
   const toast = useToast();
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('settings:manage' as never);
-  const { data, loading, error, reload } = useApi<{ items: TaxRateDto[] }>('/tax-rates');
+  const [archived, setArchived] = useArchivedView();
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
+  const { data, loading, error, reload } = useApi<{ items: TaxRateDto[] }>(`/tax-rates${archived ? '?archived=1' : ''}`);
   useReloadOnEnter(reload);
 
   // editing: undefined = chiuso, null = nuovo, TaxRateDto = modifica
@@ -283,8 +387,23 @@ export function TaxRatesPage() {
     try {
       for (const r of own) await mutate('DELETE', `/tax-rates/${r.id}`);
       toast(own.length > 1 ? `${own.length} aliquote eliminate` : 'Aliquota eliminata');
-      reload();
+      setClearTok((x) => x + 1); reload();
     } catch (e) { toast(errMsg(e), 'error'); }
+  }
+
+  async function onRestore(rs: TaxRateDto[]) {
+    try {
+      for (const r of rs) await mutate('POST', `/tax-rates/${r.id}/restore`);
+      toast(rs.length > 1 ? `${rs.length} aliquote ripristinate` : 'Aliquota ripristinata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  }
+  async function onPurge(rs: TaxRateDto[]) {
+    try {
+      for (const r of rs) await mutate('DELETE', `/tax-rates/${r.id}/purge`);
+      toast(rs.length > 1 ? `${rs.length} aliquote eliminate definitivamente` : 'Aliquota eliminata definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
   }
 
   const cols: ListColumn<TaxRateDto>[] = [
@@ -309,6 +428,13 @@ export function TaxRatesPage() {
         onDuplicate={canWrite ? (r) => openNew(r) : undefined}
         onDelete={canWrite ? deleteRates : undefined}
         rowLabel={(r) => r.code}
+        archived={archived}
+        clearSelectionToken={clearTok}
+        onToggleArchived={(v) => { setArchived(v); setClearTok((x) => x + 1); }}
+        onRestore={canWrite ? onRestore : undefined}
+        onPurge={canWrite ? onPurge : undefined}
+        onHistory={(row) => setAudit({ id: row.id, title: row.code })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
         columns={cols} rows={rows} loading={loading} error={error}
         exportName="aliquote-iva" emptyText="Nessuna aliquota." />
 
@@ -337,6 +463,8 @@ export function TaxRatesPage() {
           </div>
         </div>
       </Modal>
+
+      {audit && <AuditDialog entity="tax_rate" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />}
     </Page>
   );
 }

@@ -8,13 +8,19 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { logAudit } from '../context/audit.js';
 
 function toSkillDto(r: Record<string, unknown>): SkillDto {
   return {
     id: r.id as string, name: r.name as string,
     category: (r.category as string | null) ?? null, active: r.active as boolean,
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
+
+const SKILL_SELECT = `SELECT s.id, s.name, s.category, s.active, s.archived_at, au.full_name AS archived_by_name
+                      FROM skill s LEFT JOIN app_user au ON au.id = s.archived_by`;
 
 function toResourceSkillDto(r: Record<string, unknown>): ResourceSkillDto {
   return {
@@ -52,11 +58,16 @@ function isUniqueViolation(err: unknown): boolean {
 
 export async function resourceExtrasRoutes(app: FastifyInstance): Promise<void> {
   // ── Catalogo competenze del tenant ──────────────────────────────────
+  // normali: attive E disattivate, escludendo le archiviate. con ?archived: solo archiviate.
   app.get('/skills', { preHandler: [app.authenticate, requirePermission('resource:read')] },
     async (request) =>
-      withRls(request.ctx, (db) => db.query(
-        `SELECT id, name, category, active FROM skill WHERE active ORDER BY name`)
-        .then((r) => ({ items: r.rows.map(toSkillDto) }))));
+      withRls(request.ctx, (db) => {
+        const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+        const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+        const where = onlyArchived ? `WHERE s.archived_at IS NOT NULL` : `WHERE s.archived_at IS NULL`;
+        return db.query(`${SKILL_SELECT} ${where} ORDER BY s.name`)
+          .then((r) => ({ items: r.rows.map(toSkillDto) }));
+      }));
 
   app.post('/skills', { preHandler: [app.authenticate, requirePermission('resource:update')] },
     async (request, reply) => {
@@ -98,10 +109,57 @@ export async function resourceExtrasRoutes(app: FastifyInstance): Promise<void> 
       }
     });
 
+  // elimina: ARCHIVIA con controllo d'uso su resource_skill
   app.delete<{ Params: { id: string } }>('/skills/:id',
     { preHandler: [app.authenticate, requirePermission('resource:update')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(`DELETE FROM skill WHERE id = $1`, [request.params.id]));
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name FROM skill WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        const usage = await db.query(`SELECT count(*)::int AS n FROM resource_skill WHERE skill_id = $1`, [request.params.id]);
+        const n = (usage.rows[0] as { n: number }).n;
+        if (n > 0) return { code: 'used' as const, n };
+        await db.query(`UPDATE skill SET archived_at = now(), archived_by = $2, updated_at = now() WHERE id = $1`,
+          [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'skill', entityId: request.params.id, action: 'archive', label: r.rows[0].name as string });
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Competenza non trovata', statusCode: 404 });
+      if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: `Impossibile eliminare: competenza assegnata a ${res.n} risorse`, statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA una competenza archiviata
+  app.post<{ Params: { id: string } }>('/skills/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE skill SET archived_at = NULL, archived_by = NULL, updated_at = now()
+           WHERE id = $1 AND archived_at IS NOT NULL RETURNING name`, [request.params.id]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'skill', entityId: request.params.id, action: 'restore', label: upd.rows[0].name as string });
+        const r = await db.query(`${SKILL_SELECT} WHERE s.id = $1`, [request.params.id]);
+        return toSkillDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Competenza non trovata o non archiviata', statusCode: 404 });
+      return dto;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviata). resource_skill ha FK su skill → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/skills/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name, archived_at FROM skill WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'skill', entityId: request.params.id, action: 'purge', label: r.rows[0].name as string });
+        await db.query(`DELETE FROM skill WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Competenza non trovata', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 

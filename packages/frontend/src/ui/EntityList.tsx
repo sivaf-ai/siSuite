@@ -12,7 +12,8 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, Archive, RotateCcw, History, MoreVertical } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, Archive, RotateCcw, History, MoreVertical, Wand2 } from 'lucide-react';
+import { Modal } from './Modal';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel, GROUP_LABEL_IT } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
@@ -54,6 +55,10 @@ interface Props<T extends { id: string }> {
   searchPlaceholder?: string;
   /** azioni a icona dopo la ricerca (Filtri, Colonne, AI…). */
   leftActions?: ListAction[];
+  /** funzioni AI aggiuntive (oltre al Filtro intelligente) raccolte sotto l'UNICA icona AI (stella):
+   *  se presenti, l'icona AI apre un hub con "Filtro intelligente" + queste voci (es. "Trova doppioni").
+   *  Così ogni nuova funzione AI sta sotto la stessa icona, niente icone-stella multiple. */
+  aiActions?: { key: string; label: string; description?: string; icon?: LucideIcon; onClick: () => void }[];
   /** azioni a icona a destra (Importa, Nuovo +…). */
   rightActions?: ListAction[];
   columns: ListColumn<T>[];
@@ -202,6 +207,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
 
   // ── Filtro AI (client-side su TUTTI i campi) ──
   const [aiFilterOpen, setAiFilterOpen] = useState(false);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const [filterConds, setFilterConds] = useState<FilterCondition[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('and');
   const [filterDesc, setFilterDesc] = useState('');
@@ -412,7 +418,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       : []),
     { key: 'cols', icon: Columns3, tip: t('list.columns'), onClick: openColumns },
     ...(exportSource.length ? [{ key: 'report', icon: FileBarChart2, tip: 'Report', onClick: () => setReportOpen(true) }] : []),
-    { key: 'ai', icon: Sparkles, tip: t('list.aiFilter'), variant: 'ai', onClick: () => setAiFilterOpen(true) },
+    { key: 'ai', icon: Sparkles, tip: (p.aiActions && p.aiActions.length) ? 'Funzioni AI' : t('list.aiFilter'), variant: 'ai', onClick: () => ((p.aiActions && p.aiActions.length) ? setAiMenuOpen(true) : setAiFilterOpen(true)) },
   ];
   const leftAll = [...builtinLeft, ...customLeft];
 
@@ -636,6 +642,24 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           initial={{ query: '', conditions: filterConds, mode: filterMode }}
           onApply={(conds, d, m) => { setFilterConds(conds); setFilterDesc(d); setFilterMode(m); p.onFilterChange?.(conds.length ? { mode: m, conditions: conds } : null); }}
           onClose={() => setAiFilterOpen(false)} />
+      )}
+
+      {/* Hub AI: unica icona stella → tutte le funzioni AI (Filtro intelligente + extra es. Trova doppioni) */}
+      {aiMenuOpen && (
+        <Modal open size="md" title="Funzioni AI" onClose={() => setAiMenuOpen(false)}>
+          <div className="ai-hub">
+            <button className="ai-hub-item" onClick={() => { setAiMenuOpen(false); setAiFilterOpen(true); }}>
+              <Wand2 size={18} />
+              <span><span className="t">Filtro intelligente</span><span className="d">Cerca e filtra in linguaggio naturale (anche a voce)</span></span>
+            </button>
+            {(p.aiActions ?? []).map((a) => { const I = a.icon ?? Sparkles; return (
+              <button key={a.key} className="ai-hub-item" onClick={() => { setAiMenuOpen(false); a.onClick(); }}>
+                <I size={18} />
+                <span><span className="t">{a.label}</span>{a.description && <span className="d">{a.description}</span>}</span>
+              </button>
+            ); })}
+          </div>
+        </Modal>
       )}
     </div>
   );

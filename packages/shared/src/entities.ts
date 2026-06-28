@@ -853,6 +853,7 @@ export const updateTaxRateSchema = createTaxRateSchema.partial();
 export interface TaxRateDto {
   id: string; tenantId: string | null; country: string; code: string;
   label: string; percent: number; isDefault: boolean; active: boolean; isSystem: boolean;
+  archivedAt: string | null; archivedByName: string | null;
 }
 
 /* ── unit_of_measure (anagrafica unità di misura) ────────────────────── */
@@ -864,6 +865,7 @@ export const createUnitSchema = z.object({
 export const updateUnitSchema = createUnitSchema.partial();
 export interface UnitDto {
   id: string; tenantId: string | null; code: string; name: string; active: boolean; isSystem: boolean;
+  archivedAt: string | null; archivedByName: string | null;
 }
 
 /* ── material_category (gerarchica) — Blocco B.2 ─────────────────────── */
@@ -1033,7 +1035,7 @@ export const createSkillSchema = z.object({
   active: z.boolean().optional(),
 });
 export const updateSkillSchema = createSkillSchema.partial();
-export interface SkillDto { id: string; name: string; category: string | null; active: boolean; }
+export interface SkillDto { id: string; name: string; category: string | null; active: boolean; archivedAt: string | null; archivedByName: string | null; }
 
 export const createResourceSkillSchema = z.object({
   skillId: uuid,

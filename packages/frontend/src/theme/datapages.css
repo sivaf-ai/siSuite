@@ -76,6 +76,14 @@
 /* badge contatore selezione */
 .dsx .selcount { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px;
   border-radius: var(--r-pill); background: var(--brand); color: #fff; font-size: 12px; font-weight: 700; }
+/* ── Hub AI: lista delle funzioni AI sotto l'unica icona stella ───────────── */
+.ai-hub { display: flex; flex-direction: column; gap: 8px; }
+.ai-hub-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 13px; border-radius: var(--r-lg);
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer; text-align: left; color: var(--ink); }
+.ai-hub-item:hover { border-color: var(--brand); background: var(--brand-wash); }
+.ai-hub-item svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; color: var(--brand); }
+.ai-hub-item .t { display: block; font-weight: 600; font-size: 14px; }
+.ai-hub-item .d { display: block; font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
 /* ── Menu overflow (⋮): azioni secondarie raccolte (es. soft-delete) ───────── */
 .dsx .tib-of-wrap { position: relative; }
 .dsx .tib-of-back { position: fixed; inset: 0; z-index: 40; }

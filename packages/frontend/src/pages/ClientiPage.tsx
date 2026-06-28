@@ -150,9 +150,10 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
   ];
 
   const [dedupOpen, setDedupOpen] = useState(false);
-  const leftActions: ListAction[] = [
-    ...(can('delete') ? [{ key: 'dedup', icon: Sparkles, tip: 'Trova doppioni', variant: 'ai' as const, onClick: () => setDedupOpen(true) }] : []),
-  ];
+  // funzione AI extra raccolta sotto l'UNICA icona stella (hub AI), non una seconda stella in toolbar.
+  const aiActions = can('delete')
+    ? [{ key: 'dedup', label: 'Trova doppioni', description: 'Individua e unisci i soggetti duplicati', onClick: () => setDedupOpen(true) }]
+    : [];
   // "+ Nuovo": in pick apre la CRUD in modale (resti nel documento); altrimenti naviga.
   const rightActions: ListAction[] = [
     ...(can('create') ? [{ key: 'new', icon: Plus, tip: 'Nuovo soggetto', variant: 'primary' as const,
@@ -166,7 +167,7 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
         title={pick ? undefined : t('terms.party_plural')} subtitle={pick ? undefined : 'Anagrafica unica: clienti, fornitori, gestori, partner'}
         views={views} activeView={view} onView={(k) => { setView(k as ViewKey); setOffset(0); }}
         search={q} onSearch={(v) => { setQ(v); setOffset(0); }} searchPlaceholder="Cerca nome, P.IVA, città…"
-        leftActions={pick ? [] : leftActions} rightActions={rightActions}
+        rightActions={rightActions} aiActions={pick ? undefined : aiActions}
         mode={pick ? (pick === 'multi' ? 'pick-multi' : 'pick-single') : undefined}
         selectedIds={pick ? pickProps?.selectedIds : undefined}
         onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
