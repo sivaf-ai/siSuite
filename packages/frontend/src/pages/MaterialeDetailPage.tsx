@@ -16,7 +16,9 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
 import { NumInput } from '../ui/NumInput';
-import { UnitSelect } from '../ui/UnitSelect';
+import { PickerField } from '../ui/PickerField';
+import { UnitPickerDialog } from '../ui/UnitPickerDialog';
+import { CategoryPickerDialog } from '../ui/CategoryPickerDialog';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, apiUpload, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -75,6 +77,8 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [tab, setTab] = useState('images');
   const [busy, setBusy] = useState(false);
+  const [unitPick, setUnitPick] = useState(false);
+  const [catPick, setCatPick] = useState(false);
 
   // Duplica (standard): in creazione la scheda parte PRECOMPILATA da location.state.prefill.
   const location = useLocation();
@@ -109,19 +113,18 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   // altrimenti il conteggio hook cambia tra i render → React crasha (pagina vuota).
   const catOptions = useMemo(() => (fieldDefs.data?.items ?? []).find((f) => f.key === 'item_type')?.options ?? [], [fieldDefs.data]);
   const unitOptions = useMemo(() => units.data?.items ?? [], [units.data]);
-  // categorie ordinate ad albero con indentazione per livello (per il select)
-  const categoryOptions = useMemo(() => {
-    const items = categories.data?.items ?? [];
-    const byParent = new Map<string | null, MaterialCategoryDto[]>();
-    for (const c of items) { const k = c.parentId; if (!byParent.has(k)) byParent.set(k, []); byParent.get(k)!.push(c); }
-    byParent.forEach((arr) => arr.sort((a, b) => a.name.localeCompare(b.name, 'it')));
-    const out: { id: string; label: string }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      for (const c of byParent.get(parent) ?? []) { out.push({ id: c.id, label: `${'  '.repeat(depth)}${c.name}` }); walk(c.id, depth + 1); }
-    };
-    walk(null, 0);
-    return out;
-  }, [categories.data]);
+  // valore mostrato nei picker a lente: nome unità (fallback al codice se fuori catalogo) e nome categoria.
+  const unitLabel = useMemo(() => {
+    const code = (form.unit as string) ?? '';
+    if (!code) return '';
+    const u = unitOptions.find((x) => x.code === code);
+    return u ? `${u.name} (${u.code})` : code;
+  }, [form.unit, unitOptions]);
+  const categoryName = useMemo(() => {
+    const cid = (form.categoryId as string) ?? '';
+    if (!cid) return '';
+    return (categories.data?.items ?? []).find((c) => c.id === cid)?.name ?? '';
+  }, [form.categoryId, categories.data]);
 
   async function save() {
     if (!form.name || !form.unit) { toast('Nome e unità sono obbligatori', 'error'); return; }
@@ -197,12 +200,10 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
             <div className="bf"><span className="bl">Codice</span><input className="bi mono" value={form.code as string ?? ''} placeholder={isNew ? 'auto se vuoto' : ''} onChange={(e) => set('code', e.target.value)} /></div>
             <div className="bf"><span className="bl">SKU</span><input className="bi mono" value={form.sku as string ?? ''} onChange={(e) => set('sku', e.target.value)} /></div>
             <div className="bf"><span className="bl">Unità di misura <span className="req">*</span></span>
-              <UnitSelect value={(form.unit as string) ?? ''} units={unitOptions} onChange={(code) => set('unit', code)} /></div>
+              <PickerField value={unitLabel} placeholder="Scegli l'unità…" invalid={!form.unit} onOpen={() => setUnitPick(true)} /></div>
             <div className="bf c2"><span className="bl">Categoria</span>
-              <select className="bi" value={(form.categoryId as string) ?? ''} onChange={(e) => set('categoryId', e.target.value)}>
-                <option value="">— Nessuna —</option>
-                {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select></div>
+              <PickerField value={categoryName} placeholder="Scegli la categoria…"
+                onOpen={() => setCatPick(true)} onClear={() => set('categoryId', '')} /></div>
             <div className="bf"><span className="bl">Tipo</span>
               <select className="bi" value={itemType} onChange={(e) => setAttrs((a) => ({ ...a, item_type: e.target.value }))}>
                 {(catOptions.length ? catOptions : [{ value: 'article', label: { 'it-IT': 'Articolo' } }, { value: 'service', label: { 'it-IT': 'Servizio' } }]).map((o) => <option key={o.value} value={o.value}>{o.label['it-IT'] ?? o.value}</option>)}
@@ -238,8 +239,18 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
       </ObjectPage>
   );
 
-  return embed ? objectPage : (
-    <Page title={isNew ? `Nuovo ${t('terms.material')}` : t('terms.material')} bleed>{objectPage}</Page>
+  // Picker a lente (riuso delle liste vere in popup): UM e Categoria.
+  const pickers = (
+    <>
+      <UnitPickerDialog open={unitPick} onClose={() => setUnitPick(false)}
+        onPick={(us) => { const u = us[0]; if (u) { set('unit', u.code); void units.reload(); } }} />
+      <CategoryPickerDialog open={catPick} onClose={() => setCatPick(false)}
+        onPick={(c) => { set('categoryId', c.id); void categories.reload(); }} />
+    </>
+  );
+
+  return embed ? <>{objectPage}{pickers}</> : (
+    <Page title={isNew ? `Nuovo ${t('terms.material')}` : t('terms.material')} bleed>{objectPage}{pickers}</Page>
   );
 }
 

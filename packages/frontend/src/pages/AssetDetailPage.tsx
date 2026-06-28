@@ -7,13 +7,15 @@ import { useEffect, useState } from 'react';
 import { useParams, useHistory, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Box, Trash2 } from 'lucide-react';
-import type { AssetDto, FieldDefinitionDto, SiteDto } from '@sisuite/shared';
+import type { AssetDto, FieldDefinitionDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { AttrBoxes } from '../ui/AttrFields';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { SitePickerDialog } from '../ui/SitePickerDialog';
 import { PickerField } from '../ui/PickerField';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { useLookups, lookupLabel } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
@@ -38,6 +40,10 @@ export function AssetDetailPage() {
   const [del, setDel] = useState(false);
   const [companyPick, setCompanyPick] = useState(false);
   const [companyName, setCompanyName] = useState('');
+  const [sitePick, setSitePick] = useState(false);
+  const [siteName, setSiteName] = useState('');
+  const lk = useLookups();
+  const assetKinds = lk.byCategory('asset_kind');
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza seriali/identificativi).
   const location = useLocation();
@@ -59,10 +65,10 @@ export function AssetDetailPage() {
       return;
     }
     setForm({ label: d.label, kind: d.kind, companyId: d.companyId ?? '', siteId: d.siteId ?? '', installedOn: d.installedOn ?? '' });
+    setSiteName(d.siteName ?? '');
     setAttrs(d.attributes ?? {});
   }, [d, isNew, prefill]);
 
-  const sites = useApi<{ items: SiteDto[] }>(form.companyId ? `/sites?company_id=${form.companyId}` : null);
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   // risolvi il nome del cliente dalla lista già caricata (modalità nuovo)
@@ -99,7 +105,6 @@ export function AssetDetailPage() {
   if (!isNew && detail.loading) return <Page title={t('terms.asset')}><Loading /></Page>;
   if (!isNew && detail.error) return <Page title={t('terms.asset')}><ErrorBox message={detail.error} /></Page>;
 
-  const siteOpts = sites.data?.items ?? [];
   const title = isNew ? `Nuovo ${t('terms.asset')}` : (form.label || t('terms.asset'));
 
   return (
@@ -115,7 +120,11 @@ export function AssetDetailPage() {
             <div className="bf c2"><span className="bl">Etichetta <span className="req">*</span></span>
               <input className="bi" value={form.label} onChange={(e) => set('label', e.target.value)} /></div>
             <div className="bf"><span className="bl">Tipo <span className="req">*</span></span>
-              <input className="bi" value={form.kind} onChange={(e) => set('kind', e.target.value)} placeholder="pv_plant, pool, software_system…" /></div>
+              <select className="bi" value={form.kind} onChange={(e) => set('kind', e.target.value)}>
+                <option value="">— seleziona —</option>
+                {assetKinds.map((k) => <option key={k.code} value={k.code}>{lookupLabel(k)}</option>)}
+                {form.kind && !assetKinds.some((k) => k.code === form.kind) && <option value={form.kind}>{form.kind}</option>}
+              </select></div>
             <div className="bf"><span className="bl">Installato il</span>
               <input className="bi" type="date" value={form.installedOn ? form.installedOn.slice(0, 10) : ''} onChange={(e) => set('installedOn', e.target.value)} /></div>
             <div className="bf c2"><span className="bl">Cliente {isNew && <span className="req">*</span>}</span>
@@ -125,10 +134,10 @@ export function AssetDetailPage() {
                     onClear={() => { set('companyId', ''); set('siteId', ''); setCompanyName(''); }} />
                 : <div className="bi">{d?.companyName ?? '—'}</div>}</div>
             <div className="bf c2"><span className="bl">Sito / Località</span>
-              <select className="bi" value={form.siteId} onChange={(e) => set('siteId', e.target.value)} disabled={!form.companyId}>
-                <option value="">— nessuno —</option>
-                {siteOpts.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select></div>
+              <PickerField value={siteName} placeholder={form.companyId ? 'Scegli il sito…' : 'Scegli prima il cliente'}
+                disabled={!form.companyId}
+                onOpen={() => setSitePick(true)}
+                onClear={form.siteId ? () => { set('siteId', ''); setSiteName(''); } : undefined} /></div>
           </div>
         </ObjectBox>
 
@@ -145,7 +154,11 @@ export function AssetDetailPage() {
         message={`“${form.label}” verrà archiviato.`} confirmLabel="Archivia" busy={busy}
         onConfirm={doDelete} onCancel={() => setDel(false)} />
       <CompanyPickerDialog open={companyPick} onClose={() => setCompanyPick(false)}
-        onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); set('siteId', ''); setCompanyName(c.displayName); } }} />
+        onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); set('siteId', ''); setSiteName(''); setCompanyName(c.displayName); } }} />
+      {sitePick && form.companyId && (
+        <SitePickerDialog open companyId={form.companyId} onClose={() => setSitePick(false)}
+          onPick={(ss) => { const s = ss[0]; if (s) { set('siteId', s.id); setSiteName(s.name); } setSitePick(false); }} />
+      )}
     </Page>
   );
 }

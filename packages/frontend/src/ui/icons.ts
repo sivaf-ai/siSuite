@@ -9,7 +9,7 @@ import {
   ClipboardCheck, ArrowLeftRight, FileOutput, PiggyBank, Scale, UserRound, Truck, RadioTower,
   UserCog, KeyRound, Star, CornerDownRight, ExternalLink, ChevronLeft, Circle,
   Columns3, Upload, Tags, Wrench,
-  ShoppingCart, ListChecks, GraduationCap, Percent, Ruler, FolderTree,
+  ShoppingCart, ListChecks, GraduationCap, Percent, Ruler, FolderTree, MapPin,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,7 +32,7 @@ const LUCIDE_BY_NAME: Record<string, LucideIcon> = {
   box: Box, 'user-round': UserRound, truck: Truck, 'radio-tower': RadioTower,
   'sliders-horizontal': SlidersHorizontal, 'user-cog': UserCog, 'key-round': KeyRound, star: Star, tags: Tags, wrench: Wrench,
   'shopping-cart': ShoppingCart, 'list-checks': ListChecks, 'graduation-cap': GraduationCap, percent: Percent,
-  ruler: Ruler, 'folder-tree': FolderTree,
+  ruler: Ruler, 'folder-tree': FolderTree, 'map-pin': MapPin,
 };
 export function iconByName(name: string | undefined): LucideIcon {
   return (name && LUCIDE_BY_NAME[name]) || Circle;

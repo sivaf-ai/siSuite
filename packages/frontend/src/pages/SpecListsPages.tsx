@@ -19,6 +19,7 @@ import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { AuditDialog } from '../ui/AuditDialog';
+import { useLookups, lookupLabel } from '../context/Lookups';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
@@ -217,6 +218,9 @@ export function StockCountsPage() {
 export function SkillsPage() {
   const [q, setQ] = useState('');
   const toast = useToast();
+  const lk = useLookups();
+  const skillCats = lk.byCategory('skill_category');
+  const catLabel = (code: string | null) => (code ? (skillCats.find((c) => c.code === code) ? lookupLabel(skillCats.find((c) => c.code === code)!) : code) : '—');
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('resource:create' as never) || !!user?.permissions.includes('resource:update' as never);
   const [archived, setArchived] = useArchivedView();
@@ -278,7 +282,7 @@ export function SkillsPage() {
 
   const cols: ListColumn<SkillDto>[] = [
     { key: 'name', header: 'Competenza', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
-    { key: 'category', header: 'Categoria', value: (r) => r.category ?? '', render: (r) => r.category ?? '—' },
+    { key: 'category', header: 'Categoria', value: (r) => catLabel(r.category), render: (r) => catLabel(r.category) },
     { key: 'active', header: 'Attiva', value: (r) => (r.active ? 'sì' : 'no'), render: (r) => <span className="chip">{r.active ? 'attiva' : 'disattivata'}</span> },
   ];
   const rightActions: ListAction[] = canWrite ? [{ key: 'new', icon: Plus, tip: 'Nuova competenza', variant: 'primary', onClick: () => openNew() }] : [];
@@ -315,7 +319,11 @@ export function SkillsPage() {
             <div className="bf c4"><span className="bl">Nome <span className="req">*</span></span>
               <input className="bi" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Saldatura, Cablaggio…" /></div>
             <div className="bf c2"><span className="bl">Categoria</span>
-              <input className="bi" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="Elettrico, Meccanico…" /></div>
+              <select className="bi" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+                <option value="">— nessuna —</option>
+                {skillCats.map((c) => <option key={c.code} value={c.code}>{lookupLabel(c)}</option>)}
+                {form.category && !skillCats.some((c) => c.code === form.category) && <option value={form.category}>{form.category}</option>}
+              </select></div>
             <div className="bf c2"><span className="bl">Attiva</span>
               <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
                 <option value="1">Sì</option><option value="0">No</option></select></div>

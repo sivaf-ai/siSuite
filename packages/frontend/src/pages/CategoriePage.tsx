@@ -42,7 +42,16 @@ function flatten(nodes: Node[], depth: number, excludeId: string | undefined, ou
   }
 }
 
-export function CategoriePage() {
+/** Props di SELEZIONE: l'albero categorie richiamato in pop-up da un'altra maschera
+ *  (es. categoria di un articolo). Il click su un nodo lo seleziona via onPick;
+ *  espandi/collassa e "+ Nuova categoria" restano (creazione al volo), le azioni
+ *  per-nodo (aggiungi/modifica/elimina) sono nascoste. */
+export interface CategoriePickProps {
+  onPick: (c: MaterialCategoryDto) => void;
+}
+
+export function CategoriePage({ pickProps }: { pickProps?: CategoriePickProps } = {}) {
+  const pick = !!pickProps;
   const toast = useToast();
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('material:update' as never);
@@ -98,14 +107,15 @@ export function CategoriePage() {
     const isOpen = open.has(n.id);
     return (
       <div key={n.id}>
-        <div className="cat-row" style={{ paddingLeft: 8 + depth * 22 }}>
-          <button className="cat-chev" onClick={() => hasKids && toggle(n.id)} style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
+        <div className="cat-row" style={{ paddingLeft: 8 + depth * 22, ...(pick ? { cursor: 'pointer' } : {}) }}
+          onClick={pick ? () => pickProps!.onPick(n) : undefined}>
+          <button className="cat-chev" onClick={(e) => { e.stopPropagation(); hasKids && toggle(n.id); }} style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
             {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
           </button>
           <span className="cat-ico" style={n.color ? { color: n.color } : undefined}><CategoryIcon name={n.icon} size={15} color={n.color} /></span>
           <span className="cat-name">{n.name}</span>
           {!n.active && <span className="serialtag">disattivata</span>}
-          {canWrite && (
+          {!pick && canWrite && (
             <span className="cat-acts">
               <button className="xbtn" title="Aggiungi sotto-categoria" onClick={() => openNew(n.id)}><Plus size={14} /></button>
               <button className="xbtn" title="Modifica" onClick={() => openEdit(n)}><Pencil size={14} /></button>
@@ -118,8 +128,8 @@ export function CategoriePage() {
     );
   };
 
-  return (
-    <Page>
+  const body = (
+    <>
       <style>{`
         .cat-wrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:8px}
         .cat-head{display:flex;align-items:center;gap:10px;padding:10px 12px 12px}
@@ -173,6 +183,9 @@ export function CategoriePage() {
       <ConfirmDialog open={!!del} danger title="Eliminare la categoria?"
         message={del ? `«${del.name}» verrà eliminata. Le eventuali sotto-categorie e gli articoli collegati restano senza categoria.` : ''}
         confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDel(null)} />
-    </Page>
+    </>
   );
+
+  if (pick) return body;
+  return <Page>{body}</Page>;
 }

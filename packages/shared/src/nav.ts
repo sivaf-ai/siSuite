@@ -136,6 +136,7 @@ export const NAV: NavSection[] = [
         { id: 'resources', label: 'Risorse', route: '/resources', icon: 'users', permission: 'resource:read' },
         { id: 'materials', label: 'Articoli & seriali', route: '/materials', icon: 'package', permission: 'material:read' },
         { id: 'assets', label: 'Asset', route: '/assets', icon: 'box', permission: 'asset:read' },
+        { id: 'sites', label: 'Siti / Località', route: '/sites', icon: 'map-pin', permission: 'site:read' },
       ] },
       { caption: 'Viste per ruolo', items: [
         { id: 'companies-customers', label: 'Clienti', route: '/companies?role=customer', icon: 'user-round', permission: 'company:read' },

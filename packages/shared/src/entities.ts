@@ -416,6 +416,8 @@ export const createSiteSchema = z.object({
 export const updateSiteSchema = createSiteSchema.omit({ companyId: true }).partial();
 export interface SiteDto {
   id: string; companyId: string | null; parentId: string | null;
+  /** ragione sociale del cliente (join company.display_name), altrimenti null. */
+  companyName: string | null;
   name: string; kind: string; address: Record<string, unknown>;
   attributes: Record<string, unknown>;
   /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */

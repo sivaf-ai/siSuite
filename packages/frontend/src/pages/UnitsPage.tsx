@@ -19,7 +19,19 @@ import { AuditDialog } from '../ui/AuditDialog';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
-export function UnitsPage() {
+/** Props di SELEZIONE: la stessa lista, richiamata in pop-up da un'altra maschera
+ *  (es. UM di un articolo). Radio invece di checkbox; "+ Nuovo" e click-riga aprono
+ *  la CRUD nello stesso Modal annidato (non si lascia il documento). */
+export interface UnitsPickProps {
+  pick: 'single';
+  selectedIds?: string[];
+  onToggleSelect?: (u: UnitDto) => void;
+  /** chiamato dopo aver creato una nuova unità con "+ Nuovo". */
+  onCreated?: (u: UnitDto) => void;
+}
+
+export function UnitsPage({ pickProps }: { pickProps?: UnitsPickProps } = {}) {
+  const pick = pickProps?.pick;
   const [q, setQ] = useState('');
   const toast = useToast();
   const { user } = useAuth();
@@ -50,10 +62,12 @@ export function UnitsPage() {
     setBusy(true);
     try {
       const body = { code: form.code.trim(), name: form.name.trim(), active: form.active };
+      let created: UnitDto | undefined;
       if (editing) await mutate('PATCH', `/units/${editing.id}`, body);
-      else await apiFetch('/units', { method: 'POST', body: JSON.stringify(body) });
+      else created = await apiFetch<UnitDto>('/units', { method: 'POST', body: JSON.stringify(body) });
       toast(editing ? 'Modifiche salvate' : 'Unità creata');
       setEditing(undefined); reload();
+      if (created && pickProps?.onCreated) pickProps.onCreated(created);
     } catch (e) { toast(errMsg(e), 'error'); }
     finally { setBusy(false); }
   }
@@ -92,49 +106,61 @@ export function UnitsPage() {
     { key: 'system', header: 'Origine', value: (r) => (r.isSystem ? 'Sistema' : 'Tenant'), render: (r) => <span className="chip">{r.isSystem ? 'Sistema' : 'Personalizzata'}</span> },
     { key: 'active', header: 'Attiva', value: (r) => (r.active ? 'sì' : 'no'), render: (r) => <span className="chip">{r.active ? 'attiva' : 'disattivata'}</span> },
   ];
+  // "+ Nuovo": sia in pick sia normale apre la CRUD nel Modal annidato.
   const rightActions: ListAction[] = canWrite ? [{ key: 'new', icon: Plus, tip: 'Nuova unità di misura', variant: 'primary', onClick: () => openNew() }] : [];
 
   const rows = (data?.items ?? []).filter((r) => !q.trim() || `${r.code} ${r.name}`.toLowerCase().includes(q.toLowerCase()));
 
+  const list = (
+    <EntityList<UnitDto> title={pick ? undefined : 'Unità di misura'} subtitle={pick ? undefined : 'Catalogo unità di misura — le unità di sistema sono in sola lettura'}
+      search={q} onSearch={setQ} searchPlaceholder="Cerca codice, nome…"
+      rightActions={rightActions}
+      mode={pick ? 'pick-single' : undefined}
+      selectedIds={pick ? pickProps?.selectedIds : undefined}
+      onToggleSelect={pick ? pickProps?.onToggleSelect : undefined}
+      onRowClick={canWrite ? openEdit : undefined}
+      onEdit={!pick && canWrite ? openEdit : undefined}
+      onDuplicate={!pick && canWrite ? (r) => openNew(r) : undefined}
+      onDelete={!pick && canWrite ? deleteUnits : undefined}
+      rowLabel={(r) => `${r.code} — ${r.name}`}
+      archived={pick ? false : archived}
+      clearSelectionToken={clearTok}
+      onToggleArchived={pick ? undefined : (v) => { setArchived(v); setClearTok((x) => x + 1); }}
+      onRestore={!pick && canWrite ? onRestore : undefined}
+      onPurge={!pick && canWrite ? onPurge : undefined}
+      onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: `${row.code} — ${row.name}` })}
+      archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+      columns={cols} rows={rows} loading={loading} error={error}
+      exportName="unita-di-misura" emptyText="Nessuna unità di misura." />
+  );
+
+  const crudModal = (
+    <Modal open={editing !== undefined} size="md" title={editing ? 'Modifica unità di misura' : 'Nuova unità di misura'} onClose={() => setEditing(undefined)}
+      footer={<>
+        <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
+        <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
+      </>}>
+      <div className="dsx">
+        <div className="bgrid">
+          <div className="bf c2"><span className="bl">Codice <span className="req">*</span></span>
+            <input className="bi mono" autoFocus value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="pz, m, kg…" /></div>
+          <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span>
+            <input className="bi" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Pezzo, Metro…" /></div>
+          <div className="bf c2"><span className="bl">Attiva</span>
+            <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
+              <option value="1">Sì</option><option value="0">No</option></select></div>
+        </div>
+      </div>
+    </Modal>
+  );
+
+  if (pick) return <>{list}{crudModal}</>;
+
   return (
     <Page>
-      <EntityList<UnitDto> title="Unità di misura" subtitle="Catalogo unità di misura — le unità di sistema sono in sola lettura"
-        search={q} onSearch={setQ} searchPlaceholder="Cerca codice, nome…"
-        rightActions={rightActions}
-        onRowClick={canWrite ? openEdit : undefined}
-        onEdit={canWrite ? openEdit : undefined}
-        onDuplicate={canWrite ? (r) => openNew(r) : undefined}
-        onDelete={canWrite ? deleteUnits : undefined}
-        rowLabel={(r) => `${r.code} — ${r.name}`}
-        archived={archived}
-        clearSelectionToken={clearTok}
-        onToggleArchived={(v) => { setArchived(v); setClearTok((x) => x + 1); }}
-        onRestore={canWrite ? onRestore : undefined}
-        onPurge={canWrite ? onPurge : undefined}
-        onHistory={(row) => setAudit({ id: row.id, title: `${row.code} — ${row.name}` })}
-        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
-        columns={cols} rows={rows} loading={loading} error={error}
-        exportName="unita-di-misura" emptyText="Nessuna unità di misura." />
-
+      {list}
       {audit && <AuditDialog entity="unit_of_measure" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />}
-
-      <Modal open={editing !== undefined} size="md" title={editing ? 'Modifica unità di misura' : 'Nuova unità di misura'} onClose={() => setEditing(undefined)}
-        footer={<>
-          <button className="btn btn-ghost" onClick={() => setEditing(undefined)} disabled={busy}>Annulla</button>
-          <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Salvo…' : 'Salva'}</button>
-        </>}>
-        <div className="dsx">
-          <div className="bgrid">
-            <div className="bf c2"><span className="bl">Codice <span className="req">*</span></span>
-              <input className="bi mono" autoFocus value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="pz, m, kg…" /></div>
-            <div className="bf c2"><span className="bl">Nome <span className="req">*</span></span>
-              <input className="bi" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Pezzo, Metro…" /></div>
-            <div className="bf c2"><span className="bl">Attiva</span>
-              <select className="bi" value={form.active ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === '1' }))}>
-                <option value="1">Sì</option><option value="0">No</option></select></div>
-          </div>
-        </div>
-      </Modal>
+      {crudModal}
     </Page>
   );
 }
