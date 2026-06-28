@@ -45,6 +45,10 @@
 
 ## D. Selezione entità (picker)
 
+- **D-0 — Niente testo libero né combo ad-hoc per i campi di RIFERIMENTO/CLASSIFICAZIONE (tassativo, alto livello).** Ogni campo che referenzia un'entità o classifica è un **catalogo gestito**. Due casi:
+  - **FK a un'ENTITÀ con lista standard** (UM, Categoria articolo, Sito, Cliente, Articolo, Risorsa, Commessa…) → **picker a lente** (`PickerField` + `*PickerDialog`) che riusa la lista vera, con "+ Nuovo". MAI `<select>` né combo per queste.
+  - **Classificazione "leggera"** (Tipo asset, Categoria competenza, stati, priorità, nature…) → catalogo **`lookup_value`** (configurabile in Impostazioni › Stati & etichette, sistema+tenant), scelto con un `<select>` (è l'eccezione enum/lookup). MAI testo libero.
+  Quando aggiungi un campo che cita un'altra entità o classifica qualcosa, **devi** usare uno di questi due (mai input testo).
 - **D-1 — Scegliere un'entità = riuso della SUA lista vera** in modalità selezione (EntityList `pick-single`/`pick-multi`), dentro un **`ui/Modal` CENTRATO** (mai pannello laterale, mai `<select>` per entità, mai lista ad-hoc). I `<select>` restano SOLO per enum/lookup (stato, tipo, priorità…).
 - **D-2 — "+ Nuovo" nel picker:** dal popup si crea l'entità al volo (CRUD embeddata in Modal) senza uscire dal documento. Pattern: `*PickerDialog` + `ui/PickerField` (campo "scegli" con label nel bordo). Dialog esistenti: Material/Company/Location/Resource/Engagement/WorkOrder.
 - **D-2-bis — Apertura picker = sola icona lente** (niente testo "Scegli"/"Cambia"); l'etichetta resta in `title`/`aria-label`.

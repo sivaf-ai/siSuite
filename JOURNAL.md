@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 (5) — Cataloghi gestiti per classificazioni + picker a lente + Siti anagrafica (chat 01.06)
+- Migr **057** (prossima libera **058**): lookup_value 'asset_kind' + 'skill_category' (canonical_state + system rows). Commit `21ece21`.
+- **Regola alto livello D-0** (STANDARD): campi di riferimento/classificazione mai testo libero/combo ad-hoc — FK a entità con lista → **picker a lente**; classificazione → **lookup_value** (Impostazioni › Etichette) → select.
+- **Asset.Tipo** e **Competenze.Categoria**: da testo libero → select da lookup configurabile.
+- **SITI** promossi ad anagrafica: voce menu Anagrafiche + `pages/SitiPage` (EntityList + CRUD inline Modal + soft-delete) + `ui/SitePickerDialog`; backend GET /sites con companyName + q/sort + GET /sites/:id. `SiteTree` nel Soggetto invariato.
+- **Picker a lente** sui campi FK-entità: Materiale.UM → `UnitPickerDialog` (UnitsPage pick), Materiale.Categoria → `CategoryPickerDialog` (CategoriePage albero pick), Asset.Sito → SitePicker. Tolti i combo.
+- Verifica: typecheck shared+BE+FE puliti, 79/79 test, migrate idempotente.
+
 ## 2026-06-28 (4) — Soft-delete cataloghi + Competenze anagrafica + hub AI + fix toggle (chat 01.06)
 - Migr **056** (prossima libera **057**): archived_at/archived_by su unit_of_measure, tax_rate, skill. Commit `d0cd616`+`3c300ba`.
 - **Toggle "Mostra archiviati" EFFIMERO** (`useArchivedView`, reset su ionViewWillEnter) → rientrando in una maschera torna a "Mostra archiviati" e mostra gli attivi (fix #4); rimosso `useStickyState` per archived (risolve anche la desync di Materiali con l'istanza picker).
