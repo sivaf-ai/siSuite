@@ -13,6 +13,10 @@ export function Page({ title, action, children, back, bleed }: { title?: string;
   // Le LISTE (EntityList) hanno già il proprio titolo nella testata: non passano `title`
   // → niente IonHeader, così non si ripete il titolo su una riga in più (no righe vuote).
   const showHeader = !!title || !!back;
+  // FLUSH layout (niente padding-top dello scroll) per: schede (bleed) E liste (senza header,
+  // ospitano EntityList con la testata sticky `.dsx-head`). Così la barra sticky resta A FILO
+  // del bordo superiore: MAI un buco dove le righe scrollano sotto la barra del titolo/menu.
+  const flush = bleed || !showHeader;
   return (
     <IonPage>
       {showHeader && (
@@ -26,7 +30,7 @@ export function Page({ title, action, children, back, bleed }: { title?: string;
           </IonToolbar>
         </IonHeader>
       )}
-      <IonContent className={bleed ? undefined : 'ion-padding'} style={bleed ? bleedStyle : undefined}>
+      <IonContent className={flush ? undefined : 'ion-padding'} style={flush ? bleedStyle : undefined}>
         <div className="page-container">{children}</div>
       </IonContent>
     </IonPage>

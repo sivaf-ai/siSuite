@@ -51,8 +51,8 @@
    Header (titolo/viste) + toolbar + filtro attivo restano in alto mentre
    si scorre: scrollano SOLO le righe. Sticky dentro lo scroll di IonContent.
    Lo sfondo = pagina (--paper) così le righe non traspaiono dietro. */
-.dsx .dsx-head { position: sticky; top: 0; z-index: 5; background: var(--paper);
-  padding-bottom: 11px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.18); }
+.dsx .dsx-head { position: sticky; top: 0; z-index: 9; background: var(--paper);
+  margin: 0 -16px 0; padding: 14px 16px 11px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.18); }
 .dsx .dsx-head > *:last-child { margin-bottom: 0; }
 /* badge contatore selezione */
 .dsx .selcount { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px;

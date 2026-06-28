@@ -25,8 +25,8 @@ export function PickerField({ value, placeholder = '—', onOpen, onClear, disab
           {value && onClear && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClear} title="Rimuovi">×</button>
           )}
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onOpen} title="Scegli">
-            <Search size={14} /> {value ? 'Cambia' : 'Scegli'}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onOpen} title={value ? 'Cambia' : 'Scegli'} aria-label={value ? 'Cambia' : 'Scegli'}>
+            <Search size={14} />
           </button>
         </span>
       )}

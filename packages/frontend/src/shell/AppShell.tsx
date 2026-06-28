@@ -13,13 +13,13 @@ import { Redirect, Route } from 'react-router-dom';
 import { useHistory, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
-  visibleNav, siblingTabs, allNavItems, RAIL_GROUP_LABEL,
+  visibleNav, siblingTabs, siblingGroups, allNavItems, RAIL_GROUP_LABEL,
   type PermissionKey, type RailGroup, type NavItem, type NavSection,
 } from '@sisuite/shared';
 import {
   iconByName, MENU_ICON, Circle, Star, CornerDownRight, ExternalLink, ChevronRight, X, Search, Sparkles,
 } from '../ui/icons';
-import { LogOut, Mic, ShieldAlert, ChevronsLeft, ChevronsRight, Sun, Moon } from 'lucide-react';
+import { LogOut, Mic, ShieldAlert, ChevronsLeft, ChevronsRight, ChevronDown, Sun, Moon } from 'lucide-react';
 import { visibleMenu, type MenuItem } from '@sisuite/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -219,6 +219,11 @@ export function AppShell() {
 
   // sibling tabs della sezione corrente
   const siblings = useMemo(() => siblingTabs(perms, pathname), [perms, pathname]);
+  // raggruppamento a tendine quando le entità sorelle sono tante (es. Anagrafiche)
+  const sibGroups = useMemo(() => siblingGroups(perms, pathname), [perms, pathname]);
+  const sibFlatCount = sibGroups.reduce((a, g) => a + g.items.length, 0);
+  const sibGrouped = sibFlatCount > 9 && sibGroups.filter((g) => g.caption).length > 1;
+  const [openSib, setOpenSib] = useState<number | null>(null);
 
   // preferiti risolti a NavItem
   const allItems = useMemo(() => allNavItems(), []);
@@ -352,7 +357,31 @@ export function AppShell() {
             <button className="n2-ico" onClick={logout} title={t('actions.logout', { defaultValue: 'Esci' })}><LogOut size={18} /></button>
           </div>
 
-          {siblings.length > 1 && (
+          {sibGrouped ? (
+            <div className="n2-siblings n2-grouped n2-only">
+              {sibGroups.map((g, gi) => {
+                const activeHere = g.items.some((it) => isActive(it.route));
+                return (
+                  <div key={g.caption ?? gi} className="n2-sibg">
+                    <button className={`n2-sib${activeHere ? ' on' : ''}`} onClick={() => setOpenSib(openSib === gi ? null : gi)}>
+                      {g.caption ?? '—'}<ChevronDown size={13} style={{ marginLeft: 2 }} />
+                    </button>
+                    {openSib === gi && (
+                      <>
+                        <div className="n2-sibg-back" onClick={() => setOpenSib(null)} />
+                        <div className="n2-sibg-menu">
+                          {g.items.map((it) => { const I = iconByName(it.icon); return (
+                            <button key={it.id} className={`n2-sibg-item${isActive(it.route) ? ' on' : ''}`}
+                              onClick={() => { setOpenSib(null); go(it.route); }}><I size={15} />{itemLabel(it)}</button>
+                          ); })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : siblings.length > 1 && (
             <div className="n2-siblings n2-only">
               {siblings.map((it) => { const I = iconByName(it.icon); return (
                 <button key={it.id} className={`n2-sib${isActive(it.route) ? ' on' : ''}`} onClick={() => go(it.route)}><I size={14} />{itemLabel(it)}</button>

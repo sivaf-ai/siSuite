@@ -199,6 +199,24 @@ export function allNavItems(): { item: NavItem; section: NavSection }[] {
   return out;
 }
 
+export interface SiblingGroup { caption?: string; items: NavItem[] }
+
+/** Voci sorelle RAGGRUPPATE per gruppo (caption) della sezione attiva. Serve alla
+ *  barra in alto: quando le entità sono tante (es. Anagrafiche) si rendono a tendine
+ *  per gruppo invece di una lunga lista piatta su più righe. */
+export function siblingGroups(permissions: ReadonlySet<PermissionKey>, pathname: string): SiblingGroup[] {
+  const norm = (r: string) => r.split('?')[0];
+  for (const sec of NAV) {
+    const flat = sec.groups.filter((g) => !g.link).flatMap((g) => g.items);
+    if (flat.some((it) => norm(it.route) === pathname || pathname.startsWith(norm(it.route) + '/'))) {
+      return sec.groups.filter((g) => !g.link)
+        .map((g) => ({ caption: g.caption, items: g.items.filter((it) => !it.soon && can(permissions, it.permission)) }))
+        .filter((g) => g.items.length > 0);
+    }
+  }
+  return [];
+}
+
 /** Sibling tab bar: voci "sorelle" della sezione che contiene la rotta attiva. */
 export function siblingTabs(permissions: ReadonlySet<PermissionKey>, pathname: string): NavItem[] {
   const norm = (r: string) => r.split('?')[0];
