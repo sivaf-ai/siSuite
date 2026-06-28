@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 (2) — Soft-delete gestito (A+B+C) + fix UX vari (chat 01.06)
+- Migr **055** (prossima libera **056**): `archived_by` su tutte le tabelle archiviabili + tabella `audit_log` (RLS). Commit `4946ddf` (+ `9176c2d`/`5ec5b6f`/`76aaef6` per i fix UX/console).
+- **Soft-delete A+B+C** su material/company/resource/site/asset: `context/audit.ts` (logAudit); archive setta archived_by+logga; lista `?archived=1`; `POST /:id/restore`; `DELETE /:id/purge` (hard, solo se archiviato, FK RESTRICT→409); DTO `archivedAt`+`archivedByName`; nuova route `GET /audit?entity=&entityId=`. FE: `ui/EntityList` toggle "Mostra archiviati" + Ripristina/Storico/Elimina-definitiva (conferma unica) + badge; nuovo `ui/AuditDialog`; cablate Materiali/Soggetti/Risorse/Asset. Standard DB-5-bis.
+- **Fix console**: campi DATE → yyyy-MM-dd (stock/timeEntries/engagements); blur su click-riga (no aria-hidden Ionic). **web-client-content-script** = estensione browser, non nostro.
+- **UX**: testata liste A FILO (no buco sopra la barra: Page flush per liste/schede; .dsx-head bleed) — standard L-3-bis; PickerField solo lente (D-2-bis); IconPicker ricerca full-lucide (~1500); menu entità a tendine per gruppo (siblingGroups) quando troppe.
+- **Codice articolo** editabile (default number_series, override). Verifica: typecheck shared+BE+FE puliti, 79/79 test, smoke completi.
+
 ## 2026-06-28 — Fix UX/integrità + Codice articolo + STANDARD doc (chat 01.06)
 - Frontend + migr **054** (prossima libera **055**). Commit `e010763`+`62e1775`+`6f6d53b`.
 - **Doppia conferma cancellazione** RISOLTA (UnitsPage, TaxRatesPage passavano a EntityList un onDelete che apriva una 2ª ConfirmDialog → ora cancellazione diretta; EntityList è l'unico a confermare, col nome). Standard E-1.
