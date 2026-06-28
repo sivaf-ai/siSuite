@@ -14,7 +14,7 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
 import { SlidersHorizontal, Columns3, Sparkles, Upload, Users, Plus } from '../ui/icons';
-import { useApi, mutate, useStickyState } from '../api/hooks';
+import { useApi, mutate, useArchivedView } from '../api/hooks';
 import { useToast } from '../ui/Toast';
 import { ApiError } from '../api/client';
 import { AuditDialog } from '../ui/AuditDialog';
@@ -62,7 +62,7 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [archived, setArchived] = useStickyState('sisuite.workorders.archived', false);
+  const [archived, setArchived] = useArchivedView();
   const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
 

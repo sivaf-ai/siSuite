@@ -11,9 +11,7 @@ export function useReloadOnEnter(reload: () => void): void {
   useIonViewWillEnter(() => { reload(); });
 }
 
-/** Stato PERSISTITO in sessionStorage: sopravvive al round-trip lista→CRUD→lista
- *  (es. il toggle "Mostra archiviati") così tornando dalla scheda si rientra nella
- *  STESSA vista da cui si era partiti. Chiave per-entità. */
+/** Stato PERSISTITO in sessionStorage (per chi serve che sopravviva al round-trip). */
 export function useStickyState<T>(key: string, initial: T): [T, (v: T) => void] {
   const [val, setVal] = useState<T>(() => {
     try { const raw = sessionStorage.getItem(key); return raw != null ? (JSON.parse(raw) as T) : initial; }
@@ -24,6 +22,15 @@ export function useStickyState<T>(key: string, initial: T): [T, (v: T) => void] 
     try { sessionStorage.setItem(key, JSON.stringify(v)); } catch { /* storage non disponibile */ }
   }, [key]);
   return [val, set];
+}
+
+/** Stato del toggle "Mostra archiviati": EFFIMERO. Si AZZERA ogni volta che si (ri)entra
+ *  nella lista (ionViewWillEnter) → rientrando in una maschera l'icona torna a "Mostra
+ *  archiviati" e la lista mostra gli attivi. Vale per tutte le liste soft-delete. */
+export function useArchivedView(): [boolean, (v: boolean) => void] {
+  const [archived, setArchived] = useState(false);
+  useIonViewWillEnter(() => setArchived(false));
+  return [archived, setArchived];
 }
 
 export function useApi<T>(path: string | null) {

@@ -12,7 +12,7 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { DedupDialog } from '../ui/DedupDialog';
 import { Sparkles, Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter, useStickyState, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../ui/Toast';
 import { ApiError } from '../api/client';
@@ -53,7 +53,7 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
   const can = (a: string) => !!user?.permissions.includes(`company:${a}` as never);
   const pick = pickProps?.pick;
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD soggetto in modale (pick mode)
-  const [archived, setArchived] = useStickyState('sisuite.companies.archived', false);
+  const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
   const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
 

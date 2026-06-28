@@ -22,7 +22,7 @@ import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { AuditDialog } from '../ui/AuditDialog';
-import { useApi, mutate, useStickyState } from '../api/hooks';
+import { useApi, mutate, useArchivedView } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
@@ -63,7 +63,7 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD ubicazione in modale (pick mode)
-  const [archived, setArchived] = useStickyState('sisuite.locations.archived', false);
+  const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
   const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
 

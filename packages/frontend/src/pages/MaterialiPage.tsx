@@ -13,7 +13,7 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
 import { Package } from 'lucide-react';
-import { useApi, useReloadOnEnter, useStickyState, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../ui/Toast';
 import { ApiError } from '../api/client';
@@ -84,7 +84,7 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD articolo in modale (pick mode)
-  const [archived, setArchived] = useStickyState('sisuite.materials.archived', false);
+  const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
   const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;

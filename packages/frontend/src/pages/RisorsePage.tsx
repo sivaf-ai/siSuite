@@ -12,7 +12,7 @@ import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter, useStickyState, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../ui/Toast';
 import { ApiError } from '../api/client';
@@ -52,7 +52,7 @@ export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD risorsa in modale (pick mode)
-  const [archived, setArchived] = useStickyState('sisuite.resources.archived', false);
+  const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
   const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
