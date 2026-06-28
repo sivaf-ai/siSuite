@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 (3) — Soft-delete esteso + menu overflow (⋮) + documenti (chat 01.06)
+- Frontend + 3 route backend (nessuna migrazione nuova; prossima libera **056**). Commit `9d553a0`.
+- **Menu overflow (⋮)** in `ui/EntityList`: le azioni secondarie (Esporta, Storico, Mostra archiviati) vanno nel ⋮ (MoreVertical), in toolbar restano Modifica/Duplica/Elimina (o Ripristina/Elimina-definitiva). Stesso metodo per il mobile. CSS `.tib-of-*`. Standard L-7.
+- **Soft-delete completo esteso** a engagement (Commesse), work_order (Ordini di lavoro), stock_location (Magazzini): backend archived_by+audit+?archived+restore+purge, DTO archivedAt/archivedByName; frontend toggle/ripristina/storico/purge via overflow + badge + useStickyState. Ora abilitato su 8 entità.
+- **Fix precedenti (commit f54ba43/5de06ce)**: AuditDialog leggeva male {items} (crash items.map) → corretto; messaggio Elimina standard senza "irreversibile"; stato vista persistito (useStickyState) → tornando dal CRUD si rientra nella stessa vista; hint su ogni icona (U-1).
+- **Documenti**: `docs/analisi/GESTIONE_soft_delete_v1.md` (gestione soft-delete completa + entità incluse/escluse con motivo) e `GESTIONE_ALBERO_categorie_v1.md` (standard entità ad albero, per analisi con Claude AI).
+- Verifica: typecheck shared+BE+FE puliti, 79/79 test, smoke archive/restore/purge/audit per le 3 nuove entità.
+
 ## 2026-06-28 (2) — Soft-delete gestito (A+B+C) + fix UX vari (chat 01.06)
 - Migr **055** (prossima libera **056**): `archived_by` su tutte le tabelle archiviabili + tabella `audit_log` (RLS). Commit `4946ddf` (+ `9176c2d`/`5ec5b6f`/`76aaef6` per i fix UX/console).
 - **Soft-delete A+B+C** su material/company/resource/site/asset: `context/audit.ts` (logAudit); archive setta archived_by+logga; lista `?archived=1`; `POST /:id/restore`; `DELETE /:id/purge` (hard, solo se archiviato, FK RESTRICT→409); DTO `archivedAt`+`archivedByName`; nuova route `GET /audit?entity=&entityId=`. FE: `ui/EntityList` toggle "Mostra archiviati" + Ripristina/Storico/Elimina-definitiva (conferma unica) + badge; nuovo `ui/AuditDialog`; cablate Materiali/Soggetti/Risorse/Asset. Standard DB-5-bis.
