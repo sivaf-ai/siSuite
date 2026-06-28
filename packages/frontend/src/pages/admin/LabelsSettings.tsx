@@ -28,6 +28,8 @@ const CATS = [
   { key: 'schedule_mode', label: 'Modalità pianificazione' },
   { key: 'stock_movement_type', label: 'Magazzino · tipi movimento' },
   { key: 'stock_document_type', label: 'Magazzino · tipi documento' },
+  { key: 'asset_kind', label: 'Tipi di asset' },
+  { key: 'skill_category', label: 'Categorie competenze' },
 ];
 
 export function LabelsSettings() {

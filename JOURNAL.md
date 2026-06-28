@@ -2,6 +2,10 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 (6) — Fix KO test: asset_kind/skill_category visibili in "Stati & etichette" (chat 01.06)
+- **KO §6 risolto** (3 esiti correlati): le voci `asset_kind` ("Tipi di asset") e `skill_category` ("Categorie competenze") non comparivano nel combo di *Impostazioni › Stati & etichette* → l'array `CATS` in `LabelsSettings.tsx` era **hardcoded** e non le includeva. Aggiunte le 2 voci. I dati (mig 057, 8+6 righe di sistema) erano già presenti e il backend `/lookups` non filtra per categoria. Ora rinominabili/estendibili e si riflettono nelle tendine di Asset.Tipo e Competenze.Categoria.
+- Solo FE (1 riga + label). Typecheck FE verde (container). Vite hot-reload, nessun rebuild.
+
 ## 2026-06-28 (5) — Cataloghi gestiti per classificazioni + picker a lente + Siti anagrafica (chat 01.06)
 - Migr **057** (prossima libera **058**): lookup_value 'asset_kind' + 'skill_category' (canonical_state + system rows). Commit `21ece21`.
 - **Regola alto livello D-0** (STANDARD): campi di riferimento/classificazione mai testo libero/combo ad-hoc — FK a entità con lista → **picker a lente**; classificazione → **lookup_value** (Impostazioni › Etichette) → select.
