@@ -11,6 +11,21 @@ export function useReloadOnEnter(reload: () => void): void {
   useIonViewWillEnter(() => { reload(); });
 }
 
+/** Stato PERSISTITO in sessionStorage: sopravvive al round-trip lista→CRUD→lista
+ *  (es. il toggle "Mostra archiviati") così tornando dalla scheda si rientra nella
+ *  STESSA vista da cui si era partiti. Chiave per-entità. */
+export function useStickyState<T>(key: string, initial: T): [T, (v: T) => void] {
+  const [val, setVal] = useState<T>(() => {
+    try { const raw = sessionStorage.getItem(key); return raw != null ? (JSON.parse(raw) as T) : initial; }
+    catch { return initial; }
+  });
+  const set = useCallback((v: T) => {
+    setVal(v);
+    try { sessionStorage.setItem(key, JSON.stringify(v)); } catch { /* storage non disponibile */ }
+  }, [key]);
+  return [val, set];
+}
+
 export function useApi<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
