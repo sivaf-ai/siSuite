@@ -4,6 +4,7 @@ import { createAssetSchema, updateAssetSchema, listQuerySchema, type AssetDto } 
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { findUsage, usageMessage, ASSET_REFS } from '../context/usageGuard.js';
+import { logAudit } from '../context/audit.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
@@ -15,10 +16,12 @@ const FILTER_ANY = ['a.label', 'a.kind'];
 const SELECT = `
   SELECT a.id, a.company_id, c.display_name AS company_name, a.kind, a.label,
          a.site_id, s.name AS site_name, a.work_order_subject_id, a.parent_asset_id,
-         a.model, a.manufacturer, a.warranty_until, a.status, a.installed_at, a.attributes, a.created_at
+         a.model, a.manufacturer, a.warranty_until, a.status, a.installed_at, a.attributes, a.created_at,
+         a.archived_at, au.full_name AS archived_by_name
   FROM asset a
   LEFT JOIN company c ON c.id = a.company_id
   LEFT JOIN site s ON s.id = a.site_id
+  LEFT JOIN app_user au ON au.id = a.archived_by
 `;
 function toDto(r: Record<string, unknown>): AssetDto {
   const d = (v: unknown): string | null => (v instanceof Date ? v.toISOString().slice(0, 10) : (v as string) ?? null);
@@ -31,6 +34,8 @@ function toDto(r: Record<string, unknown>): AssetDto {
     warrantyUntil: d(r.warranty_until), status: (r.status as string) ?? null,
     installedOn: d(r.installed_at),
     attributes: (r.attributes as Record<string, unknown>) ?? {}, createdAt: r.created_at as string,
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 
@@ -40,9 +45,12 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const q = listQuerySchema.parse(request.query);
       const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'a.label', q.sortDir, 'a.attributes');
+      const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+      const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+      const archivedCond = onlyArchived ? 'a.archived_at IS NOT NULL' : 'a.archived_at IS NULL';
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
-        let where = `WHERE a.archived_at IS NULL`;
+        let where = `WHERE ${archivedCond}`;
         if (request.query.companyId) { params.push(request.query.companyId); where += ` AND a.company_id = $${params.length}`; }
         if (q.q) { params.push(`%${q.q}%`); where += ` AND (a.label ILIKE $${params.length} OR a.kind ILIKE $${params.length})`; }
         const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
@@ -121,11 +129,46 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         if (!r.rows.length) return { code: 'notfound' as const };
         const used = await findUsage(db, request.params.id, ASSET_REFS);
         if (used.length) return { code: 'used' as const, name: r.rows[0].label as string, used };
-        await db.query(`UPDATE asset SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await db.query(`UPDATE asset SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'asset', entityId: request.params.id, action: 'archive', label: r.rows[0].label as string });
         return { code: 'ok' as const };
       });
       if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Asset non trovato', statusCode: 404 });
       if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA un asset archiviato
+  app.post<{ Params: { id: string } }>('/assets/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('asset:update')] },
+    async (request, reply) => {
+      const out = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE asset SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1 AND archived_at IS NOT NULL RETURNING label`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'asset', entityId: request.params.id, action: 'restore', label: upd.rows[0].label as string });
+        const r = await db.query(`${SELECT} WHERE a.id = $1`, [request.params.id]);
+        return toDto(r.rows[0]);
+      });
+      if (!out) return reply.code(404).send({ error: 'not_found', message: 'Asset non trovato o non archiviato', statusCode: 404 });
+      return out;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/assets/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('asset:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT label, archived_at FROM asset WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'asset', entityId: request.params.id, action: 'purge', label: r.rows[0].label as string });
+        await db.query(`DELETE FROM asset WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Asset non trovato', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 }

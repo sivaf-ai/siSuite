@@ -12,10 +12,15 @@ import { Money } from '../ui/Num';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter } from '../api/hooks';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../ui/Toast';
+import { ApiError } from '../api/client';
+import { AuditDialog } from '../ui/AuditDialog';
 import { Modal } from '../ui/Modal';
 import { RisorsaDetailPage } from './RisorsaDetailPage';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 /** Props di SELEZIONE: la stessa lista, richiamata in pop-up da un'altra maschera
  *  (es. risorsa assegnata di una pick list). Radio invece di checkbox; "+ Nuovo" e
@@ -38,6 +43,7 @@ export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}
   const { user } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
+  const toast = useToast();
   const can = (a: string) => !!user?.permissions.includes(`resource:${a}` as never);
   const pick = pickProps?.pick;
 
@@ -46,14 +52,33 @@ export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD risorsa in modale (pick mode)
+  const [archived, setArchived] = useState(false);
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sortBy: 'label', sortDir: 'asc' });
   if (view !== 'all') params.set('kind', view);
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<ListResp>(`/resources?${params.toString()}`);
   useReloadOnEnter(reload);
+
+  const onRestore = async (rows: ResourceDto[]) => {
+    try {
+      for (const r of rows) await mutate('POST', `/resources/${r.id}/restore`);
+      toast(rows.length > 1 ? `${rows.length} risorse ripristinate` : 'Risorsa ripristinata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (rows: ResourceDto[]) => {
+    try {
+      for (const r of rows) await mutate('DELETE', `/resources/${r.id}/purge`);
+      toast(rows.length > 1 ? `${rows.length} risorse eliminate definitivamente` : 'Risorsa eliminata definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<ResourceDto>({
     basePath: '/resources', reload, noun: 'risorsa',
@@ -102,6 +127,13 @@ export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}
         onRowClick={onRowClick}
         onDelete={!pick && can('delete') ? onDelete : undefined}
         onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setOffset(0); setClearTok((x) => x + 1); }}
+        onRestore={can('delete') ? onRestore : undefined}
+        onPurge={can('delete') ? onPurge : undefined}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.label })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        clearSelectionToken={clearTok}
         exportName="risorse" exportFields={exportFields} entity="resource"
         filterFields={[
           { key: 'label', label: 'Nome', type: 'text', section: 'Anagrafica', span: 2 },
@@ -126,6 +158,10 @@ export function RisorsePage({ pickProps }: { pickProps?: RisorsePickProps } = {}
     </Modal>
   );
 
-  if (pick) return <>{list}{crudModal}</>;
-  return <Page>{list}{crudModal}</Page>;
+  const auditModal = audit && (
+    <AuditDialog entity="resource" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />
+  );
+
+  if (pick) return <>{list}{crudModal}{auditModal}</>;
+  return <Page>{list}{crudModal}{auditModal}</Page>;
 }

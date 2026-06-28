@@ -9,15 +9,18 @@ import { z } from 'zod';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { findUsage, usageMessage, RESOURCE_REFS } from '../context/usageGuard.js';
+import { logAudit } from '../context/audit.js';
 import { validateAttributes } from '../fields.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 
-const FILTER_FIELDS: Record<string, string> = { label: 'label', kind: 'kind', active: 'active', hourly_cost: "attributes->>'hourly_cost'" };
-const FILTER_ANY = ['label', 'kind'];
+const FILTER_FIELDS: Record<string, string> = { label: 'r.label', kind: 'r.kind', active: 'r.active', hourly_cost: "r.attributes->>'hourly_cost'" };
+const FILTER_ANY = ['r.label', 'r.kind'];
 
-const SELECT = `SELECT id, kind, label, user_id, active, attributes, working_hours, code, color, avatar_url, email, phone FROM resource`;
-const SORTABLE: Record<string, string> = { label: 'label', kind: 'kind', code: 'code' };
+const SELECT = `SELECT r.id, r.kind, r.label, r.user_id, r.active, r.attributes, r.working_hours, r.code, r.color, r.avatar_url, r.email, r.phone,
+       r.archived_at, au.full_name AS archived_by_name
+  FROM resource r LEFT JOIN app_user au ON au.id = r.archived_by`;
+const SORTABLE: Record<string, string> = { label: 'r.label', kind: 'r.kind', code: 'r.code' };
 function toDto(r: Record<string, unknown>): ResourceDto {
   return {
     id: r.id as string, kind: r.kind as ResourceDto['kind'], label: r.label as string,
@@ -27,6 +30,8 @@ function toDto(r: Record<string, unknown>): ResourceDto {
     avatarUrl: (r.avatar_url as string) ?? null, email: (r.email as string) ?? null, phone: (r.phone as string) ?? null,
     workingHours: (r.working_hours as Record<string, [string, string][]> | null) ?? null,
     userName: (r.user_name as string | null) ?? null,
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 function toAvailDto(r: Record<string, unknown>): ResourceAvailabilityDto {
@@ -40,30 +45,33 @@ function toAvailDto(r: Record<string, unknown>): ResourceAvailabilityDto {
 export async function resourceRoutes(app: FastifyInstance): Promise<void> {
   app.get('/resources', { preHandler: [app.authenticate, requirePermission('resource:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
-    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'label', q.sortDir, 'attributes');
+    const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'r.label', q.sortDir, 'r.attributes');
     const kind = (request.query as { kind?: string }).kind;
+    const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+    const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+    const archivedCond = onlyArchived ? 'r.archived_at IS NOT NULL' : 'r.archived_at IS NULL';
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
-      let where = `WHERE archived_at IS NULL`;
-      if (kind) { params.push(kind); where += ` AND kind = $${params.length}`; }
-      if (q.q) { params.push(`%${q.q}%`); where += ` AND label ILIKE $${params.length}`; }
+      let where = `WHERE ${archivedCond}`;
+      if (kind) { params.push(kind); where += ` AND r.kind = $${params.length}`; }
+      if (q.q) { params.push(`%${q.q}%`); where += ` AND r.label ILIKE $${params.length}`; }
       const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
       if (fsql) where += ` AND ${fsql}`;
-      const total = await db.query(`SELECT count(*)::int AS n FROM resource ${where}`, params);
+      const total = await db.query(`SELECT count(*)::int AS n FROM resource r ${where}`, params);
       params.push(q.limit, q.offset);
       const rows = await db.query(`${SELECT} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
-      // viste per tipo (rispettano q E filtro attivo, non kind)
+      // viste per tipo (rispettano q E filtro attivo, non kind) — sempre sugli attivi
       const vp: unknown[] = [];
-      let vw = `WHERE archived_at IS NULL`;
-      if (q.q) { vp.push(`%${q.q}%`); vw += ` AND label ILIKE $1`; }
+      let vw = `WHERE r.archived_at IS NULL`;
+      if (q.q) { vp.push(`%${q.q}%`); vw += ` AND r.label ILIKE $1`; }
       const vfsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, vp);
       if (vfsql) vw += ` AND ${vfsql}`;
       const v = (await db.query(
         `SELECT count(*)::int AS all,
-                count(*) FILTER (WHERE kind='person')::int AS person,
-                count(*) FILTER (WHERE kind='vehicle')::int AS vehicle,
-                count(*) FILTER (WHERE kind='equipment')::int AS equipment
-         FROM resource ${vw}`, vp)).rows[0];
+                count(*) FILTER (WHERE r.kind='person')::int AS person,
+                count(*) FILTER (WHERE r.kind='vehicle')::int AS vehicle,
+                count(*) FILTER (WHERE r.kind='equipment')::int AS equipment
+         FROM resource r ${vw}`, vp)).rows[0];
       return {
         items: rows.rows.map(toDto), total: total.rows[0].n as number, limit: q.limit, offset: q.offset,
         views: { all: v.all as number, person: v.person as number, vehicle: v.vehicle as number, equipment: v.equipment as number },
@@ -76,8 +84,10 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const rows = await withRls(request.ctx, (db) => db.query(
         `SELECT r.id, r.kind, r.label, r.user_id, r.active, r.attributes, r.working_hours,
-                r.code, r.color, r.avatar_url, r.email, r.phone, u.full_name AS user_name
-         FROM resource r LEFT JOIN app_user u ON u.id = r.user_id WHERE r.id = $1`, [request.params.id]).then((r) => r.rows));
+                r.code, r.color, r.avatar_url, r.email, r.phone, u.full_name AS user_name,
+                r.archived_at, ab.full_name AS archived_by_name
+         FROM resource r LEFT JOIN app_user u ON u.id = r.user_id
+              LEFT JOIN app_user ab ON ab.id = r.archived_by WHERE r.id = $1`, [request.params.id]).then((r) => r.rows));
       if (!rows.length) return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata', statusCode: 404 });
       return toDto(rows[0]);
     });
@@ -176,11 +186,46 @@ export async function resourceRoutes(app: FastifyInstance): Promise<void> {
         if (!r.rows.length) return { code: 'notfound' as const };
         const used = await findUsage(db, request.params.id, RESOURCE_REFS);
         if (used.length) return { code: 'used' as const, name: r.rows[0].label as string, used };
-        await db.query(`UPDATE resource SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await db.query(`UPDATE resource SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'resource', entityId: request.params.id, action: 'archive', label: r.rows[0].label as string });
         return { code: 'ok' as const };
       });
       if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata', statusCode: 404 });
       if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA una risorsa archiviata
+  app.post<{ Params: { id: string } }>('/resources/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('resource:update')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE resource SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1 AND archived_at IS NOT NULL RETURNING label`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'resource', entityId: request.params.id, action: 'restore', label: upd.rows[0].label as string });
+        const r = await db.query(`${SELECT} WHERE r.id = $1`, [request.params.id]);
+        return toDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata o non archiviata', statusCode: 404 });
+      return dto;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviata). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/resources/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('resource:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT label, archived_at FROM resource WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'resource', entityId: request.params.id, action: 'purge', label: r.rows[0].label as string });
+        await db.query(`DELETE FROM resource WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Risorsa non trovata', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 }

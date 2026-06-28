@@ -11,6 +11,7 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { findUsage, usageMessage, COMPANY_REFS } from '../context/usageGuard.js';
+import { logAudit } from '../context/audit.js';
 import { validateAttributes, validateFiscalAttributes } from '../fields.js';
 import { nextNumber } from '../numberSeries.js';
 import { buildFilter } from '../filterSql.js';
@@ -28,11 +29,13 @@ const SELECT = `
   SELECT c.id, c.code, c.display_name, c.type, c.country, c.tax_id, c.tax_id_kind,
          c.email, c.phone, c.website, c.iban, c.payment_terms, c.default_price_list_id,
          c.legal_address, c.operational_address, c.fiscal_attributes, c.attributes, c.created_at,
+         c.archived_at, au.full_name AS archived_by_name,
          COALESCE(array_agg(cr.role) FILTER (WHERE cr.role IS NOT NULL), '{}') AS roles
   FROM company c
   LEFT JOIN company_role cr ON cr.company_id = c.id
+  LEFT JOIN app_user au ON au.id = c.archived_by
 `;
-const GROUP = `GROUP BY c.id`;
+const GROUP = `GROUP BY c.id, au.full_name`;
 
 const obj = (v: unknown): Record<string, unknown> => (v as Record<string, unknown>) ?? {};
 function toDto(r: Record<string, unknown>): CompanyDto {
@@ -56,6 +59,8 @@ function toDto(r: Record<string, unknown>): CompanyDto {
     attributes: obj(r.attributes),
     roles: (r.roles as string[]) ?? [],
     createdAt: r.created_at as string,
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 function contactDto(r: Record<string, unknown>): ContactDto {
@@ -81,9 +86,12 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
     const q = listQuerySchema.parse(request.query);
     const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'c.display_name', q.sortDir, 'c.attributes');
     const role = (request.query as Record<string, unknown>).role as string | undefined;
+    const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+    const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+    const archivedCond = onlyArchived ? 'c.archived_at IS NOT NULL' : 'c.archived_at IS NULL';
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
-      let where = `WHERE c.archived_at IS NULL`;
+      let where = `WHERE ${archivedCond}`;
       if (q.q) {
         params.push(`%${q.q}%`);
         where += ` AND (c.display_name ILIKE $${params.length} OR c.code ILIKE $${params.length} OR c.tax_id ILIKE $${params.length})`;
@@ -230,12 +238,46 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
         if (!r.rows.length) return { code: 'notfound' as const };
         const used = await findUsage(db, request.params.id, COMPANY_REFS);
         if (used.length) return { code: 'used' as const, name: r.rows[0].display_name as string, used };
-        await db.query(`UPDATE company SET archived_at = now(), updated_by = $2 WHERE id = $1`,
+        await db.query(`UPDATE company SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`,
           [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'company', entityId: request.params.id, action: 'archive', label: r.rows[0].display_name as string });
         return { code: 'ok' as const };
       });
       if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Azienda non trovata', statusCode: 404 });
       if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA un'azienda archiviata
+  app.post<{ Params: { id: string } }>('/companies/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('company:update')] },
+    async (request, reply) => {
+      const out = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE company SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1 AND archived_at IS NOT NULL RETURNING display_name`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'company', entityId: request.params.id, action: 'restore', label: upd.rows[0].display_name as string });
+        return loadOne(db, request.params.id);
+      });
+      if (!out) return reply.code(404).send({ error: 'not_found', message: 'Azienda non trovata o non archiviata', statusCode: 404 });
+      return out;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviata). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/companies/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('company:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT display_name, archived_at FROM company WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'company', entityId: request.params.id, action: 'purge', label: r.rows[0].display_name as string });
+        await db.query(`DELETE FROM company WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Azienda non trovata', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 

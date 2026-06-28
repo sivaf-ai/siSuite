@@ -12,10 +12,15 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { DedupDialog } from '../ui/DedupDialog';
 import { Sparkles, Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter } from '../api/hooks';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../ui/Toast';
+import { ApiError } from '../api/client';
+import { AuditDialog } from '../ui/AuditDialog';
 import { Modal } from '../ui/Modal';
 import { ClienteDetailPage } from './ClienteDetailPage';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 /** Props di SELEZIONE: la stessa lista soggetti richiamata in pop-up da un documento.
  *  Radio (single)/checkbox (multi); "+ Nuovo" e click-riga aprono la CRUD in modale
@@ -44,9 +49,13 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
+  const toast = useToast();
   const can = (a: string) => !!user?.permissions.includes(`company:${a}` as never);
   const pick = pickProps?.pick;
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD soggetto in modale (pick mode)
+  const [archived, setArchived] = useState(false);
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
 
   const viewLabel = (k: ViewKey): string => {
     switch (k) {
@@ -75,8 +84,24 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<ListResp>(`/companies?${params.toString()}`);
   useReloadOnEnter(reload);
+
+  const onRestore = async (rows: CompanyDto[]) => {
+    try {
+      for (const r of rows) await mutate('POST', `/companies/${r.id}/restore`);
+      toast(rows.length > 1 ? `${rows.length} soggetti ripristinati` : 'Soggetto ripristinato');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (rows: CompanyDto[]) => {
+    try {
+      for (const r of rows) await mutate('DELETE', `/companies/${r.id}/purge`);
+      toast(rows.length > 1 ? `${rows.length} soggetti eliminati definitivamente` : 'Soggetto eliminato definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<CompanyDto>({
     basePath: '/companies', reload, noun: t('terms.party'),
@@ -149,6 +174,13 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
         onRowClick={onRowClick}
         onDelete={!pick && can('delete') ? onDelete : undefined}
         onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setOffset(0); setClearTok((x) => x + 1); }}
+        onRestore={can('delete') ? onRestore : undefined}
+        onPurge={can('delete') ? onPurge : undefined}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.displayName })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        clearSelectionToken={clearTok}
         exportName="soggetti" exportFields={exportFields} entity="company" savedViewKey="company"
         sortFields={[{ key: 'displayName', label: 'Nome' }, { key: 'type', label: 'Tipo' }, { key: 'createdAt', label: 'Creato' }]}
         filterFields={[
@@ -184,11 +216,16 @@ export function ClientiPage({ pickProps }: { pickProps?: CompanyPickProps } = {}
     </Modal>
   );
 
-  if (pick) return <>{list}{crudModal}</>;
+  const auditModal = audit && (
+    <AuditDialog entity="company" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />
+  );
+
+  if (pick) return <>{list}{crudModal}{auditModal}</>;
   return (
     <Page>
       {list}
       {crudModal}
+      {auditModal}
       <DedupDialog open={dedupOpen} onClose={() => setDedupOpen(false)} onMerged={() => void reload()} />
     </Page>
   );

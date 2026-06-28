@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, Archive, RotateCcw, History } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel, GROUP_LABEL_IT } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
@@ -110,6 +110,20 @@ interface Props<T extends { id: string }> {
   filterFields?: FilterFieldMeta[];
   /** riceve l'ordinamento multi-campo (priorità) → la pagina lo passa all'API come ?sort=. */
   onSortChange?: (sort: { field: string; dir: 'asc' | 'desc' }[]) => void;
+
+  /* ── soft-delete: vista archiviati + ripristino + purge + storico ── */
+  /** true se la lista sta mostrando i record archiviati. */
+  archived?: boolean;
+  /** se presente, mostra in toolbar il toggle "Mostra archiviati" / "Torna agli attivi". */
+  onToggleArchived?: (v: boolean) => void;
+  /** Ripristina (torna attivo). Mostrato solo in vista archiviati. */
+  onRestore?: (rows: T[]) => void | Promise<void>;
+  /** Elimina DEFINITIVAMENTE (purge). Mostrato solo in vista archiviati, con conferma. */
+  onPurge?: (rows: T[]) => void | Promise<void>;
+  /** Apre lo storico (audit) di una riga. */
+  onHistory?: (row: T) => void;
+  /** testo del badge "Archiviato" per la riga (es. "Archiviato da Mario"). */
+  archivedBadge?: (row: T) => string | null;
 }
 
 interface SavedView {
@@ -344,12 +358,15 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
       rows: selectedRows.map((r) => Object.fromEntries(flds.map((f) => [f.key, f.value(r) ?? '']))),
     }]);
   }
+  // ConfirmDialog interna: serve sia per Elimina (delete) sia per Elimina definitiva (purge).
   const [delOpen, setDelOpen] = useState(false);
+  const [delMode, setDelMode] = useState<'delete' | 'purge'>('delete');
   const [delBusy, setDelBusy] = useState(false);
   async function confirmDelete() {
-    if (!p.onDelete) return;
+    const handler = delMode === 'purge' ? p.onPurge : p.onDelete;
+    if (!handler) return;
     setDelBusy(true);
-    try { await p.onDelete(selectedRows); setSel(new Set()); }
+    try { await handler(selectedRows); setSel(new Set()); }
     finally { setDelBusy(false); setDelOpen(false); }
   }
   const edit = p.onEdit ?? p.onRowClick;
@@ -357,16 +374,29 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   // azioni standard dipendenti dalla selezione
   const stdActions: ListAction[] = [];
   if (selectable) {
-    if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
-    if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-    if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
-    if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => setDelOpen(true) });
+    if (p.archived) {
+      // vista archiviati: Ripristina · Storico (1 sola) · Esporta · Elimina definitiva
+      if (p.onRestore) stdActions.push({ key: 'restore', icon: RotateCcw, tip: 'Ripristina', disabled: count < 1, onClick: () => count >= 1 && void p.onRestore!(selectedRows) });
+      if (p.onHistory) stdActions.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
+      if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
+      if (p.onPurge) stdActions.push({ key: 'purge', icon: Trash2, tip: 'Elimina definitivamente', variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('purge'); setDelOpen(true); } });
+    } else {
+      if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
+      if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
+      if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
+      if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('delete'); setDelOpen(true); } });
+      if (p.onHistory) stdActions.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
+    }
   }
 
   // azioni "di sinistra": built-in standard (Filtri/Colonne/AI) + eventuali custom della pagina.
   // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
+  const archivedToggle: ListAction[] = (!pick && p.onToggleArchived)
+    ? [{ key: 'archived', icon: Archive, tip: p.archived ? 'Torna agli attivi' : 'Mostra archiviati', variant: (p.archived ? 'primary' : undefined) as ListAction['variant'], onClick: () => p.onToggleArchived!(!p.archived) }]
+    : [];
   const builtinLeft: ListAction[] = pick ? [] : [
+    ...archivedToggle,
     canGroup
       ? { key: 'gruppo', icon: ListFilter, tip: filterConds.length ? `Filtra (Gruppo) · ${filterConds.length}` : 'Filtra (Gruppo)', variant: (filterConds.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setGroupOpen(true) }
       : { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
@@ -466,7 +496,17 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                     {pick && <td style={{ width: 40 }} onClick={(e) => { e.stopPropagation(); p.onToggleSelect?.(row); }}>
                       <input type={mode === 'pick-multi' ? 'checkbox' : 'radio'} checked={isSel} readOnly /></td>}
                     {selectable && <td className="chk" onClick={(e) => { e.stopPropagation(); toggleRow(row); }}><input type="checkbox" checked={isSel} readOnly aria-label="Seleziona riga" /></td>}
-                    {effColumns.map((c) => <td key={c.key} className={c.num ? 'num' : undefined}>{c.render(row)}</td>)}
+                    {effColumns.map((c, ci) => (
+                      <td key={c.key} className={c.num ? 'num' : undefined}>
+                        {p.archived && ci === 0 && (
+                          <span className="chip" title={p.archivedBadge?.(row) ?? undefined}
+                            style={{ background: 'var(--surface-soft, #f3f4f6)', color: 'var(--ink-soft)', marginRight: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                            <Archive size={11} /> Archiviato
+                          </span>
+                        )}
+                        {c.render(row)}
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
@@ -549,11 +589,18 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           onClose={() => setReportOpen(false)} />
       )}
 
-      <ConfirmDialog open={delOpen} danger title={count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle')}
-        message={count === 1
-          ? `Stai per eliminare «${labelOf(selectedRows[0]!)}». L'operazione non è reversibile.`
-          : `Stai per eliminare ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`}
-        confirmLabel={t('list.delete')} busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
+      <ConfirmDialog open={delOpen} danger
+        title={delMode === 'purge'
+          ? (count > 1 ? `Elimina definitivamente ${count} elementi` : 'Elimina definitivamente')
+          : (count > 1 ? t('list.deleteManyTitle', { n: count }) : t('list.deleteOneTitle'))}
+        message={delMode === 'purge'
+          ? (count === 1
+            ? `Eliminazione DEFINITIVA e irreversibile di «${labelOf(selectedRows[0]!)}».`
+            : `Eliminazione DEFINITIVA e irreversibile di ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`)
+          : (count === 1
+            ? `Stai per eliminare «${labelOf(selectedRows[0]!)}». L'operazione non è reversibile.`
+            : `Stai per eliminare ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`)}
+        confirmLabel={delMode === 'purge' ? 'Elimina definitivamente' : t('list.delete')} busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
 
       {aiFilterOpen && (
         <AiFilterPanel open entity={p.exportName ?? p.title ?? 'lista'}

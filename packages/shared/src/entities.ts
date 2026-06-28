@@ -76,6 +76,10 @@ export interface CompanyDto {
   attributes: Record<string, unknown>;
   roles: string[];
   createdAt: string;
+  /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */
+  archivedAt: string | null;
+  /** nome dell'utente che ha archiviato (join app_user), altrimenti null. */
+  archivedByName: string | null;
 }
 
 /* ── Deduplica Soggetti (merge company) ────────────────────────────────
@@ -157,6 +161,10 @@ export interface AssetDto {
   workOrderSubjectId: string | null; parentAssetId: string | null;
   model: string | null; manufacturer: string | null; warrantyUntil: string | null; status: string | null;
   installedOn: string | null; attributes: Record<string, unknown>; createdAt: string;
+  /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */
+  archivedAt: string | null;
+  /** nome dell'utente che ha archiviato (join app_user), altrimenti null. */
+  archivedByName: string | null;
 }
 
 /* ── Resource ──────────────────────────────────────────────────────── */
@@ -182,6 +190,10 @@ export interface ResourceDto {
   workingHours?: Record<string, [string, string][]> | null;
   /** nome dell'utente collegato (solo nel dettaglio). */
   userName?: string | null;
+  /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */
+  archivedAt: string | null;
+  /** nome dell'utente che ha archiviato (join app_user), altrimenti null. */
+  archivedByName: string | null;
 }
 
 /* ── Engagement template (modelli di commessa: instanziazione blueprint) ── */
@@ -264,6 +276,25 @@ export interface MaterialDto {
   /** scorta sotto la minima (reorder_point). */
   lowStock: boolean;
   attributes: Record<string, unknown>;
+  /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */
+  archivedAt: string | null;
+  /** nome dell'utente che ha archiviato (join app_user), altrimenti null. */
+  archivedByName: string | null;
+}
+
+/* ── Audit log (registro azioni soft-delete: archive/restore/purge) ─── */
+export type AuditActionDto = 'create' | 'update' | 'archive' | 'restore' | 'purge' | 'delete';
+export interface AuditEntryDto {
+  id: string;
+  entity: string;
+  entityId: string;
+  action: AuditActionDto;
+  label: string | null;
+  /** nome dell'utente che ha eseguito l'azione (join app_user), altrimenti null. */
+  userName: string | null;
+  /** ISO timestamptz dell'azione. */
+  at: string;
+  detail: unknown;
 }
 
 /* ── Unità seriale (stock_serial_unit) — ciclo di vita + parco installato ── */
@@ -387,6 +418,10 @@ export interface SiteDto {
   id: string; companyId: string | null; parentId: string | null;
   name: string; kind: string; address: Record<string, unknown>;
   attributes: Record<string, unknown>;
+  /** soft-delete: ISO timestamptz se archiviato, altrimenti null. */
+  archivedAt: string | null;
+  /** nome dell'utente che ha archiviato (join app_user), altrimenti null. */
+  archivedByName: string | null;
 }
 
 /* ── Phase ─────────────────────────────────────────────────────────── */

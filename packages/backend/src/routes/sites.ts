@@ -6,12 +6,15 @@ import { createSiteSchema, updateSiteSchema, type SiteDto } from '@sisuite/share
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { findUsage, usageMessage, SITE_REFS } from '../context/usageGuard.js';
+import { logAudit } from '../context/audit.js';
 
 function toDto(r: Record<string, unknown>): SiteDto {
   return {
     id: r.id as string, companyId: (r.company_id as string) ?? null, parentId: (r.parent_id as string) ?? null,
     name: r.name as string, kind: r.kind as string, address: (r.address as Record<string, unknown>) ?? {},
     attributes: (r.attributes as Record<string, unknown>) ?? {},
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 const asJson = (v: unknown): string | null => (v == null ? null : JSON.stringify(v));
@@ -20,11 +23,16 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { company_id?: string } }>('/sites',
     { preHandler: [app.authenticate, requirePermission('site:read')] }, async (request) =>
       withRls(request.ctx, async (db) => {
+        const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+        const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+        const archivedCond = onlyArchived ? 's.archived_at IS NOT NULL' : 's.archived_at IS NULL';
         const params: unknown[] = [];
-        let where = `WHERE archived_at IS NULL`;
-        if (request.query.company_id) { params.push(request.query.company_id); where += ` AND company_id = $1`; }
+        let where = `WHERE ${archivedCond}`;
+        if (request.query.company_id) { params.push(request.query.company_id); where += ` AND s.company_id = $1`; }
         const rows = await db.query(
-          `SELECT id, company_id, parent_id, name, kind, address, attributes FROM site ${where} ORDER BY name`, params);
+          `SELECT s.id, s.company_id, s.parent_id, s.name, s.kind, s.address, s.attributes,
+                  s.archived_at, au.full_name AS archived_by_name
+           FROM site s LEFT JOIN app_user au ON au.id = s.archived_by ${where} ORDER BY s.name`, params);
         return { items: rows.rows.map(toDto) };
       }));
 
@@ -60,11 +68,47 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
         if (!r.rows.length) return { code: 'notfound' as const };
         const used = await findUsage(db, request.params.id, SITE_REFS);
         if (used.length) return { code: 'used' as const, name: r.rows[0].name as string, used };
-        await db.query(`UPDATE site SET archived_at = now(), updated_by=$2 WHERE id=$1`, [request.params.id, request.ctx.userId]);
+        await db.query(`UPDATE site SET archived_at = now(), archived_by=$2, updated_by=$2 WHERE id=$1`, [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'site', entityId: request.params.id, action: 'archive', label: r.rows[0].name as string });
         return { code: 'ok' as const };
       });
       if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Sito non trovato', statusCode: 404 });
       if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA un sito archiviato
+  app.post<{ Params: { id: string } }>('/sites/:id/restore', { preHandler: [app.authenticate, requirePermission('site:update')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE site SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1 AND archived_at IS NOT NULL RETURNING name`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'site', entityId: request.params.id, action: 'restore', label: upd.rows[0].name as string });
+        const r = await db.query(
+          `SELECT s.id, s.company_id, s.parent_id, s.name, s.kind, s.address, s.attributes,
+                  s.archived_at, au.full_name AS archived_by_name
+           FROM site s LEFT JOIN app_user au ON au.id = s.archived_by WHERE s.id = $1`, [request.params.id]);
+        return toDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Sito non trovato o non archiviato', statusCode: 404 });
+      return dto;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/sites/:id/purge', { preHandler: [app.authenticate, requirePermission('site:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name, archived_at FROM site WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'site', entityId: request.params.id, action: 'purge', label: r.rows[0].name as string });
+        await db.query(`DELETE FROM site WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Sito non trovato', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 }

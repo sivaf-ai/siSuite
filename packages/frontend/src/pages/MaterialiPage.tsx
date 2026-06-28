@@ -13,10 +13,15 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
 import { Package } from 'lucide-react';
-import { useApi, useReloadOnEnter } from '../api/hooks';
+import { useApi, useReloadOnEnter, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../ui/Toast';
+import { ApiError } from '../api/client';
+import { AuditDialog } from '../ui/AuditDialog';
 import { Modal } from '../ui/Modal';
 import { MaterialeDetailPage } from './MaterialeDetailPage';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 /** Props di SELEZIONE: la stessa lista, richiamata in pop-up da un'altra maschera
  *  (es. righe DDT). Radio invece di checkbox; "+ Nuovo" e click-riga aprono la CRUD
@@ -69,6 +74,7 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
   const { user } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
+  const toast = useToast();
   const can = (a: string) => !!user?.permissions.includes(`material:${a}` as never);
   const pick = pickProps?.pick;
 
@@ -78,14 +84,33 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD articolo in modale (pick mode)
+  const [archived, setArchived] = useState(false);
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset) });
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<ListResp>(`/materials?${params.toString()}`);
   useReloadOnEnter(reload);
+
+  const onRestore = async (rows: MaterialDto[]) => {
+    try {
+      for (const r of rows) await mutate('POST', `/materials/${r.id}/restore`);
+      toast(rows.length > 1 ? `${rows.length} articoli ripristinati` : 'Articolo ripristinato');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (rows: MaterialDto[]) => {
+    try {
+      for (const r of rows) await mutate('DELETE', `/materials/${r.id}/purge`);
+      toast(rows.length > 1 ? `${rows.length} articoli eliminati definitivamente` : 'Articolo eliminato definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<MaterialDto>({
     basePath: '/materials', reload, noun: 'articolo',
@@ -145,6 +170,13 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
         onRowClick={onRowClick}
         onDelete={!pick && can('delete') ? onDelete : undefined}
         onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setOffset(0); setClearTok((x) => x + 1); }}
+        onRestore={can('delete') ? onRestore : undefined}
+        onPurge={can('delete') ? onPurge : undefined}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.name })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        clearSelectionToken={clearTok}
         exportName="articoli" exportFields={exportFields} entity="material"
         sortFields={[{ key: 'name', label: 'Articolo' }, { key: 'sku', label: 'SKU' }, { key: 'qty', label: 'Giacenza' }, { key: 'cost', label: 'Costo medio' }]}
         filterFields={[
@@ -175,6 +207,10 @@ export function MaterialiPage({ pickProps }: { pickProps?: MaterialiPickProps } 
     </Modal>
   );
 
-  if (pick) return <>{list}{crudModal}</>;
-  return <Page>{list}{crudModal}</Page>;
+  const auditModal = audit && (
+    <AuditDialog entity="material" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />
+  );
+
+  if (pick) return <>{list}{crudModal}{auditModal}</>;
+  return <Page>{list}{crudModal}{auditModal}</Page>;
 }

@@ -59,6 +59,7 @@ import { materialCatalogRoutes } from './routes/materialCatalog.js';
 import { unitOfMeasureRoutes } from './routes/unitsOfMeasure.js';
 import { warehouseRoutes } from './routes/warehouse.js';
 import { resourceExtrasRoutes } from './routes/resourceExtras.js';
+import { auditRoutes } from './routes/audit.js';
 
 async function build() {
   const app = Fastify({
@@ -193,6 +194,7 @@ async function build() {
   await app.register(unitOfMeasureRoutes);
   await app.register(warehouseRoutes);
   await app.register(resourceExtrasRoutes);
+  await app.register(auditRoutes);
 
   return app;
 }

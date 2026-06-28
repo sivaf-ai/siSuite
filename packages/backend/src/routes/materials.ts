@@ -10,6 +10,7 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { findUsage, usageMessage, MATERIAL_REFS } from '../context/usageGuard.js';
+import { logAudit } from '../context/audit.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 import { validateAttributes } from '../fields.js';
@@ -39,11 +40,13 @@ const SELECT = `
          COALESCE(bal.qty, 0) AS qty_on_hand,
          CASE WHEN COALESCE(bal.qty,0) > 0 THEN bal.val / bal.qty ELSE m.default_cost END AS avg_cost,
          (m.track_stock AND m.reorder_point IS NOT NULL
-            AND COALESCE(bal.qty,0) < m.reorder_point) AS low_stock
+            AND COALESCE(bal.qty,0) < m.reorder_point) AS low_stock,
+         m.archived_at, au.full_name AS archived_by_name
   FROM material m
   LEFT JOIN material_category cat ON cat.id = m.category_id
   LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
   LEFT JOIN unit_of_measure wu ON wu.id = m.weight_unit_id
+  LEFT JOIN app_user au ON au.id = m.archived_by
   LEFT JOIN material_image pi ON pi.material_id = m.id AND pi.is_primary
   LEFT JOIN LATERAL (
     SELECT sum(b.qty_on_hand) AS qty, sum(b.value_on_hand) AS val
@@ -70,6 +73,8 @@ function toDto(r: Record<string, unknown>): MaterialDto {
     qtyOnHand: Number(r.qty_on_hand ?? 0), avgCost: num(r.avg_cost),
     lowStock: (r.low_stock as boolean) ?? false,
     attributes: (r.attributes as Record<string, unknown>) ?? {},
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 
@@ -93,10 +98,13 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
   app.get('/materials', { preHandler: [app.authenticate, requirePermission('material:read')] }, async (request) => {
     const q = listQuerySchema.parse(request.query);
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
+    const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+    const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+    const archivedCond = onlyArchived ? 'm.archived_at IS NOT NULL' : 'm.archived_at IS NULL';
     const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'm.name', q.sortDir, 'm.attributes');
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
-      let where = `WHERE m.archived_at IS NULL`;
+      let where = `WHERE ${archivedCond}`;
       if (q.q) { params.push(`%${q.q}%`); const i = params.length; where += ` AND (m.name ILIKE $${i} OR m.code ILIKE $${i} OR m.sku ILIKE $${i} OR m.barcode ILIKE $${i})`; }
       if (view === 'stock') where += ` AND m.track_stock`;
       else if (view === 'serial') where += ` AND m.tracked_by_serial`;
@@ -242,11 +250,46 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
         if (!r.rows.length) return { code: 'notfound' as const };
         const used = await findUsage(db, request.params.id, MATERIAL_REFS);
         if (used.length) return { code: 'used' as const, name: r.rows[0].name as string, used };
-        await db.query(`UPDATE material SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await db.query(`UPDATE material SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]);
+        await logAudit(db, request.ctx, { entity: 'material', entityId: request.params.id, action: 'archive', label: r.rows[0].name as string });
         return { code: 'ok' as const };
       });
       if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Articolo non trovato', statusCode: 404 });
       if (res.code === 'used') return reply.code(409).send({ error: 'conflict', message: usageMessage(res.name, res.used), statusCode: 409 });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA un articolo archiviato
+  app.post<{ Params: { id: string } }>('/materials/:id/restore', { preHandler: [app.authenticate, requirePermission('material:update')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE material SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1 AND archived_at IS NOT NULL RETURNING name`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'material', entityId: request.params.id, action: 'restore', label: upd.rows[0].name as string });
+        const r = await db.query(`${SELECT} WHERE m.id = $1`, [request.params.id]);
+        return withPrimaryUrl(toDto(r.rows[0]), r.rows[0].primary_image_key);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Articolo non trovato o non archiviato', statusCode: 404 });
+      return dto;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/materials/:id/purge', { preHandler: [app.authenticate, requirePermission('material:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name, archived_at FROM material WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        // logghiamo il tentativo PRIMA del delete: se la FK RESTRICT blocca (23503),
+        // resta traccia dell'azione tentata; l'errore propaga al gestore globale (409).
+        await logAudit(db, request.ctx, { entity: 'material', entityId: request.params.id, action: 'purge', label: r.rows[0].name as string });
+        await db.query(`DELETE FROM material WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Articolo non trovato', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 }
