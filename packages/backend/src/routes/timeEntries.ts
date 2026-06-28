@@ -15,11 +15,14 @@ const SELECT = `SELECT id, engagement_id, activity_id, resource_id, typology, ty
   occurred_on, notes, cost_rate, bill_rate, currency, billable, approval_status_id, is_locked, lock_reason, created_at
   FROM time_entry`;
 
+// campi DATE → 'yyyy-MM-dd' (pg li dà come Date → ISO completo, rifiutato da <input type=date>)
+const day = (v: unknown): string => (v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
+
 function toDto(r: Record<string, unknown>): TimeEntryDto {
   return {
     id: r.id as string, engagementId: (r.engagement_id as string) ?? null, activityId: (r.activity_id as string) ?? null,
     resourceId: (r.resource_id as string) ?? null, typology: r.typology as string, typologyId: (r.typology_id as string) ?? null,
-    minutes: r.minutes as number, occurredOn: r.occurred_on as string, notes: (r.notes as string) ?? null,
+    minutes: r.minutes as number, occurredOn: day(r.occurred_on), notes: (r.notes as string) ?? null,
     costRate: r.cost_rate === null ? null : Number(r.cost_rate), billRate: r.bill_rate === null ? null : Number(r.bill_rate),
     currency: (r.currency as string) ?? null, billable: r.billable as boolean,
     approvalStatusId: (r.approval_status_id as string) ?? null, isLocked: r.is_locked as boolean,

@@ -43,6 +43,9 @@ interface DbRow {
   attributes: Record<string, unknown> | null;
 }
 
+// campi DATE → 'yyyy-MM-dd' (pg li dà come Date → ISO completo, rifiutato da <input type=date>)
+const dayN = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
+
 function toDto(r: DbRow): EngagementDto {
   return {
     id: r.id,
@@ -53,8 +56,8 @@ function toDto(r: DbRow): EngagementDto {
     companyName: r.company_name,
     statusId: r.status_id,
     statusCanonical: r.status_canonical,
-    startedOn: r.started_on,
-    endedOn: r.ended_on,
+    startedOn: dayN(r.started_on),
+    endedOn: dayN(r.ended_on),
     createdAt: r.created_at,
     attributes: r.attributes ?? {},
   };

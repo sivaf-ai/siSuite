@@ -17,6 +17,14 @@ import { buildOrderBy } from '../sortSql.js';
 
 const LOC_FILTER: Record<string, string> = { name: 'name', kind: 'kind' };
 
+// I campi DATE vanno restituiti come 'yyyy-MM-dd' (pg li dà come Date → ISO completo,
+// che gli <input type=date> rifiutano).
+const day = (v: unknown): string => {
+  if (v == null) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  return String(v).slice(0, 10);
+};
+
 const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: string }> = {
   receipt: { key: 'stock_receipt', fmt: 'CAR-{YYYY}-{SEQ:4}' },
   transfer: { key: 'ddt', fmt: 'DDT-{YYYY}-{SEQ:4}' },
@@ -260,7 +268,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     LEFT JOIN company c ON c.id = d.company_id`;
   const docDto = (r: Record<string, unknown>): StockDocumentDto => ({
     id: r.id as string, typeId: r.type_id as string, typeCanonical: (r.type_canonical as string) ?? null,
-    number: (r.number as string) ?? null, docDate: r.doc_date as string, status: r.status as string,
+    number: (r.number as string) ?? null, docDate: day(r.doc_date), status: r.status as string,
     sourceLocationId: (r.source_location_id as string) ?? null, sourceLocationName: (r.source_name as string) ?? null,
     destLocationId: (r.dest_location_id as string) ?? null, destLocationName: (r.dest_name as string) ?? null,
     companyId: (r.company_id as string) ?? null, companyName: (r.company_name as string) ?? null,

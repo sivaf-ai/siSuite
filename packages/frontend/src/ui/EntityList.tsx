@@ -457,7 +457,12 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
                 const isSel = pick ? pickSelected.has(row.id) : sel.has(row.id);
                 return (
                   <tr key={row.id} className={isSel ? 'sel' : undefined}
-                    onClick={() => (pick ? (p.onRowClick ? p.onRowClick(row) : p.onToggleSelect?.(row)) : p.onRowClick?.(row))}>
+                    onClick={() => {
+                      // togli il focus dal bottone/elemento corrente prima di navigare:
+                      // evita il warning Ionic "aria-hidden on a focused element" sulla pagina che viene nascosta.
+                      (document.activeElement as HTMLElement | null)?.blur?.();
+                      if (pick) { p.onRowClick ? p.onRowClick(row) : p.onToggleSelect?.(row); } else { p.onRowClick?.(row); }
+                    }}>
                     {pick && <td style={{ width: 40 }} onClick={(e) => { e.stopPropagation(); p.onToggleSelect?.(row); }}>
                       <input type={mode === 'pick-multi' ? 'checkbox' : 'radio'} checked={isSel} readOnly /></td>}
                     {selectable && <td className="chk" onClick={(e) => { e.stopPropagation(); toggleRow(row); }}><input type="checkbox" checked={isSel} readOnly aria-label="Seleziona riga" /></td>}
