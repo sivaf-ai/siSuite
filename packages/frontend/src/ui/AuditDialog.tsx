@@ -28,10 +28,10 @@ export function AuditDialog({ entity, entityId, title, onClose }: {
   entity: string; entityId: string; title?: string; onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const { data, loading, error } = useApi<AuditEntryDto[]>(
+  const { data, loading, error } = useApi<{ items: AuditEntryDto[] }>(
     `/audit?entity=${encodeURIComponent(entity)}&entityId=${encodeURIComponent(entityId)}`,
   );
-  const items = data ?? [];
+  const items = data?.items ?? [];
 
   return (
     <Modal open size="md" title={title ? `Storico · ${title}` : (t('audit.title') ?? 'Storico')} onClose={onClose}>

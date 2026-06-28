@@ -601,8 +601,8 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
             ? `Eliminazione DEFINITIVA e irreversibile di «${labelOf(selectedRows[0]!)}».`
             : `Eliminazione DEFINITIVA e irreversibile di ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`)
           : (count === 1
-            ? `Stai per eliminare «${labelOf(selectedRows[0]!)}». L'operazione non è reversibile.`
-            : `Stai per eliminare ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}.`)}
+            ? `Vuoi eliminare «${labelOf(selectedRows[0]!)}»?`
+            : `Vuoi eliminare ${count} elementi: ${selectedRows.slice(0, 8).map(labelOf).join(', ')}${count > 8 ? `, e altri ${count - 8}` : ''}?`)}
         confirmLabel={delMode === 'purge' ? 'Elimina definitivamente' : t('list.delete')} busy={delBusy} onConfirm={() => void confirmDelete()} onCancel={() => setDelOpen(false)} />
 
       {aiFilterOpen && (
