@@ -2,6 +2,15 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-28 — Fix UX/integrità + Codice articolo + STANDARD doc (chat 01.06)
+- Frontend + migr **054** (prossima libera **055**). Commit `e010763`+`62e1775`+`6f6d53b`.
+- **Doppia conferma cancellazione** RISOLTA (UnitsPage, TaxRatesPage passavano a EntityList un onDelete che apriva una 2ª ConfirmDialog → ora cancellazione diretta; EntityList è l'unico a confermare, col nome). Standard E-1.
+- **migr 054 — unicità ignora gli ARCHIVIATI**: gli UNIQUE chiave-naturale diventano parziali `WHERE archived_at IS NULL` (material name/sku/code, company/engagement/work_order code, purchase_order number, stock_location code, saved_report, work_order principal_ref). Bug «Prova» risolto. Eccezione: stock_serial_unit. Standard DB-4.
+- **Testata lista FISSA (sticky)**: header+toolbar restano fissi, scrollano solo le righe. Centrale in `ui/EntityList` (`.dsx-head` sticky, CSS `theme/datapages.css`) → tutte le liste. Standard L-3. Memoria [[feedback_list_sticky_header]].
+- **Codice articolo editabile**: `code` (default number_series) ora sovrascrivibile a mano (scelta utente dopo analisi leader ERP). Shared `createMaterialSchema.code`, backend create/PATCH, FE scheda+lista. Unicità archived-aware.
+- **`docs/STANDARD_siSuite.md`**: raccolta UNICA di tutte le regole tassative (A–H) per enforcement cross-sessione.
+- Verifica: typecheck shared+BE+FE puliti, smoke live di tutti i casi.
+
 ## 2026-06-27 (3) — Chiusura TOTALE residui audit (chat 01.06)
 - Solo frontend + 2 route backend (nessuna migrazione nuova; prossima libera resta **054**). Commit `e44d761` su `main`.
 - **Picker entità** (riuso lista vera in Modal): nuovi `ui/ResourcePickerDialog` (con "+ Nuovo"), `EngagementPickerDialog`, `WorkOrderPickerDialog`. `RisorsePage`/`EngagementsPage`/`OrdinativiPage` con `pickProps`; `RisorsaDetailPage` embed. Cablati al posto dei `<select>` entità in: PickList (risorsa/commessa/WO), Ordinativo (commessa/squadra), Lavorazioni (commessa), UserDetail (risorsa), CommessaDetail (cliente in creazione).
