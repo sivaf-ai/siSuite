@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, Archive, RotateCcw, History } from 'lucide-react';
+import { Search, Pencil, Copy, Download, Trash2, SlidersHorizontal, Columns3, Sparkles, ArrowUpDown, Archive, RotateCcw, History, MoreVertical } from 'lucide-react';
 import type { LucideIcon } from './icons';
 import { type FieldDefinitionDto, fieldLabel, GROUP_LABEL_IT } from '@sisuite/shared';
 import { useApi, mutate } from '../api/hooks';
@@ -363,6 +363,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   }
   // ConfirmDialog interna: serve sia per Elimina (delete) sia per Elimina definitiva (purge).
   const [delOpen, setDelOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const [delMode, setDelMode] = useState<'delete' | 'purge'>('delete');
   const [delBusy, setDelBusy] = useState(false);
   async function confirmDelete() {
@@ -374,32 +375,35 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   }
   const edit = p.onEdit ?? p.onRowClick;
 
-  // azioni standard dipendenti dalla selezione
-  const stdActions: ListAction[] = [];
+  // azioni standard dipendenti dalla selezione, divise tra PRIMARIE (in toolbar) e
+  // SECONDARIE (nel menu overflow ⋮): teniamo a vista le 2-3 più usate, il resto nel ⋮.
+  const stdPrimary: ListAction[] = [];
+  const stdOverflow: ListAction[] = [];
   if (selectable) {
     if (p.archived) {
-      // vista archiviati: Ripristina · Storico (1 sola) · Esporta · Elimina definitiva
-      if (p.onRestore) stdActions.push({ key: 'restore', icon: RotateCcw, tip: 'Ripristina', disabled: count < 1, onClick: () => count >= 1 && void p.onRestore!(selectedRows) });
-      if (p.onHistory) stdActions.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
-      if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
-      if (p.onPurge) stdActions.push({ key: 'purge', icon: Trash2, tip: 'Elimina definitivamente', variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('purge'); setDelOpen(true); } });
+      // vista archiviati: Ripristina + Elimina definitiva in toolbar; Storico + Esporta nel ⋮
+      if (p.onRestore) stdPrimary.push({ key: 'restore', icon: RotateCcw, tip: 'Ripristina', disabled: count < 1, onClick: () => count >= 1 && void p.onRestore!(selectedRows) });
+      if (p.onPurge) stdPrimary.push({ key: 'purge', icon: Trash2, tip: 'Elimina definitivamente', variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('purge'); setDelOpen(true); } });
+      if (p.onHistory) stdOverflow.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
+      if (p.onExport || exportSource.length) stdOverflow.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
     } else {
-      if (edit) stdActions.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
-      if (p.onDuplicate) stdActions.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
-      if (p.onExport || exportSource.length) stdActions.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
-      if (p.onDelete) stdActions.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('delete'); setDelOpen(true); } });
-      if (p.onHistory) stdActions.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
+      // normale: Modifica · Duplica · Elimina in toolbar; Esporta + Storico nel ⋮
+      if (edit) stdPrimary.push({ key: 'edit', icon: Pencil, tip: t('list.edit'), disabled: count !== 1, onClick: () => count === 1 && edit(selectedRows[0]!) });
+      if (p.onDuplicate) stdPrimary.push({ key: 'dup', icon: Copy, tip: t('list.duplicate'), disabled: count !== 1, onClick: () => count === 1 && p.onDuplicate!(selectedRows[0]!) });
+      if (p.onDelete) stdPrimary.push({ key: 'del', icon: Trash2, tip: count > 1 ? t('list.deleteN', { n: count }) : t('list.delete'), variant: 'danger', disabled: count < 1, onClick: () => { setDelMode('delete'); setDelOpen(true); } });
+      if (p.onExport || exportSource.length) stdOverflow.push({ key: 'exp', icon: Download, tip: count > 1 ? t('list.exportN', { n: count }) : t('list.export'), disabled: count < 1, onClick: openExport });
+      if (p.onHistory) stdOverflow.push({ key: 'history', icon: History, tip: 'Storico', disabled: count !== 1, onClick: () => count === 1 && p.onHistory!(selectedRows[0]!) });
     }
+  }
+  // Toggle soft-delete "Mostra archiviati"/"Torna agli attivi": azione secondaria → nel ⋮.
+  if (!pick && p.onToggleArchived) {
+    stdOverflow.push({ key: 'archived', icon: Archive, tip: p.archived ? 'Torna agli attivi' : 'Mostra archiviati', variant: (p.archived ? 'primary' : undefined) as ListAction['variant'], onClick: () => p.onToggleArchived!(!p.archived) });
   }
 
   // azioni "di sinistra": built-in standard (Filtri/Colonne/AI) + eventuali custom della pagina.
   // I placeholder con key filters/cols/ai passati dalle pagine vengono sostituiti dai built-in.
   const customLeft = (p.leftActions ?? []).filter((a) => !['filters', 'cols', 'ai'].includes(a.key));
-  const archivedToggle: ListAction[] = (!pick && p.onToggleArchived)
-    ? [{ key: 'archived', icon: Archive, tip: p.archived ? 'Torna agli attivi' : 'Mostra archiviati', variant: (p.archived ? 'primary' : undefined) as ListAction['variant'], onClick: () => p.onToggleArchived!(!p.archived) }]
-    : [];
   const builtinLeft: ListAction[] = pick ? [] : [
-    ...archivedToggle,
     canGroup
       ? { key: 'gruppo', icon: ListFilter, tip: filterConds.length ? `Filtra (Gruppo) · ${filterConds.length}` : 'Filtra (Gruppo)', variant: (filterConds.length ? 'primary' : undefined) as ListAction['variant'], onClick: () => setGroupOpen(true) }
       : { key: 'filters', icon: SlidersHorizontal, tip: t('list.filtersSoon'), disabled: true },
@@ -412,7 +416,7 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
   ];
   const leftAll = [...builtinLeft, ...customLeft];
 
-  const hasToolbar = p.onSearch || leftAll.length > 0 || stdActions.length > 0 || p.rightActions;
+  const hasToolbar = p.onSearch || leftAll.length > 0 || stdPrimary.length > 0 || stdOverflow.length > 0 || p.rightActions;
 
   return (
     <div className="dsx">
@@ -453,11 +457,32 @@ export function EntityList<T extends { id: string }>(p: Props<T>) {
           <div className="spacer" />
           {leftAll.map((a) => <Tib key={a.key} a={a} />)}
           {pick && pickSelected.size > 0 && <span className="chip" style={{ marginLeft: 6 }}>{pickSelected.size} selezionati</span>}
-          {stdActions.length > 0 && (
+          {(stdPrimary.length > 0 || stdOverflow.length > 0) && (
             <>
               <span className="tdiv" />
               {count > 0 && <span className="selcount">{count}</span>}
-              {stdActions.map((a) => <Tib key={a.key} a={a} />)}
+              {stdPrimary.map((a) => <Tib key={a.key} a={a} />)}
+              {stdOverflow.length > 0 && (
+                <div className="tib-of-wrap">
+                  <button className="tib" data-tip="Altre azioni" title="Altre azioni" aria-label="Altre azioni"
+                    onClick={() => setOverflowOpen((o) => !o)}>
+                    <MoreVertical /><span className="tib-lbl">Altre azioni</span>
+                  </button>
+                  {overflowOpen && (
+                    <>
+                      <div className="tib-of-back" onClick={() => setOverflowOpen(false)} />
+                      <div className="tib-of-menu">
+                        {stdOverflow.map((a) => { const I = a.icon; return (
+                          <button key={a.key} className={`tib-of-item${a.variant === 'danger' ? ' danger' : ''}${a.variant === 'primary' ? ' on' : ''}`}
+                            disabled={a.disabled} onClick={() => { setOverflowOpen(false); a.onClick?.(); }}>
+                            <I size={15} />{a.tip}
+                          </button>
+                        ); })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
           {(p.rightActions ?? []).length > 0 && <span className="tdiv" />}

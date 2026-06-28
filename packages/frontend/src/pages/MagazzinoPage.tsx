@@ -21,11 +21,15 @@ import { NumInput } from '../ui/NumInput';
 import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { useApi, mutate } from '../api/hooks';
+import { AuditDialog } from '../ui/AuditDialog';
+import { useApi, mutate, useStickyState } from '../api/hooks';
+import { ApiError } from '../api/client';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { downloadXlsx } from '../lib/xlsx';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 const num = (v: unknown) => (v == null ? '' : Number(v).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
 const eur = (v: number | null) => (v == null ? '—' : `€ ${Number(v).toFixed(2)}`);
@@ -52,18 +56,38 @@ export interface LocationPickProps {
 /* ===================================================================== */
 export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } = {}) {
   const history = useHistory();
+  const toast = useToast();
   const { canManage } = usePerms();
   const pick = pickProps?.pick;
   const [q, setQ] = useState('');
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [crud, setCrud] = useState<{ id: string } | null>(null);   // CRUD ubicazione in modale (pick mode)
+  const [archived, setArchived] = useStickyState('sisuite.locations.archived', false);
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
 
   const params = new URLSearchParams({ top: '1' });
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<{ items: StockLocationDto[] }>(`/stock/locations?${params.toString()}`);
+
+  const onRestore = async (sel: StockLocationDto[]) => {
+    try {
+      for (const r of sel) await mutate('POST', `/stock/locations/${r.id}/restore`);
+      toast(sel.length > 1 ? `${sel.length} magazzini ripristinati` : 'Magazzino ripristinato');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (sel: StockLocationDto[]) => {
+    try {
+      for (const r of sel) await mutate('DELETE', `/stock/locations/${r.id}/purge`);
+      toast(sel.length > 1 ? `${sel.length} magazzini eliminati definitivamente` : 'Magazzino eliminato definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<StockLocationDto>({
     basePath: '/stock/locations', reload, noun: 'magazzino', newPath: '/warehouses/new',
@@ -98,6 +122,13 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
         onRowClick={onRowClick}
         onDelete={!pick && canManage ? onDelete : undefined}
         onDuplicate={!pick && canManage ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setClearTok((x) => x + 1); }}
+        onRestore={pick ? undefined : (canManage ? onRestore : undefined)}
+        onPurge={pick ? undefined : (canManage ? onPurge : undefined)}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.name })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        clearSelectionToken={clearTok}
         exportName="magazzini" exportFields={exportFields} rightActions={rightActions}
         filterFields={[
           { key: 'name', label: 'Nome', type: 'text', section: 'Magazzino' },
@@ -119,8 +150,12 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
     </Modal>
   );
 
+  const auditModal = audit && (
+    <AuditDialog entity="stock_location" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />
+  );
+
   if (pick) return <>{list}{crudModal}</>;
-  return <Page>{list}{crudModal}</Page>;
+  return <Page>{list}{crudModal}{auditModal}</Page>;
 }
 
 /* ===================================================================== */

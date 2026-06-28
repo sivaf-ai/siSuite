@@ -76,6 +76,20 @@
 /* badge contatore selezione */
 .dsx .selcount { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px;
   border-radius: var(--r-pill); background: var(--brand); color: #fff; font-size: 12px; font-weight: 700; }
+/* ── Menu overflow (⋮): azioni secondarie raccolte (es. soft-delete) ───────── */
+.dsx .tib-of-wrap { position: relative; }
+.dsx .tib-of-back { position: fixed; inset: 0; z-index: 40; }
+.dsx .tib-of-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 41; min-width: 210px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.dsx .tib-of-item { display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; color: var(--ink-soft); background: none; border: 0; cursor: pointer; text-align: left; }
+.dsx .tib-of-item:hover:not(:disabled) { background: var(--paper); color: var(--ink); }
+.dsx .tib-of-item.on { background: var(--brand-wash); color: var(--brand-ink); font-weight: 600; }
+.dsx .tib-of-item.danger { color: var(--danger); }
+.dsx .tib-of-item.danger:hover:not(:disabled) { background: var(--danger-wash, #fde8e8); }
+.dsx .tib-of-item:disabled { opacity: .4; cursor: not-allowed; }
+.dsx .tib-of-item svg { width: 15px; height: 15px; flex: 0 0 auto; }
 /* colonna checkbox */
 .dsx .t th.chk, .dsx .t td.chk { width: 38px; text-align: center; padding-left: 12px; padding-right: 0; }
 .dsx .t .chk input { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; vertical-align: middle; }

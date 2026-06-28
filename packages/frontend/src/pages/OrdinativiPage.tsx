@@ -14,10 +14,14 @@ import { EntityList, type ListColumn, type ListView, type ListAction } from '../
 import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
 import { SlidersHorizontal, Columns3, Sparkles, Upload, Users, Plus } from '../ui/icons';
-import { useApi, mutate } from '../api/hooks';
+import { useApi, mutate, useStickyState } from '../api/hooks';
 import { useToast } from '../ui/Toast';
+import { ApiError } from '../api/client';
+import { AuditDialog } from '../ui/AuditDialog';
 import { useAuth } from '../auth/AuthContext';
 import { useLookups } from '../context/Lookups';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 interface ListResp {
   items: WorkOrderDto[]; total: number; limit: number; offset: number;
@@ -44,6 +48,7 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
+  const toast = useToast();
   const lookups = useLookups();
   const can = (a: string) => !!user?.permissions.includes(`work_order:${a}` as never);
   const pick = pickProps?.pick;
@@ -57,14 +62,32 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
   const [sortParam, setSortParam] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [archived, setArchived] = useStickyState('sisuite.workorders.archived', false);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ view, limit: String(limit), offset: String(offset), sortBy: 'scheduled', sortDir: 'desc' });
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<ListResp>(`/work-orders?${params.toString()}`);
   const rows = data?.items ?? [];
+
+  const onRestore = async (sel: WorkOrderDto[]) => {
+    try {
+      for (const r of sel) await mutate('POST', `/work-orders/${r.id}/restore`);
+      toast(sel.length > 1 ? `${sel.length} ordini ripristinati` : 'Ordine ripristinato');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (sel: WorkOrderDto[]) => {
+    try {
+      for (const r of sel) await mutate('DELETE', `/work-orders/${r.id}/purge`);
+      toast(sel.length > 1 ? `${sel.length} ordini eliminati definitivamente` : 'Ordine eliminato definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<WorkOrderDto>({
     basePath: '/work-orders', reload, noun: t('terms.work_order'),
@@ -136,6 +159,12 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
         onRowClick={pick ? undefined : (wo) => history.push(`/work-orders/${wo.id}`)}
         onDelete={!pick && can('delete') ? onDelete : undefined}
         onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setOffset(0); setClearTok((x) => x + 1); }}
+        onRestore={pick ? undefined : (can('delete') ? onRestore : undefined)}
+        onPurge={pick ? undefined : (can('delete') ? onPurge : undefined)}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.code })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
         onSelectionChange={pick ? undefined : setSelRows}
         clearSelectionToken={clearTok}
         exportName="ordini-di-lavoro" exportFields={exportFields} entity="work_order" savedViewKey="work_order"
@@ -167,6 +196,7 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
       {importOpen && (
         <ImportModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); void reload(); }} />
       )}
+      {audit && <AuditDialog entity="work_order" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />}
     </Page>
   );
 }

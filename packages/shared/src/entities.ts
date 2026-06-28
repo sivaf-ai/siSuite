@@ -643,6 +643,7 @@ export interface StockLocationDto {
   id: string; parentId: string | null; name: string; kind: string; resourceId: string | null;
   code: string | null; note: string | null; managerUserId: string | null;
   holdsStock: boolean; isDefault: boolean; active: boolean;
+  archivedAt: string | null; archivedByName: string | null;
 }
 
 // movimento singolo (scarico da lavoro, rettifica rapida). quantity = magnitudine
@@ -828,6 +829,8 @@ export interface WorkOrderDto {
   plannedCount: number;     // apparati previsti
   installedCount: number;   // seriali installati
   attributes: Record<string, unknown>;
+  archivedAt: string | null;
+  archivedByName: string | null;
   subject?: WorkOrderSubjectDto;          // solo nel dettaglio
   items?: WorkOrderItemDto[];             // solo nel dettaglio
   serials?: WorkOrderSerialDto[];         // solo nel dettaglio

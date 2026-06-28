@@ -31,6 +31,7 @@ import { nextNumber } from '../numberSeries.js';
 import { lookupDefaultId } from '../status.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
+import { logAudit } from '../context/audit.js';
 import type { PoolClient } from '../db/pool.js';
 
 const SORTABLE: Record<string, string> = {
@@ -110,6 +111,8 @@ function listDto(r: Record<string, unknown>, level: PiiLevel): WorkOrderDto {
     plannedCount: Number(r.planned_count ?? 0),
     installedCount: Number(r.installed_count ?? 0),
     attributes: (r.attributes as Record<string, unknown>) ?? {},
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 
@@ -145,6 +148,7 @@ const LIST_SELECT = `
          wo.status_id, lv.canonical AS status_canonical,
          wo.assigned_resource_id, r.label AS assigned_resource_label,
          wo.address, wo.scheduled_on, wo.completed_on, wo.attributes,
+         wo.archived_at, au.full_name AS archived_by_name,
          sub.full_name AS subject_full_name,
          (SELECT count(*)::int FROM work_order_item wi WHERE wi.work_order_id = wo.id) AS planned_count,
          (SELECT count(*)::int FROM stock_serial_unit su WHERE su.work_order_id = wo.id AND su.status = 'installed') AS installed_count
@@ -154,6 +158,7 @@ const LIST_SELECT = `
   LEFT JOIN lookup_value lv ON lv.id = wo.status_id
   LEFT JOIN lookup_value lvt ON lvt.id = wo.type_id
   LEFT JOIN resource r      ON r.id = wo.assigned_resource_id
+  LEFT JOIN app_user au     ON au.id = wo.archived_by
   LEFT JOIN work_order_subject sub ON sub.work_order_id = wo.id`;
 
 export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
@@ -162,11 +167,13 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
     const q = listQuerySchema.parse(request.query);
     const view = String((request.query as Record<string, unknown>).view ?? 'all');
     const engagementId = (request.query as Record<string, unknown>).engagementId as string | undefined;
+    const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+    const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
     const level = piiLevel(new Set(request.ctx.permissions));
     const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'wo.scheduled_on', q.sortDir, 'wo.attributes');
     return withRls(request.ctx, async (db) => {
       const params: unknown[] = [];
-      let where = `WHERE wo.archived_at IS NULL`;
+      let where = `WHERE wo.archived_at IS ${onlyArchived ? 'NOT NULL' : 'NULL'}`;
       if (engagementId) { params.push(engagementId); where += ` AND wo.engagement_id = $${params.length}`; }
       if (view === 'unassigned') where += ` AND wo.assigned_resource_id IS NULL AND lv.canonical = 'assigned'`;
       else if (view === 'in_progress') where += ` AND lv.canonical = 'in_progress'`;
@@ -300,11 +307,50 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
       });
     });
 
-  /* ── ELIMINA (soft) ── */
+  /* ── ELIMINA (soft / archivia) ── */
   app.delete<{ Params: { id: string } }>('/work-orders/:id',
     { preHandler: [app.authenticate, requirePermission('work_order:delete')] }, async (request, reply) => {
-      await withRls(request.ctx, (db) =>
-        db.query(`UPDATE work_order SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]));
+      await withRls(request.ctx, async (db) => {
+        const r = await db.query(
+          `UPDATE work_order SET archived_at = now(), archived_by = $2, updated_by = $2
+           WHERE id = $1 AND archived_at IS NULL RETURNING code`,
+          [request.params.id, request.ctx.userId]);
+        if (r.rows.length)
+          await logAudit(db, request.ctx, { entity: 'work_order', entityId: request.params.id, action: 'archive', label: r.rows[0].code as string });
+      });
+      return reply.code(204).send();
+    });
+
+  /* ── RIPRISTINA un ordinativo archiviato ── */
+  app.post<{ Params: { id: string } }>('/work-orders/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('work_order:update')] }, async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE work_order SET archived_at = NULL, archived_by = NULL, updated_by = $2
+           WHERE id = $1 AND archived_at IS NOT NULL RETURNING code`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'work_order', entityId: request.params.id, action: 'restore', label: upd.rows[0].code as string });
+        const r = await db.query(`${LIST_SELECT} WHERE wo.id = $1`, [request.params.id]);
+        return listDto(r.rows[0], piiLevel(new Set(request.ctx.permissions)));
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Ordinativo non trovato o non archiviato', statusCode: 404 });
+      return dto;
+    });
+
+  /* ── ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale. ── */
+  app.delete<{ Params: { id: string } }>('/work-orders/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('work_order:delete')] }, async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT code, archived_at FROM work_order WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'work_order', entityId: request.params.id, action: 'purge', label: r.rows[0].code as string });
+        await db.query(`DELETE FROM work_order WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Ordinativo non trovato', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 

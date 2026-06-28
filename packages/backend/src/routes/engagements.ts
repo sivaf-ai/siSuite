@@ -17,6 +17,7 @@ import { nextNumber } from '../numberSeries.js';
 import { validateAttributes } from '../fields.js';
 import { buildOrderBy } from '../sortSql.js';
 import { buildFilter } from '../filterSql.js';
+import { logAudit } from '../context/audit.js';
 
 const SORTABLE: Record<string, string> = { code: 'e.code', title: 'e.title', createdAt: 'e.created_at' };
 const FILTER_FIELDS: Record<string, string> = {
@@ -29,10 +30,12 @@ const SELECT_DTO = `
   SELECT e.id, e.code, e.title, e.type, e.company_id,
          c.display_name AS company_name,
          e.status_id, lv.canonical AS status_canonical,
-         e.started_on, e.ended_on, e.created_at, e.attributes
+         e.started_on, e.ended_on, e.created_at, e.attributes,
+         e.archived_at, au.full_name AS archived_by_name
   FROM engagement e
   LEFT JOIN company c       ON c.id = e.company_id
   LEFT JOIN lookup_value lv ON lv.id = e.status_id
+  LEFT JOIN app_user au     ON au.id = e.archived_by
 `;
 
 interface DbRow {
@@ -41,6 +44,7 @@ interface DbRow {
   status_id: string; status_canonical: string | null;
   started_on: string | null; ended_on: string | null; created_at: string;
   attributes: Record<string, unknown> | null;
+  archived_at: Date | null; archived_by_name: string | null;
 }
 
 // campi DATE → 'yyyy-MM-dd' (pg li dà come Date → ISO completo, rifiutato da <input type=date>)
@@ -60,6 +64,8 @@ function toDto(r: DbRow): EngagementDto {
     endedOn: dayN(r.ended_on),
     createdAt: r.created_at,
     attributes: r.attributes ?? {},
+    archivedAt: r.archived_at?.toISOString() ?? null,
+    archivedByName: r.archived_by_name ?? null,
   };
 }
 
@@ -83,9 +89,11 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
       const q = listQuerySchema.parse(request.query);
       const type = (request.query as { type?: string }).type;
       const orderBy = buildOrderBy((request.query as Record<string, unknown>).sort as string | undefined, SORTABLE, SORTABLE[q.sortBy ?? ''] ?? 'e.created_at', q.sortBy ? q.sortDir : 'desc', 'e.attributes');
+      const archivedParam = String((request.query as Record<string, unknown>).archived ?? '');
+      const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
       return withRls(request.ctx, async (db) => {
         const params: unknown[] = [];
-        let where = `WHERE e.archived_at IS NULL`;
+        let where = `WHERE e.archived_at IS ${onlyArchived ? 'NOT NULL' : 'NULL'}`;
         if (type) { params.push(type); where += ` AND e.type = $${params.length}`; }
         if (q.q) { params.push(`%${q.q}%`); where += ` AND (e.title ILIKE $${params.length} OR e.code ILIKE $${params.length})`; }
         const fsql = buildFilter((request.query as Record<string, unknown>).filter as string | undefined, FILTER_FIELDS, FILTER_ANY, params);
@@ -201,8 +209,53 @@ export async function engagementRoutes(app: FastifyInstance): Promise<void> {
     '/engagements/:id',
     { preHandler: [app.authenticate, requirePermission('engagement:delete')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) =>
-        db.query(`UPDATE engagement SET archived_at = now(), updated_by = $2 WHERE id = $1`, [request.params.id, request.ctx.userId]));
+      await withRls(request.ctx, async (db) => {
+        const r = await db.query(
+          `UPDATE engagement SET archived_at = now(), archived_by = $2, updated_by = $2
+           WHERE id = $1 AND archived_at IS NULL RETURNING title`,
+          [request.params.id, request.ctx.userId]);
+        if (r.rows.length)
+          await logAudit(db, request.ctx, { entity: 'engagement', entityId: request.params.id, action: 'archive', label: r.rows[0].title as string });
+      });
+      return reply.code(204).send();
+    },
+  );
+
+  // RIPRISTINA una commessa archiviata
+  app.post<{ Params: { id: string } }>(
+    '/engagements/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('engagement:update')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE engagement SET archived_at = NULL, archived_by = NULL, updated_by = $2
+           WHERE id = $1 AND archived_at IS NOT NULL RETURNING title`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'engagement', entityId: request.params.id, action: 'restore', label: upd.rows[0].title as string });
+        const r = await db.query(`${SELECT_DTO} WHERE e.id = $1`, [request.params.id]);
+        return toDto(r.rows[0] as DbRow);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Commessa non trovata o non archiviata', statusCode: 404 });
+      return dto;
+    },
+  );
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviata). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>(
+    '/engagements/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('engagement:delete')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT title, archived_at FROM engagement WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'engagement', entityId: request.params.id, action: 'purge', label: r.rows[0].title as string });
+        await db.query(`DELETE FROM engagement WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Commessa non trovata', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     },
   );

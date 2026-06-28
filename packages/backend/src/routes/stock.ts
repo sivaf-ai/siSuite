@@ -9,13 +9,14 @@ import {
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
+import { logAudit } from '../context/audit.js';
 import type { PoolClient } from '../db/pool.js';
 import { lookupIdByCanonical } from '../lookupResolve.js';
 import { nextNumber } from '../numberSeries.js';
 import { buildFilter } from '../filterSql.js';
 import { buildOrderBy } from '../sortSql.js';
 
-const LOC_FILTER: Record<string, string> = { name: 'name', kind: 'kind' };
+const LOC_FILTER: Record<string, string> = { name: 'sl.name', kind: 'sl.kind' };
 
 // I campi DATE vanno restituiti come 'yyyy-MM-dd' (pg li dà come Date → ISO completo,
 // che gli <input type=date> rifiutano).
@@ -32,12 +33,18 @@ const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: str
 };
 
 const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active`;
+// stessa lista con prefisso sl. + join app_user per il nome di chi ha archiviato (vista archiviati).
+const LOC_SELECT = `sl.id, sl.parent_id, sl.name, sl.kind, sl.resource_id, sl.code, sl.note, sl.manager_user_id,
+  sl.holds_stock, sl.is_default, sl.active, sl.archived_at, au.full_name AS archived_by_name
+  FROM stock_location sl LEFT JOIN app_user au ON au.id = sl.archived_by`;
 function locDto(r: Record<string, unknown>): StockLocationDto {
   return {
     id: r.id as string, parentId: (r.parent_id as string) ?? null, name: r.name as string, kind: r.kind as string,
     resourceId: (r.resource_id as string) ?? null, code: (r.code as string) ?? null, note: (r.note as string) ?? null,
     managerUserId: (r.manager_user_id as string) ?? null, holdsStock: r.holds_stock as boolean,
     isDefault: r.is_default as boolean, active: r.active as boolean,
+    archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
+    archivedByName: (r.archived_by_name as string) ?? null,
   };
 }
 
@@ -65,18 +72,19 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
   app.get('/stock/locations', { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
       const q = request.query as Record<string, unknown>;
+      const archivedParam = String(q.archived ?? '');
+      const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
       const rows = await withRls(request.ctx, (db) => {
         const params: unknown[] = [];
-        let where = `WHERE archived_at IS NULL`;
-        if (q.top === '1') where += ` AND parent_id IS NULL`;
-        if (q.parentId) { params.push(q.parentId); where += ` AND parent_id = $${params.length}`; }
-        if (q.q) { params.push(`%${q.q}%`); where += ` AND name ILIKE $${params.length}`; }
-        const fsql = buildFilter(q.filter as string | undefined, LOC_FILTER, ['name', 'kind'], params);
+        let where = `WHERE sl.archived_at IS ${onlyArchived ? 'NOT NULL' : 'NULL'}`;
+        if (q.top === '1') where += ` AND sl.parent_id IS NULL`;
+        if (q.parentId) { params.push(q.parentId); where += ` AND sl.parent_id = $${params.length}`; }
+        if (q.q) { params.push(`%${q.q}%`); where += ` AND sl.name ILIKE $${params.length}`; }
+        const fsql = buildFilter(q.filter as string | undefined, LOC_FILTER, ['sl.name', 'sl.kind'], params);
         if (fsql) where += ` AND ${fsql}`;
-        const orderBy = buildOrderBy(q.sort as string | undefined, LOC_FILTER, 'name', 'asc');
+        const orderBy = buildOrderBy(q.sort as string | undefined, LOC_FILTER, 'sl.name', 'asc');
         return db.query(
-          `SELECT ${LOC_COLS}
-           FROM stock_location ${where} ORDER BY is_default DESC, ${orderBy}`, params).then((r) => r.rows);
+          `SELECT ${LOC_SELECT} ${where} ORDER BY sl.is_default DESC, ${orderBy}`, params).then((r) => r.rows);
       });
       return { items: rows.map(locDto) };
     });
@@ -85,8 +93,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request, reply) => {
       const r = await withRls(request.ctx, (db) => db.query(
-        `SELECT ${LOC_COLS}
-         FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [request.params.id]).then((x) => x.rows));
+        `SELECT ${LOC_SELECT} WHERE sl.id = $1 AND sl.archived_at IS NULL`, [request.params.id]).then((x) => x.rows));
       if (!r[0]) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
       return locDto(r[0]);
     });
@@ -138,9 +145,49 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string } }>('/stock/locations/:id',
     { preHandler: [app.authenticate, requirePermission('stock:manage')] },
     async (request, reply) => {
-      await withRls(request.ctx, (db) => db.query(
-        `UPDATE stock_location SET archived_at = now(), updated_by = $2 WHERE id = $1 AND archived_at IS NULL`,
-        [request.params.id, request.ctx.userId]));
+      await withRls(request.ctx, async (db) => {
+        const r = await db.query(
+          `UPDATE stock_location SET archived_at = now(), archived_by = $2, updated_by = $2
+           WHERE id = $1 AND archived_at IS NULL RETURNING name`,
+          [request.params.id, request.ctx.userId]);
+        if (r.rows.length)
+          await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'archive', label: r.rows[0].name as string });
+      });
+      return reply.code(204).send();
+    });
+
+  // RIPRISTINA un'ubicazione archiviata
+  app.post<{ Params: { id: string } }>('/stock/locations/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const dto = await withRls(request.ctx, async (db) => {
+        const upd = await db.query(
+          `UPDATE stock_location SET archived_at = NULL, archived_by = NULL, updated_by = $2
+           WHERE id = $1 AND archived_at IS NOT NULL RETURNING name`,
+          [request.params.id, request.ctx.userId]);
+        if (!upd.rows.length) return null;
+        await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'restore', label: upd.rows[0].name as string });
+        const r = await db.query(`SELECT ${LOC_SELECT} WHERE sl.id = $1`, [request.params.id]);
+        return locDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato o non archiviato', statusCode: 404 });
+      return dto;
+    });
+
+  // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.
+  app.delete<{ Params: { id: string } }>('/stock/locations/:id/purge',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const res = await withRls(request.ctx, async (db) => {
+        const r = await db.query(`SELECT name, archived_at FROM stock_location WHERE id = $1`, [request.params.id]);
+        if (!r.rows.length) return { code: 'notfound' as const };
+        if (!r.rows[0].archived_at) return { code: 'notarchived' as const };
+        await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'purge', label: r.rows[0].name as string });
+        await db.query(`DELETE FROM stock_location WHERE id = $1 AND archived_at IS NOT NULL`, [request.params.id]);
+        return { code: 'ok' as const };
+      });
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
+      if (res.code === 'notarchived') return reply.code(409).send({ error: 'conflict', message: 'Si elimina definitivamente solo un record archiviato', statusCode: 409 });
       return reply.code(204).send();
     });
 

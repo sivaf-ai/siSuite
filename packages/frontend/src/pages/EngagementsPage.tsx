@@ -11,9 +11,14 @@ import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Plus } from '../ui/icons';
-import { useApi, useReloadOnEnter } from '../api/hooks';
+import { useApi, useReloadOnEnter, useStickyState, mutate } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../ui/Toast';
+import { ApiError } from '../api/client';
+import { AuditDialog } from '../ui/AuditDialog';
 import { useLookups } from '../context/Lookups';
+
+const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
 
 /** Props di SELEZIONE (solo selezione: creare una commessa inline è oneroso/atipico).
  *  Radio invece di checkbox; click-riga = seleziona invece di navigare. */
@@ -35,6 +40,7 @@ export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProp
   const { t } = useTranslation();
   const { user } = useAuth();
   const history = useHistory();
+  const toast = useToast();
   const lk = useLookups();
   const can = (a: string) => !!user?.permissions.includes(`engagement:${a}` as never);
   const pick = pickProps?.pick;
@@ -44,6 +50,9 @@ export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProp
   const [offset, setOffset] = useState(0);
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
+  const [archived, setArchived] = useStickyState('sisuite.engagements.archived', false);
+  const [clearTok, setClearTok] = useState(0);
+  const [audit, setAudit] = useState<{ id: string; title: string } | null>(null);
   const limit = 25;
 
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
@@ -51,8 +60,24 @@ export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProp
   if (q.trim()) params.set('q', q.trim());
   if (filterParam) params.set('filter', filterParam);
   if (sortParam) params.set('sort', sortParam);
+  if (archived) params.set('archived', '1');
   const { data, loading, error, reload } = useApi<ListResp>(`/engagements?${params.toString()}`);
   useReloadOnEnter(reload);
+
+  const onRestore = async (rows: EngagementDto[]) => {
+    try {
+      for (const r of rows) await mutate('POST', `/engagements/${r.id}/restore`);
+      toast(rows.length > 1 ? `${rows.length} commesse ripristinate` : 'Commessa ripristinata');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante il ripristino', 'error'); }
+  };
+  const onPurge = async (rows: EngagementDto[]) => {
+    try {
+      for (const r of rows) await mutate('DELETE', `/engagements/${r.id}/purge`);
+      toast(rows.length > 1 ? `${rows.length} commesse eliminate definitivamente` : 'Commessa eliminata definitivamente');
+      setClearTok((x) => x + 1); reload();
+    } catch (e) { toast(errMsg(e) || 'Errore durante l\'eliminazione', 'error'); }
+  };
 
   const { onDelete, onDuplicate } = useEntityActions<EngagementDto>({
     basePath: '/engagements', reload, noun: t('terms.engagement'),
@@ -99,6 +124,13 @@ export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProp
         onRowClick={pick ? undefined : (r) => history.push(`/engagements/${r.id}`)}
         onDelete={!pick && can('delete') ? onDelete : undefined}
         onDuplicate={!pick && can('create') ? onDuplicate : undefined}
+        archived={archived}
+        onToggleArchived={pick ? undefined : (v) => { setArchived(v); setOffset(0); setClearTok((x) => x + 1); }}
+        onRestore={pick ? undefined : (can('delete') ? onRestore : undefined)}
+        onPurge={pick ? undefined : (can('delete') ? onPurge : undefined)}
+        onHistory={pick ? undefined : (row) => setAudit({ id: row.id, title: row.title })}
+        archivedBadge={(row) => row.archivedAt ? `Archiviato${row.archivedByName ? ' da ' + row.archivedByName : ''}` : null}
+        clearSelectionToken={clearTok}
         exportName="commesse" exportFields={exportFields} entity="engagement"
         sortFields={[{ key: 'code', label: 'Codice' }, { key: 'title', label: 'Titolo' }, { key: 'createdAt', label: 'Creato' }]}
         filterFields={[
@@ -118,6 +150,10 @@ export function EngagementsPage({ pickProps }: { pickProps?: EngagementsPickProp
       />
   );
 
+  const auditModal = audit && (
+    <AuditDialog entity="engagement" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />
+  );
+
   if (pick) return list;
-  return <Page>{list}</Page>;
+  return <Page>{list}{auditModal}</Page>;
 }
