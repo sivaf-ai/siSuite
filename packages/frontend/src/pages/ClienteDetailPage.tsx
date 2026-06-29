@@ -17,7 +17,6 @@ import { AttrBoxes, AttrField } from '../ui/AttrFields';
 import { AddressField } from '../ui/AddressField';
 import { Modal } from '../ui/Modal';
 import { SiteTree } from '../ui/SiteTree';
-import { Field, type RenderableField } from '../ui/Field';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
@@ -37,16 +36,6 @@ interface CompanyTop {
 }
 const emptyTop = (): CompanyTop => ({ country: 'IT', taxId: '', taxIdKind: '', email: '', phone: '', website: '', iban: '', paymentTerms: '' });
 
-const CONTACT_FIELDS: RenderableField[] = [
-  { key: 'fullName', label: 'Nome completo', dataType: 'text', required: true },
-  { key: 'roleTitle', label: 'Ruolo / Mansione', dataType: 'text' },
-  { key: 'department', label: 'Reparto', dataType: 'text' },
-  { key: 'email', label: 'Email', dataType: 'email' },
-  { key: 'phone', label: 'Telefono', dataType: 'text' },
-  { key: 'mobile', label: 'Cellulare', dataType: 'text' },
-  { key: 'note', label: 'Note', dataType: 'textarea' },
-  { key: 'isPrimary', label: 'Contatto principale', dataType: 'boolean' },
-];
 
 /** Modalità embedded: la stessa scheda CRUD richiamata in un Modal (es. "+ Nuovo"
  *  o modifica fornitore dal popup di selezione di un documento) senza navigare via. */
@@ -350,10 +339,28 @@ function ContactModal({ companyId, editing, busy, setBusy, onClose, onSaved, toa
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva modifiche' : 'Crea'}</button>
       </>}>
-      <div className="form-group">
-        {CONTACT_FIELDS.map((f) => (
-          <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />
-        ))}
+      <div className="dsx">
+        <div className="bgrid">
+          <div className="bf c4"><span className="bl">Nome completo <span className="req">*</span></span>
+            <input className="bi" autoFocus value={String(v.fullName ?? '')} onChange={(e) => setV((s) => ({ ...s, fullName: e.target.value }))}
+              style={errors.fullName ? { borderColor: 'var(--danger)' } : undefined} placeholder="Mario Rossi" />
+            {errors.fullName && <span style={{ fontSize: 11.5, color: 'var(--danger)' }}>{errors.fullName}</span>}</div>
+          <div className="bf c2"><span className="bl">Ruolo / Mansione</span>
+            <input className="bi" value={String(v.roleTitle ?? '')} onChange={(e) => setV((s) => ({ ...s, roleTitle: e.target.value }))} placeholder="Responsabile acquisti" /></div>
+          <div className="bf c2"><span className="bl">Reparto</span>
+            <input className="bi" value={String(v.department ?? '')} onChange={(e) => setV((s) => ({ ...s, department: e.target.value }))} /></div>
+          <div className="bf c2"><span className="bl">Email</span>
+            <input className="bi" type="email" value={String(v.email ?? '')} onChange={(e) => setV((s) => ({ ...s, email: e.target.value }))} placeholder="nome@azienda.it" /></div>
+          <div className="bf c2"><span className="bl">Telefono</span>
+            <input className="bi" value={String(v.phone ?? '')} onChange={(e) => setV((s) => ({ ...s, phone: e.target.value }))} /></div>
+          <div className="bf c2"><span className="bl">Cellulare</span>
+            <input className="bi" value={String(v.mobile ?? '')} onChange={(e) => setV((s) => ({ ...s, mobile: e.target.value }))} /></div>
+          <div className="bf c2"><span className="bl">Contatto principale</span>
+            <select className="bi" value={v.isPrimary ? '1' : '0'} onChange={(e) => setV((s) => ({ ...s, isPrimary: e.target.value === '1' }))}>
+              <option value="0">No</option><option value="1">Sì</option></select></div>
+          <div className="bf c4"><span className="bl">Note</span>
+            <textarea className="bi" rows={2} value={String(v.note ?? '')} onChange={(e) => setV((s) => ({ ...s, note: e.target.value }))} /></div>
+        </div>
       </div>
     </Modal>
   );
