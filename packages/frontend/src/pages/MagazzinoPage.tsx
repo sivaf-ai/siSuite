@@ -16,6 +16,9 @@ import type {
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../ui/Modal';
+import { PickerField } from '../ui/PickerField';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { EntityTree, type EntityTreeConfig } from '../ui/EntityTree';
 import { NumInput } from '../ui/NumInput';
@@ -191,7 +194,9 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
   const { options: whKinds } = useLocationKinds(['warehouse', 'van']);   // i magazzini-radice sono Magazzino o Furgone
   const detail = useApi<StockLocationDto>(isNew ? null : `/stock/locations/${id}`);
   const resources = useApi<{ items: { id: string; label: string }[] }>('/resources');
+  const [pickTec, setPickTec] = useState(false);
   const [form, setForm] = useState<{ name: string; kind: string; isDefault: boolean; resourceId: string; code: string; note: string }>({ name: '', kind: 'warehouse', isDefault: false, resourceId: '', code: '', note: '' });
+  const tecName = resources.data?.items.find((r) => r.id === form.resourceId)?.label ?? (form.resourceId ? '…' : '');
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('balances');
   // Duplica (standard): "nuovo" precompilato da location.state.prefill (no embed, senza code/isDefault).
@@ -242,7 +247,9 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
             <div className="bf"><span className="bl">Tipo</span><select className="bi" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}>{whKinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></div>
             <div className="bf"><span className="bl">Codice</span><input className="bi" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="es. MAG-01" /></div>
             <div className="bf"><span className="bl">Predefinito</span><select className="bi" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div>
-            {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><select className="bi" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div>}
+            {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span>
+              <PickerField value={tecName || null} placeholder="Scegli il tecnico…" disabled={!canManage}
+                onOpen={() => setPickTec(true)} onClear={() => setForm({ ...form, resourceId: '' })} /></div>}
             <div className="bf c4"><span className="bl">Note</span><input className="bi" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} disabled={!canManage} placeholder="Note interne" /></div>
           </div>
         </ObjectBox>
@@ -250,7 +257,11 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
       </ObjectPage>
   );
 
-  return embed ? objectPage : <Page bleed>{objectPage}</Page>;
+  return <>
+    {embed ? objectPage : <Page bleed>{objectPage}</Page>}
+    <ResourcePickerDialog open={pickTec} onClose={() => setPickTec(false)}
+      onPick={(rs) => { const r = rs[0]; if (r) setForm((f) => ({ ...f, resourceId: r.id })); }} />
+  </>;
 }
 
 /* ── Tab: Articoli & giacenze (sola lettura, derivata) ─────────────── */
@@ -291,6 +302,8 @@ function MovimentiTab({ locationId }: { locationId: string }) {
   const [busy, setBusy] = useState(false);
   const [revId, setRevId] = useState<string | null>(null);
   const [d, setD] = useState<MovDraft>(emptyMov());
+  const [pickEng, setPickEng] = useState(false);
+  const engName = (() => { const e = engs.data?.items.find((x) => x.id === d.engagementId); return e ? `${e.code ? e.code + ' · ' : ''}${e.title}` : (d.engagementId ? '…' : ''); })();
   const matById = useMemo(() => new Map((mats.data?.items ?? []).map((m) => [m.id, m])), [mats.data]);
   const rows = mv.data?.items ?? [];
 
@@ -345,13 +358,17 @@ function MovimentiTab({ locationId }: { locationId: string }) {
           <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span><select className="bi" value={d.materialId} onChange={(e) => setD({ ...d, materialId: e.target.value })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
           <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialId && <span style={{ color: 'var(--ink-faint)' }}> ({matById.get(d.materialId)?.unit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
           <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
-          <div className="bf c2"><span className="bl">Commessa (opz.)</span><select className="bi" value={d.engagementId} onChange={(e) => setD({ ...d, engagementId: e.target.value })}><option value="">—</option>{(engs.data?.items ?? []).map((en) => <option key={en.id} value={en.id}>{en.code} · {en.title}</option>)}</select></div>
+          <div className="bf c2"><span className="bl">Commessa (opz.)</span>
+            <PickerField value={engName || null} placeholder="Scegli la commessa…"
+              onOpen={() => setPickEng(true)} onClear={() => setD({ ...d, engagementId: '' })} /></div>
           <div className="bf c2"><span className="bl">Data (opz.)</span><input className="bi mono" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
           <div className="bf c4"><span className="bl">Note (opz.)</span><input className="bi" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>
         </div>
       </Modal>
       <ConfirmDialog open={!!revId} title="Rettifica / storna movimento" message="Crea un movimento compensativo (quantità opposta). L'originale resta (registro immutabile)."
         confirmLabel="Crea rettifica" busy={busy} onConfirm={() => revId && void reverse(revId)} onCancel={() => setRevId(null)} />
+      <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
+        onPick={(es) => { const e = es[0]; if (e) setD((s) => ({ ...s, engagementId: e.id })); }} />
     </>
   );
 }

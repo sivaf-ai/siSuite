@@ -11,6 +11,9 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
 import { Money } from '../ui/Num';
 import { NumInput } from '../ui/NumInput';
+import { PickerField } from '../ui/PickerField';
+import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { useApi, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -34,8 +37,6 @@ export function ListinoItemDetailPage() {
   const detail = useApi<Detail>(isNew ? null : `/price-list-items/${id}`);
   const usage = useApi<{ items: UsageRow[] }>(isNew ? null : `/price-list-items/${id}/usage`);
   const priceLists = useApi<ListResp<PriceListDto>>('/price-lists');
-  const companies = useApi<ListResp<CompanyDto>>('/companies?role=operator&limit=200');
-  const engagements = useApi<ListResp<{ id: string; title?: string; code?: string }>>('/engagements');
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [tab, setTab] = useState('overrides');
@@ -43,6 +44,8 @@ export function ListinoItemDetailPage() {
   // form nuovo ritocco
   const [ovScope, setOvScope] = useState<'company' | 'engagement'>('company');
   const [ovTarget, setOvTarget] = useState('');
+  const [ovTargetName, setOvTargetName] = useState('');
+  const [ovPick, setOvPick] = useState(false);
   const [ovCost, setOvCost] = useState(''); const [ovRev, setOvRev] = useState('');
 
   // Duplica (standard): "nuovo" precompilato da location.state.prefill (senza il codice, chiave).
@@ -130,20 +133,22 @@ export function ListinoItemDetailPage() {
       </table>
       {canManage && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 12px', flexWrap: 'wrap' }}>
-          <select className="bi" style={{ minHeight: 32, width: 120 }} value={ovScope} onChange={(e) => { setOvScope(e.target.value as 'company' | 'engagement'); setOvTarget(''); }}>
+          <select className="bi" style={{ minHeight: 32, width: 120 }} value={ovScope} onChange={(e) => { setOvScope(e.target.value as 'company' | 'engagement'); setOvTarget(''); setOvTargetName(''); }}>
             <option value="company">Gestore</option><option value="engagement">Commessa</option>
           </select>
-          <select className="bi" style={{ minHeight: 32, flex: 1, minWidth: 160 }} value={ovTarget} onChange={(e) => setOvTarget(e.target.value)}>
-            <option value="">— scegli —</option>
-            {ovScope === 'company'
-              ? (companies.data?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)
-              : (engagements.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code ? `${e.code} · ` : ''}{e.title}</option>)}
-          </select>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <PickerField value={ovTargetName || null} placeholder={ovScope === 'company' ? 'Scegli il gestore…' : 'Scegli la commessa…'}
+              onOpen={() => setOvPick(true)} onClear={() => { setOvTarget(''); setOvTargetName(''); }} /></div>
           <div style={{ width: 110 }}><NumInput align="right" placeholder="Costo" value={ovCost === '' ? null : Number(ovCost)} onChange={(n) => setOvCost(n == null ? '' : String(n))} /></div>
           <div style={{ width: 110 }}><NumInput align="right" placeholder="Ricavo" value={ovRev === '' ? null : Number(ovRev)} onChange={(n) => setOvRev(n == null ? '' : String(n))} /></div>
           <button className="btn btn-primary btn-sm" onClick={addOverride}><Plus size={14} /> Aggiungi ritocco</button>
         </div>
       )}
+      {ovScope === 'company'
+        ? <CompanyPickerDialog open={ovPick} onClose={() => setOvPick(false)}
+            onPick={(cs) => { const c = cs[0]; if (c) { setOvTarget(c.id); setOvTargetName(c.displayName); } }} />
+        : <EngagementPickerDialog open={ovPick} onClose={() => setOvPick(false)}
+            onPick={(es) => { const e = es[0]; if (e) { setOvTarget(e.id); setOvTargetName(`${e.code ? e.code + ' · ' : ''}${e.title}`); } }} />}
     </>
   );
   const usageRows = usage.data?.items ?? [];

@@ -13,6 +13,9 @@ import { StatusPill } from '../components/StatusPill';
 import { EntityList, type ListColumn, type ListView, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
+import { PickerField } from '../ui/PickerField';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { SlidersHorizontal, Columns3, Sparkles, Upload, Users, Plus } from '../ui/icons';
 import { useApi, mutate, useArchivedView } from '../api/hooks';
 import { useToast } from '../ui/Toast';
@@ -204,8 +207,9 @@ export function OrdinativiPage({ pickProps }: { pickProps?: OrdinativiPickProps 
 /* ── Assegna a squadra (bulk) ─────────────────────────────────────────── */
 function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
-  const resources = useApi<{ items: ResourceDto[] }>('/resources?kind=person&limit=200');
   const [resId, setResId] = useState('');
+  const [resName, setResName] = useState('');
+  const [pickRes, setPickRes] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function assign() {
@@ -225,12 +229,12 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
       </>}>
       <div className="bgrid">
         <div className="bf c4"><span className="bl">Squadra / tecnico</span>
-          <select className="bi" value={resId} onChange={(e) => setResId(e.target.value)}>
-            <option value="">— rimuovi assegnazione —</option>
-            {(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select></div>
+          <PickerField value={resName || null} placeholder="Scegli la risorsa…"
+            onOpen={() => setPickRes(true)} onClear={() => { setResId(''); setResName(''); }} /></div>
       </div>
       <p className="help" style={{ marginTop: 10 }}>Gli ordini selezionati passano alla squadra scelta (o restano da assegnare se vuoto).</p>
+      <ResourcePickerDialog open={pickRes} onClose={() => setPickRes(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) { setResId(r.id); setResName(r.label); } }} />
     </Modal>
   );
 }
@@ -263,8 +267,9 @@ function parseCsv(text: string): { header: string[]; rows: string[][] } {
 
 function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const toast = useToast();
-  const engs = useApi<{ items: EngagementDto[] }>('/engagements');
   const [engId, setEngId] = useState('');
+  const [engName, setEngName] = useState('');
+  const [pickEng, setPickEng] = useState(false);
   const [parsed, setParsed] = useState<{ header: string[]; rows: string[][] } | null>(null);
   const [map, setMap] = useState<Record<string, string>>({}); // targetField → csv column index (string)
   const [busy, setBusy] = useState(false);
@@ -332,13 +337,13 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       </>}>
       <div className="bgrid">
         <div className="bf c2"><span className="bl">Commessa di destinazione <span className="req">*</span></span>
-          <select className="bi" value={engId} onChange={(e) => setEngId(e.target.value)}>
-            <option value="">—</option>
-            {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
-          </select></div>
+          <PickerField value={engName || null} placeholder="Scegli la commessa…" invalid={!engId}
+            onOpen={() => setPickEng(true)} onClear={() => { setEngId(''); setEngName(''); }} /></div>
         <div className="bf c2"><span className="bl">File CSV</span>
           <input className="bi" type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></div>
       </div>
+      <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
+        onPick={(es) => { const e = es[0]; if (e) { setEngId(e.id); setEngName(`${e.code ? e.code + ' · ' : ''}${e.title}`); } }} />
 
       {parsed && (
         <>
