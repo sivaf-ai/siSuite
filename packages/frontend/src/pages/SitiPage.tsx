@@ -10,8 +10,8 @@
 import { useMemo, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import type { SiteDto } from '@sisuite/shared';
-import { SITE_KINDS } from '@sisuite/shared';
 import { Page } from '../components/Page';
+import { useLookups, lookupLabel } from '../context/Lookups';
 import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { Modal } from '../ui/Modal';
 import { PickerField } from '../ui/PickerField';
@@ -24,13 +24,6 @@ import { useAuth } from '../auth/AuthContext';
 import { AuditDialog } from '../ui/AuditDialog';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: string })?.message ?? `Errore ${e.status}`) : (e as Error).message);
-
-/** etichette IT dei tipi di sito (per la colonna Tipo e la select del form). */
-const KIND_LABEL: Record<string, string> = {
-  plant: 'Stabilimento', building: 'Edificio', floor: 'Piano', room: 'Locale',
-  cabinet: 'Armadio', pop: 'POP', area: 'Area', other: 'Altro',
-};
-const kindLabel = (k: string) => KIND_LABEL[k] ?? k;
 
 /** riassunto leggibile dall'indirizzo jsonb (country-driven, A.5). */
 function addressSummary(a: Record<string, unknown>): string {
@@ -59,6 +52,9 @@ const emptyForm: FormState = { companyId: '', companyName: '', name: '', kind: '
 export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   const [q, setQ] = useState('');
   const toast = useToast();
+  const lk = useLookups();
+  const siteKinds = lk.byCategory('site_kind');
+  const kindLabel = (k: string) => { const m = siteKinds.find((l) => l.code === k); return m ? lookupLabel(m) : k; };
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('site:create' as never);
   const canDelete = !!user?.permissions.includes('site:delete' as never);
@@ -200,7 +196,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
             <input className="bi" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Sede centrale, Cabina 1…" /></div>
           <div className="bf c2"><span className="bl">Tipo</span>
             <select className="bi" value={form.kind} onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}>
-              {SITE_KINDS.map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
+              {siteKinds.map((k) => <option key={k.code} value={k.code}>{lookupLabel(k)}</option>)}
             </select></div>
           <div className="bf c2"><span className="bl">Sito padre</span>
             <select className="bi" value={form.parentId ?? ''} disabled={!form.companyId}

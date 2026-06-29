@@ -201,7 +201,7 @@ export function ClienteDetailPage({ embed }: { embed?: CompanyEmbed } = {}) {
     },
     {
       key: 'sites', label: 'Località e siti', icon: MapPin,
-      content: id && !isNew ? <SiteTree companyId={id} canEdit={can('site:create')} /> : <div className="dsx-empty">Salva il soggetto per gestire i siti.</div>,
+      content: id && !isNew ? <SiteTree companyId={id} country={top.country || 'IT'} /> : <div className="dsx-empty">Salva il soggetto per gestire i siti.</div>,
     },
   ];
 

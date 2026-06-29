@@ -7,14 +7,10 @@
  */
 import { FormCard } from './FormPage';
 import { Building2 } from 'lucide-react';
-import { SITE_KINDS } from '@sisuite/shared';
 import { EntityTree, type EntityTreeConfig } from './EntityTree';
-
-const KIND_LABEL: Record<string, string> = {
-  plant: 'Stabilimento', building: 'Edificio', floor: 'Piano', room: 'Locale',
-  cabinet: 'Armadio', pop: 'POP', area: 'Area', other: 'Altro',
-};
-const kindLabel = (k: string) => KIND_LABEL[k] ?? k;
+import { AddressField } from './AddressField';
+import { useLookups, lookupLabel } from '../context/Lookups';
+import { useAuth } from '../auth/AuthContext';
 
 /** indirizzo jsonb country-driven → riga leggibile (ignora la chiave country). */
 function addrSummary(a: unknown): string {
@@ -24,7 +20,13 @@ function addrSummary(a: unknown): string {
     .map(([, v]) => String(v)).join(', ');
 }
 
-export function siteTreeConfig(companyId: string): EntityTreeConfig {
+export function siteTreeConfig(
+  companyId: string,
+  kinds: { value: string; label: string }[],
+  opts: { country: string; canAddr: boolean },
+): EntityTreeConfig {
+  const labelOf = (k: string) => kinds.find((o) => o.value === k)?.label ?? k;
+  const def = kinds.find((o) => o.value === 'building') ? 'building' : (kinds[0]?.value ?? 'building');
   return {
     entity: 'site',
     endpoint: '/sites',
@@ -35,27 +37,39 @@ export function siteTreeConfig(companyId: string): EntityTreeConfig {
     countNoun: 'asset/ordini',
     scopeQuery: { company_id: companyId },
     createDefaults: { companyId },
-    rowMeta: (n) => [kindLabel(String(n.kind ?? 'building')), addrSummary(n.address)].filter(Boolean).join(' · ') || null,
+    rowMeta: (n) => [labelOf(String(n.kind ?? def)), addrSummary(n.address)].filter(Boolean).join(' · ') || null,
     extraCard: {
-      init: (node) => ({ kind: (node?.kind as string) ?? 'building' }),
-      toBody: (vals) => ({ kind: vals.kind ?? 'building' }),
+      init: (node) => ({ kind: (node?.kind as string) ?? def, address: (node?.address as Record<string, unknown>) ?? {} }),
+      // l'indirizzo entra nel body solo se l'utente può vederlo/modificarlo (field-level RBAC)
+      toBody: (vals) => ({ kind: vals.kind ?? def, ...(opts.canAddr ? { address: (vals.address as Record<string, unknown>) ?? {} } : {}) }),
       render: (vals, set) => (
-        <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Tipo</label>
-          <select value={String(vals.kind ?? 'building')} onChange={(e) => set({ kind: e.target.value })}
-            style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }}>
-            {SITE_KINDS.map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
-          </select>
-        </div>
+        <>
+          <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Tipo</label>
+            <select value={String(vals.kind ?? def)} onChange={(e) => set({ kind: e.target.value })}
+              style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }}>
+              {kinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+            </select>
+          </div>
+          {opts.canAddr && (
+            <AddressField label="Indirizzo" country={opts.country}
+              value={(vals.address as Record<string, unknown>) ?? {}}
+              onChange={(address) => set({ address })} />
+          )}
+        </>
       ),
     },
   };
 }
 
-export function SiteTree({ companyId, canEdit: _canEdit }: { companyId: string; canEdit: boolean }) {
+export function SiteTree({ companyId, country = 'IT' }: { companyId: string; country?: string; canEdit?: boolean }) {
+  const lk = useLookups();
+  const { user } = useAuth();
+  const canAddr = !!user?.permissions.includes('site:address' as never);
+  const kinds = lk.byCategory('site_kind').map((l) => ({ value: l.code, label: lookupLabel(l) }));
   return (
     <FormCard icon={<Building2 size={16} />} title="Siti / Località">
-      <EntityTree config={siteTreeConfig(companyId)} />
+      <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr })} />
     </FormCard>
   );
 }

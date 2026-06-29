@@ -53,7 +53,8 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
              LEFT JOIN app_user au ON au.id = s.archived_by
              LEFT JOIN company c ON c.id = s.company_id
            ${where} ORDER BY c.display_name NULLS FIRST, s.sequence, s.name`, params);
-        return { items: rows.rows.map(toTreeDto) };
+        const canAddr = request.ctx.permissions.includes('site:address');
+        return { items: rows.rows.map((r) => { const d = toTreeDto(r); if (!canAddr) d.address = {}; return d; }) };
       }));
 
   app.get<{ Params: { id: string } }>('/sites/:id', { preHandler: [app.authenticate, requirePermission('site:read')] },
@@ -66,7 +67,10 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
              LEFT JOIN app_user au ON au.id = s.archived_by
              LEFT JOIN company c ON c.id = s.company_id
            WHERE s.id = $1`, [request.params.id]);
-        return r.rows.length ? toDto(r.rows[0]) : null;
+        if (!r.rows.length) return null;
+        const d = toDto(r.rows[0]);
+        if (!request.ctx.permissions.includes('site:address')) d.address = {};
+        return d;
       });
       if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Sito non trovato', statusCode: 404 });
       return dto;
@@ -103,7 +107,8 @@ export async function siteRoutes(app: FastifyInstance): Promise<void> {
       if (input.name !== undefined) add('name', input.name);
       if (input.kind !== undefined) add('kind', input.kind);
       if ('parentId' in raw) add('parent_id', input.parentId ?? null);   // null = sposta a radice (no COALESCE!)
-      if (input.address !== undefined) add('address', asJson(input.address));
+      // l'indirizzo si modifica solo con il permesso dedicato (field-level RBAC)
+      if (input.address !== undefined && request.ctx.permissions.includes('site:address')) add('address', asJson(input.address));
       if (input.attributes !== undefined) add('attributes', input.attributes);
       if (input.sequence !== undefined) add('sequence', input.sequence);
       vals.push(request.ctx.userId); sets.push(`updated_by = $${vals.length}`);

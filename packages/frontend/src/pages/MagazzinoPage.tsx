@@ -25,7 +25,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { AuditDialog } from '../ui/AuditDialog';
 import { useApi, mutate, useArchivedView } from '../api/hooks';
 import { ApiError } from '../api/client';
-import { useLookups } from '../context/Lookups';
+import { useLookups, lookupLabel } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { downloadXlsx } from '../lib/xlsx';
@@ -34,7 +34,16 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: 
 
 const num = (v: unknown) => (v == null ? '' : Number(v).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
 const eur = (v: number | null) => (v == null ? '—' : `€ ${Number(v).toFixed(2)}`);
-const KIND_LABEL: Record<string, string> = { warehouse: 'Magazzino', sub_location: 'Ubicazione', van: 'Furgone' };
+const KIND_FALLBACK: Record<string, string> = { warehouse: 'Magazzino', sub_location: 'Ubicazione', van: 'Furgone' };
+/** hook: etichette/opzioni dei tipi ubicazione dal catalogo lookup (stock_location_kind),
+ *  con fallback ai canonici. `only` filtra i canonici ammessi in un certo contesto. */
+function useLocationKinds(only?: string[]) {
+  const lk = useLookups();
+  const all = lk.byCategory('stock_location_kind');
+  const label = (k: string) => { const m = all.find((l) => l.code === k); return m ? lookupLabel(m) : (KIND_FALLBACK[k] ?? k); };
+  const options = (only ? all.filter((l) => only.includes(l.code)) : all).map((l) => ({ value: l.code, label: lookupLabel(l) }));
+  return { label, options };
+}
 
 function usePerms() {
   const { user } = useAuth();
@@ -60,6 +69,7 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
   const toast = useToast();
   const { canManage } = usePerms();
   const pick = pickProps?.pick;
+  const { label: kindLabel } = useLocationKinds();
   const [q, setQ] = useState('');
   const [filterParam, setFilterParam] = useState<string | null>(null);
   const [sortParam, setSortParam] = useState<string | null>(null);
@@ -98,7 +108,7 @@ export function MagazzinoPage({ pickProps }: { pickProps?: LocationPickProps } =
 
   const cols: ListColumn<StockLocationDto>[] = [
     { key: 'name', header: 'Nome', value: (r) => r.name, render: (r) => <span className="cellname">{r.name}</span> },
-    { key: 'kind', header: 'Tipo', value: (r) => KIND_LABEL[r.kind] ?? r.kind, render: (r) => <span className="chip">{KIND_LABEL[r.kind] ?? r.kind}</span> },
+    { key: 'kind', header: 'Tipo', value: (r) => kindLabel(r.kind), render: (r) => <span className="chip">{kindLabel(r.kind)}</span> },
     { key: 'default', header: 'Predefinito', value: (r) => (r.isDefault ? 'sì' : ''), render: (r) => (r.isDefault ? <span className="chip">predefinito</span> : <span className="faint">—</span>) },
   ];
   const exportFields: ExportField<StockLocationDto>[] = cols.map((c) => ({ key: c.key, label: c.header, value: c.value! }));
@@ -178,6 +188,7 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
   const history = useHistory();
   const toast = useToast();
   const { canManage } = usePerms();
+  const { options: whKinds } = useLocationKinds(['warehouse', 'van']);   // i magazzini-radice sono Magazzino o Furgone
   const detail = useApi<StockLocationDto>(isNew ? null : `/stock/locations/${id}`);
   const resources = useApi<{ items: { id: string; label: string }[] }>('/resources');
   const [form, setForm] = useState<{ name: string; kind: string; isDefault: boolean; resourceId: string; code: string; note: string }>({ name: '', kind: 'warehouse', isDefault: false, resourceId: '', code: '', note: '' });
@@ -228,7 +239,7 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
         <ObjectBox icon={Warehouse} title="Anagrafica magazzino">
           <div className="bgrid">
             <div className="bf c3"><span className="bl">Nome</span><input className="bi" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={!canManage} placeholder="es. Magazzino centrale" /></div>
-            <div className="bf"><span className="bl">Tipo</span><select className="bi" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}><option value="warehouse">Magazzino</option><option value="van">Furgone</option></select></div>
+            <div className="bf"><span className="bl">Tipo</span><select className="bi" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} disabled={!canManage}>{whKinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></div>
             <div className="bf"><span className="bl">Codice</span><input className="bi" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!canManage} placeholder="es. MAG-01" /></div>
             <div className="bf"><span className="bl">Predefinito</span><select className="bi" value={form.isDefault ? '1' : '0'} onChange={(e) => setForm({ ...form, isDefault: e.target.value === '1' })} disabled={!canManage}><option value="0">No</option><option value="1">Sì</option></select></div>
             {form.kind === 'van' && <div className="bf c2"><span className="bl">Tecnico assegnato (furgone)</span><select className="bi" value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} disabled={!canManage}><option value="">—</option>{(resources.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></div>}
@@ -349,8 +360,8 @@ function MovimentiTab({ locationId }: { locationId: string }) {
  *  STANDARD entità ad albero §9: "magazzino = radice". L'albero mostra le
  *  ubicazioni interne (a profondità libera): drag&drop, Sposta in…, ricerca,
  *  eliminazione a 3 modi, sequence. Campo extra «Tipo» (ubicazione/furgone). */
-const UBIC_KIND: Record<string, string> = { sub_location: 'Ubicazione', van: 'Furgone' };
-function ubicazioniConfig(parentId: string): EntityTreeConfig {
+function ubicazioniConfig(parentId: string, kinds: { value: string; label: string }[], kindLabel: (k: string) => string): EntityTreeConfig {
+  const def = kinds.find((o) => o.value === 'sub_location') ? 'sub_location' : (kinds[0]?.value ?? 'sub_location');
   return {
     entity: 'stock_location',
     endpoint: '/stock/locations',
@@ -361,18 +372,18 @@ function ubicazioniConfig(parentId: string): EntityTreeConfig {
     countNoun: 'articoli a giacenza',
     scopeQuery: { subtreeOf: parentId },
     rootParentId: parentId,                       // "radice" dell'albero = il magazzino
-    createDefaults: { kind: 'sub_location' },
-    rowMeta: (n) => [UBIC_KIND[String(n.kind ?? 'sub_location')] ?? String(n.kind), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
+    createDefaults: { kind: def },
+    rowMeta: (n) => [kindLabel(String(n.kind ?? def)), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
     extraCard: {
-      init: (node) => ({ kind: (node?.kind as string) ?? 'sub_location', code: (node?.code as string) ?? '', note: (node?.note as string) ?? '' }),
-      toBody: (vals) => ({ kind: vals.kind ?? 'sub_location', code: (vals.code as string)?.trim() || null, note: (vals.note as string)?.trim() || null }),
+      init: (node) => ({ kind: (node?.kind as string) ?? def, code: (node?.code as string) ?? '', note: (node?.note as string) ?? '' }),
+      toBody: (vals) => ({ kind: vals.kind ?? def, code: (vals.code as string)?.trim() || null, note: (vals.note as string)?.trim() || null }),
       render: (vals, set) => (
         <>
           <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Tipo</label>
-            <select value={String(vals.kind ?? 'sub_location')} onChange={(e) => set({ kind: e.target.value })}
+            <select value={String(vals.kind ?? def)} onChange={(e) => set({ kind: e.target.value })}
               style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }}>
-              <option value="sub_location">Ubicazione</option><option value="van">Furgone</option>
+              {kinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </div>
           <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
@@ -386,7 +397,8 @@ function ubicazioniConfig(parentId: string): EntityTreeConfig {
   };
 }
 function UbicazioniTab({ parentId }: { parentId: string; canManage: boolean }) {
-  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId)} /></div>;
+  const { options, label } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
+  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId, options, label)} /></div>;
 }
 
 /* ── Tab: Seriali per magazzino (GET /stock/locations/:id/serials) ───── */

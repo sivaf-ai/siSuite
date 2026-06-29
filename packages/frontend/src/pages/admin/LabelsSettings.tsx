@@ -30,6 +30,8 @@ const CATS = [
   { key: 'stock_document_type', label: 'Magazzino · tipi documento' },
   { key: 'asset_kind', label: 'Tipi di asset' },
   { key: 'skill_category', label: 'Categorie competenze' },
+  { key: 'site_kind', label: 'Tipi di sito/località' },
+  { key: 'stock_location_kind', label: 'Tipi di ubicazione' },
 ];
 
 export function LabelsSettings() {

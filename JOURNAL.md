@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-29 (3) — Tipi configurabili (D-0) + indirizzo sito con field-RBAC + fix scheda Contatti (chat 01.06)
+- **Scheda Contatti** (Soggetto) portata allo standard `.dsx/.bgrid/.bf/.bl/.bi` (era `<Field>`/form-group, label sopra il bordo). Rimossi CONTACT_FIELDS/import morti. Commit `37fa3b1`. Le altre schede `<Field>` (admin config + EntityForm dinamico da field_definition) restano: categoria diversa e legittima.
+- **Migr 059**: lookup `site_kind` (8) e `stock_location_kind` (3) come righe di sistema rinominabili in *Stati & etichette* (regola D-0: i Tipi non più enum cablati). I CANONICI restano le chiavi logiche (warehouse=radice, van=furgone). Prossima libera **060**.
+- **Frontend Tipi da lookup**: `SiteTree`/`SitiPage` (site_kind), `MagazzinoPage` lista+scheda+`UbicazioniTab` (stock_location_kind, filtri di contesto: magazzino=warehouse/van, ubicazioni=sub_location/van). `useLocationKinds()` helper. Rinominare l'etichetta si riflette ovunque.
+- **Indirizzo Sito editabile + field-level RBAC**: nuovo permesso **`site:address`** (Owner/Planner/Contabile/Sola lettura; NON Tecnico). `AddressField` country-driven nella scheda nodo Sito (gated). Backend `/sites` **maschera** `address` (GET) e ignora la modifica (PATCH) senza permesso — enforcement API, non solo UI. `SiteTree` riceve `country` dal cliente. role_permission 202→206.
+- **Test** 90/90, typecheck shared+BE+FE puliti, smoke OK (lookups, create kind+address, mask).
+
 ## 2026-06-29 (2) — Siti e Ubicazioni magazzino migrati a EntityTree (chat 01.06)
 - **EntityTree esteso (additivo)** per entità ricche: `scopeQuery` (GET filtrata), `createDefaults` (campi fissi POST), `rootParentId` (alberi scoped: "radice"=genitore fisso), `defaultIcon`, `showAppearance` (off → niente icona/colore), `extraCard` (campi extra nella scheda), `rowMeta` (info accanto al nome). `TreeNodeCard` supporta `renderExtra`/`extraInitial`/`showAppearance`.
 - **Siti**: `SiteTree` (scheda Soggetto) ora usa EntityTree scoped per cliente (drag&drop, Sposta in…, 3-modi, sequence). Backend `/sites` portato al contratto albero (active/sequence/isSystem/directCount=asset+ordini, ?includeArchived, PATCH move-a-radice corretto, DELETE ?mode=block|reassign|cascade, /duplicate). Lista globale `SitiPage` resta EntityList (catalogo cross-cliente). Commit `7fe7010`.
