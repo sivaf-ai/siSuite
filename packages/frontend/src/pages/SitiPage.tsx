@@ -16,6 +16,7 @@ import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { Modal } from '../ui/Modal';
 import { PickerField } from '../ui/PickerField';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
+import { AddressField } from '../ui/AddressField';
 import { Plus } from '../ui/icons';
 import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
@@ -46,8 +47,9 @@ export interface SitePickProps {
 
 interface FormState {
   companyId: string; companyName: string; name: string; kind: string; parentId: string | null;
+  address: Record<string, unknown>; country: string;
 }
-const emptyForm: FormState = { companyId: '', companyName: '', name: '', kind: 'building', parentId: null };
+const emptyForm: FormState = { companyId: '', companyName: '', name: '', kind: 'building', parentId: null, address: {}, country: 'IT' };
 
 export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   const [q, setQ] = useState('');
@@ -58,6 +60,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   const { user } = useAuth();
   const canWrite = !!user?.permissions.includes('site:create' as never);
   const canDelete = !!user?.permissions.includes('site:delete' as never);
+  const canAddr = !!user?.permissions.includes('site:address' as never);
   const pick = pickProps?.pick;
   const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
@@ -86,12 +89,12 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
 
   function openNew(prefill?: SiteDto) {
     setForm(prefill
-      ? { companyId: prefill.companyId ?? '', companyName: prefill.companyName ?? '', name: prefill.name, kind: prefill.kind, parentId: prefill.parentId }
+      ? { companyId: prefill.companyId ?? '', companyName: prefill.companyName ?? '', name: prefill.name, kind: prefill.kind, parentId: prefill.parentId, address: prefill.address ?? {}, country: String((prefill.address as Record<string, unknown>)?.country ?? 'IT') }
       : { ...emptyForm, companyId: lockedCompanyId ?? '' });
     setEditing(null);
   }
   function openEdit(row: SiteDto) {
-    setForm({ companyId: row.companyId ?? '', companyName: row.companyName ?? '', name: row.name, kind: row.kind, parentId: row.parentId });
+    setForm({ companyId: row.companyId ?? '', companyName: row.companyName ?? '', name: row.name, kind: row.kind, parentId: row.parentId, address: row.address ?? {}, country: String((row.address as Record<string, unknown>)?.country ?? 'IT') });
     setEditing(row);
   }
 
@@ -100,13 +103,15 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
     if (!form.name.trim()) { toast('Il nome è obbligatorio', 'error'); return; }
     setBusy(true);
     try {
+      // l'indirizzo entra nel body solo con il permesso (field-level RBAC, ignorato a DB altrimenti)
+      const addr = canAddr ? { address: { ...form.address, country: form.country } } : {};
       if (editing) {
-        const body = { name: form.name.trim(), kind: form.kind, parentId: form.parentId };
+        const body = { name: form.name.trim(), kind: form.kind, parentId: form.parentId, ...addr };
         await mutate('PATCH', `/sites/${editing.id}`, body);
         toast('Modifiche salvate');
         setEditing(undefined); reload();
       } else {
-        const body = { companyId: form.companyId, name: form.name.trim(), kind: form.kind, parentId: form.parentId ?? undefined };
+        const body = { companyId: form.companyId, name: form.name.trim(), kind: form.kind, parentId: form.parentId ?? undefined, ...addr };
         const created = await apiFetch<SiteDto>('/sites', { method: 'POST', body: JSON.stringify(body) });
         toast('Sito creato');
         setEditing(undefined); reload();
@@ -204,6 +209,10 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
               <option value="">— nessuno —</option>
               {parentOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
+          {canAddr && (
+            <div style={{ gridColumn: 'span 4' }}><AddressField label="Indirizzo" country={form.country}
+              value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} /></div>
+          )}
         </div>
       </div>
     </Modal>
@@ -211,7 +220,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
 
   const companyPickerDialog = (
     <CompanyPickerDialog open={companyPicker} onClose={() => setCompanyPicker(false)}
-      onPick={(cs) => { const c = cs[0]; if (c) setForm((f) => ({ ...f, companyId: c.id, companyName: c.displayName, parentId: null })); }} />
+      onPick={(cs) => { const c = cs[0]; if (c) setForm((f) => ({ ...f, companyId: c.id, companyName: c.displayName, parentId: null, country: c.country || f.country })); }} />
   );
 
   const auditModal = audit && <AuditDialog entity="site" entityId={audit.id} title={audit.title} onClose={() => setAudit(null)} />;

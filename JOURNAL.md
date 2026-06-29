@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-29 (5) — Fix UX: modali in portal, doppia barra titolo, maschera Etichette, indirizzo sito (chat 01.06)
+- **Modali sotto la barra del titolo (bug strutturale)**: `Modal`/`TreeNodeCard`/`ConfirmDialog`/`PromptDialog` ora renderizzano in **portal su `document.body`** (z-index 1300/1400/1500) → il `position:fixed` non resta più intrappolato sotto la topbar/stacking-context. Risolve anche i picker che si infilavano sotto la barra.
+- **Doppia barra del titolo** sulle schede (es. "Ordine di lavoro — nuovo" + testata ObjectPage): fix sistemico in `components/Page.tsx` — quando `bleed` è true (scheda con testata sticky di ObjectPage) la `<Page>` NON rende più la sua IonHeader. Una riga, vale per TUTTE le schede.
+- **Maschera «Aggiungi etichetta»** (Stati & etichette) portata allo standard `.dsx/.bgrid/.bf/.bl/.bi` (era `<Field>`/form-group); **Sigla + Ordine + Default sulla stessa riga** (campi corti). Rimosso import `Field` morto.
+- **Indirizzo Sito**: confermato che la scheda nodo del Soggetto › Siti (EntityTree) ha l'indirizzo per chi ha `site:address` (serve **re-login** se la sessione ha i permessi vecchi); aggiunto l'**Indirizzo (AddressField country-driven, gated)** anche nella lista globale `SitiPage`, con country dal cliente. Typecheck FE pulito.
+
 ## 2026-06-29 (4) — Picker a lente al posto dei select-entità (D-0) (chat 01.06)
 - Convertiti tutti i `<select>` che sceglievano un'entità FK ai **picker a lente** (riuso della lista vera in popup), regola D-0. Commit documenti `a1ffb72` + tecnico.
   - **Documenti**: Ordinativi (assegna risorsa + import commessa), Magazzino (tecnico furgone + commessa movimento), Listino (ritocco per Gestore/Commessa).

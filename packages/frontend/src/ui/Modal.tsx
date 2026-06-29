@@ -5,6 +5,7 @@
  * Niente pannello laterale: standard del gestionale = popup al centro.
  */
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export function Modal({ open, title, onClose, children, footer, size = 'lg' }: {
@@ -13,12 +14,13 @@ export function Modal({ open, title, onClose, children, footer, size = 'lg' }: {
 }) {
   if (!open) return null;
   const maxW = size === 'xl' ? 1100 : size === 'lg' ? 920 : 560;
-  return (
+  // Portal su <body>: il fixed non resta intrappolato sotto la topbar/stacking context.
+  return createPortal(
     <div
       role="dialog" aria-modal="true"
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,.45)',
+        position: 'fixed', inset: 0, zIndex: 1300, background: 'rgba(15,23,42,.45)',
         display: 'grid', placeItems: 'center', padding: 24,
       }}>
       <div
@@ -42,6 +44,7 @@ export function Modal({ open, title, onClose, children, footer, size = 'lg' }: {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

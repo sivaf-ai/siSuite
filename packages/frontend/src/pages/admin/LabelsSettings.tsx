@@ -6,7 +6,6 @@ import { Plus, Trash2, GripVertical, RotateCcw } from 'lucide-react';
 import type { LookupDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { Modal } from '../../ui/Modal';
-import { Field, type RenderableField } from '../../ui/Field';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
@@ -134,17 +133,7 @@ function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete,
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isSystemEdit = !!editing?.isSystem;
-  const fields: RenderableField[] = [
-    ...(editing ? [] : [
-      { key: 'canonical', label: 'Stato canonico', dataType: 'select' as const, required: true, options: canonicals.map((c) => ({ value: c, label: { 'it-IT': c } })) },
-      { key: 'code', label: 'Codice', dataType: 'text' as const, required: true },
-    ]),
-    { key: 'labelIt', label: 'Etichetta (IT)', dataType: 'text', required: true },
-    { key: 'abbreviation', label: 'Sigla', dataType: 'text' },
-    { key: 'sequence', label: 'Ordine', dataType: 'integer' },
-    // "Default della categoria" non si applica alle voci di sistema (override solo estetico)
-    ...(isSystemEdit ? [] : [{ key: 'isDefault', label: 'Default della categoria', dataType: 'boolean' as const }]),
-  ];
+  const set = (p: Record<string, unknown>) => setV((s) => ({ ...s, ...p }));
 
   async function submit() {
     const errs: Record<string, string> = {};
@@ -173,11 +162,33 @@ function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete,
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>
-      <div className="form-group">
-        {fields.map((f) => <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />)}
-        <div className="field">
-          <label>Colore</label>
-          <ColorSwatchPicker includeSemantic value={(v.colorToken as string) ?? 'neutral'} onChange={(key) => setV((s) => ({ ...s, colorToken: key }))} />
+      <div className="dsx">
+        <div className="bgrid">
+          {!editing && (<>
+            <div className="bf c2"><span className="bl">Stato canonico <span className="req">*</span></span>
+              <select className="bi" value={String(v.canonical ?? '')} onChange={(e) => set({ canonical: e.target.value })}
+                style={errors.canonical ? { borderColor: 'var(--danger)' } : undefined}>
+                {canonicals.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select></div>
+            <div className="bf c2"><span className="bl">Codice <span className="req">*</span></span>
+              <input className="bi mono" value={String(v.code ?? '')} onChange={(e) => set({ code: e.target.value })}
+                style={errors.code ? { borderColor: 'var(--danger)' } : undefined} placeholder="es. pianificata" /></div>
+          </>)}
+          <div className="bf c4"><span className="bl">Etichetta (IT) <span className="req">*</span></span>
+            <input className="bi" autoFocus value={String(v.labelIt ?? '')} onChange={(e) => set({ labelIt: e.target.value })}
+              style={errors.labelIt ? { borderColor: 'var(--danger)' } : undefined} placeholder="es. Pianificata" /></div>
+          {/* Sigla + Ordine (corti) sulla stessa riga, + eventuale Default */}
+          <div className="bf c1"><span className="bl">Sigla</span>
+            <input className="bi" value={String(v.abbreviation ?? '')} onChange={(e) => set({ abbreviation: e.target.value })} placeholder="PIA" /></div>
+          <div className="bf c1"><span className="bl">Ordine</span>
+            <input className="bi" type="number" value={Number(v.sequence ?? 0)} onChange={(e) => set({ sequence: Number(e.target.value) })} /></div>
+          {!isSystemEdit && (
+            <div className="bf c2"><span className="bl">Default categoria</span>
+              <select className="bi" value={v.isDefault ? '1' : '0'} onChange={(e) => set({ isDefault: e.target.value === '1' })}>
+                <option value="0">No</option><option value="1">Sì</option></select></div>
+          )}
+          <div className="bf c4"><span className="bl">Colore</span>
+            <ColorSwatchPicker includeSemantic value={(v.colorToken as string) ?? 'neutral'} onChange={(key) => set({ colorToken: key })} /></div>
         </div>
       </div>
     </Modal>

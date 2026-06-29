@@ -12,7 +12,9 @@ export function Page({ title, action, children, back, bleed }: { title?: string;
   const bleedStyle = { '--padding-top': '0px', '--padding-bottom': '16px', '--padding-start': '16px', '--padding-end': '16px' } as CSSProperties;
   // Le LISTE (EntityList) hanno già il proprio titolo nella testata: non passano `title`
   // → niente IonHeader, così non si ripete il titolo su una riga in più (no righe vuote).
-  const showHeader = !!title || !!back;
+  // Le SCHEDE (`bleed`) hanno già la testata sticky di ObjectPage (titolo + Salva/Annulla):
+  // la IonHeader della Page sarebbe una SECONDA barra del titolo → la sopprimiamo.
+  const showHeader = (!!title || !!back) && !bleed;
   // FLUSH layout (niente padding-top dello scroll) per: schede (bleed) E liste (senza header,
   // ospitano EntityList con la testata sticky `.dsx-head`). Così la barra sticky resta A FILO
   // del bordo superiore: MAI un buco dove le righe scrollano sotto la barra del titolo/menu.

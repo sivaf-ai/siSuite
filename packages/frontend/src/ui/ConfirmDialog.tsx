@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { AlertTriangle } from 'lucide-react';
 
 /** Conferma azioni distruttive (elimina). Supporta un'azione EXTRA opzionale
@@ -6,11 +7,11 @@ export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel,
   { open: boolean; title: string; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean; busy?: boolean;
     onConfirm: () => void; onCancel: () => void; extraLabel?: string; extraDanger?: boolean; onExtra?: () => void }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <>
-      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1100 }} />
+      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1500 }} />
       <div role="dialog" aria-modal="true" style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1101,
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1501,
         width: 'min(460px, 94vw)', background: 'var(--card)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-2)', padding: 24,
       }}>
         <div style={{ display: 'flex', gap: 14 }}>
@@ -30,6 +31,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel,
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

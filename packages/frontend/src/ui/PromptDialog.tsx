@@ -3,6 +3,7 @@
  * centrato e formattato. Sostituisce window.prompt (mai usare i popup del browser).
  */
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, X } from 'lucide-react';
 
 export function PromptDialog({
@@ -17,11 +18,11 @@ export function PromptDialog({
   useEffect(() => { if (open) { setV(initial); setTimeout(() => ref.current?.focus(), 30); } }, [open, initial]);
   if (!open) return null;
   const ok = () => { if (required && !v.trim()) return; onConfirm(v.trim()); };
-  return (
+  return createPortal(
     <>
-      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1200 }} />
+      <div className="drawer-backdrop" onClick={onCancel} style={{ zIndex: 1500 }} />
       <div role="dialog" aria-modal="true" style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1201,
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1501,
         width: 'min(460px, 94vw)', background: 'var(--card)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-2)', padding: 22,
       }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'var(--font-display)' }}>{title}</h3>
@@ -38,6 +39,7 @@ export function PromptDialog({
           <button className="btn btn-primary" style={{ fontSize: 13, height: 36 }} onClick={ok} disabled={required && !v.trim()}><Check size={15} /> {confirmLabel}</button>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

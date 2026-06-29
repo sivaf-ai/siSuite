@@ -9,6 +9,7 @@
  * È lo stesso componente in manage e in pick: la scheda non cambia.
  */
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, Sparkles, Image as ImageIcon, Grid3x3, Plus } from 'lucide-react';
 import { IconPicker } from './IconPicker';
 import { CategoryIcon } from './categoryIcons';
@@ -126,9 +127,9 @@ export function TreeNodeCard({ open, mode, initial, parentLabel, busy, showAppea
   const save = () => { if (!v.name.trim()) { nameRef.current?.focus(); return; } onSave({ ...v, name: v.name.trim() }, extra); };
   const aiSuggest = () => { if (!v.name.trim()) { nameRef.current?.focus(); return; } const s = suggestAppearance(v.name.trim()); set({ icon: s.icon, color: v.color || s.color }); };
 
-  return (
+  return createPortal(
     <div role="dialog" aria-modal="true" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', padding: 24 }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', padding: 24 }}>
       <style>{`
         .tnc{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;background:var(--card);
           border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.30);overflow:hidden}
@@ -207,6 +208,7 @@ export function TreeNodeCard({ open, mode, initial, parentLabel, busy, showAppea
           </>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
