@@ -22,6 +22,7 @@ export const createLookupSchema = z.object({
   label,
   abbreviation: z.string().max(12).nullable().optional(),
   colorToken: z.string().max(40).nullable().optional(),
+  icon: z.string().max(60).nullable().optional(),
   sequence: z.number().int().min(0).optional(),
   isDefault: z.boolean().optional(),
 });
@@ -30,6 +31,7 @@ export const updateLookupSchema = z.object({
   label: label.optional(),
   abbreviation: z.string().max(12).nullable().optional(),
   colorToken: z.string().max(40).nullable().optional(),
+  icon: z.string().max(60).nullable().optional(),
   sequence: z.number().int().min(0).optional(),
   isDefault: z.boolean().optional(),
 });

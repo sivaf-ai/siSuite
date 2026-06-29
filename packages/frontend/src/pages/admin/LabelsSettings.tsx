@@ -12,6 +12,8 @@ import { useApi, mutate } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { ColorSwatchPicker } from '../../ui/ColorSwatchPicker';
+import { IconPicker } from '../../ui/IconPicker';
+import { CategoryIcon } from '../../ui/categoryIcons';
 import { swatchColor } from '../../theme/palette';
 
 const CATS = [
@@ -77,7 +79,9 @@ export function LabelsSettings() {
               <div className="lv-row" key={l.id} style={canManage ? { cursor: 'pointer' } : undefined}
                 onClick={canManage ? () => setEditing(l) : undefined}>
                 <span className="drag" style={{ color: 'var(--ink-faint)' }}><GripVertical size={15} /></span>
-                <span className="swatch" style={{ background: swatchColor(l.colorToken) }} />
+                {l.icon
+                  ? <span className="swatch" style={{ background: 'transparent', display: 'inline-grid', placeItems: 'center', color: swatchColor(l.colorToken) }}><CategoryIcon name={l.icon} size={16} color={swatchColor(l.colorToken)} /></span>
+                  : <span className="swatch" style={{ background: swatchColor(l.colorToken) }} />}
                 <span className="abbr">{l.abbreviation ?? '—'}</span>
                 <span className="lvname">{l.label['it-IT'] ?? l.code}
                   {l.isSystem && <span className="chip" style={{ marginLeft: 8 }}>sistema</span>}
@@ -126,6 +130,7 @@ function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete,
     labelIt: editing?.label['it-IT'] ?? '',
     abbreviation: editing?.abbreviation ?? '',
     colorToken: editing?.colorToken ?? 'neutral',
+    icon: editing?.icon ?? '',
     sequence: editing?.sequence ?? 0,
     isDefault: editing?.isDefault ?? false,
   }));
@@ -142,7 +147,7 @@ function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete,
     if (!editing && !String(v.canonical ?? '').trim()) errs.canonical = 'Campo obbligatorio';
     setErrors(errs); if (Object.keys(errs).length) return;
     setBusy(true);
-    const common = { label: { 'it-IT': v.labelIt }, abbreviation: (v.abbreviation as string) || null, colorToken: (v.colorToken as string) || null, sequence: v.sequence ?? 0, isDefault: !!v.isDefault };
+    const common = { label: { 'it-IT': v.labelIt }, abbreviation: (v.abbreviation as string) || null, colorToken: (v.colorToken as string) || null, icon: (v.icon as string) || null, sequence: v.sequence ?? 0, isDefault: !!v.isDefault };
     try {
       if (editing?.isSystem) await mutate('PUT', `/lookups/${editing.id}/override`, common); // personalizza voce di sistema
       else if (editing) await mutate('PATCH', `/lookups/${editing.id}`, common);
@@ -189,6 +194,10 @@ function LabelModal({ category, canonicals, editing, onClose, onSaved, onDelete,
           )}
           <div className="bf c4"><span className="bl">Colore</span>
             <ColorSwatchPicker includeSemantic value={(v.colorToken as string) ?? 'neutral'} onChange={(key) => set({ colorToken: key })} /></div>
+          <div className="bf c4"><span className="bl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Icona <CategoryIcon name={(v.icon as string) || null} size={14} color={swatchColor((v.colorToken as string) ?? 'neutral')} /></span>
+            <div style={{ border: '1.5px solid var(--line)', borderRadius: 9, padding: '12px 11px 9px', background: 'var(--card)' }}>
+              <IconPicker value={(v.icon as string) ?? ''} onChange={(icon) => set({ icon })} /></div></div>
         </div>
       </div>
     </Modal>

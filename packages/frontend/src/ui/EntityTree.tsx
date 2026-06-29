@@ -38,6 +38,9 @@ export interface EntityTreeConfig {
   countNoun?: string;                   // es. 'articoli'
   /** testo informativo accanto al nome (es. tipo · indirizzo per i siti). */
   rowMeta?: (node: Record<string, unknown>) => string | null;
+  /** icona/colore del nodo derivati dai suoi dati (es. dal Tipo per i siti), quando
+   *  il nodo non ha icona/colore propri. Ha priorità sul defaultIcon. */
+  nodeAppearance?: (node: Record<string, unknown>) => { icon?: string | null; color?: string | null };
   defaultSort?: 'manual' | 'alpha';
   /** icona di default per i nodi senza icona propria (es. 'map-pin' per i siti). */
   defaultIcon?: string;
@@ -290,9 +293,16 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
           {pick
             ? <input type="radio" name={`pick-${config.entity}`} onClick={(e) => e.stopPropagation()} onChange={() => config.onPick?.(n)} className="et-radio" />
             : null}
-          <span className="et-ico" style={{ color: n.color || 'var(--brand)' }}>
-            {n.imageUrl ? <img src={n.imageUrl} alt="" className="et-img" /> : <CategoryIcon name={n.icon || config.defaultIcon || null} size={16} color={n.color} />}
-          </span>
+          {(() => {
+            const ap = config.nodeAppearance?.(n as unknown as Record<string, unknown>);
+            const icoName = n.icon || ap?.icon || config.defaultIcon || null;
+            const icoColor = n.color || ap?.color || undefined;
+            return (
+              <span className="et-ico" style={{ color: icoColor || 'var(--brand)' }}>
+                {n.imageUrl ? <img src={n.imageUrl} alt="" className="et-img" /> : <CategoryIcon name={icoName} size={16} color={icoColor} />}
+              </span>
+            );
+          })()}
           <span className="et-name"><Highlight text={n.name} q={q} /></span>
           {config.rowMeta && config.rowMeta(n as unknown as Record<string, unknown>) && <span className="et-meta">{config.rowMeta(n as unknown as Record<string, unknown>)}</span>}
           {n.active === false && <span className="et-badge et-off">off</span>}
@@ -422,7 +432,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
                   {flat.map((n) => (
                     <tr key={n.id} style={{ cursor: pick || canWrite ? 'pointer' : 'default' }}
                       onClick={() => { if (pick) config.onPick?.(n); else if (canWrite) openEdit(n); }}>
-                      <td><span className="et-ico" style={{ color: n.color || 'var(--brand)', marginRight: 7, verticalAlign: 'middle' }}><CategoryIcon name={n.icon || config.defaultIcon || null} size={15} color={n.color} /></span><Highlight text={n.name} q={q} />{n.active === false && <span className="et-badge et-off" style={{ marginLeft: 6 }}>off</span>}</td>
+                      <td>{(() => { const ap = config.nodeAppearance?.(n as unknown as Record<string, unknown>); const ic = n.icon || ap?.icon || config.defaultIcon || null; const col = n.color || ap?.color || undefined; return <span className="et-ico" style={{ color: col || 'var(--brand)', marginRight: 7, verticalAlign: 'middle' }}><CategoryIcon name={ic} size={15} color={col} /></span>; })()}<Highlight text={n.name} q={q} />{n.active === false && <span className="et-badge et-off" style={{ marginLeft: 6 }}>off</span>}</td>
                       <td className="et-path">{breadcrumb(byId, n.parentId)}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--ink-faint)' }}>{n.directCount ?? 0} · {n.subtree}</td>
                     </tr>

@@ -8,7 +8,7 @@
  * NB: l'albero per-cliente resta in SiteTree (scheda Soggetto) — qui è la lista globale.
  */
 import { useMemo, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Table2, ListTree } from 'lucide-react';
 import type { SiteDto } from '@sisuite/shared';
 import { Page } from '../components/Page';
 import { useLookups, lookupLabel } from '../context/Lookups';
@@ -17,6 +17,7 @@ import { Modal } from '../ui/Modal';
 import { PickerField } from '../ui/PickerField';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
 import { AddressField } from '../ui/AddressField';
+import { GlobalSiteTree } from '../ui/SiteTree';
 import { Plus } from '../ui/icons';
 import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
@@ -61,6 +62,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   const canWrite = !!user?.permissions.includes('site:create' as never);
   const canDelete = !!user?.permissions.includes('site:delete' as never);
   const canAddr = !!user?.permissions.includes('site:address' as never);
+  const [view, setView] = useState<'list' | 'tree'>('list');
   const pick = pickProps?.pick;
   const [archived, setArchived] = useArchivedView();
   const [clearTok, setClearTok] = useState(0);
@@ -228,7 +230,11 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   if (pick) return <>{list}{crudModal}{companyPickerDialog}{auditModal}</>;
   return (
     <Page>
-      {list}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        <button className={`btn btn-sm ${view === 'list' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setView('list')}><Table2 size={15} /> Lista</button>
+        <button className={`btn btn-sm ${view === 'tree' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setView('tree')}><ListTree size={15} /> Albero per cliente</button>
+      </div>
+      {view === 'tree' ? <GlobalSiteTree /> : list}
       {crudModal}
       {companyPickerDialog}
       {auditModal}

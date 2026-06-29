@@ -10,7 +10,7 @@ import {
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 
-const COLS = `id, category, canonical, code, label, abbreviation, color_token, sequence, is_default, tenant_id`;
+const COLS = `id, category, canonical, code, label, abbreviation, color_token, icon, sequence, is_default, tenant_id`;
 
 // SELECT con OVERLAY dell'override del tenant: le righe di SISTEMA mostrano
 // nome/sigla/colore/ordine personalizzati dal tenant, senza toccare la riga
@@ -20,6 +20,7 @@ const EFFECTIVE = `
          COALESCE(lo.label, lv.label) AS label,
          COALESCE(lo.abbreviation, lv.abbreviation) AS abbreviation,
          COALESCE(lo.color_token, lv.color_token) AS color_token,
+         COALESCE(lo.icon, lv.icon) AS icon,
          COALESCE(lo.sequence, lv.sequence) AS sequence,
          lv.is_default, lv.tenant_id, (lo.id IS NOT NULL) AS is_customized
   FROM lookup_value lv
@@ -34,6 +35,7 @@ function mapLookup(r: Record<string, unknown>): LookupDto {
     label: (r.label as Record<string, string>) ?? {},
     abbreviation: (r.abbreviation as string) ?? null,
     colorToken: (r.color_token as string) ?? null,
+    icon: (r.icon as string) ?? null,
     sequence: (r.sequence as number) ?? 0,
     isDefault: (r.is_default as boolean) ?? false,
     isSystem: r.tenant_id == null,
@@ -96,11 +98,11 @@ export async function lookupRoutes(app: FastifyInstance): Promise<void> {
       const dto = await withRls(ctx, async (db) => {
         const ins = await db.query(
           `INSERT INTO lookup_value
-             (tenant_id, category, canonical, code, label, abbreviation, color_token, sequence, is_default)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             (tenant_id, category, canonical, code, label, abbreviation, color_token, icon, sequence, is_default)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
            RETURNING ${COLS}`,
           [ctx.tenantId, input.category, input.canonical, input.code, JSON.stringify(input.label),
-           input.abbreviation ?? null, input.colorToken ?? null, input.sequence ?? 0, input.isDefault ?? false],
+           input.abbreviation ?? null, input.colorToken ?? null, input.icon ?? null, input.sequence ?? 0, input.isDefault ?? false],
         );
         return mapLookup(ins.rows[0]);
       });
@@ -118,12 +120,13 @@ export async function lookupRoutes(app: FastifyInstance): Promise<void> {
              label = COALESCE($2, label),
              abbreviation = COALESCE($3, abbreviation),
              color_token = COALESCE($4, color_token),
-             sequence = COALESCE($5, sequence),
-             is_default = COALESCE($6, is_default)
-           WHERE id = $1 AND tenant_id = $7
+             icon = COALESCE($5, icon),
+             sequence = COALESCE($6, sequence),
+             is_default = COALESCE($7, is_default)
+           WHERE id = $1 AND tenant_id = $8
            RETURNING ${COLS}`,
           [request.params.id, input.label ? JSON.stringify(input.label) : null,
-           input.abbreviation ?? null, input.colorToken ?? null,
+           input.abbreviation ?? null, input.colorToken ?? null, input.icon ?? null,
            input.sequence ?? null, input.isDefault ?? null, request.ctx.tenantId],
         );
         return r.rows.length ? mapLookup(r.rows[0]) : null;
@@ -158,13 +161,13 @@ export async function lookupRoutes(app: FastifyInstance): Promise<void> {
         const lv = await db.query(`SELECT id FROM lookup_value WHERE id = $1 AND active`, [request.params.id]);
         if (!lv.rows.length) return null;
         await db.query(
-          `INSERT INTO lookup_override (tenant_id, lookup_id, label, abbreviation, color_token, sequence)
-           VALUES ($1,$2,$3,$4,$5,$6)
+          `INSERT INTO lookup_override (tenant_id, lookup_id, label, abbreviation, color_token, icon, sequence)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)
            ON CONFLICT (tenant_id, lookup_id) DO UPDATE SET
              label = EXCLUDED.label, abbreviation = EXCLUDED.abbreviation,
-             color_token = EXCLUDED.color_token, sequence = EXCLUDED.sequence, updated_at = now()`,
+             color_token = EXCLUDED.color_token, icon = EXCLUDED.icon, sequence = EXCLUDED.sequence, updated_at = now()`,
           [request.ctx.tenantId, request.params.id, input.label ? JSON.stringify(input.label) : null,
-           input.abbreviation ?? null, input.colorToken ?? null, input.sequence ?? null],
+           input.abbreviation ?? null, input.colorToken ?? null, input.icon ?? null, input.sequence ?? null],
         );
         const r = await db.query(`${EFFECTIVE} WHERE lv.id = $1`, [request.params.id]);
         return r.rows.length ? mapLookup(r.rows[0]) : null;

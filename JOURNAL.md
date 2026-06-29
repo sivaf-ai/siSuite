@@ -2,6 +2,15 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (1) — Icona configurabile sulle etichette + albero siti colorato per tipo + menu Siti ad albero (chat 01.06)
+- **Migr 060**: colonna `icon` su `lookup_value` + `lookup_override` (nullable). Seed icone per `site_kind` e `stock_location_kind`. Prossima libera **061**.
+- **Backend `lookups`** + shared `LookupDto`/schemi estesi con `icon` (SELECT/EFFECTIVE COALESCE override/CRUD/override). 
+- **Maschera Etichette**: aggiunto **IconPicker** (anteprima accanto al Nome); la riga lista mostra l'icona colorata. Ora ogni etichetta può avere icona+colore configurabili.
+- **Albero colorato per tipo**: `EntityTree.nodeAppearance(node)` deriva icona/colore quando il nodo non ne ha di propri. `SiteTree` lo alimenta dai lookup `site_kind` (icona + `swatchColor(colorToken)`): i siti nell'albero ora hanno icona/colore per Tipo (Edificio=🏢, Furgone=🚚…) invece del solo 📍.
+- **Fix precedenti (chat 5)**: AddressField avvolto in `.dsx` (campi a griglia, non più ammucchiati); SiteTree senza FormCard (niente doppio titolo); `newLabel` per il genere ("Nuovo sito").
+- **Opz.3 — Menu Siti ad albero**: `GlobalSiteTree` + toggle **Lista ⇄ Albero per cliente** in `SitiPage`: ogni cliente è un nodo espandibile che contiene il suo `SiteTree` completo (lazy). Indirizzo (gated) aggiunto anche al CRUD della lista globale.
+- 90/90 test, typecheck shared+BE+FE puliti, smoke icone OK.
+
 ## 2026-06-29 (5) — Fix UX: modali in portal, doppia barra titolo, maschera Etichette, indirizzo sito (chat 01.06)
 - **Modali sotto la barra del titolo (bug strutturale)**: `Modal`/`TreeNodeCard`/`ConfirmDialog`/`PromptDialog` ora renderizzano in **portal su `document.body`** (z-index 1300/1400/1500) → il `position:fixed` non resta più intrappolato sotto la topbar/stacking-context. Risolve anche i picker che si infilavano sotto la barra.
 - **Doppia barra del titolo** sulle schede (es. "Ordine di lavoro — nuovo" + testata ObjectPage): fix sistemico in `components/Page.tsx` — quando `bleed` è true (scheda con testata sticky di ObjectPage) la `<Page>` NON rende più la sua IonHeader. Una riga, vale per TUTTE le schede.

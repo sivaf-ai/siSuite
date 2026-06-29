@@ -5,10 +5,16 @@
  * extra «Tipo» (i siti non hanno icona/colore). Drag&drop, Sposta in…, ricerca,
  * eliminazione a 3 modi, sequence: tutto dallo standard.
  */
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Building2 } from 'lucide-react';
 import { EntityTree, type EntityTreeConfig } from './EntityTree';
 import { AddressField } from './AddressField';
+import { useApi } from '../api/hooks';
 import { useLookups, lookupLabel } from '../context/Lookups';
+import { swatchColor } from '../theme/palette';
 import { useAuth } from '../auth/AuthContext';
+
+export type KindMeta = Record<string, { icon: string | null; color: string }>;
 
 /** indirizzo jsonb country-driven → riga leggibile (ignora la chiave country). */
 function addrSummary(a: unknown): string {
@@ -21,7 +27,7 @@ function addrSummary(a: unknown): string {
 export function siteTreeConfig(
   companyId: string,
   kinds: { value: string; label: string }[],
-  opts: { country: string; canAddr: boolean },
+  opts: { country: string; canAddr: boolean; kindMeta: KindMeta },
 ): EntityTreeConfig {
   const labelOf = (k: string) => kinds.find((o) => o.value === k)?.label ?? k;
   const def = kinds.find((o) => o.value === 'building') ? 'building' : (kinds[0]?.value ?? 'building');
@@ -35,6 +41,8 @@ export function siteTreeConfig(
     countNoun: 'asset/ordini',
     scopeQuery: { company_id: companyId },
     createDefaults: { companyId },
+    // icona+colore dal Tipo di sito (configurabili in Stati & etichette)
+    nodeAppearance: (n) => opts.kindMeta[String(n.kind ?? def)] ?? {},
     rowMeta: (n) => [labelOf(String(n.kind ?? def)), addrSummary(n.address)].filter(Boolean).join(' · ') || null,
     extraCard: {
       init: (node) => ({ kind: (node?.kind as string) ?? def, address: (node?.address as Record<string, unknown>) ?? {} }),
@@ -60,11 +68,58 @@ export function siteTreeConfig(
   };
 }
 
-export function SiteTree({ companyId, country = 'IT' }: { companyId: string; country?: string; canEdit?: boolean }) {
+/** Albero GLOBALE dei siti, raggruppato per cliente (menu Anagrafiche › Siti/Località):
+ *  ogni cliente è un nodo radice espandibile che contiene il SUO albero siti completo
+ *  (stesso SiteTree per-cliente, con icone/indirizzo/3-modi). Lazy: l'albero del cliente
+ *  si carica all'espansione. */
+export function GlobalSiteTree() {
+  const { data, loading } = useApi<{ items: import('@sisuite/shared').SiteDto[] }>('/sites');
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const groups = useMemo(() => {
+    const m = new Map<string, { name: string; count: number }>();
+    for (const s of data?.items ?? []) {
+      if (!s.companyId) continue;
+      const g = m.get(s.companyId) ?? { name: s.companyName ?? '—', count: 0 };
+      g.count++; m.set(s.companyId, g);
+    }
+    return [...m.entries()].map(([id, g]) => ({ id, ...g })).sort((a, b) => a.name.localeCompare(b.name, 'it'));
+  }, [data]);
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  if (loading) return <div className="et-sub" style={{ padding: 12 }}>Caricamento…</div>;
+  if (!groups.length) return <div className="et-sub" style={{ padding: 12 }}>Nessun sito. Crea i siti dalla scheda di un Soggetto › Località e siti.</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <style>{`.gst-cli{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--card);cursor:pointer;font:inherit;font-size:14px;font-weight:700;color:var(--ink)}
+        .gst-cli:hover{background:var(--paper)} .gst-cnt{margin-left:auto;font-size:12px;font-weight:600;color:var(--ink-faint);font-family:var(--font-mono)}`}</style>
+      {groups.map((g) => (
+        <div key={g.id}>
+          <button className="gst-cli" onClick={() => toggle(g.id)}>
+            {open.has(g.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <Building2 size={15} style={{ color: 'var(--brand)' }} /> {g.name}
+            <span className="gst-cnt">{g.count} siti</span>
+          </button>
+          {open.has(g.id) && <div style={{ marginTop: 8, paddingLeft: 8 }}><SiteTree companyId={g.id} /></div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** mappa codice-tipo → {icona, colore} dai lookup site_kind (per colorare l'albero). */
+export function useSiteKindMeta(): { kinds: { value: string; label: string }[]; kindMeta: KindMeta } {
   const lk = useLookups();
+  const items = lk.byCategory('site_kind');
+  const kinds = items.map((l) => ({ value: l.code, label: lookupLabel(l) }));
+  const kindMeta: KindMeta = {};
+  items.forEach((l) => { kindMeta[l.code] = { icon: l.icon, color: swatchColor(l.colorToken) }; });
+  return { kinds, kindMeta };
+}
+
+export function SiteTree({ companyId, country = 'IT' }: { companyId: string; country?: string; canEdit?: boolean }) {
   const { user } = useAuth();
   const canAddr = !!user?.permissions.includes('site:address' as never);
-  const kinds = lk.byCategory('site_kind').map((l) => ({ value: l.code, label: lookupLabel(l) }));
+  const { kinds, kindMeta } = useSiteKindMeta();
   // niente FormCard: l'EntityTree ha già il suo riquadro + testata (evita il doppio titolo).
-  return <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr })} />;
+  return <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr, kindMeta })} />;
 }

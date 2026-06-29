@@ -19,6 +19,8 @@ export interface LookupDto {
   label: Record<string, string>;
   abbreviation: string | null;
   colorToken: string | null;
+  /** nome icona libreria (lucide, kebab/PascalCase) o null. */
+  icon: string | null;
   sequence: number;
   isDefault: boolean;
   /** true = riga di sistema (tenant_id NULL). Personalizzabile via override (non eliminabile). */
