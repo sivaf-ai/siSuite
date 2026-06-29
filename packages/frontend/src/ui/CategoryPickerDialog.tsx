@@ -1,12 +1,13 @@
 /**
- * CategoryPickerDialog — pop-up CENTRATO che riusa LO STESSO albero Categorie articolo
- * (CategoriePage) in modalità SELEZIONE. Il click su un nodo lo seleziona e chiude;
- * espandi/collassa e "+ Nuova categoria" restano disponibili (creazione al volo).
- * Ritorna la MaterialCategoryDto scelta (id, name, …).
+ * CategoryPickerDialog — pick mode (§6.10): apre LO STESSO EntityTree delle Categorie
+ * articolo in un modale, con TUTTA la toolbar e la creazione al volo. Differenza unica:
+ * radio (selezione singola) + onPick(node) → ritorna l'id e chiude. Zero duplicazione:
+ * stessa lista, stessa scheda, stesso codice, cambia solo mode.
  */
 import type { MaterialCategoryDto } from '@sisuite/shared';
 import { Modal } from './Modal';
-import { CategoriePage } from '../pages/CategoriePage';
+import { EntityTree } from './EntityTree';
+import { materialCategoryTreeConfig } from '../pages/CategoriePage';
 
 export function CategoryPickerDialog({ open, onClose, onPick }: {
   open: boolean; onClose: () => void; onPick: (c: MaterialCategoryDto) => void;
@@ -15,7 +16,7 @@ export function CategoryPickerDialog({ open, onClose, onPick }: {
   return (
     <Modal open size="xl" title="Seleziona categoria" onClose={onClose}
       footer={<button className="btn btn-ghost" onClick={onClose}>Annulla</button>}>
-      <CategoriePage pickProps={{ onPick: (c) => { onPick(c); onClose(); } }} />
+      <EntityTree config={{ ...materialCategoryTreeConfig, mode: 'pick', onPick: (n) => { onPick(n); onClose(); } }} />
     </Modal>
   );
 }

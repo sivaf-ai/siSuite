@@ -111,6 +111,15 @@ async function build() {
       time_entry: 'ore', work_line: 'lavorazioni', material_consumption: 'consumi', tax_rate: 'aliquote IVA',
       unit_of_measure: 'unità di misura', price_list_item: 'voci di listino', app_user: 'utenti', role: 'ruoli', user_role: 'assegnazioni ruolo',
     };
+
+    // raise_exception dai trigger anti-ciclo degli alberi (STANDARD entità ad albero §3)
+    if (pg.code === 'P0001' && /ciclo non ammesso/i.test((err as Error).message)) {
+      return reply.code(409).send({
+        error: 'conflict',
+        message: 'Spostamento non consentito: non puoi mettere una voce dentro una sua stessa sotto-voce.',
+        statusCode: 409,
+      });
+    }
     if (pg.code === '23503') { // foreign_key_violation: il record è ancora referenziato → non cancellabile
       const m = /referenced from table "([^"]+)"/.exec(pg.detail ?? '');
       const refTable = m?.[1];

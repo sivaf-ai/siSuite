@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import {
-  createMaterialCategorySchema, updateMaterialCategorySchema,
+  createMaterialCategorySchema, updateMaterialCategorySchema, treeDeleteMode,
   createMaterialSupplierSchema, updateMaterialSupplierSchema, reorderImagesSchema,
   type MaterialCategoryDto, type MaterialSupplierDto, type MaterialImageDto,
 } from '@sisuite/shared';
@@ -22,11 +22,18 @@ function categoryDto(r: Record<string, unknown>): MaterialCategoryDto {
     id: r.id as string,
     parentId: (r.parent_id as string) ?? null,
     name: r.name as string,
+    description: (r.description as string) ?? null,
     color: (r.color as string) ?? null,
     icon: (r.icon as string) ?? null,
+    imageUrl: (r.image_url as string) ?? null,
     active: (r.active as boolean) ?? false,
+    sequence: Number(r.sequence ?? 0),
+    isSystem: (r.is_system as boolean) ?? false,
+    ...(r.archived_at !== undefined ? { archivedAt: (r.archived_at as string) ?? null } : {}),
+    ...(r.direct_count != null ? { directCount: Number(r.direct_count) } : {}),
   };
 }
+const CAT_COLS = `id, parent_id, name, description, color, icon, image_url, active, sequence, is_system`;
 
 function supplierDto(r: Record<string, unknown>): MaterialSupplierDto {
   return {
@@ -54,69 +61,171 @@ function imageDto(r: Record<string, unknown>): MaterialImageDto {
 
 
 export async function materialCatalogRoutes(app: FastifyInstance): Promise<void> {
-  // ── material_category ─────────────────────────────────────────────────
-  app.get('/material-categories', { preHandler: [app.authenticate, requirePermission('material:read')] },
+  // ── material_category (EntityTree, STANDARD entità ad albero §5) ───────
+  // Lista PIATTA con conteggi DIRETTI (articoli non archiviati per nodo); il
+  // sottoalbero è sommato client-side da EntityTree. ?includeArchived=true opz.
+  app.get<{ Querystring: { includeArchived?: string } }>('/material-categories',
+    { preHandler: [app.authenticate, requirePermission('material:read')] },
     async (request) => withRls(request.ctx, async (db) => {
+      const includeArchived = request.query.includeArchived === 'true' || request.query.includeArchived === '1';
       const rows = await db.query(
-        `SELECT id, parent_id, name, color, icon, active FROM material_category
-         WHERE archived_at IS NULL ORDER BY name`);
+        `SELECT ${CAT_COLS}, mc.archived_at,
+                (SELECT count(*) FROM material m WHERE m.category_id = mc.id AND m.archived_at IS NULL)::int AS direct_count
+         FROM material_category mc
+         WHERE ($1::bool OR mc.archived_at IS NULL)
+         ORDER BY mc.sequence, mc.name`,
+        [includeArchived]);
       return { items: rows.rows.map(categoryDto) };
     }));
 
+  // Crea (parentId null = radice). Ritorna il NodeDto creato (serve al pick-mode §6.10).
+  // Se sequence non indicata → in coda ai fratelli (max+1).
   app.post('/material-categories', { preHandler: [app.authenticate, requirePermission('material:update')] },
     async (request, reply) => {
       const input = createMaterialCategorySchema.parse(request.body);
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
+        let seq = input.sequence;
+        if (seq === undefined) {
+          const m = await db.query(
+            `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM material_category
+             WHERE tenant_id = $1 AND parent_id IS NOT DISTINCT FROM $2`,
+            [ctx.tenantId, input.parentId ?? null]);
+          seq = Number(m.rows[0].seq);
+        }
         const r = await db.query(
-          `INSERT INTO material_category (tenant_id, parent_id, name, color, icon, active, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
-           RETURNING id, parent_id, name, color, icon, active`,
-          [ctx.tenantId, input.parentId ?? null, input.name, input.color ?? null, input.icon ?? null, input.active ?? true, ctx.userId]);
+          `INSERT INTO material_category (tenant_id, parent_id, name, description, color, icon, image_url, active, sequence, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+           RETURNING ${CAT_COLS}`,
+          [ctx.tenantId, input.parentId ?? null, input.name, input.description ?? null, input.color ?? null,
+           input.icon ?? null, input.imageUrl ?? null, input.active ?? true, seq, ctx.userId]);
         return categoryDto(r.rows[0]);
       });
       return reply.code(201).send(dto);
     });
 
+  // Update dinamico dei soli campi presenti. Cambio parentId = spostamento (anti-ciclo a DB).
   app.patch<{ Params: { id: string } }>('/material-categories/:id',
     { preHandler: [app.authenticate, requirePermission('material:update')] },
-    async (request) => withRls(request.ctx, async (db) => {
+    async (request, reply) => {
       const input = updateMaterialCategorySchema.parse(request.body);
-      const sets: string[] = []; const vals: unknown[] = [request.params.id];
-      const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
-      if (input.name !== undefined) add('name', input.name);
-      if (input.parentId !== undefined) add('parent_id', input.parentId);
-      if (input.color !== undefined) add('color', input.color);
-      if (input.icon !== undefined) add('icon', input.icon);
-      if (input.active !== undefined) add('active', input.active);
-      vals.push(request.ctx.userId); sets.push(`updated_by = $${vals.length}`);
-      const r = await db.query(
-        `UPDATE material_category SET ${sets.join(', ')} WHERE id = $1
-         RETURNING id, parent_id, name, color, icon, active`, vals);
-      return categoryDto(r.rows[0]);
-    }));
+      const out = await withRls(request.ctx, async (db) => {
+        const guard = await db.query(`SELECT is_system FROM material_category WHERE id = $1`, [request.params.id]);
+        if (!guard.rows.length) return { notFound: true as const };
+        if (guard.rows[0].is_system) return { system: true as const };
+        const sets: string[] = []; const vals: unknown[] = [request.params.id];
+        const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+        if (input.name !== undefined) add('name', input.name);
+        if (input.parentId !== undefined) add('parent_id', input.parentId);
+        if (input.description !== undefined) add('description', input.description);
+        if (input.color !== undefined) add('color', input.color);
+        if (input.icon !== undefined) add('icon', input.icon);
+        if (input.imageUrl !== undefined) add('image_url', input.imageUrl);
+        if (input.sequence !== undefined) add('sequence', input.sequence);
+        if (input.active !== undefined) add('active', input.active);
+        vals.push(request.ctx.userId); sets.push(`updated_by = $${vals.length}`);
+        const r = await db.query(
+          `UPDATE material_category SET ${sets.join(', ')} WHERE id = $1 RETURNING ${CAT_COLS}`, vals);
+        return { dto: categoryDto(r.rows[0]) };
+      });
+      if ('notFound' in out) return reply.code(404).send({ error: 'not_found', message: 'Categoria non trovata', statusCode: 404 });
+      if ('system' in out) return reply.code(409).send({ error: 'conflict', message: 'Categoria di sistema: non modificabile. Puoi duplicarla.', statusCode: 409 });
+      return out.dto;
+    });
 
-  // soft-delete (archivia): la FK non scatta sull'UPDATE, quindi controllo l'uso
-  // a mano — una categoria usata da articoli o con sotto-categorie non si elimina.
-  app.delete<{ Params: { id: string } }>('/material-categories/:id',
+  // DELETE a TRE MODI (STANDARD §7), tutto in transazione. Conteggi RICORSIVI.
+  //  block   : se figli o articoli nel sottoalbero → 409 con conteggi; altrimenti archivia il nodo.
+  //  reassign: figli salgono al nonno, articoli del nodo passano al genitore, archivia solo il nodo.
+  //  cascade : archivia nodo + discendenti; articoli del sottoalbero → category_id NULL (avviso col numero).
+  app.delete<{ Params: { id: string }; Querystring: { mode?: string } }>('/material-categories/:id',
     { preHandler: [app.authenticate, requirePermission('material:update')] },
     async (request, reply) => {
+      const mode = treeDeleteMode.catch('block').parse(request.query.mode);
+      const id = request.params.id;
+      const userId = request.ctx.userId;
       const res = await withRls(request.ctx, async (db) => {
-        const used = await db.query(
-          `SELECT
-             (SELECT count(*) FROM material WHERE category_id = $1 AND archived_at IS NULL)::int AS articoli,
-             (SELECT count(*) FROM material_category WHERE parent_id = $1 AND archived_at IS NULL)::int AS figlie`,
-          [request.params.id]);
-        const u = used.rows[0] as Record<string, number>;
-        const parts: string[] = [];
-        if (u.articoli) parts.push(`${u.articoli} articoli`);
-        if (u.figlie) parts.push(`${u.figlie} sotto-categorie`);
-        if (parts.length) return { used: parts };
-        await db.query(`UPDATE material_category SET archived_at = now(), updated_by = $2 WHERE id = $1`,
-          [request.params.id, request.ctx.userId]);
-        return { used: null };
+        const cur = await db.query(`SELECT parent_id, is_system FROM material_category WHERE id = $1 AND archived_at IS NULL`, [id]);
+        if (!cur.rows.length) return { notFound: true as const };
+        if (cur.rows[0].is_system) return { system: true as const };
+        const parentId = (cur.rows[0].parent_id as string) ?? null;
+        // sottoalbero completo (nodo + discendenti attivi)
+        const sub = await db.query(
+          `WITH RECURSIVE tree AS (
+             SELECT id FROM material_category WHERE id = $1
+             UNION ALL
+             SELECT c.id FROM material_category c JOIN tree t ON c.parent_id = t.id WHERE c.archived_at IS NULL
+           ) SELECT array_agg(id) AS ids FROM tree`, [id]);
+        const ids: string[] = sub.rows[0].ids ?? [id];
+        const directChildren = (await db.query(
+          `SELECT count(*)::int AS n FROM material_category WHERE parent_id = $1 AND archived_at IS NULL`, [id])).rows[0].n as number;
+        const subtreeMaterials = (await db.query(
+          `SELECT count(*)::int AS n FROM material WHERE category_id = ANY($1) AND archived_at IS NULL`, [ids])).rows[0].n as number;
+        const directMaterials = (await db.query(
+          `SELECT count(*)::int AS n FROM material WHERE category_id = $1 AND archived_at IS NULL`, [id])).rows[0].n as number;
+
+        if (mode === 'block') {
+          const parts: string[] = [];
+          if (directChildren) parts.push(`${directChildren} sotto-categorie`);
+          if (subtreeMaterials) parts.push(`${subtreeMaterials} articoli`);
+          if (parts.length) return { blocked: parts as string[] };
+          await db.query(`UPDATE material_category SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`, [id, userId]);
+          return { result: { ok: true, archivedNodes: 1 } };
+        }
+        if (mode === 'reassign') {
+          // figli diretti → al nonno; articoli del nodo → al genitore; archivia solo il nodo
+          await db.query(`UPDATE material_category SET parent_id = $2, updated_by = $3 WHERE parent_id = $1 AND archived_at IS NULL`, [id, parentId, userId]);
+          await db.query(`UPDATE material SET category_id = $2, updated_by = $3 WHERE category_id = $1 AND archived_at IS NULL`, [id, parentId, userId]);
+          await db.query(`UPDATE material_category SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = $1`, [id, userId]);
+          return { result: { ok: true, reassigned: directChildren, movedMaterials: directMaterials } };
+        }
+        // cascade: articoli del sottoalbero → senza categoria; archivia nodo + discendenti
+        await db.query(`UPDATE material SET category_id = NULL, updated_by = $2 WHERE category_id = ANY($1) AND archived_at IS NULL`, [ids, userId]);
+        await db.query(`UPDATE material_category SET archived_at = now(), archived_by = $2, updated_by = $2 WHERE id = ANY($1) AND archived_at IS NULL`, [ids, userId]);
+        return { result: { ok: true, archivedNodes: ids.length, orphanedMaterials: subtreeMaterials } };
       });
-      if (res.used) return reply.code(409).send({ error: 'conflict', message: `Impossibile eliminare la categoria: è utilizzata in ${res.used.join(', ')}. Rimuovi prima i collegamenti.`, statusCode: 409 });
+      if ('notFound' in res) return reply.code(404).send({ error: 'not_found', message: 'Categoria non trovata', statusCode: 404 });
+      if ('system' in res) return reply.code(409).send({ error: 'conflict', message: 'Categoria di sistema: non eliminabile. Puoi duplicarla.', statusCode: 409 });
+      if ('blocked' in res && res.blocked) return reply.code(409).send({ error: 'conflict', message: `Impossibile eliminare: la categoria contiene ${res.blocked.join(' e ')}. Scegli «Riassegna» o «Elimina tutto il ramo».`, statusCode: 409 });
+      if ('result' in res) return reply.send(res.result);
+      return reply.code(500).send({ error: 'internal_error', message: 'Esito eliminazione non determinato', statusCode: 500 });
+    });
+
+  // Duplica (regole C/D): copia senza is_system, stesso genitore, suffisso «(copia)» se serve.
+  app.post<{ Params: { id: string } }>('/material-categories/:id/duplicate',
+    { preHandler: [app.authenticate, requirePermission('material:update')] },
+    async (request, reply) => {
+      const ctx = request.ctx;
+      const dto = await withRls(ctx, async (db) => {
+        const src = await db.query(`SELECT ${CAT_COLS} FROM material_category WHERE id = $1`, [request.params.id]);
+        if (!src.rows.length) return null;
+        const s = src.rows[0] as Record<string, unknown>;
+        const parentId = (s.parent_id as string) ?? null;
+        // nome libero per livello (archived-aware)
+        const taken = new Set((await db.query(
+          `SELECT name FROM material_category WHERE tenant_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND archived_at IS NULL`,
+          [ctx.tenantId, parentId])).rows.map((r) => r.name as string));
+        let name = s.name as string;
+        if (taken.has(name)) { let n = `${name} (copia)`; let i = 2; while (taken.has(n)) n = `${name} (copia ${i++})`; name = n; }
+        const seq = Number((await db.query(
+          `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM material_category WHERE tenant_id = $1 AND parent_id IS NOT DISTINCT FROM $2`,
+          [ctx.tenantId, parentId])).rows[0].seq);
+        const r = await db.query(
+          `INSERT INTO material_category (tenant_id, parent_id, name, description, color, icon, image_url, active, sequence, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9,$9) RETURNING ${CAT_COLS}`,
+          [ctx.tenantId, parentId, name, s.description ?? null, s.color ?? null, s.icon ?? null, s.image_url ?? null, seq, ctx.userId]);
+        return categoryDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Categoria non trovata', statusCode: 404 });
+      return reply.code(201).send(dto);
+    });
+
+  // Ripristina (annulla soft-delete).
+  app.post<{ Params: { id: string } }>('/material-categories/:id/restore',
+    { preHandler: [app.authenticate, requirePermission('material:update')] },
+    async (request, reply) => {
+      await withRls(request.ctx, (db) => db.query(
+        `UPDATE material_category SET archived_at = NULL, archived_by = NULL, updated_by = $2 WHERE id = $1`,
+        [request.params.id, request.ctx.userId]));
       return reply.code(204).send();
     });
 

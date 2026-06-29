@@ -123,7 +123,12 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const categoryName = useMemo(() => {
     const cid = (form.categoryId as string) ?? '';
     if (!cid) return '';
-    return (categories.data?.items ?? []).find((c) => c.id === cid)?.name ?? '';
+    const items = categories.data?.items ?? [];
+    const byId = new Map(items.map((c) => [c.id, c]));
+    const parts: string[] = [];
+    let cur = byId.get(cid);
+    while (cur) { parts.unshift(cur.name); cur = cur.parentId ? byId.get(cur.parentId) : undefined; }
+    return parts.join(' › ');
   }, [form.categoryId, categories.data]);
 
   async function save() {

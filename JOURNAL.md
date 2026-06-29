@@ -2,6 +2,15 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-29 (1) — STANDARD entità ad albero (EntityTree) + migrazione 058 (chat 01.06, spec 01.05)
+- Migr **058_tree_standard.sql** applicata (prossima libera **059**): material_category +description/image_url/sequence/is_system + FK parent RESTRICT esplicita + trigger anti-ciclo + indice fratelli; **site FK CASCADE→RESTRICT** (fix critico) + sequence + anti-ciclo; stock_location + sequence. Adattata dal V058 Flyway fornito (rimossi BEGIN/COMMIT: il runner avvolge già; footer sisuite_migrations).
+- **Componente generico `ui/EntityTree.tsx`** (config-driven, ADR-0012): UN solo albero per tutte le tabelle self-FK. Clic-riga→scheda, chevron, quick-add unico in cima, **drag&drop 3 zone + "Sposta in…"** (esclude sottoalbero), ricerca con `<mark>`+potatura, conteggi ricorsivi, toggle Albero⇄Tabella e Manuale⇄Alfabetico, archiviati, **pick mode** (radio+onPick). Scheda nodo `ui/TreeNodeCard.tsx` (barra fissa in alto, anteprima icona/colore, Libreria/Immagine, colore HSL/HEX nel popup, chip AI). Ricerca/AI icone con **traduzione IT/ES→EN** (categoryIcons `ICON_SYNONYMS`/`suggestAppearance`).
+- **Backend material-categories** riscritto: GET piatto+direct_count+?includeArchived, POST ritorna NodeDto+sequence, PATCH move/seq, **DELETE ?mode=block|reassign|cascade** in transazione con conteggi ricorsivi, duplicate, restore. Handler globale **P0001 (anti-ciclo)→409**.
+- **Pilota Categorie articolo** completo: CategoriePage = wrapper EntityTree; CategoryPickerDialog = stesso EntityTree in pick (zero duplicazione); MaterialeDetailPage mostra breadcrumb categoria.
+- **Palette C "Ponte"** recepita in variables.css (brand bordeaux #801E1D, flow ciano + flow-ink, danger corallo #E8552D, light+dark+Ionic). ⚠️ cambio colore globale, validare a video.
+- **Test** `test/tree.test.ts` (7): anti-ciclo, unicità per-livello insert+update, riuso post-archivio, FK RESTRICT. **Suite 86/86**. Typecheck shared+BE+FE puliti. Smoke HTTP route OK.
+- **TODO**: migrare UI Siti/Ubicazioni a EntityTree (DB già allineato 058); upload immagine categoria MinIO; AI chip via LLM. Doc: `docs/DONE_tree_standard_01_05.md`, `docs/architecture/STANDARD_entita_albero.md`, ADR 0011/0012/0013.
+
 ## 2026-06-28 (6) — Fix KO test: asset_kind/skill_category visibili in "Stati & etichette" (chat 01.06)
 - **KO §6 risolto** (3 esiti correlati): le voci `asset_kind` ("Tipi di asset") e `skill_category` ("Categorie competenze") non comparivano nel combo di *Impostazioni › Stati & etichette* → l'array `CATS` in `LabelsSettings.tsx` era **hardcoded** e non le includeva. Aggiunte le 2 voci. I dati (mig 057, 8+6 righe di sistema) erano già presenti e il backend `/lookups` non filtra per categoria. Ora rinominabili/estendibili e si riflettono nelle tendine di Asset.Tipo e Competenze.Categoria.
 - Solo FE (1 riga + label). Typecheck FE verde (container). Vite hot-reload, nessun rebuild.

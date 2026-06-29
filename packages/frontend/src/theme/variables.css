@@ -11,15 +11,16 @@
      — non legarla a --ink, che nel tema scuro diventa chiaro. */
   --sidebar: #1B1D24;
 
-  /* brand + flow (la firma) */
-  --brand: #5B4DF0; --brand-press: #4A3DD6; --brand-wash: #ECEAFE; --brand-ink: #3B2EC0;
-  --flow: #1FC8C2; --flow-wash: #DEF7F5;
-  --flow-grad: linear-gradient(135deg, #5B4DF0 0%, #1FC8C2 100%);
+  /* brand + flow (la firma) — Palette C "Ponte" (ADR-0003):
+     BORDEAUX = azione (primari/selezione/brand), CIANO = AI e dati. */
+  --brand: #801E1D; --brand-press: #B91620; --brand-wash: #F6E9E9; --brand-ink: #5E1615;
+  --flow: #1FC8C2; --flow-ink: #0E7F7A; --flow-wash: #DEF7F5;
+  --flow-grad: linear-gradient(135deg, #801E1D 0%, #1FC8C2 100%);
 
   /* color token di stato (= lookup_value.color_token) */
   --success: #13A06B; --success-wash: #E0F4EC;
   --warning: #D9912A; --warning-wash: #FBF0DA;
-  --danger: #E04550;  --danger-wash: #FBE7E8;
+  --danger: #E8552D;  --danger-wash: #FCEAE2;  /* corallo: mai un rosso vicino al bordeaux */
   --info: #3B82F6;    --info-wash: #E6EFFE;
   --neutral: #8A8F9B; --neutral-wash: #EDEFF3;
 
@@ -27,7 +28,7 @@
   --r-xs: 7px; --r-sm: 10px; --r: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
   --shadow-1: 0 1px 2px rgba(27,29,36,.05), 0 2px 6px rgba(27,29,36,.04);
   --shadow-2: 0 2px 6px rgba(27,29,36,.06), 0 14px 34px rgba(27,29,36,.09);
-  --shadow-pop: 0 10px 30px rgba(91,77,240,.20);
+  --shadow-pop: 0 10px 30px rgba(128,30,29,.20);
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -52,9 +53,9 @@
   --ion-card-background: var(--card);
 
   --ion-color-primary: var(--brand);
-  --ion-color-primary-rgb: 91, 77, 240;
+  --ion-color-primary-rgb: 128, 30, 29;
   --ion-color-primary-shade: var(--brand-press);
-  --ion-color-primary-tint: #6c5ff2;
+  --ion-color-primary-tint: #97302f;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
 
@@ -89,27 +90,27 @@ html[data-density="spacious"] {
   --paper: #0F1014; --card: #1A1C22; --line: #2B2E38; --line-2: #23252E;
   --sidebar: #15161B;
 
-  /* brand + flow */
-  --brand: #8B7EF7; --brand-press: #7A6CEF; --brand-wash: #241F4D; --brand-ink: #C7BFFF;
-  --flow: #2BD4CE; --flow-wash: #0E2E2C;
-  --flow-grad: linear-gradient(135deg, #8B7EF7 0%, #2BD4CE 100%);
+  /* brand + flow — Palette C su fondo scuro (bordeaux schiarito per contrasto) */
+  --brand: #D2716E; --brand-press: #E08A87; --brand-wash: #2E1514; --brand-ink: #F0B8B6;
+  --flow: #2BD4CE; --flow-ink: #5FE0DB; --flow-wash: #0E2E2C;
+  --flow-grad: linear-gradient(135deg, #D2716E 0%, #2BD4CE 100%);
 
   /* color token di stato (colori vivaci su wash scuri) */
   --success: #34C88E; --success-wash: #11271D;
   --warning: #E0A33A; --warning-wash: #2A2113;
-  --danger: #F2616B;  --danger-wash: #2E1719;
+  --danger: #F2795A;  --danger-wash: #2E1813;  /* corallo schiarito */
   --info: #5B9BFF;    --info-wash: #15233B;
   --neutral: #9AA0AD; --neutral-wash: #23262F;
 
   /* ombre più marcate sul fondo scuro */
   --shadow-1: 0 1px 2px rgba(0,0,0,.4);
   --shadow-2: 0 2px 6px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.55);
-  --shadow-pop: 0 10px 30px rgba(124,111,245,.30);
+  --shadow-pop: 0 10px 30px rgba(210,113,110,.30);
 
   /* mappature Ionic che usano triple rgb cablate */
   --ion-background-color-rgb: 15, 16, 20;
   --ion-text-color-rgb: 231, 233, 239;
-  --ion-color-primary-tint: #9b8ff9;
+  --ion-color-primary-tint: #db8784;
 }
 
 /* ritocchi per componenti con colori cablati non coperti dai token */

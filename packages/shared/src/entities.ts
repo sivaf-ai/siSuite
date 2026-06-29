@@ -870,18 +870,48 @@ export interface UnitDto {
   archivedAt: string | null; archivedByName: string | null;
 }
 
-/* ── material_category (gerarchica) — Blocco B.2 ─────────────────────── */
+/* ── Entità ad albero (EntityTree) — STANDARD_entita_albero v1.0 §5 ────
+ *  Contratto comune a TUTTE le tabelle self-FK (material_category, site,
+ *  stock_location, WBS, …): servite PIATTE, ricostruite client-side da parentId. */
+export interface TreeNodeDto {
+  id: string;
+  parentId: string | null;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  imageUrl?: string | null;
+  active: boolean;
+  sequence: number;
+  isSystem: boolean;
+  /** valorizzato solo in vista archiviati (?includeArchived=true). */
+  archivedAt?: string | null;
+  /** riferimenti diretti al nodo (es. articoli con questa categoria). */
+  directCount?: number;
+  /** riferimenti dell'intero sottoalbero (figli inclusi). */
+  subtreeCount?: number;
+}
+
+/* ── material_category (gerarchica, EntityTree) — Blocco B.2 ─────────── */
 export const createMaterialCategorySchema = z.object({
   name: z.string().min(1).max(120),
   parentId: uuid.nullable().optional(),
   color: z.string().max(40).nullable().optional(),
-  icon: z.string().max(60).nullable().optional(),   // nome icona lucide (SVG pubblica)
+  icon: z.string().max(60).nullable().optional(),   // nome icona lucide (EN) o curata
+  imageUrl: z.string().max(500).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  sequence: z.coerce.number().int().optional(),
   active: z.boolean().optional(),
 });
 export const updateMaterialCategorySchema = createMaterialCategorySchema.partial();
-export interface MaterialCategoryDto {
-  id: string; parentId: string | null; name: string; color: string | null; icon: string | null; active: boolean;
-}
+/** Spostamento/riordino di un nodo (PATCH dedicato o campi nel PATCH generico). */
+export const moveTreeNodeSchema = z.object({
+  parentId: uuid.nullable().optional(),
+  sequence: z.coerce.number().int().optional(),
+});
+/** modalità di eliminazione di un sottoalbero (STANDARD §7). */
+export const treeDeleteMode = z.enum(['block', 'reassign', 'cascade']);
+export type MaterialCategoryDto = TreeNodeDto;
 
 /* ── material_supplier (più fornitori per articolo) — Blocco B.4 ────── */
 export const createMaterialSupplierSchema = z.object({
