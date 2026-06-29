@@ -32,7 +32,7 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? ((e.body as { message?: 
 export interface EntityTreeConfig {
   entity: string;                       // 'material_category'
   endpoint: string;                     // '/material-categories'
-  labels: { singular: string; plural: string; subtitle?: string };
+  labels: { singular: string; plural: string; subtitle?: string; newLabel?: string };
   permissions: { read: string; write: string };
   /** etichetta del conteggio per nodo (default: «N diretti · M nel ramo»). */
   countNoun?: string;                   // es. 'articoli'
@@ -400,7 +400,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
               <button className={`et-tool${showArchived ? ' on' : ''}`} title={showArchived ? 'Mostra attivi' : 'Mostra archiviati'}
                 onClick={() => setArchived(!archived)}><Archive size={16} /></button>
             )}
-            {canWrite && <button className="btn btn-primary btn-sm" onClick={() => openCreate(null)}><Plus size={15} /> Nuova {config.labels.singular.toLowerCase()}</button>}
+            {canWrite && <button className="btn btn-primary btn-sm" onClick={() => openCreate(null)}><Plus size={15} /> {config.labels.newLabel ?? `Nuova ${config.labels.singular.toLowerCase()}`}</button>}
           </div>
         </div>
 
@@ -413,7 +413,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
             </div>
           )}
           {loading ? <div className="et-sub" style={{ padding: 12 }}>Caricamento…</div>
-            : roots.length === 0 ? <div className="et-sub" style={{ padding: 12 }}>{showArchived ? 'Nessuna voce archiviata.' : `Nessuna ${config.labels.singular.toLowerCase()}.`}</div>
+            : roots.length === 0 ? <div className="et-sub" style={{ padding: 12 }}>{showArchived ? 'Nessuna voce archiviata.' : 'Ancora nessuna voce.'}</div>
             : view === 'tree' ? roots.map(renderRow)
             : (
               <table className="et-tbl">

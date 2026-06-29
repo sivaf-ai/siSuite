@@ -5,8 +5,6 @@
  * extra «Tipo» (i siti non hanno icona/colore). Drag&drop, Sposta in…, ricerca,
  * eliminazione a 3 modi, sequence: tutto dallo standard.
  */
-import { FormCard } from './FormPage';
-import { Building2 } from 'lucide-react';
 import { EntityTree, type EntityTreeConfig } from './EntityTree';
 import { AddressField } from './AddressField';
 import { useLookups, lookupLabel } from '../context/Lookups';
@@ -30,7 +28,7 @@ export function siteTreeConfig(
   return {
     entity: 'site',
     endpoint: '/sites',
-    labels: { singular: 'Sito', plural: 'Siti / Località', subtitle: 'Gerarchia siti e località del cliente' },
+    labels: { singular: 'Sito', plural: 'Siti / Località', subtitle: 'Gerarchia siti e località del cliente', newLabel: 'Nuovo sito' },
     permissions: { read: 'site:read', write: 'site:update' },
     defaultIcon: 'map-pin',
     showAppearance: false,
@@ -67,9 +65,6 @@ export function SiteTree({ companyId, country = 'IT' }: { companyId: string; cou
   const { user } = useAuth();
   const canAddr = !!user?.permissions.includes('site:address' as never);
   const kinds = lk.byCategory('site_kind').map((l) => ({ value: l.code, label: lookupLabel(l) }));
-  return (
-    <FormCard icon={<Building2 size={16} />} title="Siti / Località">
-      <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr })} />
-    </FormCard>
-  );
+  // niente FormCard: l'EntityTree ha già il suo riquadro + testata (evita il doppio titolo).
+  return <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr })} />;
 }

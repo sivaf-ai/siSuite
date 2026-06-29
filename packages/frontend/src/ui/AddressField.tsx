@@ -33,7 +33,9 @@ export function AddressField({ label, country, value, onChange }: {
 
   return (
     <ObjectBox icon={MapPin} title={label} subtitle={country}>
-      <div className="bgrid">
+      {/* .dsx: i campi .bf/.bl/.bi sono stylati solo dentro .dsx (datapages.css). Autonomo
+          così l'AddressField è corretto anche fuori da un form .dsx (es. scheda nodo albero). */}
+      <div className="dsx"><div className="bgrid">
         {defs.length === 0 ? (
           <div className="bf c2">
             <span className="bl">Indirizzo</span>
@@ -66,7 +68,7 @@ export function AddressField({ label, country, value, onChange }: {
             );
           })
         )}
-      </div>
+      </div></div>
     </ObjectBox>
   );
 }
