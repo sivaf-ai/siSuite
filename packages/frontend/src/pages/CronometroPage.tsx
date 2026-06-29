@@ -10,6 +10,9 @@ import { Page, Loading } from '../components/Page';
 import { useApi, mutate } from '../api/hooks';
 import { useLookups } from '../context/Lookups';
 import { useToast } from '../ui/Toast';
+import { PickerField } from '../ui/PickerField';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 
 function hhmmss(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -31,6 +34,10 @@ export function CronometroPage() {
   const [res, setRes] = useState('');
   const [typ, setTyp] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pickEng, setPickEng] = useState(false);
+  const [pickRes, setPickRes] = useState(false);
+  const engName = (() => { const e = engs.data?.items.find((x) => x.id === eng); return e ? `${e.code ? e.code + ' · ' : ''}${e.title}` : (eng ? '…' : ''); })();
+  const resName = ress.data?.items.find((r) => r.id === res)?.label ?? '';
   const [now, setNow] = useState(Date.now());
 
   // ticking ogni secondo quando c'è una sessione
@@ -99,23 +106,23 @@ export function CronometroPage() {
         <div className="card" style={{ padding: 24, maxWidth: 460, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ textAlign: 'center', marginBottom: 8 }}><Clock size={40} style={{ color: 'var(--ink-faint)' }} /></div>
           <div className="field"><label>Commessa</label>
-            <select className="txt" value={eng} onChange={(e) => { setEng(e.target.value); setAct(''); }}>
-              <option value="">—</option>
-              {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
-            </select></div>
+            <PickerField value={engName || null} placeholder="Scegli la commessa…"
+              onOpen={() => setPickEng(true)} onClear={() => { setEng(''); setAct(''); }} /></div>
           <div className="field"><label>Attività (opzionale)</label>
             <select className="txt" value={act} onChange={(e) => setAct(e.target.value)} disabled={!eng}>
               <option value="">—</option>
               {(acts.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
             </select></div>
           <div className="field"><label>Risorsa (se non sei una risorsa)</label>
-            <select className="txt" value={res} onChange={(e) => setRes(e.target.value)}>
-              <option value="">— automatica —</option>
-              {(ress.data?.items ?? []).filter((r) => r.kind === 'person').map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select></div>
+            <PickerField value={resName || null} placeholder="— automatica —"
+              onOpen={() => setPickRes(true)} onClear={() => setRes('')} /></div>
           <button className="btn btn-primary" disabled={busy} onClick={start} style={{ marginTop: 8 }}><Play size={16} /> Avvia</button>
         </div>
       )}
+      <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
+        onPick={(es) => { const e = es[0]; if (e) { setEng(e.id); setAct(''); } }} />
+      <ResourcePickerDialog open={pickRes} onClose={() => setPickRes(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) setRes(r.id); }} />
     </Page>
   );
 }

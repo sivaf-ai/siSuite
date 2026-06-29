@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-29 (4) — Picker a lente al posto dei select-entità (D-0) (chat 01.06)
+- Convertiti tutti i `<select>` che sceglievano un'entità FK ai **picker a lente** (riuso della lista vera in popup), regola D-0. Commit documenti `a1ffb72` + tecnico.
+  - **Documenti**: Ordinativi (assegna risorsa + import commessa), Magazzino (tecnico furgone + commessa movimento), Listino (ritocco per Gestore/Commessa).
+  - **Tecnico**: TimeEntry (commessa + risorsa), Rapportino (commessa), Cronometro (commessa + risorsa).
+- Restano per scelta: le select "Attività" (sotto-entità filtrata per commessa), "Articolo" nei movimenti (pick rapido in-context — eventuale MaterialPicker come micro-TODO). Typecheck FE pulito.
+
 ## 2026-06-29 (3) — Tipi configurabili (D-0) + indirizzo sito con field-RBAC + fix scheda Contatti (chat 01.06)
 - **Scheda Contatti** (Soggetto) portata allo standard `.dsx/.bgrid/.bf/.bl/.bi` (era `<Field>`/form-group, label sopra il bordo). Rimossi CONTACT_FIELDS/import morti. Commit `37fa3b1`. Le altre schede `<Field>` (admin config + EntityForm dinamico da field_definition) restano: categoria diversa e legittima.
 - **Migr 059**: lookup `site_kind` (8) e `stock_location_kind` (3) come righe di sistema rinominabili in *Stati & etichette* (regola D-0: i Tipi non più enum cablati). I CANONICI restano le chiavi logiche (warehouse=radice, van=furgone). Prossima libera **060**.

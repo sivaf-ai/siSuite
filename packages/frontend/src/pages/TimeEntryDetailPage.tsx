@@ -13,6 +13,9 @@ import type { TimeEntryDto, EngagementDto, ResourceDto, ActivityDto, LookupDto }
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { PickerField } from '../ui/PickerField';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useApi, mutate } from '../api/hooks';
@@ -63,6 +66,10 @@ export function TimeEntryDetailPage() {
     { engagementId: '', activityId: '', resourceId: '', typologyId: '', occurredOn: new Date().toISOString().slice(0, 10), duration: '', notes: '' });
   const [busy, setBusy] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [pickEng, setPickEng] = useState(false);
+  const [pickRes, setPickRes] = useState(false);
+  const newEngName = (() => { const e = engs.data?.items.find((x) => x.id === form.engagementId); return e ? `${e.code ? e.code + ' — ' : ''}${e.title}` : (form.engagementId ? '…' : ''); })();
+  const newResName = ress.data?.items.find((r) => r.id === form.resourceId)?.label ?? (form.resourceId ? '…' : '');
 
   const d = detail.data;
   useEffect(() => {
@@ -130,20 +137,16 @@ export function TimeEntryDetailPage() {
           {isNew ? (
             <div className="bgrid">
               <div className="bf"><span className="bl">{t('terms.engagement')}</span>
-                <select className="bi" value={form.engagementId} onChange={(e) => setForm((f) => ({ ...f, engagementId: e.target.value }))}>
-                  <option value="">—</option>
-                  {(engs.data?.items ?? []).map((eg) => <option key={eg.id} value={eg.id}>{eg.code} — {eg.title}</option>)}
-                </select></div>
+                <PickerField value={newEngName || null} placeholder="Scegli la commessa…"
+                  onOpen={() => setPickEng(true)} onClear={() => setForm((f) => ({ ...f, engagementId: '', activityId: '' }))} /></div>
               <div className="bf"><span className="bl">{t('terms.activity')}</span>
                 <select className="bi" value={form.activityId} onChange={(e) => setForm((f) => ({ ...f, activityId: e.target.value }))}>
                   <option value="">—</option>
                   {(acts.data?.items ?? []).filter((a) => !form.engagementId || a.engagementId === form.engagementId).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
                 </select></div>
               <div className="bf"><span className="bl">{t('terms.resource')}</span>
-                <select className="bi" value={form.resourceId} onChange={(e) => setForm((f) => ({ ...f, resourceId: e.target.value }))}>
-                  <option value="">—</option>
-                  {(ress.data?.items ?? []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                </select></div>
+                <PickerField value={newResName || null} placeholder="Scegli la risorsa…"
+                  onOpen={() => setPickRes(true)} onClear={() => setForm((f) => ({ ...f, resourceId: '' }))} /></div>
               <div className="bf"><span className="bl">Tipologia</span>
                 <select className="bi" value={form.typologyId} onChange={(e) => setForm((f) => ({ ...f, typologyId: e.target.value }))}>
                   {typologies.map((tp: LookupDto) => <option key={tp.id} value={tp.id}>{lk.labelOf(tp.id)}</option>)}
@@ -183,6 +186,10 @@ export function TimeEntryDetailPage() {
           ? `Stai per eliminare la registrazione del ${dateIt(d.occurredOn)} · ${hhmm(d.minutes)}${engName !== '—' ? ` — ${engName}` : ''}${actName !== '—' ? ` · ${actName}` : ''}. La riga verrà eliminata definitivamente (le righe bloccate sono protette dal sistema).`
           : 'La riga verrà eliminata definitivamente. Le righe bloccate sono protette dal sistema.'}
         confirmLabel="Elimina" busy={busy} onConfirm={doDelete} onCancel={() => setDelOpen(false)} />
+      <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
+        onPick={(es) => { const e = es[0]; if (e) setForm((f) => ({ ...f, engagementId: e.id, activityId: '' })); }} />
+      <ResourcePickerDialog open={pickRes} onClose={() => setPickRes(false)}
+        onPick={(rs) => { const r = rs[0]; if (r) setForm((f) => ({ ...f, resourceId: r.id })); }} />
     </Page>
   );
 }

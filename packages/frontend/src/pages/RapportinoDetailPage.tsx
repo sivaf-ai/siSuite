@@ -11,6 +11,8 @@ import type { WorkReportDto, EngagementDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
+import { PickerField } from '../ui/PickerField';
+import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { PromptDialog } from '../ui/PromptDialog';
 import { DocSectionTable, TotalsStrip, type DocSection } from '../ui/DocumentArchetype';
 import { useApi, mutate } from '../api/hooks';
@@ -40,13 +42,14 @@ export function RapportinoDetailPage() {
   const can = (a: string) => !!user?.permissions.includes(`work_report:${a}` as never);
 
   const doc = useApi<DocResp>(isNew ? null : `/work-reports/${id}/document`);
-  const engs = useApi<{ items: EngagementDto[] }>('/engagements');
 
   const [finalText, setFinalText] = useState('');
   const [busy, setBusy] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   // creazione
   const [nEng, setNEng] = useState('');
+  const [nEngName, setNEngName] = useState('');
+  const [pickEng, setPickEng] = useState(false);
   const [nAudience, setNAudience] = useState<'customer' | 'internal'>('customer');
   const [nRaw, setNRaw] = useState('');
 
@@ -91,10 +94,8 @@ export function RapportinoDetailPage() {
           <ObjectBox icon={FileText} title="Testata rapportino">
             <div className="bgrid">
               <div className="bf c2"><span className="bl">Commessa <span className="req">*</span></span>
-                <select className="bi" value={nEng} onChange={(e) => setNEng(e.target.value)}>
-                  <option value="">— seleziona —</option>
-                  {(engs.data?.items ?? []).map((e) => <option key={e.id} value={e.id}>{e.code} · {e.title}</option>)}
-                </select></div>
+                <PickerField value={nEngName || null} placeholder="Scegli la commessa…" invalid={!nEng}
+                  onOpen={() => setPickEng(true)} onClear={() => { setNEng(''); setNEngName(''); }} /></div>
               <div className="bf c2"><span className="bl">Destinatario</span>
                 <select className="bi" value={nAudience} onChange={(e) => setNAudience(e.target.value as typeof nAudience)}>
                   <option value="customer">Cliente (niente costi)</option><option value="internal">Interno (con costi)</option>
@@ -104,6 +105,8 @@ export function RapportinoDetailPage() {
             </div>
           </ObjectBox>
         </ObjectPage>
+        <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
+          onPick={(es) => { const e = es[0]; if (e) { setNEng(e.id); setNEngName(`${e.code ? e.code + ' · ' : ''}${e.title}`); } }} />
       </Page>
     );
   }
