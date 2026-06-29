@@ -102,23 +102,28 @@ function ColorField({ value, onChange }: { value: string; onChange: (hex: string
   );
 }
 
-export function TreeNodeCard({ open, mode, initial, parentLabel, busy, onSave, onClose }: {
+export function TreeNodeCard({ open, mode, initial, parentLabel, busy, showAppearance = true, extraInitial, renderExtra, onSave, onClose }: {
   open: boolean;
   mode: 'create' | 'edit';
   initial: NodeFormValue;
   parentLabel: string;            // breadcrumb del genitore (o «Radice»)
   busy?: boolean;
-  onSave: (v: NodeFormValue) => void;
+  showAppearance?: boolean;       // false → entità ricche (siti, ubicazioni): niente icona/colore
+  extraInitial?: Record<string, unknown>;
+  renderExtra?: (vals: Record<string, unknown>, set: (p: Record<string, unknown>) => void) => React.ReactNode;
+  onSave: (v: NodeFormValue, extra: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
   const [v, setV] = useState<NodeFormValue>(initial);
+  const [extra, setExtra] = useState<Record<string, unknown>>(extraInitial ?? {});
   const [tab, setTab] = useState<'library' | 'image'>(initial.imageUrl ? 'image' : 'library');
   const nameRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (open) { setV(initial); setTab(initial.imageUrl ? 'image' : 'library'); setTimeout(() => nameRef.current?.focus(), 40); } }, [open, initial]);
+  useEffect(() => { if (open) { setV(initial); setExtra(extraInitial ?? {}); setTab(initial.imageUrl ? 'image' : 'library'); setTimeout(() => nameRef.current?.focus(), 40); } }, [open, initial, extraInitial]);
   if (!open) return null;
 
   const set = (p: Partial<NodeFormValue>) => setV((s) => ({ ...s, ...p }));
-  const save = () => { if (!v.name.trim()) { nameRef.current?.focus(); return; } onSave({ ...v, name: v.name.trim() }); };
+  const setEx = (p: Record<string, unknown>) => setExtra((s) => ({ ...s, ...p }));
+  const save = () => { if (!v.name.trim()) { nameRef.current?.focus(); return; } onSave({ ...v, name: v.name.trim() }, extra); };
   const aiSuggest = () => { if (!v.name.trim()) { nameRef.current?.focus(); return; } const s = suggestAppearance(v.name.trim()); set({ icon: s.icon, color: v.color || s.color }); };
 
   return (
@@ -170,31 +175,36 @@ export function TreeNodeCard({ open, mode, initial, parentLabel, busy, onSave, o
             <textarea rows={2} value={v.description} onChange={(e) => set({ description: e.target.value })} placeholder="Opzionale" />
           </div>
 
-          {/* Aspetto: chip AI + linguette Libreria / Immagine */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>Aspetto</span>
-              <button type="button" className="tnc-ai" onClick={aiSuggest} title="Proponi icona e colore dal nome"><Sparkles size={14} /> AI</button>
-            </div>
-            <div className="tnc-tabs">
-              <button type="button" className={`tnc-tab${tab === 'library' ? ' on' : ''}`} onClick={() => setTab('library')}><Grid3x3 size={14} /> Libreria</button>
-              <button type="button" className={`tnc-tab${tab === 'image' ? ' on' : ''}`} onClick={() => setTab('image')}><ImageIcon size={14} /> Immagine</button>
-            </div>
-            {tab === 'library'
-              ? <div style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '12px 11px 10px' }}>
-                  <IconPicker value={v.icon} onChange={(icon) => set({ icon, imageUrl: '' })} />
-                </div>
-              : <div className="tnc-field">
-                  <label>URL immagine</label>
-                  <input value={v.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="https://… (o chiave MinIO)" />
-                </div>}
-          </div>
+          {/* Campi extra delle entità ricche (siti: tipo/indirizzo, ecc.) */}
+          {renderExtra && renderExtra(extra, setEx)}
 
-          {/* Colore: preset + popup HSL/HEX */}
-          <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', display: 'block', marginBottom: 8 }}>Colore</span>
-            <ColorField value={v.color} onChange={(color) => set({ color })} />
-          </div>
+          {showAppearance && <>
+            {/* Aspetto: chip AI + linguette Libreria / Immagine */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>Aspetto</span>
+                <button type="button" className="tnc-ai" onClick={aiSuggest} title="Proponi icona e colore dal nome"><Sparkles size={14} /> AI</button>
+              </div>
+              <div className="tnc-tabs">
+                <button type="button" className={`tnc-tab${tab === 'library' ? ' on' : ''}`} onClick={() => setTab('library')}><Grid3x3 size={14} /> Libreria</button>
+                <button type="button" className={`tnc-tab${tab === 'image' ? ' on' : ''}`} onClick={() => setTab('image')}><ImageIcon size={14} /> Immagine</button>
+              </div>
+              {tab === 'library'
+                ? <div style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '12px 11px 10px' }}>
+                    <IconPicker value={v.icon} onChange={(icon) => set({ icon, imageUrl: '' })} />
+                  </div>
+                : <div className="tnc-field">
+                    <label>URL immagine</label>
+                    <input value={v.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="https://… (o chiave MinIO)" />
+                  </div>}
+            </div>
+
+            {/* Colore: preset + popup HSL/HEX */}
+            <div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', display: 'block', marginBottom: 8 }}>Colore</span>
+              <ColorField value={v.color} onChange={(color) => set({ color })} />
+            </div>
+          </>}
         </div>
       </div>
     </div>

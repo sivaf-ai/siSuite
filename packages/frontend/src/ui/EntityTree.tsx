@@ -36,7 +36,25 @@ export interface EntityTreeConfig {
   permissions: { read: string; write: string };
   /** etichetta del conteggio per nodo (default: «N diretti · M nel ramo»). */
   countNoun?: string;                   // es. 'articoli'
+  /** testo informativo accanto al nome (es. tipo · indirizzo per i siti). */
+  rowMeta?: (node: Record<string, unknown>) => string | null;
   defaultSort?: 'manual' | 'alpha';
+  /** icona di default per i nodi senza icona propria (es. 'map-pin' per i siti). */
+  defaultIcon?: string;
+  /** filtri di scope appesi alla GET (es. { company_id: id } per i siti di un cliente). */
+  scopeQuery?: Record<string, string>;
+  /** campi fissi aggiunti al body di creazione (es. { companyId }). */
+  createDefaults?: Record<string, unknown>;
+  /** mostra la sezione Aspetto (icona/colore/immagine) nella scheda. Default true.
+   *  Le entità ricche (siti, ubicazioni) la disattivano e usano extraCard. */
+  showAppearance?: boolean;
+  /** specializzazione della scheda per entità ricche (STANDARD §9: site=kind/indirizzo).
+   *  init: valori iniziali dai campi extra del nodo · render: UI campi · toBody: → body API. */
+  extraCard?: {
+    init: (node?: Record<string, unknown>) => Record<string, unknown>;
+    render: (vals: Record<string, unknown>, set: (p: Record<string, unknown>) => void) => ReactNode;
+    toBody: (vals: Record<string, unknown>) => Record<string, unknown>;
+  };
   /** pick mode (§6.10): la lente di un'altra entità apre QUESTO albero per selezionare. */
   mode?: 'manage' | 'pick';
   onPick?: (node: TreeNodeDto) => void;
@@ -103,7 +121,9 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
 
   const [archived, setArchived] = useArchivedView();
   const showArchived = !pick && archived;
-  const { data, loading, reload } = useApi<{ items: TreeNodeDto[] }>(`${config.endpoint}${showArchived ? '?includeArchived=true' : ''}`);
+  const qp = new URLSearchParams(config.scopeQuery ?? {});
+  if (showArchived) qp.set('includeArchived', 'true');
+  const { data, loading, reload } = useApi<{ items: TreeNodeDto[] }>(`${config.endpoint}${qp.toString() ? `?${qp.toString()}` : ''}`);
   useReloadOnEnter(reload);
 
   const [sort, setSort] = useStickyState<'manual' | 'alpha'>(`tree:${config.entity}:sort`, config.defaultSort ?? 'manual');
@@ -124,7 +144,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   const [drag, setDrag] = useState<string | null>(null);
   const [over, setOver] = useState<{ id: string; zone: 'before' | 'inside' | 'after' } | null>(null);
 
-  const all = (data?.items ?? []).filter((n) => pick ? n.active : true);
+  const all = (data?.items ?? []).filter((n) => pick ? n.active !== false : true);
   const { roots, byId } = useMemo(() => buildTree(all, sort), [all, sort]);
 
   // ricerca: set dei nodi che matchano + tutti i loro antenati (per la potatura)
@@ -150,16 +170,18 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   function openCreate(parentId: string | null) { setCard({ mode: 'create', parentId }); setMenuFor(null); }
   function openEdit(node: Node) { setCard({ mode: 'edit', parentId: node.parentId, node }); setMenuFor(null); }
 
-  async function saveCard(v: NodeFormValue) {
+  async function saveCard(v: NodeFormValue, extra: Record<string, unknown>) {
     if (!card) return;
     setCardBusy(true);
     try {
-      const body = { name: v.name, description: v.description || null, color: v.color || null, icon: v.icon || null, imageUrl: v.imageUrl || null };
+      const appearance = config.showAppearance === false ? {} : { color: v.color || null, icon: v.icon || null, imageUrl: v.imageUrl || null };
+      const extraBody = config.extraCard ? config.extraCard.toBody(extra) : {};
+      const base = { name: v.name, description: v.description || null, ...appearance, ...extraBody };
       if (card.mode === 'edit' && card.node) {
-        await mutate('PATCH', `${config.endpoint}/${card.node.id}`, body);
+        await mutate('PATCH', `${config.endpoint}/${card.node.id}`, base);
         toast('Modifiche salvate');
       } else {
-        await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ ...body, parentId: card.parentId }) });
+        await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ ...base, parentId: card.parentId, ...(config.createDefaults ?? {}) }) });
         toast(`${config.labels.singular} creata`);
         if (card.parentId) { const n = new Set(expanded); n.add(card.parentId); setExpanded(n); }
       }
@@ -170,7 +192,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
 
   async function quickAdd() {
     if (!quick.trim()) return;
-    try { await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ name: quick.trim(), parentId: null }) }); setQuick(''); reload(); }
+    try { await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ name: quick.trim(), parentId: null, ...(config.createDefaults ?? {}) }) }); setQuick(''); reload(); }
     catch (e) { toast(errMsg(e), 'error'); }
   }
 
@@ -264,10 +286,11 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
             ? <input type="radio" name={`pick-${config.entity}`} onClick={(e) => e.stopPropagation()} onChange={() => config.onPick?.(n)} className="et-radio" />
             : null}
           <span className="et-ico" style={{ color: n.color || 'var(--brand)' }}>
-            {n.imageUrl ? <img src={n.imageUrl} alt="" className="et-img" /> : <CategoryIcon name={n.icon} size={16} color={n.color} />}
+            {n.imageUrl ? <img src={n.imageUrl} alt="" className="et-img" /> : <CategoryIcon name={n.icon || config.defaultIcon || null} size={16} color={n.color} />}
           </span>
           <span className="et-name"><Highlight text={n.name} q={q} /></span>
-          {!n.active && <span className="et-badge et-off">off</span>}
+          {config.rowMeta && config.rowMeta(n as unknown as Record<string, unknown>) && <span className="et-meta">{config.rowMeta(n as unknown as Record<string, unknown>)}</span>}
+          {n.active === false && <span className="et-badge et-off">off</span>}
           {n.archivedAt ? <span className="et-badge et-arch">Archiviato</span> : null}
           {(n.directCount !== undefined || n.subtree > 0) && (
             <span className="et-count" title={`${n.directCount ?? 0} diretti · ${n.subtree} nel ramo${config.countNoun ? ' (' + config.countNoun + ')' : ''}`}>
@@ -332,6 +355,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
         .et-ico{flex:0 0 auto;display:inline-flex;align-items:center}
         .et-img{width:18px;height:18px;border-radius:4px;object-fit:cover}
         .et-name{font-weight:600;color:var(--ink)}
+        .et-meta{font-size:11.5px;color:var(--ink-faint);margin-left:2px}
         .et-count{margin-left:6px;font-size:11.5px;color:var(--ink-faint);font-family:var(--font-mono)}
         .et-count-sub{color:var(--brand-ink)}
         .et-badge{font-size:10px;padding:1px 6px;border-radius:999px;font-weight:600}
@@ -393,7 +417,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
                   {flat.map((n) => (
                     <tr key={n.id} style={{ cursor: pick || canWrite ? 'pointer' : 'default' }}
                       onClick={() => { if (pick) config.onPick?.(n); else if (canWrite) openEdit(n); }}>
-                      <td><span className="et-ico" style={{ color: n.color || 'var(--brand)', marginRight: 7, verticalAlign: 'middle' }}><CategoryIcon name={n.icon} size={15} color={n.color} /></span><Highlight text={n.name} q={q} />{!n.active && <span className="et-badge et-off" style={{ marginLeft: 6 }}>off</span>}</td>
+                      <td><span className="et-ico" style={{ color: n.color || 'var(--brand)', marginRight: 7, verticalAlign: 'middle' }}><CategoryIcon name={n.icon || config.defaultIcon || null} size={15} color={n.color} /></span><Highlight text={n.name} q={q} />{n.active === false && <span className="et-badge et-off" style={{ marginLeft: 6 }}>off</span>}</td>
                       <td className="et-path">{breadcrumb(byId, n.parentId)}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--ink-faint)' }}>{n.directCount ?? 0} · {n.subtree}</td>
                     </tr>
@@ -408,9 +432,12 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
       {card && (
         <TreeNodeCard open mode={card.mode} busy={cardBusy}
           parentLabel={card.mode === 'create' ? `In: ${breadcrumb(byId, card.parentId)}` : breadcrumb(byId, card.node!.parentId)}
+          showAppearance={config.showAppearance !== false}
           initial={card.mode === 'edit' && card.node
             ? { name: card.node.name, description: card.node.description ?? '', color: card.node.color ?? '', icon: card.node.icon ?? '', imageUrl: card.node.imageUrl ?? '' }
             : EMPTY_FORM}
+          extraInitial={config.extraCard ? config.extraCard.init(card.mode === 'edit' ? (card.node as unknown as Record<string, unknown>) : undefined) : undefined}
+          renderExtra={config.extraCard ? config.extraCard.render : undefined}
           onSave={saveCard} onClose={() => setCard(null)} />
       )}
 

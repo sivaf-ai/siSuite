@@ -412,6 +412,7 @@ export const createSiteSchema = z.object({
   kind: z.string().min(1).max(40).default('building'),
   address: z.record(z.string(), z.unknown()).nullable().optional(),  // jsonb country-driven (A.5)
   attributes: attrs.optional(),
+  sequence: z.coerce.number().int().optional(),                       // ordine fratelli (EntityTree)
 });
 export const updateSiteSchema = createSiteSchema.omit({ companyId: true }).partial();
 export interface SiteDto {
