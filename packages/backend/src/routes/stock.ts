@@ -4,7 +4,7 @@
  *  conferma, numerati da number_series). Consumo su lavoro = movimento 'out'. */
 import type { FastifyInstance } from 'fastify';
 import {
-  createStockLocationSchema, updateStockLocationSchema, createStockMovementSchema, createStockDocumentSchema, updateStockDocumentSchema,
+  createStockLocationSchema, updateStockLocationSchema, createStockMovementSchema, createStockDocumentSchema, updateStockDocumentSchema, treeDeleteMode,
   type StockLocationDto, type StockMovementDto, type StockBalanceDto, type StockDocumentDto,
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
@@ -32,10 +32,10 @@ const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: str
   adjustment: { key: 'stock_adjustment', fmt: 'RET-{YYYY}-{SEQ:4}' },
 };
 
-const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active`;
+const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active, sequence`;
 // stessa lista con prefisso sl. + join app_user per il nome di chi ha archiviato (vista archiviati).
 const LOC_SELECT = `sl.id, sl.parent_id, sl.name, sl.kind, sl.resource_id, sl.code, sl.note, sl.manager_user_id,
-  sl.holds_stock, sl.is_default, sl.active, sl.archived_at, au.full_name AS archived_by_name
+  sl.holds_stock, sl.is_default, sl.active, sl.sequence, sl.archived_at, au.full_name AS archived_by_name
   FROM stock_location sl LEFT JOIN app_user au ON au.id = sl.archived_by`;
 function locDto(r: Record<string, unknown>): StockLocationDto {
   return {
@@ -45,6 +45,9 @@ function locDto(r: Record<string, unknown>): StockLocationDto {
     isDefault: r.is_default as boolean, active: r.active as boolean,
     archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
     archivedByName: (r.archived_by_name as string) ?? null,
+    // contratto EntityTree (passthrough)
+    sequence: Number(r.sequence ?? 0), isSystem: false,
+    ...(r.direct_count != null ? { directCount: Number(r.direct_count) } : {}),
   };
 }
 
@@ -74,17 +77,29 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       const q = request.query as Record<string, unknown>;
       const archivedParam = String(q.archived ?? '');
       const onlyArchived = archivedParam === '1' || archivedParam === 'only' || archivedParam === 'true';
+      // EntityTree: ?includeArchived=true (attivi+archiviati insieme), ?subtreeOf=W (discendenti di W)
+      const includeArchived = q.includeArchived === 'true' || q.includeArchived === '1';
       const rows = await withRls(request.ctx, (db) => {
         const params: unknown[] = [];
-        let where = `WHERE sl.archived_at IS ${onlyArchived ? 'NOT NULL' : 'NULL'}`;
+        let where = `WHERE ${includeArchived ? 'TRUE' : `sl.archived_at IS ${onlyArchived ? 'NOT NULL' : 'NULL'}`}`;
         if (q.top === '1') where += ` AND sl.parent_id IS NULL`;
         if (q.parentId) { params.push(q.parentId); where += ` AND sl.parent_id = $${params.length}`; }
+        if (q.subtreeOf) {
+          params.push(q.subtreeOf);
+          where += ` AND sl.id IN (WITH RECURSIVE d AS (
+            SELECT id FROM stock_location WHERE parent_id = $${params.length}
+            UNION ALL SELECT c.id FROM stock_location c JOIN d ON c.parent_id = d.id
+          ) SELECT id FROM d)`;
+        }
         if (q.q) { params.push(`%${q.q}%`); where += ` AND sl.name ILIKE $${params.length}`; }
         const fsql = buildFilter(q.filter as string | undefined, LOC_FILTER, ['sl.name', 'sl.kind'], params);
         if (fsql) where += ` AND ${fsql}`;
         const orderBy = buildOrderBy(q.sort as string | undefined, LOC_FILTER, 'sl.name', 'asc');
         return db.query(
-          `SELECT ${LOC_SELECT} ${where} ORDER BY sl.is_default DESC, ${orderBy}`, params).then((r) => r.rows);
+          `SELECT ${LOC_SELECT.replace('FROM stock_location sl', `,
+             (SELECT count(*) FROM stock_balance b WHERE b.location_id = sl.id AND b.qty_on_hand <> 0)::int AS direct_count
+             FROM stock_location sl`)}
+           ${where} ORDER BY sl.is_default DESC, sl.sequence, ${orderBy}`, params).then((r) => r.rows);
       });
       return { items: rows.map(locDto) };
     });
@@ -102,13 +117,21 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const input = createStockLocationSchema.parse(request.body);
       const dto = await withRls(request.ctx, async (db) => {
+        let seq = input.sequence;
+        if (seq === undefined) {
+          const m = await db.query(
+            `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM stock_location
+             WHERE tenant_id = $1 AND parent_id IS NOT DISTINCT FROM $2`,
+            [request.ctx.tenantId, input.parentId ?? null]);
+          seq = Number(m.rows[0].seq);
+        }
         const r = await db.query(
-          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$11)
+          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, sequence, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$12,$12)
            RETURNING ${LOC_COLS}`,
           [request.ctx.tenantId, input.parentId ?? null, input.name, input.kind, input.resourceId ?? null,
            input.code ?? null, input.note ?? null, input.managerUserId ?? null,
-           input.holdsStock ?? null, input.isDefault ?? null, request.ctx.userId]);
+           input.holdsStock ?? null, input.isDefault ?? null, seq, request.ctx.userId]);
         return locDto(r.rows[0]);
       });
       return reply.code(201).send(dto);
@@ -131,6 +154,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (input.holdsStock !== undefined) put('holds_stock', input.holdsStock);
         if (input.isDefault !== undefined) put('is_default', input.isDefault);
         if (input.active !== undefined) put('active', input.active);
+        if (input.sequence !== undefined) put('sequence', input.sequence);
         if (!sets.length) return { ok: true };
         params.push(request.ctx.userId); sets.push(`updated_by = $${params.length}`);
         params.push(request.params.id);
@@ -141,19 +165,50 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       });
     });
 
-  // elimina-soft (archivia) un'ubicazione (PIANO §5.1). Non rompe lo storico movimenti.
-  app.delete<{ Params: { id: string } }>('/stock/locations/:id',
+  // elimina-soft a TRE MODI (STANDARD entità ad albero §7). Non rompe lo storico movimenti.
+  //  block   : se sotto-ubicazioni o giacenze (qty<>0) → 409; altrimenti archivia.
+  //  reassign: sotto-ubicazioni al nonno, archivia solo il nodo.
+  //  cascade : archivia nodo + discendenti.
+  app.delete<{ Params: { id: string }; Querystring: { mode?: string } }>('/stock/locations/:id',
     { preHandler: [app.authenticate, requirePermission('stock:manage')] },
     async (request, reply) => {
-      await withRls(request.ctx, async (db) => {
-        const r = await db.query(
-          `UPDATE stock_location SET archived_at = now(), archived_by = $2, updated_by = $2
-           WHERE id = $1 AND archived_at IS NULL RETURNING name`,
-          [request.params.id, request.ctx.userId]);
-        if (r.rows.length)
-          await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'archive', label: r.rows[0].name as string });
+      const mode = treeDeleteMode.catch('block').parse(request.query.mode);
+      const id = request.params.id; const userId = request.ctx.userId;
+      const res = await withRls(request.ctx, async (db) => {
+        const cur = await db.query(`SELECT name, parent_id FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [id]);
+        if (!cur.rows.length) return { code: 'notfound' as const };
+        const name = cur.rows[0].name as string; const parentId = (cur.rows[0].parent_id as string) ?? null;
+        const sub = await db.query(
+          `WITH RECURSIVE tree AS (
+             SELECT id FROM stock_location WHERE id = $1
+             UNION ALL SELECT s.id FROM stock_location s JOIN tree t ON s.parent_id = t.id WHERE s.archived_at IS NULL
+           ) SELECT array_agg(id) AS ids FROM tree`, [id]);
+        const ids: string[] = sub.rows[0].ids ?? [id];
+        const children = (await db.query(`SELECT count(*)::int AS n FROM stock_location WHERE parent_id = $1 AND archived_at IS NULL`, [id])).rows[0].n as number;
+        const stockHere = (await db.query(`SELECT count(*)::int AS n FROM stock_balance WHERE location_id = ANY($1) AND qty_on_hand <> 0`, [ids])).rows[0].n as number;
+
+        if (mode === 'block') {
+          const parts: string[] = [];
+          if (children) parts.push(`${children} sotto-ubicazioni`);
+          if (stockHere) parts.push(`${stockHere} articoli a giacenza`);
+          if (parts.length) return { code: 'blocked' as const, name, parts };
+          await db.query(`UPDATE stock_location SET archived_at = now(), archived_by=$2, updated_by=$2 WHERE id=$1`, [id, userId]);
+          await logAudit(db, request.ctx, { entity: 'stock_location', entityId: id, action: 'archive', label: name });
+          return { code: 'ok' as const, result: { ok: true, archivedNodes: 1 } };
+        }
+        if (mode === 'reassign') {
+          await db.query(`UPDATE stock_location SET parent_id = $2, updated_by = $3 WHERE parent_id = $1 AND archived_at IS NULL`, [id, parentId, userId]);
+          await db.query(`UPDATE stock_location SET archived_at = now(), archived_by=$2, updated_by=$2 WHERE id=$1`, [id, userId]);
+          await logAudit(db, request.ctx, { entity: 'stock_location', entityId: id, action: 'archive', label: name });
+          return { code: 'ok' as const, result: { ok: true, reassigned: children } };
+        }
+        await db.query(`UPDATE stock_location SET archived_at = now(), archived_by=$2, updated_by=$2 WHERE id = ANY($1) AND archived_at IS NULL`, [ids, userId]);
+        await logAudit(db, request.ctx, { entity: 'stock_location', entityId: id, action: 'archive', label: name });
+        return { code: 'ok' as const, result: { ok: true, archivedNodes: ids.length } };
       });
-      return reply.code(204).send();
+      if (res.code === 'notfound') return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
+      if (res.code === 'blocked') return reply.code(409).send({ error: 'conflict', message: `Impossibile eliminare «${res.name}»: contiene ${res.parts.join(' e ')}. Scegli «Riassegna» o «Elimina tutto il ramo».`, statusCode: 409 });
+      return reply.send(res.result);
     });
 
   // RIPRISTINA un'ubicazione archiviata
@@ -172,6 +227,35 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       });
       if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato o non archiviato', statusCode: 404 });
       return dto;
+    });
+
+  // DUPLICA (regole C/D dello standard albero): copia stesso genitore, suffisso «(copia)» se serve.
+  app.post<{ Params: { id: string } }>('/stock/locations/:id/duplicate',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const ctx = request.ctx;
+      const dto = await withRls(ctx, async (db) => {
+        const src = await db.query(`SELECT parent_id, name, kind, resource_id, note, holds_stock FROM stock_location WHERE id = $1`, [request.params.id]);
+        if (!src.rows.length) return null;
+        const s = src.rows[0] as Record<string, unknown>;
+        const parentId = (s.parent_id as string) ?? null;
+        const taken = new Set((await db.query(
+          `SELECT name FROM stock_location WHERE tenant_id=$1 AND parent_id IS NOT DISTINCT FROM $2 AND archived_at IS NULL`,
+          [ctx.tenantId, parentId])).rows.map((r) => r.name as string));
+        let name = s.name as string;
+        if (taken.has(name)) { let n = `${name} (copia)`; let i = 2; while (taken.has(n)) n = `${name} (copia ${i++})`; name = n; }
+        const seq = Number((await db.query(
+          `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM stock_location WHERE tenant_id=$1 AND parent_id IS NOT DISTINCT FROM $2`,
+          [ctx.tenantId, parentId])).rows[0].seq);
+        // la copia NON è mai predefinita e non duplica il codice univoco
+        const r = await db.query(
+          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, note, holds_stock, is_default, sequence, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,false,$8,$9,$9) RETURNING ${LOC_COLS}`,
+          [ctx.tenantId, parentId, name, s.kind, s.resource_id ?? null, s.note ?? null, s.holds_stock ?? true, seq, ctx.userId]);
+        return locDto(r.rows[0]);
+      });
+      if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Ubicazione non trovata', statusCode: 404 });
+      return reply.code(201).send(dto);
     });
 
   // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.

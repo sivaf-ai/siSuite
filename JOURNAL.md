@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-29 (2) — Siti e Ubicazioni magazzino migrati a EntityTree (chat 01.06)
+- **EntityTree esteso (additivo)** per entità ricche: `scopeQuery` (GET filtrata), `createDefaults` (campi fissi POST), `rootParentId` (alberi scoped: "radice"=genitore fisso), `defaultIcon`, `showAppearance` (off → niente icona/colore), `extraCard` (campi extra nella scheda), `rowMeta` (info accanto al nome). `TreeNodeCard` supporta `renderExtra`/`extraInitial`/`showAppearance`.
+- **Siti**: `SiteTree` (scheda Soggetto) ora usa EntityTree scoped per cliente (drag&drop, Sposta in…, 3-modi, sequence). Backend `/sites` portato al contratto albero (active/sequence/isSystem/directCount=asset+ordini, ?includeArchived, PATCH move-a-radice corretto, DELETE ?mode=block|reassign|cascade, /duplicate). Lista globale `SitiPage` resta EntityList (catalogo cross-cliente). Commit `7fe7010`.
+- **Ubicazioni**: `UbicazioniTab` (scheda magazzino) ora è EntityTree scoped al magazzino (`?subtreeOf=W` + `rootParentId=W`); campi extra Tipo+Codice. Backend `/stock/locations` esteso: subtreeOf (CTE ricorsiva), sequence, direct_count (giacenze qty<>0), DELETE 3-modi, /duplicate. Magazzini (radici) restano EntityList con scheda+tab.
+- **Test** `tree.test.ts` → 11 (aggiunti anti-ciclo + FK RESTRICT per site e stock_location). **Suite 90/90**. Typecheck shared+BE+FE puliti. Smoke HTTP OK per entrambe.
+
 ## 2026-06-29 (1) — STANDARD entità ad albero (EntityTree) + migrazione 058 (chat 01.06, spec 01.05)
 - Migr **058_tree_standard.sql** applicata (prossima libera **059**): material_category +description/image_url/sequence/is_system + FK parent RESTRICT esplicita + trigger anti-ciclo + indice fratelli; **site FK CASCADE→RESTRICT** (fix critico) + sequence + anti-ciclo; stock_location + sequence. Adattata dal V058 Flyway fornito (rimossi BEGIN/COMMIT: il runner avvolge già; footer sisuite_migrations).
 - **Componente generico `ui/EntityTree.tsx`** (config-driven, ADR-0012): UN solo albero per tutte le tabelle self-FK. Clic-riga→scheda, chevron, quick-add unico in cima, **drag&drop 3 zone + "Sposta in…"** (esclude sottoalbero), ricerca con `<mark>`+potatura, conteggi ricorsivi, toggle Albero⇄Tabella e Manuale⇄Alfabetico, archiviati, **pick mode** (radio+onPick). Scheda nodo `ui/TreeNodeCard.tsx` (barra fissa in alto, anteprima icona/colore, Libreria/Immagine, colore HSL/HEX nel popup, chip AI). Ricerca/AI icone con **traduzione IT/ES→EN** (categoryIcons `ICON_SYNONYMS`/`suggestAppearance`).

@@ -45,6 +45,9 @@ export interface EntityTreeConfig {
   scopeQuery?: Record<string, string>;
   /** campi fissi aggiunti al body di creazione (es. { companyId }). */
   createDefaults?: Record<string, unknown>;
+  /** parent_id usato come "radice" per gli alberi SCOPED (es. ubicazioni sotto un
+   *  magazzino W): creazioni/sposta-in-radice puntano qui invece che a null. */
+  rootParentId?: string | null;
   /** mostra la sezione Aspetto (icona/colore/immagine) nella scheda. Default true.
    *  Le entità ricche (siti, ubicazioni) la disattivano e usano extraCard. */
   showAppearance?: boolean;
@@ -181,7 +184,8 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
         await mutate('PATCH', `${config.endpoint}/${card.node.id}`, base);
         toast('Modifiche salvate');
       } else {
-        await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ ...base, parentId: card.parentId, ...(config.createDefaults ?? {}) }) });
+        const parentId = card.parentId ?? config.rootParentId ?? null;
+        await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ ...base, parentId, ...(config.createDefaults ?? {}) }) });
         toast(`${config.labels.singular} creata`);
         if (card.parentId) { const n = new Set(expanded); n.add(card.parentId); setExpanded(n); }
       }
@@ -192,7 +196,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
 
   async function quickAdd() {
     if (!quick.trim()) return;
-    try { await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ name: quick.trim(), parentId: null, ...(config.createDefaults ?? {}) }) }); setQuick(''); reload(); }
+    try { await apiFetch(config.endpoint, { method: 'POST', body: JSON.stringify({ name: quick.trim(), parentId: config.rootParentId ?? null, ...(config.createDefaults ?? {}) }) }); setQuick(''); reload(); }
     catch (e) { toast(errMsg(e), 'error'); }
   }
 
@@ -228,9 +232,10 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
 
   // ── spostamento ──
   async function moveTo(nodeId: string, newParentId: string | null, sequence?: number) {
+    const pid = newParentId ?? config.rootParentId ?? null;   // "radice" scoped → rootParentId
     try {
-      await mutate('PATCH', `${config.endpoint}/${nodeId}`, { parentId: newParentId, ...(sequence !== undefined ? { sequence } : {}) });
-      if (newParentId) { const n = new Set(expanded); n.add(newParentId); setExpanded(n); }
+      await mutate('PATCH', `${config.endpoint}/${nodeId}`, { parentId: pid, ...(sequence !== undefined ? { sequence } : {}) });
+      if (pid) { const n = new Set(expanded); n.add(pid); setExpanded(n); }
       reload();
     } catch (e) { toast(errMsg(e), 'error'); }
   }

@@ -640,6 +640,7 @@ export const createStockLocationSchema = z.object({
   managerUserId: uuid.nullable().optional(),
   holdsStock: z.boolean().optional(),
   isDefault: z.boolean().optional(),
+  sequence: z.coerce.number().int().optional(),            // ordine fratelli (EntityTree)
 });
 export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
 export interface StockLocationDto {
@@ -647,6 +648,8 @@ export interface StockLocationDto {
   code: string | null; note: string | null; managerUserId: string | null;
   holdsStock: boolean; isDefault: boolean; active: boolean;
   archivedAt: string | null; archivedByName: string | null;
+  /** contratto EntityTree (passthrough; opzionali per retro-compatibilità). */
+  sequence?: number; isSystem?: boolean; directCount?: number;
 }
 
 // movimento singolo (scarico da lavoro, rettifica rapida). quantity = magnitudine

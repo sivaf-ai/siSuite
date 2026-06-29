@@ -15,7 +15,9 @@ import pg from 'pg';
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_ADMIN_URL });
 const P = `__treetest_${Date.now()}`;          // prefisso univoco per i nomi
 let tenant = '';
-const created: string[] = [];                  // id da ripulire
+const created: string[] = [];                  // material_category id da ripulire
+const stockIds: string[] = [];                 // stock_location id da ripulire
+const siteIds: string[] = [];                  // site id da ripulire
 
 async function mkCat(name: string, parentId: string | null): Promise<string> {
   const r = await admin.query(
@@ -36,6 +38,8 @@ beforeAll(async () => {
 afterAll(async () => {
   // elimina in ordine inverso (foglie prima) per rispettare la FK RESTRICT
   for (const id of created.reverse()) await admin.query(`DELETE FROM material_category WHERE id = $1`, [id]).catch(() => {});
+  for (const id of siteIds.reverse()) await admin.query(`DELETE FROM site WHERE id = $1`, [id]).catch(() => {});
+  for (const id of stockIds.reverse()) await admin.query(`DELETE FROM stock_location WHERE id = $1`, [id]).catch(() => {});
   await admin.end();
 });
 
@@ -90,5 +94,38 @@ describe('material_category — FK gerarchia RESTRICT (§2/A)', () => {
     await mkCat(`${P}_child`, p);
     const msg = await expectReject(() => admin.query(`DELETE FROM material_category WHERE id = $1`, [p]));
     expect(msg).toMatch(/violates foreign key|foreign key constraint/i);
+  });
+});
+
+// Gli altri due alberi condividono lo stesso modello (trigger anti-ciclo + FK RESTRICT, migr 058).
+async function mkLoc(name: string, parentId: string | null): Promise<string> {
+  const r = await admin.query(`INSERT INTO stock_location (tenant_id, parent_id, name, kind) VALUES ($1,$2,$3,'sub_location') RETURNING id`, [tenant, parentId, name]);
+  const id = r.rows[0].id as string; stockIds.push(id); return id;
+}
+async function mkSite(name: string, parentId: string | null): Promise<string> {
+  const r = await admin.query(`INSERT INTO site (tenant_id, parent_id, name, kind) VALUES ($1,$2,$3,'building') RETURNING id`, [tenant, parentId, name]);
+  const id = r.rows[0].id as string; siteIds.push(id); return id;
+}
+
+describe('site / stock_location — anti-ciclo + FK RESTRICT (migr 058)', () => {
+  it('site: anti-ciclo su spostamento sotto una discendente', async () => {
+    const a = await mkSite(`${P}_sA`, null); const b = await mkSite(`${P}_sB`, a); const c = await mkSite(`${P}_sC`, b);
+    const msg = await expectReject(() => admin.query(`UPDATE site SET parent_id = $2 WHERE id = $1`, [a, c]));
+    expect(msg).toMatch(/ciclo non ammesso/i);
+  });
+  it('site: FK RESTRICT blocca l’hard-delete del genitore (CASCADE→RESTRICT corretto)', async () => {
+    const p = await mkSite(`${P}_sParent`, null); await mkSite(`${P}_sChild`, p);
+    const msg = await expectReject(() => admin.query(`DELETE FROM site WHERE id = $1`, [p]));
+    expect(msg).toMatch(/foreign key/i);
+  });
+  it('stock_location: anti-ciclo su spostamento sotto una discendente', async () => {
+    const a = await mkLoc(`${P}_lA`, null); const b = await mkLoc(`${P}_lB`, a); const c = await mkLoc(`${P}_lC`, b);
+    const msg = await expectReject(() => admin.query(`UPDATE stock_location SET parent_id = $2 WHERE id = $1`, [a, c]));
+    expect(msg).toMatch(/ciclo|cycle/i);
+  });
+  it('stock_location: FK RESTRICT blocca l’hard-delete del genitore', async () => {
+    const p = await mkLoc(`${P}_lParent`, null); await mkLoc(`${P}_lChild`, p);
+    const msg = await expectReject(() => admin.query(`DELETE FROM stock_location WHERE id = $1`, [p]));
+    expect(msg).toMatch(/foreign key/i);
   });
 });

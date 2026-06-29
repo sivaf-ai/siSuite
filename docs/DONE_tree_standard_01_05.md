@@ -62,9 +62,16 @@ Overlay centrato, **barra azioni FISSA in alto** (Annulla sx · Salva dx). Nient
 3. **Chip AI**: suggerimento **deterministico offline** via mappa sinonimi IT/ES→EN (esplicitamente ammesso dallo standard §6.9.1 "mappa sinonimi … o servizio di traduzione"). Un vero LLM-call è un'aggiunta futura.
 4. **Colore**: salvato in **HEX** (coerente con DDL §1.2 e con `CategoryIcon`), non come chiave palette dei lookup. Preset HEX + HSL/HEX nel popup.
 
+## Aggiornamento 29/06 (2) — Siti e Ubicazioni migrati a EntityTree
+- **EntityTree generalizzato** (additivo, non rompe il pilota): `scopeQuery`, `createDefaults`, `rootParentId` (alberi scoped), `defaultIcon`, `showAppearance`, `extraCard` (campi extra), `rowMeta`. `TreeNodeCard` con `renderExtra`/`showAppearance`.
+- **Siti** (`SiteTree` nella scheda Soggetto): EntityTree scoped per cliente, campo extra «Tipo». Backend `/sites` al contratto albero (active/sequence/isSystem/directCount=asset+ordini, ?includeArchived, PATCH move-a-radice corretto, DELETE ?mode, /duplicate). `SitiPage` globale resta EntityList (catalogo cross-cliente, scelta documentata: un forest cross-cliente non è un singolo albero).
+- **Ubicazioni** (`UbicazioniTab` nella scheda magazzino): EntityTree scoped al magazzino (`?subtreeOf` + `rootParentId`), campi extra Tipo+Codice. Backend `/stock/locations` esteso (subtreeOf CTE, sequence, direct_count=giacenze, DELETE ?mode, /duplicate). Magazzini (radici) restano EntityList+scheda+tab.
+- **Test**: aggiunti anti-ciclo + FK RESTRICT per site e stock_location → `tree.test.ts` 11, **suite 90/90**.
+
 ## TODO residui
-- **Siti** (`site`) e **Ubicazioni magazzino** (`stock_location`): **DB già allineato** dalla 058 (FK RESTRICT, sequence, anti-ciclo). UI ancora su `SitiPage`/`SiteTree`/`MagazzinoPage`: **da migrare a `EntityTree`** creando i rispettivi set di route albero (GET piatto+conteggi, POST/PATCH move, DELETE 3 modi, duplicate) — `site` con scope `companyId`, `stock_location` con radice = magazzino. Il componente è pronto e generico.
 - Upload immagine categoria su MinIO (vedi scostamento 2).
+- Indirizzo del sito nella scheda nodo: oggi non editabile (era così anche prima; country-driven AddressField richiede il paese del cliente) — possibile miglioria.
+- `SitiPage` globale e lista Magazzini restano EntityList per scelta (cataloghi non-albero); valutare un eventuale toggle vista-albero globale.
 - WBS commessa: specializzazione di `EntityTree` con colonne economiche (`SPEC_WBS_commessa`), fuori scope ora.
 - Validare a video la **Palette C** su tutte le maschere (cambio colore globale).
 

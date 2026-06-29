@@ -17,6 +17,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../ui/Modal';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
+import { EntityTree, type EntityTreeConfig } from '../ui/EntityTree';
 import { NumInput } from '../ui/NumInput';
 import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
@@ -344,59 +345,48 @@ function MovimentiTab({ locationId }: { locationId: string }) {
   );
 }
 
-/* ── Tab: Ubicazioni (figli del magazzino: CRUD) ───────────────────── */
-function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: boolean }) {
-  const toast = useToast();
-  const kids = useApi<{ items: StockLocationDto[] }>(`/stock/locations?parentId=${parentId}`);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState('sub_location');
-  const [delRow, setDelRow] = useState<StockLocationDto | null>(null);
-  const rows = kids.data?.items ?? [];
-
-  const openNew = () => { setEditId(null); setName(''); setKind('sub_location'); setOpen(true); };
-  const openEdit = (l: StockLocationDto) => { setEditId(l.id); setName(l.name); setKind(l.kind); setOpen(true); };
-  async function save() {
-    if (!name.trim()) { toast('Inserisci un nome', 'error'); return; }
-    setBusy(true);
-    try {
-      if (editId) await mutate('PATCH', `/stock/locations/${editId}`, { name: name.trim(), kind });
-      else await mutate('POST', '/stock/locations', { name: name.trim(), kind, parentId });
-      toast('Salvato', 'success'); setOpen(false); await kids.reload();
-    } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
-  }
-  async function doDelete() { if (!delRow) return; setBusy(true); try { await mutate('DELETE', `/stock/locations/${delRow.id}`); setDelRow(null); await kids.reload(); } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); } }
-
-  if (kids.loading) return <Loading />;
-  return (
-    <>
-      <div className="toolbar" style={{ margin: '8px 0' }}><span className="spacer" style={{ flex: 1 }} />{canManage && <button className="btn btn-primary btn-sm" onClick={openNew}><Plus size={15} /> Nuova ubicazione</button>}</div>
-      <table className="subt">
-        <thead><tr><th>Nome</th><th>Tipo</th><th /></tr></thead>
-        <tbody>
-          {rows.map((c) => (
-            <tr key={c.id}>
-              <td className="cellname"><CornerDownRight size={13} style={{ color: 'var(--ink-faint)', marginRight: 6 }} />{c.name}</td>
-              <td><span className="chip">{KIND_LABEL[c.kind] ?? c.kind}</span></td>
-              <td className="num">{canManage && <span style={{ display: 'inline-flex', gap: 6 }}><button className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}><Pencil size={13} /></button><button className="btn btn-ghost btn-sm" onClick={() => setDelRow(c)}><Trash2 size={13} /></button></span>}</td>
-            </tr>
-          ))}
-          {rows.length === 0 && <tr><td colSpan={3}><div className="dsx-empty">Nessuna ubicazione interna. Aggiungine una.</div></td></tr>}
-        </tbody>
-      </table>
-      <Modal open={open} title={editId ? 'Modifica ubicazione' : 'Nuova ubicazione'} size="md" onClose={() => setOpen(false)} footer={
-        <><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Salva</button></>
-      }>
-        <div className="bgrid">
-          <div className="bf c4"><span className="bl">Nome <span className="req">*</span></span><input className="bi" value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Scaffale A / Ripiano 2" /></div>
-          <div className="bf c2"><span className="bl">Tipo</span><select className="bi" value={kind} onChange={(e) => setKind(e.target.value)}><option value="sub_location">Ubicazione</option><option value="van">Furgone</option></select></div>
-        </div>
-      </Modal>
-      <ConfirmDialog open={!!delRow} danger title="Eliminare?" message={`«${delRow?.name ?? ''}» verrà archiviato.`} confirmLabel="Elimina" busy={busy} onConfirm={() => void doDelete()} onCancel={() => setDelRow(null)} />
-    </>
-  );
+/* ── Tab: Ubicazioni (sotto-albero del magazzino) — EntityTree scoped ──
+ *  STANDARD entità ad albero §9: "magazzino = radice". L'albero mostra le
+ *  ubicazioni interne (a profondità libera): drag&drop, Sposta in…, ricerca,
+ *  eliminazione a 3 modi, sequence. Campo extra «Tipo» (ubicazione/furgone). */
+const UBIC_KIND: Record<string, string> = { sub_location: 'Ubicazione', van: 'Furgone' };
+function ubicazioniConfig(parentId: string): EntityTreeConfig {
+  return {
+    entity: 'stock_location',
+    endpoint: '/stock/locations',
+    labels: { singular: 'Ubicazione', plural: 'Ubicazioni', subtitle: 'Ubicazioni interne del magazzino' },
+    permissions: { read: 'stock:read', write: 'stock:manage' },
+    defaultIcon: 'corner-down-right',
+    showAppearance: false,
+    countNoun: 'articoli a giacenza',
+    scopeQuery: { subtreeOf: parentId },
+    rootParentId: parentId,                       // "radice" dell'albero = il magazzino
+    createDefaults: { kind: 'sub_location' },
+    rowMeta: (n) => [UBIC_KIND[String(n.kind ?? 'sub_location')] ?? String(n.kind), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
+    extraCard: {
+      init: (node) => ({ kind: (node?.kind as string) ?? 'sub_location', code: (node?.code as string) ?? '', note: (node?.note as string) ?? '' }),
+      toBody: (vals) => ({ kind: vals.kind ?? 'sub_location', code: (vals.code as string)?.trim() || null, note: (vals.note as string)?.trim() || null }),
+      render: (vals, set) => (
+        <>
+          <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Tipo</label>
+            <select value={String(vals.kind ?? 'sub_location')} onChange={(e) => set({ kind: e.target.value })}
+              style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }}>
+              <option value="sub_location">Ubicazione</option><option value="van">Furgone</option>
+            </select>
+          </div>
+          <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Codice</label>
+            <input value={String(vals.code ?? '')} onChange={(e) => set({ code: e.target.value })} placeholder="es. A-02"
+              style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }} />
+          </div>
+        </>
+      ),
+    },
+  };
+}
+function UbicazioniTab({ parentId }: { parentId: string; canManage: boolean }) {
+  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId)} /></div>;
 }
 
 /* ── Tab: Seriali per magazzino (GET /stock/locations/:id/serials) ───── */
