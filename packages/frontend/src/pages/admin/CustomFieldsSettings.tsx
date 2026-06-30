@@ -21,7 +21,11 @@ const ENTITIES = [
   { key: 'activity', label: 'Attività' }, { key: 'asset', label: 'Asset' },
   { key: 'site', label: 'Sito' }, { key: 'resource', label: 'Risorsa' },
   { key: 'material', label: 'Materiale' }, { key: 'company', label: 'Soggetto' },
+  { key: 'address', label: 'Indirizzo' },
 ];
+// entità i cui campi dipendono dal PAESE (ISO): mostra il selettore Paese.
+const COUNTRY_AWARE = new Set(['address', 'company']);
+const COUNTRIES = ['IT', 'AR'];
 const DT_LABEL: Record<FieldDataType, string> = {
   text: 'Testo', textarea: 'Testo lungo', number: 'Numero', integer: 'Intero', money: 'Valuta', date: 'Data',
   boolean: 'Sì/No', email: 'Email', phone: 'Telefono', url: 'URL', select: 'Scelta singola', multiselect: 'Scelta multipla',
@@ -33,12 +37,17 @@ export function CustomFieldsSettings() {
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('settings:manage' as never);
   const [entity, setEntity] = useState('engagement');
+  const [country, setCountry] = useState('IT');
+  const countryAware = COUNTRY_AWARE.has(entity);
   const { data, loading, error, reload } = useApi<{ items: FieldDefinitionDto[] }>(`/field-definitions?entity=${entity}&manage=1`);
   const [editing, setEditing] = useState<FieldDefinitionDto | null | undefined>(undefined);
   const [confirm, setConfirm] = useState<FieldDefinitionDto | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const rows = (data?.items ?? []).slice().sort((a, b) => a.sequence - b.sequence);
+  // per le entità country-aware mostra solo i campi del Paese scelto (+ gli universali)
+  const rows = (data?.items ?? [])
+    .filter((d) => !countryAware || d.country == null || d.country === country)
+    .slice().sort((a, b) => a.sequence - b.sequence);
 
   async function doDelete() {
     if (!confirm) return;
@@ -56,7 +65,15 @@ export function CustomFieldsSettings() {
           <div className="seg" style={{ flexWrap: 'wrap' }}>
             {ENTITIES.map((e) => <button key={e.key} className={entity === e.key ? 'on' : ''} onClick={() => setEntity(e.key)}>{e.label}</button>)}
           </div>
+          {countryAware && (
+            <select className="txt" style={{ maxWidth: 150, marginLeft: 'auto' }} value={country} onChange={(e) => setCountry(e.target.value)}>
+              {COUNTRIES.map((c) => <option key={c} value={c}>Paese: {c}</option>)}
+            </select>
+          )}
         </div>
+        {countryAware && <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', padding: '0 16px', margin: '8px 0 0' }}>
+          I campi di <b>{ENTITIES.find((e) => e.key === entity)?.label}</b> dipendono dal <b>Paese</b> (es. l'Italia ha Via/Civico/CAP, l'Argentina Calle/Número/CPA…). Scegli il Paese e aggiungi/modifica i suoi campi.
+        </p>}
         <div className="pb" style={{ padding: 0 }}>
           {loading ? <Loading /> : error ? <ErrorBox message={error} /> : rows.length === 0
             ? <div style={{ padding: 20, color: 'var(--ink-soft)' }}>Nessun campo per questa entità.</div>
@@ -99,7 +116,7 @@ export function CustomFieldsSettings() {
       </p>
 
       {editing !== undefined && (
-        <FieldModal entity={entity} editing={editing}
+        <FieldModal entity={entity} country={countryAware ? country : null} editing={editing}
           onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
           onDelete={editing ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined} toast={toast} />
       )}
@@ -120,8 +137,8 @@ function parseOptions(text: string): FieldOption[] {
 }
 const optionsToText = (opts: FieldOption[] | null) => (opts ?? []).map((o) => `${o.value}=${o.label['it-IT'] ?? o.value}`).join('\n');
 
-function FieldModal({ entity, editing, onClose, onSaved, onDelete, toast }: {
-  entity: string; editing: FieldDefinitionDto | null;
+function FieldModal({ entity, country, editing, onClose, onSaved, onDelete, toast }: {
+  entity: string; country: string | null; editing: FieldDefinitionDto | null;
   onClose: () => void; onSaved: () => void; onDelete?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({
@@ -183,7 +200,7 @@ function FieldModal({ entity, editing, onClose, onSaved, onDelete, toast }: {
     };
     try {
       if (editing) await mutate('PATCH', `/field-definitions/${editing.id}`, common);
-      else await mutate('POST', '/field-definitions', { entity, key: v.key, ...common });
+      else await mutate('POST', '/field-definitions', { entity, key: v.key, country: country ?? null, ...common });
       toast(editing ? 'Campo aggiornato' : 'Campo creato');
       onSaved();
     } catch (e) {

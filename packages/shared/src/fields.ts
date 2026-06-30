@@ -45,6 +45,8 @@ const fieldOption = z.object({ value: z.string().min(1).max(60), label: i18nLabe
 export const createFieldDefinitionSchema = z.object({
   entity: z.string().min(1).max(60),
   key: z.string().min(1).max(60).regex(/^[a-z][a-z0-9_]*$/, 'minuscolo, lettere/numeri/underscore, inizia con lettera'),
+  /** scope geografico (ISO IT/AR/…): null = universale. Per address/company guida i form country-driven. */
+  country: z.string().length(2).nullable().optional(),
   label: i18nLabel,
   dataType: fieldDataTypeEnum,
   required: z.boolean().optional(),

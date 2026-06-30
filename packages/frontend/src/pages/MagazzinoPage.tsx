@@ -29,6 +29,7 @@ import { AuditDialog } from '../ui/AuditDialog';
 import { useApi, mutate, useArchivedView } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { useLookups, lookupLabel } from '../context/Lookups';
+import { swatchColor } from '../theme/palette';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { downloadXlsx } from '../lib/xlsx';
@@ -45,7 +46,9 @@ function useLocationKinds(only?: string[]) {
   const all = lk.byCategory('stock_location_kind');
   const label = (k: string) => { const m = all.find((l) => l.code === k); return m ? lookupLabel(m) : (KIND_FALLBACK[k] ?? k); };
   const options = (only ? all.filter((l) => only.includes(l.code)) : all).map((l) => ({ value: l.code, label: lookupLabel(l) }));
-  return { label, options };
+  const meta: Record<string, { icon: string | null; color: string }> = {};
+  all.forEach((l) => { meta[l.code] = { icon: l.icon, color: swatchColor(l.colorToken) }; });
+  return { label, options, meta };
 }
 
 function usePerms() {
@@ -377,12 +380,12 @@ function MovimentiTab({ locationId }: { locationId: string }) {
  *  STANDARD entità ad albero §9: "magazzino = radice". L'albero mostra le
  *  ubicazioni interne (a profondità libera): drag&drop, Sposta in…, ricerca,
  *  eliminazione a 3 modi, sequence. Campo extra «Tipo» (ubicazione/furgone). */
-function ubicazioniConfig(parentId: string, kinds: { value: string; label: string }[], kindLabel: (k: string) => string): EntityTreeConfig {
+function ubicazioniConfig(parentId: string, kinds: { value: string; label: string }[], kindLabel: (k: string) => string, kindMeta: Record<string, { icon: string | null; color: string }>): EntityTreeConfig {
   const def = kinds.find((o) => o.value === 'sub_location') ? 'sub_location' : (kinds[0]?.value ?? 'sub_location');
   return {
     entity: 'stock_location',
     endpoint: '/stock/locations',
-    labels: { singular: 'Ubicazione', plural: 'Ubicazioni', subtitle: 'Ubicazioni interne del magazzino' },
+    labels: { singular: 'Ubicazione', plural: 'Ubicazioni', subtitle: 'Ubicazioni interne del magazzino', newLabel: 'Nuova ubicazione' },
     permissions: { read: 'stock:read', write: 'stock:manage' },
     defaultIcon: 'corner-down-right',
     showAppearance: false,
@@ -390,6 +393,7 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
     scopeQuery: { subtreeOf: parentId },
     rootParentId: parentId,                       // "radice" dell'albero = il magazzino
     createDefaults: { kind: def },
+    nodeAppearance: (n) => kindMeta[String(n.kind ?? def)] ?? {},
     rowMeta: (n) => [kindLabel(String(n.kind ?? def)), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
     extraCard: {
       init: (node) => ({ kind: (node?.kind as string) ?? def, code: (node?.code as string) ?? '', note: (node?.note as string) ?? '' }),
@@ -414,8 +418,8 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
   };
 }
 function UbicazioniTab({ parentId }: { parentId: string; canManage: boolean }) {
-  const { options, label } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
-  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId, options, label)} /></div>;
+  const { options, label, meta } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
+  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId, options, label, meta)} /></div>;
 }
 
 /* ── Tab: Seriali per magazzino (GET /stock/locations/:id/serials) ───── */

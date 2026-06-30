@@ -212,7 +212,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
               {parentOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
           {canAddr && (
-            <div style={{ gridColumn: 'span 4' }}><AddressField label="Indirizzo" country={form.country}
+            <div style={{ gridColumn: 'span 4' }}><AddressField label="Indirizzo" country={form.country} bare
               value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} /></div>
           )}
         </div>

@@ -58,7 +58,7 @@ export function siteTreeConfig(
             </select>
           </div>
           {opts.canAddr && (
-            <AddressField label="Indirizzo" country={opts.country}
+            <AddressField label="Indirizzo" country={opts.country} bare
               value={(vals.address as Record<string, unknown>) ?? {}}
               onChange={(address) => set({ address })} />
           )}

@@ -31,13 +31,15 @@ export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void>
       const input = createFieldDefinitionSchema.parse(request.body);
       try {
         const out = await withRls(request.ctx, async (db) => {
-          // evita doppioni nel form: nessun campo (sistema o tenant) con stessa entità+chiave già visibile
-          const dup = await db.query(`SELECT 1 FROM field_definition WHERE entity = $1 AND key = $2 LIMIT 1`, [input.entity, input.key]);
+          // evita doppioni nel form: nessun campo (sistema o tenant) con stessa entità+chiave+paese già visibile
+          const dup = await db.query(
+            `SELECT 1 FROM field_definition WHERE entity = $1 AND key = $2 AND country IS NOT DISTINCT FROM $3 LIMIT 1`,
+            [input.entity, input.key, input.country ?? null]);
           if (dup.rows.length) return { dup: true } as const;
           const r = await db.query(
-            `INSERT INTO field_definition (tenant_id, vertical, entity, key, label, data_type, required, options, unit, help, placeholder, group_key, sequence, active)
-             VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-            [request.ctx.tenantId, input.entity, input.key, JSON.stringify(input.label), input.dataType,
+            `INSERT INTO field_definition (tenant_id, vertical, entity, key, country, label, data_type, required, options, unit, help, placeholder, group_key, sequence, active)
+             VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+            [request.ctx.tenantId, input.entity, input.key, input.country ?? null, JSON.stringify(input.label), input.dataType,
              input.required ?? false, input.options ? JSON.stringify(input.options) : null,
              input.unit ?? null, input.help ? JSON.stringify(input.help) : null,
              input.placeholder ? JSON.stringify(input.placeholder) : null,
