@@ -21,6 +21,7 @@ import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { EntityTree, type EntityTreeConfig } from '../ui/EntityTree';
+import { BusyOverlay } from '../ui/BusyOverlay';
 import { NumInput } from '../ui/NumInput';
 import { useEntityActions } from '../ui/useEntityActions';
 import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPage';
@@ -380,7 +381,7 @@ function MovimentiTab({ locationId }: { locationId: string }) {
  *  STANDARD entità ad albero §9: "magazzino = radice". L'albero mostra le
  *  ubicazioni interne (a profondità libera): drag&drop, Sposta in…, ricerca,
  *  eliminazione a 3 modi, sequence. Campo extra «Tipo» (ubicazione/furgone). */
-function ubicazioniConfig(parentId: string, kinds: { value: string; label: string }[], kindLabel: (k: string) => string, kindMeta: Record<string, { icon: string | null; color: string }>): EntityTreeConfig {
+function ubicazioniConfig(parentId: string, kinds: { value: string; label: string }[], kindLabel: (k: string) => string, kindMeta: Record<string, { icon: string | null; color: string }>, onGenerateHere: (nodeId: string) => void): EntityTreeConfig {
   const def = kinds.find((o) => o.value === 'sub_location') ? 'sub_location' : (kinds[0]?.value ?? 'sub_location');
   return {
     entity: 'stock_location',
@@ -393,6 +394,7 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
     scopeQuery: { subtreeOf: parentId },
     rootParentId: parentId,                       // "radice" dell'albero = il magazzino
     createDefaults: { kind: def },
+    nodeActions: [{ key: 'gen', label: 'Genera ubicazioni qui', icon: Layers, onClick: (n) => onGenerateHere(n.id) }],
     nodeAppearance: (n) => kindMeta[String(n.kind ?? def)] ?? {},
     rowMeta: (n) => [kindLabel(String(n.kind ?? def)), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
     extraCard: {
@@ -419,14 +421,14 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
 }
 function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: boolean }) {
   const { options, label, meta } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
-  const [gen, setGen] = useState(false);
+  const [genTarget, setGenTarget] = useState<string | null>(null);   // parent sotto cui generare (magazzino o un nodo)
   return (
     <div style={{ marginTop: 8 }}>
       {canManage && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => setGen(true)}><Layers size={15} /> Genera ubicazioni (scaffalatura)</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setGenTarget(parentId)}><Layers size={15} /> Genera ubicazioni (scaffalatura)</button>
       </div>}
-      <EntityTree config={ubicazioniConfig(parentId, options, label, meta)} />
-      {gen && <GeneraUbicazioniModal parentId={parentId} onClose={() => setGen(false)} />}
+      <EntityTree config={ubicazioniConfig(parentId, options, label, meta, (id) => setGenTarget(id))} />
+      {genTarget && <GeneraUbicazioniModal parentId={genTarget} onClose={() => setGenTarget(null)} />}
     </div>
   );
 }
@@ -482,6 +484,7 @@ function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClos
   }
 
   return (
+    <><BusyOverlay open={busy} message="Genero le ubicazioni…" />
     <Modal open size="md" title="Genera ubicazioni a coordinate" onClose={onClose} footer={<>
       <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
       <button className="btn btn-primary" onClick={generate} disabled={busy || !total}>{busy ? 'Genero…' : `Genera ${total || 0}`}</button>
@@ -519,7 +522,7 @@ function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClos
             : <>Esempi: <span className="mono">{sample.join(', ')}{total > 6 ? ' …' : ''}</span></>}
         </div>}
       </div>
-    </Modal>
+    </Modal></>
   );
 }
 

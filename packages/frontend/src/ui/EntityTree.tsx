@@ -14,7 +14,8 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronRight, ChevronDown, Plus, MoreVertical, Pencil, Copy, FolderInput, Trash2,
-  RotateCcw, Search, X, ListTree, Table2, ArrowDownAZ, ArrowUpDown, FoldVertical, UnfoldVertical, Archive,
+  RotateCcw, Search, X, ListTree, Table2, ArrowDownAZ, ArrowUpDown, FoldVertical, UnfoldVertical, Archive, CheckSquare,
+  type LucideIcon,
 } from 'lucide-react';
 import type { TreeNodeDto } from '@sisuite/shared';
 import { CategoryIcon } from './categoryIcons';
@@ -22,6 +23,7 @@ import { TreeNodeCard, type NodeFormValue } from './TreeNodeCard';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PromptDialog } from './PromptDialog';
 import { Modal } from './Modal';
+import { BusyOverlay } from './BusyOverlay';
 import { useApi, useReloadOnEnter, useStickyState, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from './Toast';
@@ -61,6 +63,8 @@ export interface EntityTreeConfig {
     render: (vals: Record<string, unknown>, set: (p: Record<string, unknown>) => void) => ReactNode;
     toBody: (vals: Record<string, unknown>) => Record<string, unknown>;
   };
+  /** azioni custom per nodo nel menu ⋯ (es. "Genera ubicazioni qui"). */
+  nodeActions?: { key: string; label: string; icon?: LucideIcon; onClick: (node: TreeNodeDto & Record<string, unknown>) => void }[];
   /** pick mode (§6.10): la lente di un'altra entità apre QUESTO albero per selezionare. */
   mode?: 'manage' | 'pick';
   onPick?: (node: TreeNodeDto) => void;
@@ -151,10 +155,13 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   const [over, setOver] = useState<{ id: string; zone: 'before' | 'inside' | 'after' } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());   // selezione multipla (bulk)
   const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
   const toggleSel = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const all = (data?.items ?? []).filter((n) => pick ? n.active !== false : true);
   const { roots, byId } = useMemo(() => buildTree(all, sort), [all, sort]);
+  /** seleziona un nodo e tutti i suoi discendenti (ramo). */
+  const selectBranch = (id: string) => { const ids = subtreeIds(byId, id); setSelected((s) => { const n = new Set(s); ids.forEach((x) => n.add(x)); return n; }); setMenuFor(null); };
 
   // ricerca: set dei nodi che matchano + tutti i loro antenati (per la potatura)
   const visibleIds = useMemo(() => {
@@ -222,10 +229,13 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
     setBulkConfirm(false);
     const ids = [...selected].sort((a, b) => (byId.get(b)?.depth ?? 0) - (byId.get(a)?.depth ?? 0));
     let ok = 0, fail = 0;
-    for (const id of ids) {
-      try { await mutate('DELETE', `${config.endpoint}/${id}?mode=block`); ok++; }
+    setBulkBusy({ done: 0, total: ids.length });   // overlay bloccante: niente sfarfallio, un solo refresh a fine
+    for (let i = 0; i < ids.length; i++) {
+      try { await mutate('DELETE', `${config.endpoint}/${ids[i]}?mode=block`); ok++; }
       catch { fail++; }
+      setBulkBusy({ done: i + 1, total: ids.length });
     }
+    setBulkBusy(null);
     toast(`${ok} eliminate${fail ? ` · ${fail} non eliminabili (con contenuto/figli)` : ''}`);
     setSelected(new Set()); reload();
   }
@@ -343,6 +353,10 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
                     <button onClick={() => openCreate(n.id)}><Plus size={14} /> Aggiungi sotto-voce</button>
                     <button onClick={() => duplicate(n)}><Copy size={14} /> Duplica</button>
                     <button onClick={() => { setMoveOf(n); setMenuFor(null); }}><FolderInput size={14} /> Sposta in…</button>
+                    {hasKids && <button onClick={() => selectBranch(n.id)}><CheckSquare size={14} /> Seleziona ramo</button>}
+                    {config.nodeActions?.map((a) => (
+                      <button key={a.key} onClick={() => { a.onClick(n as unknown as TreeNodeDto & Record<string, unknown>); setMenuFor(null); }}>{a.icon ? <a.icon size={14} /> : <Plus size={14} />} {a.label}</button>
+                    ))}
                     <button className="danger" onClick={() => tryBlockDelete(n)}><Trash2 size={14} /> Elimina</button>
                   </div>
                 </>
@@ -514,6 +528,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
       <ConfirmDialog open={bulkConfirm} danger title={`Eliminare ${selected.size} voci?`}
         message={`Verranno archiviate le voci selezionate vuote. Quelle con contenuto o sotto-voci vengono saltate (te lo segnalo).`}
         confirmLabel={`Elimina ${selected.size}`} onConfirm={() => void bulkDelete()} onCancel={() => setBulkConfirm(false)} />
+      <BusyOverlay open={!!bulkBusy} message="Eliminazione in corso…" progress={bulkBusy} />
     </>
   );
 
