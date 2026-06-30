@@ -9,11 +9,12 @@ import { withRls } from '../context/rls.js';
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/settings', { preHandler: [app.authenticate] }, async (request) => {
     return withRls(request.ctx, async (db): Promise<TenantSettingsDto> => {
-      const r = await db.query(`SELECT name, vertical, default_locale, timezone, working_hours FROM tenant WHERE id = $1`, [request.ctx.tenantId]);
+      const r = await db.query(`SELECT name, vertical, default_locale, timezone, country, working_hours FROM tenant WHERE id = $1`, [request.ctx.tenantId]);
       const t = r.rows[0] ?? {};
       return {
         name: t.name ?? '', vertical: t.vertical ?? '', defaultLocale: t.default_locale ?? 'it-IT',
-        timezone: t.timezone ?? 'Europe/Rome', workingHours: (t.working_hours as Record<string, [string, string][]>) ?? {},
+        timezone: t.timezone ?? 'Europe/Rome', country: (t.country ?? 'IT').trim(),
+        workingHours: (t.working_hours as Record<string, [string, string][]>) ?? {},
       };
     });
   });
@@ -23,6 +24,17 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       const input = updateWorkingHoursSchema.parse(request.body);
       return withRls(request.ctx, async (db) => {
         await db.query(`UPDATE tenant SET working_hours = $2 WHERE id = $1`, [request.ctx.tenantId, JSON.stringify(input.workingHours)]);
+        return { ok: true };
+      });
+    });
+
+  // Paese (ISO) del tenant: default geografico delle anagrafiche/form country-driven
+  app.patch<{ Body: { country?: string } }>('/settings/country', { preHandler: [app.authenticate, requirePermission('settings:manage')] },
+    async (request, reply) => {
+      const country = String(request.body?.country ?? '').trim().toUpperCase();
+      if (country.length !== 2) return reply.code(400).send({ error: 'bad_request', message: 'Paese: codice ISO di 2 lettere', statusCode: 400 });
+      return withRls(request.ctx, async (db) => {
+        await db.query(`UPDATE tenant SET country = $2 WHERE id = $1`, [request.ctx.tenantId, country]);
         return { ok: true };
       });
     });

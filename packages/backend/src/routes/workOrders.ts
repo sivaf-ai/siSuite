@@ -259,10 +259,12 @@ export async function workOrderRoutes(app: FastifyInstance): Promise<void> {
     const input = createWorkOrderSchema.parse(request.body);
     const ctx = request.ctx;
     const dto = await withRls(ctx, async (db) => {
-      const attrs = await validateAttributes(db, ctx.tenantId, 'work_order', input.attributes);
       const code = await nextNumber(db, 'work_order');
       const statusId = input.statusId ?? (await lookupDefaultId(db, 'work_order_status', 'assigned'));
       const typeId = input.typeId ?? (await lookupDefaultId(db, 'work_order_type', 'activation'));
+      // variante = codice del Tipo (per validare gli obbligatori dei campi-per-tipo)
+      const typeCode = (await db.query(`SELECT code FROM lookup_value WHERE id = $1`, [typeId])).rows[0]?.code as string | undefined;
+      const attrs = await validateAttributes(db, ctx.tenantId, 'work_order', input.attributes, typeCode);
       const ins = await db.query(
         `INSERT INTO work_order
            (tenant_id, engagement_id, code, principal_company_id, principal_order_ref, type_id, status_id,

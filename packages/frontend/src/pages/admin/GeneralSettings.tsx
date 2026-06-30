@@ -37,6 +37,13 @@ export function GeneralSettings() {
   const [portal, setPortal] = useState(false);
   useEffect(() => { if (data) setWh(data.workingHours ?? {}); }, [data]);
 
+  async function saveCountry(country: string) {
+    setBusy(true);
+    try { await mutate('PATCH', '/settings/country', { country }); toast('Paese del tenant aggiornato'); void reload(); }
+    catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Errore') : (e as Error).message, 'error'); }
+    finally { setBusy(false); }
+  }
+
   async function saveHours() {
     if (whHasErrors(wh)) { toast('Correggi gli intervalli orari (fine dopo inizio, niente sovrapposizioni)', 'error'); return; }
     setBusy(true);
@@ -67,6 +74,13 @@ export function GeneralSettings() {
             <div className="set-row"><div className="st"><b>{t('settings.general.orgLanguage')}</b><span>{t('settings.general.orgLanguageDesc')}</span></div><span className="selv">{data.defaultLocale}</span></div>
             <div className="set-row"><div className="st"><b>{t('settings.general.timezone')}</b><span>{t('settings.general.timezoneDesc')}</span></div><span className="selv">{data.timezone}</span></div>
             <div className="set-row"><div className="st"><b>{t('settings.general.vertical')}</b><span>{t('settings.general.verticalDesc')}</span></div><span className="selv">{data.vertical}</span></div>
+            <div className="set-row"><div className="st"><b>Paese predefinito</b><span>Default geografico delle anagrafiche (Soggetti, Siti) e dei campi country-driven (indirizzo, fiscali).</span></div>
+              {canManage
+                ? <select className="txt" style={{ width: 'auto', minWidth: 120, height: 38 }} value={data.country} onChange={(e) => void saveCountry(e.target.value)} disabled={busy}>
+                    {['IT', 'AR', 'ES', 'FR', 'DE'].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                : <span className="selv">{data.country}</span>}
+            </div>
             <div className="set-row"><div className="st"><b>Densità interfaccia</b><span>Spaziatura di tabelle e controlli. Salvata per questo dispositivo.</span></div><DensityToggle /></div>
             <div className="set-row"><div className="st"><b>{t('settings.general.darkTheme')}</b><span>{t('settings.general.darkThemeDesc')}</span></div><Switch on={dark} onToggle={() => setTheme(dark ? 'light' : 'dark')} /></div>
             <div className="set-row"><div className="st"><b>{t('settings.general.push')}</b><span>{t('settings.general.pushDesc')}</span></div><Switch on={push} onToggle={() => setPush((x) => !x)} /></div>

@@ -105,11 +105,16 @@ export function CustomFieldsSettings() {
                   return (
                     <div className="fd-row" key={d.id} style={editable ? { cursor: 'pointer' } : undefined}
                       onClick={editable ? () => setEditing(d) : undefined}>
-                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span className="cellname" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label['it-IT'] ?? d.key}</span>
                         {d.isSystem
                           ? <span className="chip">sistema</span>
                           : <span className="pill pill--brand"><span className="dot" />tuo</span>}
+                        {/* scope: chiarisce a quale Tipo/Paese appartiene (o se è universale) */}
+                        {variantCat && (d.variant
+                          ? <span className="chip" style={{ background: 'var(--brand-wash)', color: 'var(--brand-ink)' }}>Tipo: {(variantTypes.find((t) => t.code === d.variant) && lookupLabel(variantTypes.find((t) => t.code === d.variant)!)) ?? d.variant}</span>
+                          : <span className="chip" style={{ color: 'var(--ink-faint)' }}>Tutti i tipi</span>)}
+                        {countryAware && d.country && <span className="chip" style={{ background: 'var(--brand-wash)', color: 'var(--brand-ink)' }}>Paese: {d.country}</span>}
                         {!d.active && <span className="chip" style={{ opacity: 0.7 }}>disattivato</span>}
                       </span>
                       <span className="chip" style={{ justifySelf: 'start' }}>{DT_LABEL[d.dataType]}</span>
@@ -178,21 +183,7 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isChoice = v.dataType === 'select' || v.dataType === 'multiselect';
-
-  const fields: RenderableField[] = [
-    ...(editing ? [] : [{ key: 'key', label: 'Chiave (codice, minuscolo)', dataType: 'text' as const, required: true, placeholder: 'es. potenza_kw' }]),
-    { key: 'labelIt', label: 'Etichetta (IT)', dataType: 'text', required: true },
-    { key: 'labelEn', label: 'Etichetta (EN)', dataType: 'text' },
-    { key: 'labelEs', label: 'Etichetta (ES)', dataType: 'text' },
-    { key: 'dataType', label: 'Tipo', dataType: 'select', required: true, options: FIELD_DATA_TYPES.map((t) => ({ value: t, label: { 'it-IT': DT_LABEL[t] } })) },
-    { key: 'unit', label: 'Unità (opz.)', dataType: 'text', placeholder: 'es. kW, m, €' },
-    { key: 'placeholderIt', label: 'Segnaposto (IT)', dataType: 'text' },
-    { key: 'helpIt', label: 'Testo di aiuto (IT)', dataType: 'text' },
-    { key: 'groupKey', label: 'Gruppo', dataType: 'select', options: GROUP_KEYS.map((g) => ({ value: g, label: { 'it-IT': GROUP_LABEL_IT[g] ?? g } })) },
-    { key: 'sequence', label: 'Ordine', dataType: 'integer' },
-    { key: 'required', label: 'Obbligatorio', dataType: 'boolean' },
-    { key: 'active', label: 'Attivo', dataType: 'boolean' },
-  ];
+  const set = (p: Record<string, unknown>) => setV((s) => ({ ...s, ...p }));
 
   async function submit() {
     const errs: Record<string, string> = {};
@@ -243,21 +234,48 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>
-      <div className="form-group">
-        {fields.map((f) => <Field key={f.key} field={f} value={v[f.key]} error={errors[f.key]} onChange={(val) => setV((s) => ({ ...s, [f.key]: val }))} />)}
-        {isChoice && (
-          <div className="field">
-            <label>Opzioni (una per riga, <span className="mono">valore=Etichetta</span>)</label>
-            <textarea className="txt" style={{ minHeight: 96 }} value={v.optionsText as string} placeholder={'ftth=FTTH\nfttb=FTTB'}
-              onChange={(e) => setV((s) => ({ ...s, optionsText: e.target.value }))} />
-            {errors.optionsText && <div className="err">{errors.optionsText}</div>}
-          </div>
-        )}
-        <div className="field" style={{ marginTop: 8, padding: 12, background: 'var(--neutral-wash)', borderRadius: 10 }}>
+      <div className="dsx">
+        <div className="bgrid">
+          {!editing && <div className="bf c2"><span className="bl">Chiave (codice) <span className="req">*</span></span>
+            <input className="bi mono" value={String(v.key ?? '')} onChange={(e) => set({ key: e.target.value })} placeholder="es. potenza_kw"
+              style={errors.key ? { borderColor: 'var(--danger)' } : undefined} />
+            {errors.key && <span style={{ fontSize: 11.5, color: 'var(--danger)' }}>{errors.key}</span>}</div>}
+          <div className="bf c2"><span className="bl">Etichetta (IT) <span className="req">*</span></span>
+            <input className="bi" autoFocus value={String(v.labelIt ?? '')} onChange={(e) => set({ labelIt: e.target.value })}
+              style={errors.labelIt ? { borderColor: 'var(--danger)' } : undefined} placeholder="es. Potenza" />
+            {errors.labelIt && <span style={{ fontSize: 11.5, color: 'var(--danger)' }}>{errors.labelIt}</span>}</div>
+          <div className="bf c1"><span className="bl">Etichetta (EN)</span>
+            <input className="bi" value={String(v.labelEn ?? '')} onChange={(e) => set({ labelEn: e.target.value })} /></div>
+          <div className="bf c1"><span className="bl">Etichetta (ES)</span>
+            <input className="bi" value={String(v.labelEs ?? '')} onChange={(e) => set({ labelEs: e.target.value })} /></div>
+          <div className="bf c2"><span className="bl">Tipo dato</span>
+            <select className="bi" value={String(v.dataType)} onChange={(e) => set({ dataType: e.target.value })}>
+              {FIELD_DATA_TYPES.map((dt) => <option key={dt} value={dt}>{DT_LABEL[dt]}</option>)}</select></div>
+          <div className="bf c1"><span className="bl">Unità</span>
+            <input className="bi" value={String(v.unit ?? '')} onChange={(e) => set({ unit: e.target.value })} placeholder="kW, m, €" /></div>
+          <div className="bf c1"><span className="bl">Ordine</span>
+            <input className="bi" type="number" value={Number(v.sequence ?? 100)} onChange={(e) => set({ sequence: Number(e.target.value) })} /></div>
+          <div className="bf c2"><span className="bl">Segnaposto (IT)</span>
+            <input className="bi" value={String(v.placeholderIt ?? '')} onChange={(e) => set({ placeholderIt: e.target.value })} /></div>
+          <div className="bf c2"><span className="bl">Testo di aiuto (IT)</span>
+            <input className="bi" value={String(v.helpIt ?? '')} onChange={(e) => set({ helpIt: e.target.value })} /></div>
+          <div className="bf c2"><span className="bl">Gruppo</span>
+            <select className="bi" value={String(v.groupKey ?? 'general')} onChange={(e) => set({ groupKey: e.target.value })}>
+              {GROUP_KEYS.map((g) => <option key={g} value={g}>{GROUP_LABEL_IT[g] ?? g}</option>)}</select></div>
+          <div className="bf c1"><span className="bl">Obbligatorio</span>
+            <select className="bi" value={v.required ? '1' : '0'} onChange={(e) => set({ required: e.target.value === '1' })}>
+              <option value="0">No</option><option value="1">Sì</option></select></div>
+          <div className="bf c1"><span className="bl">Attivo</span>
+            <select className="bi" value={v.active === false ? '0' : '1'} onChange={(e) => set({ active: e.target.value === '1' })}>
+              <option value="1">Sì</option><option value="0">No</option></select></div>
+          {isChoice && <div className="bf c4"><span className="bl">Opzioni (una per riga: <span className="mono">valore=Etichetta</span>)</span>
+            <textarea className="bi" rows={3} value={String(v.optionsText ?? '')} placeholder={'ftth=FTTH\nfttb=FTTB'}
+              onChange={(e) => set({ optionsText: e.target.value })} style={errors.optionsText ? { borderColor: 'var(--danger)' } : undefined} />
+            {errors.optionsText && <span style={{ fontSize: 11.5, color: 'var(--danger)' }}>{errors.optionsText}</span>}</div>}
+        </div>
+        <div style={{ marginTop: 12, padding: 12, background: 'var(--neutral-wash)', borderRadius: 10 }}>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--ink-faint)' }}>Anteprima live</label>
-          <div style={{ marginTop: 8 }}>
-            <Field field={previewField} value={preview} onChange={setPreview} />
-          </div>
+          <div style={{ marginTop: 8 }}><Field field={previewField} value={preview} onChange={setPreview} /></div>
         </div>
       </div>
     </Modal>

@@ -143,6 +143,8 @@ export const updateWorkingHoursSchema = z.object({ workingHours: workingHoursSch
 
 export interface TenantSettingsDto {
   name: string; vertical: string; defaultLocale: string; timezone: string;
+  /** Paese (ISO alpha-2): default geografico delle anagrafiche e dei form country-driven. */
+  country: string;
   workingHours: Record<string, [string, string][]>;
 }
 

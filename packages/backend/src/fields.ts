@@ -74,12 +74,14 @@ export async function validateAttributes(
   tenantId: string,
   entity: string,
   attributes: Record<string, unknown> | undefined,
+  variant?: string,                  // Tipo del record (es. work_order_type code, asset.kind)
 ): Promise<Record<string, unknown>> {
-  if (!attributes || Object.keys(attributes).length === 0) return {};
+  // anche con attributes vuoti dobbiamo validare gli OBBLIGATORI (universali + del Tipo)
   const vertical = await tenantVertical(db, tenantId);
-  const defs = (await loadFieldDefs(db, entity, vertical)).filter((d) => !d.country);
+  const defs = (await loadFieldDefs(db, entity, vertical, undefined, variant)).filter((d) => !d.country);
+  if (defs.length === 0) return attributes ?? {};
   const schema = buildAttributesSchema(defs);
-  return schema.parse(attributes) as Record<string, unknown>;
+  return schema.parse(attributes ?? {}) as Record<string, unknown>;
 }
 
 /** Valida i campi FISCALI country-scoped (entity='company', country dato) →

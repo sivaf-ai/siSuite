@@ -75,7 +75,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       const input = createAssetSchema.parse(request.body);
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
-        const attrs = await validateAttributes(db, ctx.tenantId, 'asset', input.attributes);
+        const attrs = await validateAttributes(db, ctx.tenantId, 'asset', input.attributes, input.kind);
         const ins = await db.query(
           `INSERT INTO asset (tenant_id, company_id, work_order_subject_id, kind, label, site_id, parent_asset_id,
              model, manufacturer, warranty_until, status, installed_at, attributes, created_by, updated_by)
@@ -95,9 +95,10 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const input = updateAssetSchema.parse(request.body);
       const out = await withRls(request.ctx, async (db) => {
-        const ex = await db.query(`SELECT 1 FROM asset WHERE id = $1`, [request.params.id]);
+        const ex = await db.query(`SELECT kind FROM asset WHERE id = $1`, [request.params.id]);
         if (!ex.rows.length) return null;
-        const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'asset', input.attributes) : null;
+        const variant = input.kind ?? (ex.rows[0].kind as string);
+        const attrs = input.attributes ? await validateAttributes(db, request.ctx.tenantId, 'asset', input.attributes, variant) : null;
         const sets: string[] = []; const vals: unknown[] = [request.params.id];
         const add = (col: string, val: unknown) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
         if (input.kind !== undefined) add('kind', input.kind);

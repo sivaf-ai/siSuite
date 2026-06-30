@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (4) — Rifiniture campi-per-contesto: scope badge, FieldModal standard, Paese tenant editabile, validazione required (chat 01.06)
+- **Campi personalizzati**: la lista ora mostra il **badge di scope** per ogni campo (Tipo: X / «Tutti i tipi» / Paese: X) → chiarisce perché cambiando Tipo i campi universali restano. **FieldModal** portato allo standard `.dsx/.bgrid` (era `<Field>`/form-group).
+- **Paese del tenant editabile**: Impostazioni › **Generale** → riga "Paese predefinito" (PATCH `/settings/country`). DTO/route estesi.
+- **Validazione required per-variante**: `validateAttributes(...,variant)` valida gli obbligatori (universali + del Tipo). `assets`/`workOrders` passano la variante (asset.kind / codice work_order_type). Smoke: asset "apparato" senza campo obbligatorio → 400 «campo: obbligatorio»; col campo → 201.
+- 90/90 test, typecheck pulito. (Nota: campi di SISTEMA = sola lettura per il tenant, by design; i campi "tuoi" sono cliccabili per modifica/elimina.)
+
 ## 2026-06-30 (3) — Campi configurabili PER CONTESTO: variante/Tipo (Asse B) + Paese del tenant (Asse A) (chat 01.06)
 - **Migr 061**: colonna `variant` su `field_definition` + indici scope `(entity,country,vertical,variant)`. Prossima libera **063**.
 - **Asse B (campi per Tipo di record)**: `field_definition` scope completo `(entity, country?, vertical?, variant?)`. Loader `loadFieldDefs(...,variant)` (universali + del tipo). GET `/field-definitions?variant=`. POST accetta `variant` (dup-check entità+chiave+paese+variante). UI *Campi personalizzati*: selettore **Tipo** dai lookup del tipo entità (`work_order`→work_order_type, `asset`→asset_kind). I form **OrdinativoDetailPage**/**AssetDetailPage** caricano i campi col `variant`=codice tipo del record. Smoke OK (campo work_order/activation visibile solo con variant). `buildAttributesSchema` è `.passthrough()` → nessuna perdita dati.
