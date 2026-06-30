@@ -5,12 +5,12 @@
 > Ultimo aggiornamento: **30/06/2026** (chat 01.06).
 
 ## ▶ In corso / prossimo immediato
-- [ ] **WMS Ubicazioni — Fase 1**: coordinate (corsia/scaffale/ripiano/posizione) + **generatore massivo** di ubicazioni da range + tipo bin. (proposta: `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`)
+- [x] **WMS Ubicazioni — Fase 1**: coordinate (corsia/scaffale/ripiano/posizione) + **generatore massivo** (piatto+gerarchico) — FATTO (migr 063). (proposta: `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`)
 - [x] **Campi di SISTEMA personalizzabili dal tenant** (B+E) — FATTO (migr 064): override label(ml)/obbligatorio/attivo/ordine/segnaposto/aiuto + "Ripristina default". I campi di sistema sono cliccabili in Campi personalizzati.
-- [ ] **Vertical del tenant** selezionabile in Generale (come il Paese): determina quali campi dominio (`vertical`, es. fiber) compaiono. Oggi il default è `software`; per chi fa fibra serve `fiber`.
+- [x] **Vertical del tenant** selezionabile in Generale — FATTO (30/06, no migr). PATCH `/settings/vertical`, `<select>` software/fiber/pools in Generale, effetto immediato senza relogin (i form rileggono il verticale dal tenant). Risolve "non vedo i campi fibra".
 
 ## 🏬 WMS Magazzino (vendibile standalone) — proposta `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`
-- [ ] **Fase 1** — coordinate + generatore massivo + tipo bin (vedi sopra).
+- [x] **Fase 1** — coordinate + generatore massivo + tipo bin — FATTO (migr 063).
 - [ ] **Fase 2** — **capacità/spazio** per ubicazione (volume m³ / peso / n° UDC / quantità) + **% riempimento** + avvisi/blocco al superamento + volume unitario articolo.
 - [ ] **Fase 3** — **mappa occupazione** visiva (heatmap per scaffale/zona) come tab del magazzino.
 - [ ] **Fase 4** (opzionale) — putaway/prelievo ottimizzati (regole di stoccaggio, percorso FIFO/FEFO).

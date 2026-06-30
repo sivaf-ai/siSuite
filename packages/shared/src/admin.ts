@@ -148,6 +148,20 @@ export interface TenantSettingsDto {
   workingHours: Record<string, [string, string][]>;
 }
 
+/** Verticali (domain pack) selezionabili dal tenant: determinano quali campi di
+ *  dominio (`field_definition.vertical`, es. fiber: Seriale ONT, Tipo connessione)
+ *  compaiono sulle maschere. Cambiarlo ha effetto immediato (i form rileggono il
+ *  verticale dal tenant a ogni caricamento, nessun relogin). */
+export const TENANT_VERTICALS = [
+  { code: 'software', label: 'Software / Servizi IT' },
+  { code: 'fiber', label: 'Fibra / Telecomunicazioni' },
+  { code: 'pools', label: 'Piscine' },
+] as const;
+export type TenantVertical = (typeof TENANT_VERTICALS)[number]['code'];
+export const updateVerticalSchema = z.object({
+  vertical: z.enum(['software', 'fiber', 'pools']),
+});
+
 /* ── Terminologia per-tenant (glossario di dominio, parte 8 §1) ─────────── */
 // Insieme CURATO di termini di dominio sovrascrivibili dal tenant (~28).
 // L'ordine guida la UI del Glossario (raggruppato in TERM_GROUPS).

@@ -2,7 +2,7 @@
  *  DI LAVORO è editabile e PERSISTENTE (alimenta il motore di pianificazione). */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Locale, TenantSettingsDto } from '@sisuite/shared';
+import { TENANT_VERTICALS, type Locale, type TenantSettingsDto } from '@sisuite/shared';
 import { Loading, ErrorBox } from '../../components/Page';
 import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
@@ -36,6 +36,13 @@ export function GeneralSettings() {
   const [push, setPush] = useState(true);
   const [portal, setPortal] = useState(false);
   useEffect(() => { if (data) setWh(data.workingHours ?? {}); }, [data]);
+
+  async function saveVertical(vertical: string) {
+    setBusy(true);
+    try { await mutate('PATCH', '/settings/vertical', { vertical }); toast('Verticale del tenant aggiornato'); void reload(); }
+    catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Errore') : (e as Error).message, 'error'); }
+    finally { setBusy(false); }
+  }
 
   async function saveCountry(country: string) {
     setBusy(true);
@@ -73,7 +80,14 @@ export function GeneralSettings() {
             </div>
             <div className="set-row"><div className="st"><b>{t('settings.general.orgLanguage')}</b><span>{t('settings.general.orgLanguageDesc')}</span></div><span className="selv">{data.defaultLocale}</span></div>
             <div className="set-row"><div className="st"><b>{t('settings.general.timezone')}</b><span>{t('settings.general.timezoneDesc')}</span></div><span className="selv">{data.timezone}</span></div>
-            <div className="set-row"><div className="st"><b>{t('settings.general.vertical')}</b><span>{t('settings.general.verticalDesc')}</span></div><span className="selv">{data.vertical}</span></div>
+            <div className="set-row"><div className="st"><b>{t('settings.general.vertical')}</b><span>{t('settings.general.verticalDesc')}</span></div>
+              {canManage
+                ? <select className="txt" style={{ width: 'auto', minWidth: 200, height: 38 }} value={data.vertical} onChange={(e) => void saveVertical(e.target.value)} disabled={busy}>
+                    {TENANT_VERTICALS.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+                    {!TENANT_VERTICALS.some((v) => v.code === data.vertical) && <option value={data.vertical}>{data.vertical}</option>}
+                  </select>
+                : <span className="selv">{data.vertical}</span>}
+            </div>
             <div className="set-row"><div className="st"><b>Paese predefinito</b><span>Default geografico delle anagrafiche (Soggetti, Siti) e dei campi country-driven (indirizzo, fiscali).</span></div>
               {canManage
                 ? <select className="txt" style={{ width: 'auto', minWidth: 120, height: 38 }} value={data.country} onChange={(e) => void saveCountry(e.target.value)} disabled={busy}>

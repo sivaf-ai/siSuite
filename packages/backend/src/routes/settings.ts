@@ -2,7 +2,7 @@
  *  (alimentano il motore di pianificazione). Lettura a tutti gli autenticati;
  *  scrittura solo settings:manage. RLS: il tenant vede/modifica solo se stesso. */
 import type { FastifyInstance } from 'fastify';
-import { updateWorkingHoursSchema, updateTerminologySchema, type TenantSettingsDto, type TermOverrideDto } from '@sisuite/shared';
+import { updateWorkingHoursSchema, updateTerminologySchema, updateVerticalSchema, type TenantSettingsDto, type TermOverrideDto } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 
@@ -35,6 +35,17 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       if (country.length !== 2) return reply.code(400).send({ error: 'bad_request', message: 'Paese: codice ISO di 2 lettere', statusCode: 400 });
       return withRls(request.ctx, async (db) => {
         await db.query(`UPDATE tenant SET country = $2 WHERE id = $1`, [request.ctx.tenantId, country]);
+        return { ok: true };
+      });
+    });
+
+  // Verticale (domain pack) del tenant: determina i campi di dominio (field_definition.vertical)
+  // mostrati sulle maschere. Effetto immediato: i form rileggono il verticale dal tenant.
+  app.patch('/settings/vertical', { preHandler: [app.authenticate, requirePermission('settings:manage')] },
+    async (request) => {
+      const input = updateVerticalSchema.parse(request.body);
+      return withRls(request.ctx, async (db) => {
+        await db.query(`UPDATE tenant SET vertical = $2 WHERE id = $1`, [request.ctx.tenantId, input.vertical]);
         return { ok: true };
       });
     });

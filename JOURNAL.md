@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (8) — Verticale del tenant selezionabile in Generale (chat 01.06)
+- **Backlog #2 FATTO.** Il `vertical` del tenant ora è **editabile** in Impostazioni › Generale (era sola lettura). PATCH `/settings/vertical` (settings:manage) con validazione enum. Nessuna migrazione (la colonna `tenant.vertical` esiste già da bootstrap).
+- Shared: `TENANT_VERTICALS` (software/fiber/pools + label) + `updateVerticalSchema`. Riga "Verticale" in GeneralSettings diventa `<select>` per chi gestisce (con fallback option se il valore corrente è fuori lista).
+- **Effetto immediato senza relogin**: i form rileggono il verticale dal tenant a ogni GET `/field-definitions` (`tenantVertical`), non dal JWT. Smoke: switch a `fiber` → i 5 campi fiber (connection_type/socket_id/distance_m/attenuation_db/ont_serial) compaiono su `asset`; ripristino a `software` → spariscono; valore invalido → 400 leggibile. Tenant lasciato su `software`.
+- Risolve il gotcha "non vedo i campi del settore fibra": ora basta selezionare il verticale `fiber` in Generale. 90/90 test, typecheck pulito.
+
 ## 2026-06-30 (7) — B+E: campi di SISTEMA personalizzabili dal tenant (override) (chat 01.06)
 - **Migr 064** `field_definition_override` (RLS): il tenant personalizza dei campi di SISTEMA label(it/en/es)/obbligatorio/attivo/ordine/segnaposto/aiuto/unità, SENZA toccare chiave/tipo/scope e senza poterli eliminare.
 - Loader `fields.ts`: overlay `COALESCE(override, base)` + `isCustomized`. Route `PUT/DELETE /field-definitions/:id/override`. Shared `updateFieldOverrideSchema` + `isCustomized`.
