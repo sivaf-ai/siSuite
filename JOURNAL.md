@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (2) — Ubicazioni colorate + AddressField pulito + campi indirizzo configurabili per Paese + proposta config per-contesto (chat 01.06)
+- **Ubicazioni** albero colorate per Tipo (nodeAppearance da stock_location_kind). 
+- **AddressField** modalità `bare` (header leggero, niente ObjectBox): fix sovrapposizione "Indirizzo"/"Via" nella scheda nodo + lista globale siti.
+- **Campi indirizzo CONFIGURABILI da UI**: aggiunta entità "Indirizzo" in *Campi personalizzati* + **selettore Paese** (IT/AR). Backend `field_definition` POST accetta `country` (dup-check entità+chiave+paese). AR ha già 8 campi. Disponibile anche per Soggetto (fiscali).
+- **SCOPERTA chiave**: `field_definition` ha già **2 discriminatori di contesto** — `country` (geografia) e `vertical` (dominio). Il meccanismo "campi diversi per Paese/attività" è già metà architettato.
+- **Proposta**: `docs/analisi/2026-06-30_PROPOSTA_campi_configurabili_per_contesto.md` — Asse A geografia (default Paese dal Tenant + seeding) e Asse B **variante/Tipo di record** (es. Ordini Fibra) riusando i Tipi a catalogo. In attesa di approvazione titolare.
+- Standard aggiornato (D-0: icona+colore sulle etichette; **D-0-bis** campi per-contesto via field_definition). Typecheck pulito, smoke OK.
+
 ## 2026-06-30 (1) — Icona configurabile sulle etichette + albero siti colorato per tipo + menu Siti ad albero (chat 01.06)
 - **Migr 060**: colonna `icon` su `lookup_value` + `lookup_override` (nullable). Seed icone per `site_kind` e `stock_location_kind`. Prossima libera **061**.
 - **Backend `lookups`** + shared `LookupDto`/schemi estesi con `icon` (SELECT/EFFECTIVE COALESCE override/CRUD/override). 
