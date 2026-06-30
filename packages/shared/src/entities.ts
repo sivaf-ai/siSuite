@@ -645,6 +645,20 @@ export const createStockLocationSchema = z.object({
   sequence: z.coerce.number().int().optional(),            // ordine fratelli (EntityTree)
 });
 export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
+
+/* ── WMS Fase 1: generatore MASSIVO di ubicazioni (bin) a coordinate ──── */
+export const LOCATION_DIMS = ['aisle', 'rack', 'level', 'position'] as const;
+export type LocationDim = typeof LOCATION_DIMS[number];
+export const generateLocationsSchema = z.object({
+  // ogni dimensione attiva con la sua lista di valori (es. rack: ['01','02',...])
+  dims: z.array(z.object({
+    key: z.enum(LOCATION_DIMS),
+    values: z.array(z.string().min(1).max(20)).min(1).max(300),
+  })).min(1).max(4),
+  kind: z.string().max(40).optional(),        // default 'sub_location'
+  separator: z.string().max(3).optional(),    // default '-' (compone il code)
+});
+export type GenerateLocationsInput = z.infer<typeof generateLocationsSchema>;
 export interface StockLocationDto {
   id: string; parentId: string | null; name: string; kind: string; resourceId: string | null;
   code: string | null; note: string | null; managerUserId: string | null;

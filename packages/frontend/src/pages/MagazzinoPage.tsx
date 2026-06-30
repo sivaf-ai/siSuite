@@ -27,7 +27,7 @@ import { ObjectPage, ObjectBox, RelatedTabs, type RelTab } from '../ui/ObjectPag
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { AuditDialog } from '../ui/AuditDialog';
 import { useApi, mutate, useArchivedView } from '../api/hooks';
-import { ApiError } from '../api/client';
+import { ApiError, apiFetch } from '../api/client';
 import { useLookups, lookupLabel } from '../context/Lookups';
 import { swatchColor } from '../theme/palette';
 import { useToast } from '../ui/Toast';
@@ -417,9 +417,101 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
     },
   };
 }
-function UbicazioniTab({ parentId }: { parentId: string; canManage: boolean }) {
+function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: boolean }) {
   const { options, label, meta } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
-  return <div style={{ marginTop: 8 }}><EntityTree config={ubicazioniConfig(parentId, options, label, meta)} /></div>;
+  const [gen, setGen] = useState(false);
+  return (
+    <div style={{ marginTop: 8 }}>
+      {canManage && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setGen(true)}><Layers size={15} /> Genera ubicazioni (scaffalatura)</button>
+      </div>}
+      <EntityTree config={ubicazioniConfig(parentId, options, label, meta)} />
+      {gen && <GeneraUbicazioniModal parentId={parentId} onClose={() => setGen(false)} />}
+    </div>
+  );
+}
+
+/* ── Genera massivo ubicazioni a coordinate (WMS Fase 1) ───────────────
+ *  L'utente definisce le dimensioni attive (Corsia/Scaffale/Ripiano/Posizione)
+ *  con un range da→a (numerico con zero-padding o alfabetico). Il sistema crea
+ *  TUTTE le combinazioni come bin figli, con codice composto (es. A-01-03-B). */
+type Dim = { key: 'aisle' | 'rack' | 'level' | 'position'; label: string; on: boolean; mode: 'num' | 'alpha'; from: string; to: string; pad: number };
+function genValues(d: Dim): string[] {
+  const out: string[] = [];
+  if (d.mode === 'num') {
+    const a = parseInt(d.from, 10), b = parseInt(d.to, 10);
+    if (isNaN(a) || isNaN(b) || b < a || b - a > 299) return [];
+    for (let i = a; i <= b; i++) out.push(String(i).padStart(d.pad || 0, '0'));
+  } else {
+    const a = (d.from || 'A').toUpperCase().charCodeAt(0), b = (d.to || 'A').toUpperCase().charCodeAt(0);
+    if (b < a || b - a > 299) return [];
+    for (let i = a; i <= b; i++) out.push(String.fromCharCode(i));
+  }
+  return out;
+}
+function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClose: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [sep, setSep] = useState('-');
+  const [dims, setDims] = useState<Dim[]>([
+    { key: 'rack', label: 'Scaffale', on: true, mode: 'num', from: '1', to: '10', pad: 2 },
+    { key: 'level', label: 'Ripiano', on: true, mode: 'num', from: '1', to: '5', pad: 2 },
+    { key: 'position', label: 'Posizione', on: true, mode: 'alpha', from: 'A', to: 'C', pad: 0 },
+    { key: 'aisle', label: 'Corsia', on: false, mode: 'alpha', from: 'A', to: 'B', pad: 0 },
+  ]);
+  const upd = (i: number, p: Partial<Dim>) => setDims((s) => s.map((d, j) => (j === i ? { ...d, ...p } : d)));
+  const active = dims.filter((d) => d.on);
+  const valuesByDim = active.map((d) => genValues(d));
+  const total = valuesByDim.reduce((n, v) => n * (v.length || 0), 1);
+  const sample = valuesByDim.every((v) => v.length)
+    ? valuesByDim.reduce<string[]>((acc, vals) => acc.flatMap((p) => vals.map((v) => (p ? `${p}${sep}${v}` : v))), ['']).slice(0, 6)
+    : [];
+
+  async function generate() {
+    if (!active.length || !total || valuesByDim.some((v) => !v.length)) { toast('Controlla i range (da/a validi)', 'error'); return; }
+    setBusy(true);
+    try {
+      const res = await apiFetch<{ created: number; skipped: number; total: number }>(`/stock/locations/${parentId}/generate`, {
+        method: 'POST',
+        body: JSON.stringify({ separator: sep, dims: active.map((d, i) => ({ key: d.key, values: valuesByDim[i] })) }),
+      });
+      toast(`Create ${res.created} ubicazioni${res.skipped ? ` (${res.skipped} già esistenti saltate)` : ''}`);
+      onClose();
+    } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+  }
+
+  return (
+    <Modal open size="md" title="Genera ubicazioni a coordinate" onClose={onClose} footer={<>
+      <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
+      <button className="btn btn-primary" onClick={generate} disabled={busy || !total}>{busy ? 'Genero…' : `Genera ${total || 0}`}</button>
+    </>}>
+      <div className="dsx">
+        <p className="faint" style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+          Attiva le dimensioni e imposta i range: il sistema crea tutte le combinazioni come ubicazioni figlie, con codice composto.
+        </p>
+        {dims.map((d, i) => (
+          <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--line-2)', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 110, fontWeight: 600 }}>
+              <input type="checkbox" checked={d.on} onChange={(e) => upd(i, { on: e.target.checked })} /> {d.label}
+            </label>
+            <select className="bi" style={{ width: 110 }} value={d.mode} onChange={(e) => upd(i, { mode: e.target.value as Dim['mode'] })} disabled={!d.on}>
+              <option value="num">Numerico</option><option value="alpha">Alfabetico</option>
+            </select>
+            <input className="bi" style={{ width: 64 }} value={d.from} onChange={(e) => upd(i, { from: e.target.value })} disabled={!d.on} placeholder="da" />
+            <span>→</span>
+            <input className="bi" style={{ width: 64 }} value={d.to} onChange={(e) => upd(i, { to: e.target.value })} disabled={!d.on} placeholder="a" />
+            {d.mode === 'num' && <label style={{ fontSize: 12, color: 'var(--ink-faint)' }}>zeri: <input className="bi" style={{ width: 48 }} type="number" value={d.pad} onChange={(e) => upd(i, { pad: Number(e.target.value) })} disabled={!d.on} /></label>}
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Separatore codice</span>
+          <input className="bi" style={{ width: 56 }} value={sep} onChange={(e) => setSep(e.target.value)} />
+          <span className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)' }}>Totale: <b>{total || 0}</b> ubicazioni</span>
+        </div>
+        {sample.length > 0 && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--ink-faint)' }}>Esempi: <span className="mono">{sample.join(', ')}{total > 6 ? ' …' : ''}</span></div>}
+      </div>
+    </Modal>
+  );
 }
 
 /* ── Tab: Seriali per magazzino (GET /stock/locations/:id/serials) ───── */

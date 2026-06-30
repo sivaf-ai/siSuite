@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (5) — WMS Fase 1 (generatore ubicazioni a coordinate) + Tipologie ordine in Stati&etichette + backlog (chat 01.06)
+- **Stati & etichette**: aggiunte categorie mancanti `work_order_type` (Tipologie ordine), `work_order_status`, `cost_type`.
+- **Backlog di cantiere**: nuovo `docs/BACKLOG_cantiere.md` (tutto il pendente: WMS fasi 1-4, campi-di-sistema personalizzabili B+E, WBS, porting, Hub AI, debiti minori).
+- **WMS Fase 1**: **Migr 063** coordinate su stock_location (aisle/rack/level/position, prossima libera **064**). Endpoint `POST /stock/locations/:id/generate` (prodotto cartesiano dim×range → bin figli con code composto, salta duplicati, tetto 2000). UI: «Genera ubicazioni (scaffalatura)» nella tab Ubicazioni → modal con dimensioni Corsia/Scaffale/Ripiano/Posizione (range num zero-pad o alfabetico), separatore, anteprima conteggio/esempi. Smoke: 2×2×2=8 create (01-01-A…), re-gen → 8 saltate.
+- 90/90 test, typecheck pulito. Prossimo da backlog: B+E (campi di sistema personalizzabili) + WMS Fase 2 (capacità).
+
 ## 2026-06-30 (4) — Rifiniture campi-per-contesto: scope badge, FieldModal standard, Paese tenant editabile, validazione required (chat 01.06)
 - **Campi personalizzati**: la lista ora mostra il **badge di scope** per ogni campo (Tipo: X / «Tutti i tipi» / Paese: X) → chiarisce perché cambiando Tipo i campi universali restano. **FieldModal** portato allo standard `.dsx/.bgrid` (era `<Field>`/form-group).
 - **Paese del tenant editabile**: Impostazioni › **Generale** → riga "Paese predefinito" (PATCH `/settings/country`). DTO/route estesi.

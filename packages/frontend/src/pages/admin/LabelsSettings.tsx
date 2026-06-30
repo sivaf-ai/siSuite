@@ -33,6 +33,9 @@ const CATS = [
   { key: 'skill_category', label: 'Categorie competenze' },
   { key: 'site_kind', label: 'Tipi di sito/località' },
   { key: 'stock_location_kind', label: 'Tipi di ubicazione' },
+  { key: 'work_order_type', label: 'Tipologie ordine di lavoro' },
+  { key: 'work_order_status', label: 'Stato ordine di lavoro' },
+  { key: 'cost_type', label: 'Tipi di costo' },
 ];
 
 export function LabelsSettings() {

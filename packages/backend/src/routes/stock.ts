@@ -4,7 +4,7 @@
  *  conferma, numerati da number_series). Consumo su lavoro = movimento 'out'. */
 import type { FastifyInstance } from 'fastify';
 import {
-  createStockLocationSchema, updateStockLocationSchema, createStockMovementSchema, createStockDocumentSchema, updateStockDocumentSchema, treeDeleteMode,
+  createStockLocationSchema, updateStockLocationSchema, generateLocationsSchema, createStockMovementSchema, createStockDocumentSchema, updateStockDocumentSchema, treeDeleteMode,
   type StockLocationDto, type StockMovementDto, type StockBalanceDto, type StockDocumentDto,
 } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
@@ -256,6 +256,52 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       });
       if (!dto) return reply.code(404).send({ error: 'not_found', message: 'Ubicazione non trovata', statusCode: 404 });
       return reply.code(201).send(dto);
+    });
+
+  // GENERATORE MASSIVO di ubicazioni (WMS Fase 1): crea i bin come figli di :id dal
+  // prodotto cartesiano delle dimensioni (corsia×scaffale×ripiano×posizione). Il code
+  // si compone dai valori; le coordinate vanno nelle colonne aisle/rack/level/position.
+  // Salta i code già esistenti tra i fratelli. Tetto di sicurezza: 2000 bin per chiamata.
+  app.post<{ Params: { id: string } }>('/stock/locations/:id/generate',
+    { preHandler: [app.authenticate, requirePermission('stock:manage')] },
+    async (request, reply) => {
+      const input = generateLocationsSchema.parse(request.body);
+      const sep = input.separator ?? '-';
+      const kind = input.kind ?? 'sub_location';
+      // prodotto cartesiano nell'ordine delle dims passate
+      let combos: { code: string; coords: Record<string, string> }[] = [{ code: '', coords: {} }];
+      for (const dim of input.dims) {
+        const next: typeof combos = [];
+        for (const c of combos) for (const v of dim.values) {
+          next.push({ code: c.code ? `${c.code}${sep}${v}` : v, coords: { ...c.coords, [dim.key]: v } });
+        }
+        combos = next;
+      }
+      if (combos.length > 2000) return reply.code(400).send({ error: 'bad_request', message: `Troppe ubicazioni (${combos.length}). Massimo 2000 per generazione.`, statusCode: 400 });
+
+      const out = await withRls(request.ctx, async (db) => {
+        const parent = await db.query(`SELECT id FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [request.params.id]);
+        if (!parent.rows.length) return { notFound: true as const };
+        const existing = new Set((await db.query(
+          `SELECT code FROM stock_location WHERE parent_id = $1 AND code IS NOT NULL`, [request.params.id])).rows.map((r) => r.code as string));
+        let seq = Number((await db.query(
+          `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM stock_location WHERE tenant_id = $1 AND parent_id = $2`,
+          [request.ctx.tenantId, request.params.id])).rows[0].seq);
+        let created = 0, skipped = 0;
+        for (const c of combos) {
+          if (existing.has(c.code)) { skipped++; continue; }
+          await db.query(
+            `INSERT INTO stock_location (tenant_id, parent_id, name, kind, code, aisle, rack, level, position, sequence, created_by, updated_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)`,
+            [request.ctx.tenantId, request.params.id, c.code, kind, c.code,
+             c.coords.aisle ?? null, c.coords.rack ?? null, c.coords.level ?? null, c.coords.position ?? null, seq++, request.ctx.userId]);
+          existing.add(c.code); created++;
+        }
+        await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'update', label: `Generate ${created} ubicazioni` });
+        return { created, skipped, total: combos.length };
+      });
+      if ('notFound' in out) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });
+      return out;
     });
 
   // ELIMINA DEFINITIVAMENTE (solo se archiviato). FK RESTRICT → 23503 → 409 globale.
