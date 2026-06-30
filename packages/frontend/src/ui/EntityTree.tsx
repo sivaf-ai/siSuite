@@ -149,6 +149,9 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   const [moveOf, setMoveOf] = useState<Node | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
   const [over, setOver] = useState<{ id: string; zone: 'before' | 'inside' | 'after' } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());   // selezione multipla (bulk)
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const toggleSel = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const all = (data?.items ?? []).filter((n) => pick ? n.active !== false : true);
   const { roots, byId } = useMemo(() => buildTree(all, sort), [all, sort]);
@@ -211,6 +214,20 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   async function restore(node: Node) {
     try { await mutate('POST', `${config.endpoint}/${node.id}/restore`); toast('Ripristinata'); reload(); }
     catch (e) { toast(errMsg(e), 'error'); }
+  }
+
+  // eliminazione MASSIVA delle selezionate: archivia quelle vuote (mode=block); salta
+  // quelle con contenuto/figli (409). Elimina prima le foglie (ordine per profondità desc).
+  async function bulkDelete() {
+    setBulkConfirm(false);
+    const ids = [...selected].sort((a, b) => (byId.get(b)?.depth ?? 0) - (byId.get(a)?.depth ?? 0));
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      try { await mutate('DELETE', `${config.endpoint}/${id}?mode=block`); ok++; }
+      catch { fail++; }
+    }
+    toast(`${ok} eliminate${fail ? ` · ${fail} non eliminabili (con contenuto/figli)` : ''}`);
+    setSelected(new Set()); reload();
   }
 
   // ── eliminazione (§7): step 1 = block (prova diretta), poi scelta modi ──
@@ -292,7 +309,9 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
           </button>
           {pick
             ? <input type="radio" name={`pick-${config.entity}`} onClick={(e) => e.stopPropagation()} onChange={() => config.onPick?.(n)} className="et-radio" />
-            : null}
+            : (canWrite && !showArchived
+              ? <input type="checkbox" className="et-radio" checked={selected.has(n.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(n.id)} title="Seleziona" />
+              : null)}
           {(() => {
             const ap = config.nodeAppearance?.(n as unknown as Record<string, unknown>);
             const icoName = n.icon || ap?.icon || config.defaultIcon || null;
@@ -357,6 +376,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
         .et-search input{border:0;outline:none;background:none;font:inherit;font-size:13px;flex:1;color:var(--ink)}
         .et-tool{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink-soft);cursor:pointer}
         .et-tool.on{background:var(--brand-wash);border-color:var(--brand);color:var(--brand-ink)}
+        .et-selbar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--brand-wash);border-bottom:1px solid var(--line);font-size:13px;color:var(--brand-ink);flex-wrap:wrap}
         .et-body{padding:6px;overflow:auto;flex:1 1 auto}
         .et-quick{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:2px 2px 6px;border:1px dashed var(--line);border-radius:9px}
         .et-quick input{border:0;outline:none;background:none;font:inherit;font-size:13px;flex:1;color:var(--ink)}
@@ -413,6 +433,16 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
             {canWrite && <button className="btn btn-primary btn-sm" onClick={() => openCreate(null)}><Plus size={15} /> {config.labels.newLabel ?? `Nuova ${config.labels.singular.toLowerCase()}`}</button>}
           </div>
         </div>
+
+        {/* barra selezione multipla (bulk) */}
+        {!pick && canWrite && selected.size > 0 && (
+          <div className="et-selbar">
+            <span><b>{selected.size}</b> selezionate</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set(all.map((n) => n.id)))}>Seleziona tutte ({all.length})</button>
+            <button className="btn btn-danger btn-sm" onClick={() => setBulkConfirm(true)}><Trash2 size={14} /> Elimina selezionate</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Annulla</button>
+          </div>
+        )}
 
         <div className="et-body">
           {canWrite && !showArchived && view === 'tree' && (
@@ -479,6 +509,11 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
             onChoose={(pid) => { const id = moveOf.id; setMoveOf(null); moveTo(id, pid); }} />
         </Modal>
       )}
+
+      {/* eliminazione massiva */}
+      <ConfirmDialog open={bulkConfirm} danger title={`Eliminare ${selected.size} voci?`}
+        message={`Verranno archiviate le voci selezionate vuote. Quelle con contenuto o sotto-voci vengono saltate (te lo segnalo).`}
+        confirmLabel={`Elimina ${selected.size}`} onConfirm={() => void bulkDelete()} onCancel={() => setBulkConfirm(false)} />
     </>
   );
 

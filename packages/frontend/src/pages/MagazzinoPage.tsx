@@ -453,6 +453,7 @@ function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClos
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [sep, setSep] = useState('-');
+  const [hier, setHier] = useState(false);   // false = bin piatti col code; true = nodi annidati
   const [dims, setDims] = useState<Dim[]>([
     { key: 'rack', label: 'Scaffale', on: true, mode: 'num', from: '1', to: '10', pad: 2 },
     { key: 'level', label: 'Ripiano', on: true, mode: 'num', from: '1', to: '5', pad: 2 },
@@ -473,7 +474,7 @@ function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClos
     try {
       const res = await apiFetch<{ created: number; skipped: number; total: number }>(`/stock/locations/${parentId}/generate`, {
         method: 'POST',
-        body: JSON.stringify({ separator: sep, dims: active.map((d, i) => ({ key: d.key, values: valuesByDim[i] })) }),
+        body: JSON.stringify({ separator: sep, hierarchical: hier, dims: active.map((d, i) => ({ key: d.key, label: d.label, values: valuesByDim[i] })) }),
       });
       toast(`Create ${res.created} ubicazioni${res.skipped ? ` (${res.skipped} già esistenti saltate)` : ''}`);
       onClose();
@@ -503,12 +504,20 @@ function GeneraUbicazioniModal({ parentId, onClose }: { parentId: string; onClos
             {d.mode === 'num' && <label style={{ fontSize: 12, color: 'var(--ink-faint)' }}>zeri: <input className="bi" style={{ width: 48 }} type="number" value={d.pad} onChange={(e) => upd(i, { pad: Number(e.target.value) })} disabled={!d.on} /></label>}
           </div>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Separatore codice</span>
-          <input className="bi" style={{ width: 56 }} value={sep} onChange={(e) => setSep(e.target.value)} />
-          <span className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)' }}>Totale: <b>{total || 0}</b> ubicazioni</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Struttura</span>
+          <select className="bi" style={{ width: 230 }} value={hier ? 'h' : 'f'} onChange={(e) => setHier(e.target.value === 'h')}>
+            <option value="f">Piatta (un bin per posizione, codice composto)</option>
+            <option value="h">Gerarchica (Scaffale › Ripiano › Posizione)</option>
+          </select>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Separatore</span>
+          <input className="bi" style={{ width: 50 }} value={sep} onChange={(e) => setSep(e.target.value)} />
+          <span className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)' }}>Totale: <b>{total || 0}</b> {hier ? 'bin foglia' : 'ubicazioni'}</span>
         </div>
-        {sample.length > 0 && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--ink-faint)' }}>Esempi: <span className="mono">{sample.join(', ')}{total > 6 ? ' …' : ''}</span></div>}
+        {sample.length > 0 && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--ink-faint)' }}>
+          {hier ? <>Albero: <span className="mono">{active.map((d) => `${d.label} ${valuesByDim[active.indexOf(d)]?.[0] ?? ''}`).join(' › ')}</span> …</>
+            : <>Esempi: <span className="mono">{sample.join(', ')}{total > 6 ? ' …' : ''}</span></>}
+        </div>}
       </div>
     </Modal>
   );

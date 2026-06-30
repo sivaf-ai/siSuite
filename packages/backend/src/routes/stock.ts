@@ -279,25 +279,62 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       }
       if (combos.length > 2000) return reply.code(400).send({ error: 'bad_request', message: `Troppe ubicazioni (${combos.length}). Massimo 2000 per generazione.`, statusCode: 400 });
 
-      const out = await withRls(request.ctx, async (db) => {
-        const parent = await db.query(`SELECT id FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [request.params.id]);
+      const labelByKey: Record<string, string | undefined> = {};
+      input.dims.forEach((d) => { labelByKey[d.key] = d.label; });
+      const ctx = request.ctx; const tenantId = ctx.tenantId; const userId = ctx.userId; const pid0 = request.params.id;
+      const out = await withRls(ctx, async (db) => {
+        const parent = await db.query(`SELECT id FROM stock_location WHERE id = $1 AND archived_at IS NULL`, [pid0]);
         if (!parent.rows.length) return { notFound: true as const };
-        const existing = new Set((await db.query(
-          `SELECT code FROM stock_location WHERE parent_id = $1 AND code IS NOT NULL`, [request.params.id])).rows.map((r) => r.code as string));
-        let seq = Number((await db.query(
-          `SELECT COALESCE(max(sequence), -1) + 1 AS seq FROM stock_location WHERE tenant_id = $1 AND parent_id = $2`,
-          [request.ctx.tenantId, request.params.id])).rows[0].seq);
         let created = 0, skipped = 0;
-        for (const c of combos) {
-          if (existing.has(c.code)) { skipped++; continue; }
+        const seqByParent = new Map<string, number>();
+        const nextSeq = async (p: string) => {
+          if (!seqByParent.has(p)) seqByParent.set(p, Number((await db.query(`SELECT COALESCE(max(sequence), -1) + 1 AS s FROM stock_location WHERE tenant_id=$1 AND parent_id=$2`, [tenantId, p])).rows[0].s));
+          const v = seqByParent.get(p)!; seqByParent.set(p, v + 1); return v;
+        };
+        const ins = async (p: string, name: string, code: string | null, coords: Record<string, string>) => {
           await db.query(
             `INSERT INTO stock_location (tenant_id, parent_id, name, kind, code, aisle, rack, level, position, sequence, created_by, updated_by)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)`,
-            [request.ctx.tenantId, request.params.id, c.code, kind, c.code,
-             c.coords.aisle ?? null, c.coords.rack ?? null, c.coords.level ?? null, c.coords.position ?? null, seq++, request.ctx.userId]);
-          existing.add(c.code); created++;
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) RETURNING id`,
+            [tenantId, p, name, kind, code, coords.aisle ?? null, coords.rack ?? null, coords.level ?? null, coords.position ?? null, await nextSeq(p), userId]);
+          created++;
+        };
+
+        if (input.hierarchical) {
+          // nodi ANNIDATI: una "cartella" per ogni livello (Scaffale 01 › Ripiano 01 › Posizione A)
+          const cache = new Map<string, string>();              // "parent|name" -> id
+          const ensure = async (p: string, name: string, code: string | null, coords: Record<string, string>): Promise<string> => {
+            const k = `${p}|${name}`;
+            if (cache.has(k)) return cache.get(k)!;
+            const ex = await db.query(`SELECT id FROM stock_location WHERE parent_id=$1 AND name=$2 AND archived_at IS NULL LIMIT 1`, [p, name]);
+            let id: string;
+            if (ex.rows.length) { id = ex.rows[0].id as string; }
+            else {
+              const r = await db.query(
+                `INSERT INTO stock_location (tenant_id, parent_id, name, kind, code, aisle, rack, level, position, sequence, created_by, updated_by)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) RETURNING id`,
+                [tenantId, p, name, kind, code, coords.aisle ?? null, coords.rack ?? null, coords.level ?? null, coords.position ?? null, await nextSeq(p), userId]);
+              id = r.rows[0].id as string; created++;
+            }
+            cache.set(k, id); return id;
+          };
+          for (const c of combos) {
+            let parentId = pid0; const acc: Record<string, string> = {};
+            for (let i = 0; i < input.dims.length; i++) {
+              const dim = input.dims[i]!; const val = c.coords[dim.key]!; acc[dim.key] = val;
+              const isLeaf = i === input.dims.length - 1;
+              const name = `${labelByKey[dim.key] ?? dim.key} ${val}`;
+              parentId = await ensure(parentId, name, isLeaf ? c.code : null, { ...acc });
+            }
+          }
+        } else {
+          // bin PIATTI col code composto, salta i duplicati per code
+          const existing = new Set((await db.query(`SELECT code FROM stock_location WHERE parent_id=$1 AND code IS NOT NULL`, [pid0])).rows.map((r) => r.code as string));
+          for (const c of combos) {
+            if (existing.has(c.code)) { skipped++; continue; }
+            await ins(pid0, c.code, c.code, c.coords); existing.add(c.code);
+          }
         }
-        await logAudit(db, request.ctx, { entity: 'stock_location', entityId: request.params.id, action: 'update', label: `Generate ${created} ubicazioni` });
+        await logAudit(db, ctx, { entity: 'stock_location', entityId: pid0, action: 'update', label: `Generate ${created} ubicazioni` });
         return { created, skipped, total: combos.length };
       });
       if ('notFound' in out) return reply.code(404).send({ error: 'not_found', message: 'Magazzino/ubicazione non trovato', statusCode: 404 });

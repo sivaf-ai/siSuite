@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (6) — WMS: eliminazione massiva (EntityTree multi-select) + generazione gerarchica ubicazioni (chat 01.06)
+- **EntityTree selezione multipla + bulk delete**: checkbox per riga (manage), barra «N selezionate · Seleziona tutte · Elimina selezionate» con ConfirmDialog; elimina foglie-prima (mode=block), salta quelle con contenuto/figli e lo segnala. Generico (categorie/siti/ubicazioni) → risolve "cancellare 150 bin uno alla volta".
+- **Generatore gerarchico**: opzione "Struttura Gerarchica (Scaffale › Ripiano › Posizione)" oltre a "Piatta". Backend crea nodi annidati (find-or-reuse intermedi per nome), foglie col code composto+coordinate. Smoke: 2×2×2 → 14 nodi (2+4+8). 
+- Icona ubicazioni = dal **Tipo** (Stati & etichette › Tipi di ubicazione), non per-nodo (spiegato).
+- 90/90 test, typecheck pulito. **Prossimo (backlog #1): B+E campi di sistema personalizzabili dal tenant.**
+
 ## 2026-06-30 (5) — WMS Fase 1 (generatore ubicazioni a coordinate) + Tipologie ordine in Stati&etichette + backlog (chat 01.06)
 - **Stati & etichette**: aggiunte categorie mancanti `work_order_type` (Tipologie ordine), `work_order_status`, `cost_type`.
 - **Backlog di cantiere**: nuovo `docs/BACKLOG_cantiere.md` (tutto il pendente: WMS fasi 1-4, campi-di-sistema personalizzabili B+E, WBS, porting, Hub AI, debiti minori).

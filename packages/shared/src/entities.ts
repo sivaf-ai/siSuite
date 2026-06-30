@@ -653,10 +653,13 @@ export const generateLocationsSchema = z.object({
   // ogni dimensione attiva con la sua lista di valori (es. rack: ['01','02',...])
   dims: z.array(z.object({
     key: z.enum(LOCATION_DIMS),
+    label: z.string().max(40).optional(),     // es. 'Scaffale' (nome nodo in modalità gerarchica)
     values: z.array(z.string().min(1).max(20)).min(1).max(300),
   })).min(1).max(4),
   kind: z.string().max(40).optional(),        // default 'sub_location'
   separator: z.string().max(3).optional(),    // default '-' (compone il code)
+  // true = crea nodi ANNIDATI (Scaffale › Ripiano › Posizione); false = bin piatti col code composto
+  hierarchical: z.boolean().optional(),
 });
 export type GenerateLocationsInput = z.infer<typeof generateLocationsSchema>;
 export interface StockLocationDto {
