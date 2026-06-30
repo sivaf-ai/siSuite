@@ -24,18 +24,28 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
     country: (r.country as string) ?? null,
     variant: (r.variant as string) ?? null,
     isSystem: (r.is_system as boolean) ?? false,
+    isCustomized: (r.is_customized as boolean) ?? false,
     active: (r.active as boolean) ?? true,
   };
 }
 
+// overlay dell'override per-tenant (COALESCE) su una riga di field_definition (alias fd)
+const OVERLAY = `
+  COALESCE(fo.label, fd.label) AS label, COALESCE(fo.help, fd.help) AS help,
+  COALESCE(fo.required, fd.required) AS required, COALESCE(fo.unit, fd.unit) AS unit,
+  COALESCE(fo.placeholder, fd.placeholder) AS placeholder, COALESCE(fo.sequence, fd.sequence) AS sequence,
+  COALESCE(fo.active, fd.active) AS active, (fo.tenant_id IS NOT NULL) AS is_customized,
+  fd.id, fd.entity, fd.key, fd.data_type, fd.options, fd.validation, fd.group_key, fd.country, fd.variant,
+  fd.tenant_id IS NULL AS is_system`;
+const OVERLAY_JOIN = `field_definition fd
+  LEFT JOIN field_definition_override fo ON fo.field_definition_id = fd.id AND fo.tenant_id = app_current_tenant()`;
+
 /** Tutte le definizioni (anche inattive) per il Field Builder admin. */
 export async function loadAllFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
   const { rows } = await db.query(
-    `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            country, variant, active, tenant_id IS NULL AS is_system
-     FROM field_definition
-     WHERE entity = $1 AND (vertical IS NULL OR vertical = $2)
-     ORDER BY group_key NULLS FIRST, sequence`,
+    `SELECT ${OVERLAY} FROM ${OVERLAY_JOIN}
+     WHERE fd.entity = $1 AND (fd.vertical IS NULL OR fd.vertical = $2)
+     ORDER BY fd.group_key NULLS FIRST, COALESCE(fo.sequence, fd.sequence)`,
     [entity, vertical],
   );
   return rows.map(mapRow);
@@ -51,17 +61,16 @@ export async function tenantVertical(db: PoolClient, tenantId: string): Promise<
 export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string, country?: string, variant?: string): Promise<FieldDefinitionDto[]> {
   const params: unknown[] = [entity, vertical];
   let countryClause = '';
-  if (country) { params.push(country); countryClause = ` AND (country IS NULL OR country = $${params.length})`; }
+  if (country) { params.push(country); countryClause = ` AND (fd.country IS NULL OR fd.country = $${params.length})`; }
   // variant NULL = universale (tutti i tipi); se passato, aggiunge i campi del tipo
   let variantClause = '';
-  if (variant) { params.push(variant); variantClause = ` AND (variant IS NULL OR variant = $${params.length})`; }
-  else variantClause = ` AND variant IS NULL`;
+  if (variant) { params.push(variant); variantClause = ` AND (fd.variant IS NULL OR fd.variant = $${params.length})`; }
+  else variantClause = ` AND fd.variant IS NULL`;
+  // active EFFETTIVO = override del tenant se presente, altrimenti quello di sistema
   const { rows } = await db.query(
-    `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            country, variant, tenant_id IS NULL AS is_system
-     FROM field_definition
-     WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)${countryClause}${variantClause}
-     ORDER BY group_key NULLS FIRST, sequence`,
+    `SELECT ${OVERLAY} FROM ${OVERLAY_JOIN}
+     WHERE COALESCE(fo.active, fd.active) AND fd.entity = $1 AND (fd.vertical IS NULL OR fd.vertical = $2)${countryClause}${variantClause}
+     ORDER BY fd.group_key NULLS FIRST, COALESCE(fo.sequence, fd.sequence)`,
     params,
   );
   return rows.map(mapRow);

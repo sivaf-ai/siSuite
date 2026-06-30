@@ -101,7 +101,7 @@ export function CustomFieldsSettings() {
                   <span>Campo</span><span>Tipo</span><span>Obbl.</span><span>Chiave</span><span />
                 </div>
                 {rows.map((d) => {
-                  const editable = canManage && !d.isSystem;
+                  const editable = canManage;   // i campi di sistema sono cliccabili per PERSONALIZZARLI (override)
                   return (
                     <div className="fd-row" key={d.id} style={editable ? { cursor: 'pointer' } : undefined}
                       onClick={editable ? () => setEditing(d) : undefined}>
@@ -110,6 +110,7 @@ export function CustomFieldsSettings() {
                         {d.isSystem
                           ? <span className="chip">sistema</span>
                           : <span className="pill pill--brand"><span className="dot" />tuo</span>}
+                        {d.isCustomized && <span className="pill pill--brand" style={{ marginLeft: 0 }}><span className="dot" />personalizzato</span>}
                         {/* scope: chiarisce a quale Tipo/Paese appartiene (o se è universale) */}
                         {variantCat && (d.variant
                           ? <span className="chip" style={{ background: 'var(--brand-wash)', color: 'var(--brand-ink)' }}>Tipo: {(variantTypes.find((t) => t.code === d.variant) && lookupLabel(variantTypes.find((t) => t.code === d.variant)!)) ?? d.variant}</span>
@@ -183,7 +184,14 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isChoice = v.dataType === 'select' || v.dataType === 'multiselect';
+  const isSystem = !!editing?.isSystem;   // campo di sistema: struttura fissa, si personalizza l'override
   const set = (p: Record<string, unknown>) => setV((s) => ({ ...s, ...p }));
+  async function resetOverride() {
+    if (!editing) return; setBusy(true);
+    try { await mutate('DELETE', `/field-definitions/${editing.id}/override`); toast('Ripristinato il default'); onSaved(); }
+    catch (e) { toast(e instanceof ApiError ? ((e.body as { message?: string })?.message ?? 'Errore') : (e as Error).message, 'error'); }
+    finally { setBusy(false); }
+  }
 
   async function submit() {
     const errs: Record<string, string> = {};
@@ -208,7 +216,13 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
       sequence: Number(v.sequence ?? 100), options, help, placeholder,
     };
     try {
-      if (editing) await mutate('PATCH', `/field-definitions/${editing.id}`, common);
+      if (editing?.isSystem) {
+        // personalizza un campo di SISTEMA: override di label/obbligatorio/attivo/ordine/segnaposto/aiuto/unità
+        await mutate('PUT', `/field-definitions/${editing.id}/override`, {
+          label, required: !!v.required, active: !!v.active, sequence: Number(v.sequence ?? 100),
+          placeholder, help, unit: (v.unit as string)?.trim() || null,
+        });
+      } else if (editing) await mutate('PATCH', `/field-definitions/${editing.id}`, common);
       else await mutate('POST', '/field-definitions', { entity, key: v.key, country: country ?? null, variant: variant ?? null, ...common });
       toast(editing ? 'Campo aggiornato' : 'Campo creato');
       onSaved();
@@ -228,13 +242,17 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
   };
 
   return (
-    <Modal open title={editing ? 'Modifica campo' : 'Nuovo campo'} size="md" onClose={onClose}
+    <Modal open title={isSystem ? 'Personalizza campo di sistema' : (editing ? 'Modifica campo' : 'Nuovo campo')} size="md" onClose={onClose}
       footer={<>
-        {onDelete && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
+        {onDelete && !isSystem && <button className="btn btn-ghost" onClick={onDelete} disabled={busy} style={{ color: 'var(--danger)', marginRight: 'auto' }}><Trash2 size={15} /> Elimina</button>}
+        {isSystem && editing?.isCustomized && <button className="btn btn-ghost" onClick={() => void resetOverride()} disabled={busy} style={{ marginRight: 'auto' }}>Ripristina default</button>}
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Annulla</button>
         <button className="btn btn-primary" onClick={submit} disabled={busy}>{editing ? 'Salva' : 'Crea'}</button>
       </>}>
       <div className="dsx">
+        {isSystem && <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', margin: '0 0 10px' }}>
+          Campo di <b>sistema</b>: puoi personalizzare etichetta, obbligatorietà, attivo, ordine, segnaposto e aiuto. Chiave e tipo restano fissi (la logica non cambia). «Ripristina default» annulla le tue modifiche.
+        </p>}
         <div className="bgrid">
           {!editing && <div className="bf c2"><span className="bl">Chiave (codice) <span className="req">*</span></span>
             <input className="bi mono" value={String(v.key ?? '')} onChange={(e) => set({ key: e.target.value })} placeholder="es. potenza_kw"
@@ -249,7 +267,7 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
           <div className="bf c1"><span className="bl">Etichetta (ES)</span>
             <input className="bi" value={String(v.labelEs ?? '')} onChange={(e) => set({ labelEs: e.target.value })} /></div>
           <div className="bf c2"><span className="bl">Tipo dato</span>
-            <select className="bi" value={String(v.dataType)} onChange={(e) => set({ dataType: e.target.value })}>
+            <select className="bi" value={String(v.dataType)} onChange={(e) => set({ dataType: e.target.value })} disabled={isSystem}>
               {FIELD_DATA_TYPES.map((dt) => <option key={dt} value={dt}>{DT_LABEL[dt]}</option>)}</select></div>
           <div className="bf c1"><span className="bl">Unità</span>
             <input className="bi" value={String(v.unit ?? '')} onChange={(e) => set({ unit: e.target.value })} placeholder="kW, m, €" /></div>
@@ -260,7 +278,7 @@ function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDel
           <div className="bf c2"><span className="bl">Testo di aiuto (IT)</span>
             <input className="bi" value={String(v.helpIt ?? '')} onChange={(e) => set({ helpIt: e.target.value })} /></div>
           <div className="bf c2"><span className="bl">Gruppo</span>
-            <select className="bi" value={String(v.groupKey ?? 'general')} onChange={(e) => set({ groupKey: e.target.value })}>
+            <select className="bi" value={String(v.groupKey ?? 'general')} onChange={(e) => set({ groupKey: e.target.value })} disabled={isSystem}>
               {GROUP_KEYS.map((g) => <option key={g} value={g}>{GROUP_LABEL_IT[g] ?? g}</option>)}</select></div>
           <div className="bf c1"><span className="bl">Obbligatorio</span>
             <select className="bi" value={v.required ? '1' : '0'} onChange={(e) => set({ required: e.target.value === '1' })}>

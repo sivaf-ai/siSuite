@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (7) — B+E: campi di SISTEMA personalizzabili dal tenant (override) (chat 01.06)
+- **Migr 064** `field_definition_override` (RLS): il tenant personalizza dei campi di SISTEMA label(it/en/es)/obbligatorio/attivo/ordine/segnaposto/aiuto/unità, SENZA toccare chiave/tipo/scope e senza poterli eliminare.
+- Loader `fields.ts`: overlay `COALESCE(override, base)` + `isCustomized`. Route `PUT/DELETE /field-definitions/:id/override`. Shared `updateFieldOverrideSchema` + `isCustomized`.
+- UI *Campi personalizzati*: i campi di sistema sono **cliccabili** → modal "Personalizza campo di sistema" (struttura disabilitata, label/obbligo/attivo/ordine/segnaposto/aiuto editabili) + **"Ripristina default"** + badge "personalizzato". Smoke OK (override→isCustomized, ripristino→default).
+- Nota: i campi `vertical='fiber'` (POWERCOM) non si vedono col tenant `software` (filtro vertical preesistente) → backlog: vertical selezionabile in Generale.
+- 90/90 test, typecheck pulito.
+
 ## 2026-06-30 (6) — WMS: eliminazione massiva (EntityTree multi-select) + generazione gerarchica ubicazioni (chat 01.06)
 - **EntityTree selezione multipla + bulk delete**: checkbox per riga (manage), barra «N selezionate · Seleziona tutte · Elimina selezionate» con ConfirmDialog; elimina foglie-prima (mode=block), salta quelle con contenuto/figli e lo segnala. Generico (categorie/siti/ubicazioni) → risolve "cancellare 150 bin uno alla volta".
 - **Generatore gerarchico**: opzione "Struttura Gerarchica (Scaffale › Ripiano › Posizione)" oltre a "Piatta". Backend crea nodi annidati (find-or-reuse intermedi per nome), foglie col code composto+coordinate. Smoke: 2×2×2 → 14 nodi (2+4+8). 

@@ -6,7 +6,8 @@
 
 ## ▶ In corso / prossimo immediato
 - [ ] **WMS Ubicazioni — Fase 1**: coordinate (corsia/scaffale/ripiano/posizione) + **generatore massivo** di ubicazioni da range + tipo bin. (proposta: `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`)
-- [ ] **Campi di SISTEMA personalizzabili dal tenant** (B+E): override per-tenant di **label (it/en/es)**, **obbligatorio**, **attivo**, ordine/segnaposto — SENZA toccare key/dataType/scope, NON eliminabili. Pattern = `lookup_override`. Serve `field_definition_override` + overlay nei loader + "Ripristina default".
+- [x] **Campi di SISTEMA personalizzabili dal tenant** (B+E) — FATTO (migr 064): override label(ml)/obbligatorio/attivo/ordine/segnaposto/aiuto + "Ripristina default". I campi di sistema sono cliccabili in Campi personalizzati.
+- [ ] **Vertical del tenant** selezionabile in Generale (come il Paese): determina quali campi dominio (`vertical`, es. fiber) compaiono. Oggi il default è `software`; per chi fa fibra serve `fiber`.
 
 ## 🏬 WMS Magazzino (vendibile standalone) — proposta `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`
 - [ ] **Fase 1** — coordinate + generatore massivo + tipo bin (vedi sopra).

@@ -31,11 +31,26 @@ export interface FieldDefinitionDto {
   country?: string | null;
   /** scope per VARIANTE/Tipo di record (es. Ordine "FTTH"); null = vale per tutti i tipi. */
   variant?: string | null;
-  /** true = riga di SISTEMA (tenant_id NULL): sola lettura per il tenant. */
+  /** true = riga di SISTEMA (tenant_id NULL): la struttura è sola lettura, ma etichetta/
+   *  obbligatorietà/attivo si personalizzano via override (non eliminabile). */
   isSystem?: boolean;
+  /** true = la riga di sistema ha un override attivo del tenant. */
+  isCustomized?: boolean;
   /** attivo nei form (il Field Builder può disattivare i campi del tenant). */
   active?: boolean;
 }
+
+/** Personalizzazione per-tenant di un campo di SISTEMA (label ml/obbligatorio/attivo/
+ *  ordine/segnaposto/aiuto/unità). NON tocca chiave/tipo/scope. */
+export const updateFieldOverrideSchema = z.object({
+  label: z.record(z.string()).optional(),
+  required: z.boolean().nullable().optional(),
+  active: z.boolean().nullable().optional(),
+  sequence: z.number().int().min(0).nullable().optional(),
+  placeholder: z.record(z.string()).nullable().optional(),
+  help: z.record(z.string()).nullable().optional(),
+  unit: z.string().max(20).nullable().optional(),
+});
 
 /* ── Campi personalizzati: schemi create/update (admin tenant) ──────────── */
 export const FIELD_DATA_TYPES: FieldDataType[] = [

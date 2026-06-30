@@ -3,7 +3,7 @@
  *  Le righe di SISTEMA (tenant_id NULL) sono sola lettura: la RLS (fd_modify) impedisce
  *  al tenant di modificarle (WITH CHECK tenant_id = tenant corrente). */
 import type { FastifyInstance } from 'fastify';
-import { createFieldDefinitionSchema, updateFieldDefinitionSchema } from '@sisuite/shared';
+import { createFieldDefinitionSchema, updateFieldDefinitionSchema, updateFieldOverrideSchema } from '@sisuite/shared';
 import { requirePermission } from '../context/authenticate.js';
 import { withRls } from '../context/rls.js';
 import { loadFieldDefs, loadAllFieldDefs, tenantVertical } from '../fields.js';
@@ -88,6 +88,41 @@ export async function fieldDefinitionRoutes(app: FastifyInstance): Promise<void>
     { preHandler: [app.authenticate, requirePermission('settings:manage')] },
     async (request, reply) => {
       await withRls(request.ctx, (db) => db.query(`DELETE FROM field_definition WHERE id = $1 AND tenant_id = $2`, [request.params.id, request.ctx.tenantId]));
+      return reply.code(204).send();
+    });
+
+  // PERSONALIZZA un campo di SISTEMA (override per-tenant: label/obbligatorio/attivo/
+  // ordine/segnaposto/aiuto/unità). La riga di sistema condivisa NON viene toccata.
+  app.put<{ Params: { id: string } }>('/field-definitions/:id/override',
+    { preHandler: [app.authenticate, requirePermission('settings:manage')] },
+    async (request, reply) => {
+      const input = updateFieldOverrideSchema.parse(request.body);
+      const out = await withRls(request.ctx, async (db) => {
+        const fd = await db.query(`SELECT id FROM field_definition WHERE id = $1`, [request.params.id]);
+        if (!fd.rows.length) return null;
+        await db.query(
+          `INSERT INTO field_definition_override (tenant_id, field_definition_id, label, required, active, sequence, placeholder, help, unit, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           ON CONFLICT (tenant_id, field_definition_id) DO UPDATE SET
+             label = EXCLUDED.label, required = EXCLUDED.required, active = EXCLUDED.active, sequence = EXCLUDED.sequence,
+             placeholder = EXCLUDED.placeholder, help = EXCLUDED.help, unit = EXCLUDED.unit, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+          [request.ctx.tenantId, request.params.id,
+           input.label ? JSON.stringify(input.label) : null, input.required ?? null, input.active ?? null, input.sequence ?? null,
+           input.placeholder ? JSON.stringify(input.placeholder) : null, input.help ? JSON.stringify(input.help) : null,
+           input.unit ?? null, request.ctx.userId]);
+        return { ok: true };
+      });
+      if (!out) return reply.code(404).send({ error: 'not_found', message: 'Campo non trovato', statusCode: 404 });
+      return out;
+    });
+
+  // RIPRISTINA il default (elimina l'override del tenant).
+  app.delete<{ Params: { id: string } }>('/field-definitions/:id/override',
+    { preHandler: [app.authenticate, requirePermission('settings:manage')] },
+    async (request, reply) => {
+      await withRls(request.ctx, (db) => db.query(
+        `DELETE FROM field_definition_override WHERE field_definition_id = $1 AND tenant_id = $2`,
+        [request.params.id, request.ctx.tenantId]));
       return reply.code(204).send();
     });
 }
