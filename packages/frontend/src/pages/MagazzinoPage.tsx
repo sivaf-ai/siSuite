@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams, useLocation } from 'react-router';
-import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight, Boxes, ArrowLeftRight, FileText, Cpu, Layers, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2, Download, Lock, RotateCcw, Pencil, Warehouse, CornerDownRight, Boxes, ArrowLeftRight, FileText, Cpu, Layers, AlertTriangle, LayoutGrid } from 'lucide-react';
 import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, EngagementDto, PermissionKey,
   StockLotDto, PurchaseOrderDto, PickListDto,
@@ -236,6 +236,7 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
     { key: 'balances', label: 'Articoli & giacenze', icon: Boxes, content: <GiacenzeTab locationId={id} /> },
     { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MovimentiTab locationId={id} /> },
     { key: 'children', label: 'Ubicazioni', icon: CornerDownRight, content: <UbicazioniTab parentId={id} canManage={canManage} /> },
+    { key: 'occupancy', label: 'Mappa occupazione', icon: LayoutGrid, content: <OccupancyMap warehouseId={id} warehouseName={form.name || 'Magazzino'} /> },
     { key: 'serials', label: 'Seriali', icon: Cpu, content: <SerialiTab locationId={id} /> },
     { key: 'lots', label: 'Lotti', icon: Layers, content: <LottiTab /> },
     { key: 'documents', label: 'Documenti', icon: FileText, content: <DocumentiTab /> },
@@ -472,6 +473,148 @@ function fillInfo(n: Record<string, unknown>): { pct: number; text: string } | n
   const pct = Math.round((occ / max) * 100);
   const unit = CAPACITY_KINDS.find((k) => k.code === kind)?.unit ?? '';
   return { pct, text: `${pct}% pieno${pct > 100 ? ' ⚠' : ''} (${occ.toLocaleString('it-IT')}/${max.toLocaleString('it-IT')} ${unit})` };
+}
+
+/* ── Tab: Mappa occupazione (WMS Fase 3) — heatmap % riempimento per zona/scaffale ──
+ *  Riusa /stock/locations?subtreeOf=<magazzino> (ogni nodo porta già occupied+capacity).
+ *  Raggruppa le foglie (bin) per genitore (scaffale/zona): tiles colorati per % pieno
+ *  + roll-up aggregato del gruppo (se i bin condividono lo stesso criterio). */
+function heatColor(pct: number | null): string {
+  if (pct == null) return 'var(--neutral-wash, #eceef1)';   // senza limite
+  if (pct > 100) return '#c0392b';                          // oltre capacità
+  if (pct >= 90) return '#e8590c';
+  if (pct >= 75) return '#f0a020';
+  if (pct >= 50) return '#94c11f';
+  if (pct > 0) return '#5bb85b';
+  return '#dcebdc';                                          // vuoto (0%)
+}
+const heatInk = (pct: number | null): string => (pct != null && pct >= 75 ? '#fff' : '#16241a');
+
+function OccupancyMap({ warehouseId, warehouseName }: { warehouseId: string; warehouseName: string }) {
+  const { data, loading, error } = useApi<{ items: StockLocationDto[] }>(`/stock/locations?subtreeOf=${warehouseId}`);
+  const [onlyLimited, setOnlyLimited] = useState(false);
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox message={error} />;
+  const items = data?.items ?? [];
+  const fillOf = (n: StockLocationDto): number | null =>
+    n.capacityKind && n.capacityMax && n.occupied != null ? Math.round((n.occupied / n.capacityMax) * 100) : null;
+  const hasChild = new Set(items.map((i) => i.parentId).filter(Boolean) as string[]);
+  const leaves = items.filter((i) => !hasChild.has(i.id));
+  if (!leaves.length) return <div className="dsx-empty" style={{ padding: 24 }}>Nessuna ubicazione interna. Crea o genera ubicazioni nella tab «Ubicazioni».</div>;
+  const nameById = new Map(items.map((i) => [i.id, i.name] as const));
+
+  // raggruppa le foglie (bin) per genitore (scaffale/zona)
+  const groupsMap = new Map<string, StockLocationDto[]>();
+  for (const lf of leaves) {
+    const k = lf.parentId ?? warehouseId;
+    if (!groupsMap.has(k)) groupsMap.set(k, []);
+    groupsMap.get(k)!.push(lf);
+  }
+  let groups = [...groupsMap.entries()].map(([pid, bins]) => ({
+    pid, name: pid === warehouseId ? warehouseName : (nameById.get(pid) ?? '—'),
+    bins: bins.slice().sort((a, b) => (a.code ?? a.name).localeCompare(b.code ?? b.name, 'it')),
+  })).sort((a, b) => a.name.localeCompare(b.name, 'it'));
+  if (onlyLimited) groups = groups.map((g) => ({ ...g, bins: g.bins.filter((b) => b.capacityKind && b.capacityMax) })).filter((g) => g.bins.length);
+
+  // KPI sui bin con limite
+  const limited = leaves.filter((b) => b.capacityKind && b.capacityMax);
+  const pcts = limited.map(fillOf).filter((p): p is number => p != null);
+  const avg = pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : null;
+  const over = pcts.filter((p) => p > 100).length;
+  const near = pcts.filter((p) => p >= 90 && p <= 100).length;
+
+  // aggregato per gruppo: somma solo i bin con lo STESSO criterio (altrimenti "criteri misti")
+  const groupAgg = (bins: StockLocationDto[]) => {
+    const lim = bins.filter((b) => b.capacityKind && b.capacityMax);
+    if (!lim.length) return null;
+    const kinds = new Set(lim.map((b) => b.capacityKind));
+    if (kinds.size > 1) return { mixed: true as const };
+    const occ = lim.reduce((s, b) => s + (b.occupied ?? 0), 0);
+    const max = lim.reduce((s, b) => s + (b.capacityMax ?? 0), 0);
+    const unit = CAPACITY_KINDS.find((k) => k.code === [...kinds][0])?.unit ?? '';
+    return { mixed: false as const, pct: max ? Math.round((occ / max) * 100) : 0, occ, max, unit };
+  };
+
+  const kpi = (label: string, value: string, tone?: string) => (
+    <div style={{ flex: '1 1 120px', border: '1px solid var(--line)', borderRadius: 10, padding: '8px 12px', background: 'var(--card)' }}>
+      <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: tone ?? 'var(--ink)' }}>{value}</div>
+    </div>
+  );
+  const legend: [string, number | null][] = [['vuoto', 0], ['<50%', 49], ['50–74%', 60], ['75–89%', 80], ['90–100%', 95], ['>100%', 120], ['senza limite', null]];
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {/* KPI */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        {kpi('Bin con limite', String(limited.length))}
+        {kpi('Riempimento medio', avg == null ? '—' : `${avg}%`)}
+        {kpi('Quasi pieni (≥90%)', String(near), near ? '#e8590c' : undefined)}
+        {kpi('In eccesso (>100%)', String(over), over ? '#c0392b' : undefined)}
+      </div>
+      {/* Legenda + toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {legend.map(([lbl, p]) => (
+            <span key={lbl} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+              <span style={{ width: 13, height: 13, borderRadius: 3, background: heatColor(p), border: '1px solid var(--line)' }} />{lbl}
+            </span>
+          ))}
+        </div>
+        <label style={{ marginLeft: 'auto', display: 'inline-flex', gap: 5, alignItems: 'center', fontSize: 12.5, color: 'var(--ink-soft)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={onlyLimited} onChange={(e) => setOnlyLimited(e.target.checked)} /> Solo con limite di capacità
+        </label>
+      </div>
+      {limited.length === 0 && (
+        <div className="dsx-empty" style={{ padding: 16, marginBottom: 12 }}>
+          Nessun bin ha un limite di capacità. Impostalo nella scheda di un'ubicazione (tab «Ubicazioni» → apri un bin → sezione «Capacità»). La mappa mostra comunque la disposizione delle ubicazioni.
+        </div>
+      )}
+      {/* Gruppi (scaffale/zona) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {groups.map((g) => {
+          const agg = groupAgg(g.bins);
+          return (
+            <div key={g.pid} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '11px 13px', background: 'var(--card)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{g.name}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>{g.bins.length} {g.bins.length === 1 ? 'ubicazione' : 'ubicazioni'}</span>
+                {agg && !agg.mixed && (
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
+                    <span style={{ flex: 1, height: 7, borderRadius: 5, background: 'var(--neutral-wash, #eee)', overflow: 'hidden', minWidth: 90 }}>
+                      <span style={{ display: 'block', height: '100%', width: `${Math.min(agg.pct, 100)}%`, background: heatColor(agg.pct) }} />
+                    </span>
+                    <span style={{ fontSize: 11.5, color: agg.pct > 100 ? '#c0392b' : 'var(--ink-faint)', whiteSpace: 'nowrap' }}>
+                      {agg.occ.toLocaleString('it-IT')}/{agg.max.toLocaleString('it-IT')} {agg.unit} · {agg.pct}%
+                    </span>
+                  </span>
+                )}
+                {agg && agg.mixed && <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ink-faint)' }}>criteri misti</span>}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {g.bins.map((b) => {
+                  const pct = fillOf(b);
+                  const unit = CAPACITY_KINDS.find((k) => k.code === b.capacityKind)?.unit ?? '';
+                  const tip = b.capacityKind && b.capacityMax
+                    ? `${b.name}\n${(b.occupied ?? 0).toLocaleString('it-IT')}/${b.capacityMax.toLocaleString('it-IT')} ${unit} · ${pct}% pieno${pct != null && pct > 100 ? ' — oltre la capacità' : ''}`
+                    : `${b.name}\nNessun limite di capacità`;
+                  return (
+                    <div key={b.id} title={tip}
+                      style={{ width: 76, height: 52, borderRadius: 8, background: heatColor(pct), color: heatInk(pct),
+                        border: pct != null && pct > 100 ? '2px solid #7b1f15' : '1px solid rgba(0,0,0,.08)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 3, overflow: 'hidden', cursor: 'default' }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, lineHeight: 1.1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{b.code || b.name}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{pct == null ? '—' : `${pct}%`}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: boolean }) {
   const { options, label, meta } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini

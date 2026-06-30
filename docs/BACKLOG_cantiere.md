@@ -12,7 +12,7 @@
 ## 🏬 WMS Magazzino (vendibile standalone) — proposta `analisi/2026-06-30_PROPOSTA_WMS_ubicazioni_professionali.md`
 - [x] **Fase 1** — coordinate + generatore massivo + tipo bin — FATTO (migr 063).
 - [x] **Fase 2** — **capacità/spazio** per ubicazione — FATTO (migr 065). Criterio volume(m³)/peso(kg)/quantità + massimo + **blocco/avviso** al superamento; **% riempimento** (barra colorata) nella scheda nodo e nel rowMeta dell'albero; **volume unitario articolo** (+ peso) nel form materiale. Enforcement centralizzato nei carichi (movimenti + conferma documenti). **UDC/posti-pallet** rinviato (serve il modello "unità di carico").
-- [ ] **Fase 3** — **mappa occupazione** visiva (heatmap per scaffale/zona) come tab del magazzino.
+- [x] **Fase 3** — **mappa occupazione** visiva (heatmap per scaffale/zona) come tab del magazzino — FATTO (solo FE, riusa `subtreeOf`). Tab «Mappa occupazione»: tiles colorati per % pieno (vuoto→verde→giallo→arancio→rosso>100%), roll-up aggregato per gruppo, KPI (bin con limite/medio/quasi pieni/in eccesso), legenda, toggle «solo con limite».
 - [ ] **Fase 4** (opzionale) — putaway/prelievo ottimizzati (regole di stoccaggio, percorso FIFO/FEFO).
 
 ## 🧩 Campi configurabili per contesto — proposta `analisi/2026-06-30_PROPOSTA_campi_configurabili_per_contesto.md`

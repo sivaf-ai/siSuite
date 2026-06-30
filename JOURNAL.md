@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (1) — WMS Fase 3: mappa occupazione (heatmap) come tab del magazzino (chat 01.06)
+- **Solo frontend** (nessuna migrazione/endpoint nuovo): riusa `GET /stock/locations?subtreeOf=<magazzino>` che già porta `occupied`+`capacity*` per nodo.
+- Nuovo tab **«Mappa occupazione»** (`OccupancyMap` in MagazzinoPage): raggruppa le **foglie (bin) per genitore** (scaffale/zona); ogni bin è un **tile colorato** per % pieno (`heatColor`: vuoto #dcebdc → verde → lime → giallo → arancio≥90% → rosso>100%, grigio=senza limite), con tooltip occ/max/%. **Roll-up** per gruppo (somma se i bin condividono lo stesso criterio, altrimenti «criteri misti»). **KPI** in testa (bin con limite · riempimento medio · quasi pieni ≥90% · in eccesso >100%), **legenda**, toggle **«solo con limite»**.
+- Seminato uno **Scaffale DEMO-MAP** (magazzino predefinito) con bin A-01..A-06 a riempimento 0/3/7/9/10/12 su max 10 → la mappa mostra l'intera scala colori + over-capacità; roll-up 41/60=68%. **(Da rimuovere dopo il test: è dato dimostrativo.)**
+- Typecheck FE pulito. 90/90 test BE invariati (nessuna modifica backend). Prossimo WMS: Fase 4 (putaway/prelievo) opzionale.
+
 ## 2026-06-30 (9) — WMS Fase 2: capacità/spazio per ubicazione + % riempimento + blocco (chat 01.06)
 - **Migr 065** `stock_location` + `capacity_kind` (volume/weight/quantity) / `capacity_max` / `capacity_enforce` (CHECK idempotente); `material` + `volume` (m³). Prossima libera **066**.
 - **Occupato calcolato in SQL** (`OCCUPIED_EXPR` in stock.ts): per quantità = Σ qty_on_hand; per volume/peso = Σ(qty × material.volume|weight). Restituito come `occupied` nel DTO ubicazione (liste + scheda). `fillPct` calcolato in UI.
