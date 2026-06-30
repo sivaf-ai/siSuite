@@ -29,6 +29,8 @@ export interface FieldDefinitionDto {
   /** Scope paese (IT/AR/...); null = universale. I campi con country valorizzato
    *  per entity='company' vivono in fiscal_attributes; per entity='address' guidano l'AddressField. */
   country?: string | null;
+  /** scope per VARIANTE/Tipo di record (es. Ordine "FTTH"); null = vale per tutti i tipi. */
+  variant?: string | null;
   /** true = riga di SISTEMA (tenant_id NULL): sola lettura per il tenant. */
   isSystem?: boolean;
   /** attivo nei form (il Field Builder può disattivare i campi del tenant). */
@@ -47,6 +49,8 @@ export const createFieldDefinitionSchema = z.object({
   key: z.string().min(1).max(60).regex(/^[a-z][a-z0-9_]*$/, 'minuscolo, lettere/numeri/underscore, inizia con lettera'),
   /** scope geografico (ISO IT/AR/…): null = universale. Per address/company guida i form country-driven. */
   country: z.string().length(2).nullable().optional(),
+  /** scope per variante/Tipo di record (codice del tipo, es. 'ftth'); null = tutti i tipi. */
+  variant: z.string().max(60).nullable().optional(),
   label: i18nLabel,
   dataType: fieldDataTypeEnum,
   required: z.boolean().optional(),

@@ -22,6 +22,7 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
     groupKey: (r.group_key as string) ?? null,
     sequence: (r.sequence as number) ?? 0,
     country: (r.country as string) ?? null,
+    variant: (r.variant as string) ?? null,
     isSystem: (r.is_system as boolean) ?? false,
     active: (r.active as boolean) ?? true,
   };
@@ -31,7 +32,7 @@ function mapRow(r: Record<string, unknown>): FieldDefinitionDto {
 export async function loadAllFieldDefs(db: PoolClient, entity: string, vertical: string): Promise<FieldDefinitionDto[]> {
   const { rows } = await db.query(
     `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            country, active, tenant_id IS NULL AS is_system
+            country, variant, active, tenant_id IS NULL AS is_system
      FROM field_definition
      WHERE entity = $1 AND (vertical IS NULL OR vertical = $2)
      ORDER BY group_key NULLS FIRST, sequence`,
@@ -47,15 +48,19 @@ export async function tenantVertical(db: PoolClient, tenantId: string): Promise<
 
 /** Definizioni attive per (entità, verticale). Se `country` è passato, restituisce
  *  universali (country IS NULL) + quelle del paese; altrimenti TUTTE (FE le filtra). */
-export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string, country?: string): Promise<FieldDefinitionDto[]> {
+export async function loadFieldDefs(db: PoolClient, entity: string, vertical: string, country?: string, variant?: string): Promise<FieldDefinitionDto[]> {
   const params: unknown[] = [entity, vertical];
   let countryClause = '';
-  if (country) { params.push(country); countryClause = ` AND (country IS NULL OR country = $3)`; }
+  if (country) { params.push(country); countryClause = ` AND (country IS NULL OR country = $${params.length})`; }
+  // variant NULL = universale (tutti i tipi); se passato, aggiunge i campi del tipo
+  let variantClause = '';
+  if (variant) { params.push(variant); variantClause = ` AND (variant IS NULL OR variant = $${params.length})`; }
+  else variantClause = ` AND variant IS NULL`;
   const { rows } = await db.query(
     `SELECT id, entity, key, label, help, data_type, required, options, validation, unit, placeholder, group_key, sequence,
-            country, tenant_id IS NULL AS is_system
+            country, variant, tenant_id IS NULL AS is_system
      FROM field_definition
-     WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)${countryClause}
+     WHERE active AND entity = $1 AND (vertical IS NULL OR vertical = $2)${countryClause}${variantClause}
      ORDER BY group_key NULLS FIRST, sequence`,
     params,
   );

@@ -26,6 +26,8 @@ export type EngagementType = 'build' | 'maintenance';
 export interface UserContext {
   userId: string;          // app_user.id (uuid) — non mostrato in UI
   tenantId: string;        // tenant.id (uuid)
+  /** Paese (ISO alpha-2) del tenant: default per le anagrafiche e i form country-driven. */
+  country: string;
   fullName: string;
   email: string | null;
   locale: Locale;

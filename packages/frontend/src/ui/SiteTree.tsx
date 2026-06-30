@@ -116,10 +116,11 @@ export function useSiteKindMeta(): { kinds: { value: string; label: string }[]; 
   return { kinds, kindMeta };
 }
 
-export function SiteTree({ companyId, country = 'IT' }: { companyId: string; country?: string; canEdit?: boolean }) {
+export function SiteTree({ companyId, country }: { companyId: string; country?: string; canEdit?: boolean }) {
   const { user } = useAuth();
   const canAddr = !!user?.permissions.includes('site:address' as never);
+  const ctry = country ?? (user as { country?: string } | null)?.country ?? 'IT';   // default = Paese del tenant
   const { kinds, kindMeta } = useSiteKindMeta();
   // niente FormCard: l'EntityTree ha già il suo riquadro + testata (evita il doppio titolo).
-  return <EntityTree config={siteTreeConfig(companyId, kinds, { country, canAddr, kindMeta })} />;
+  return <EntityTree config={siteTreeConfig(companyId, kinds, { country: ctry, canAddr, kindMeta })} />;
 }

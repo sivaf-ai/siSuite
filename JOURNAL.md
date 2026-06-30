@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (3) — Campi configurabili PER CONTESTO: variante/Tipo (Asse B) + Paese del tenant (Asse A) (chat 01.06)
+- **Migr 061**: colonna `variant` su `field_definition` + indici scope `(entity,country,vertical,variant)`. Prossima libera **063**.
+- **Asse B (campi per Tipo di record)**: `field_definition` scope completo `(entity, country?, vertical?, variant?)`. Loader `loadFieldDefs(...,variant)` (universali + del tipo). GET `/field-definitions?variant=`. POST accetta `variant` (dup-check entità+chiave+paese+variante). UI *Campi personalizzati*: selettore **Tipo** dai lookup del tipo entità (`work_order`→work_order_type, `asset`→asset_kind). I form **OrdinativoDetailPage**/**AssetDetailPage** caricano i campi col `variant`=codice tipo del record. Smoke OK (campo work_order/activation visibile solo con variant). `buildAttributesSchema` è `.passthrough()` → nessuna perdita dati.
+- **Asse A (Paese del tenant)**: **Migr 062** `tenant.country` (default IT). `resolveContext`/`UserContext` espongono `country`; `/me` lo restituisce. Company-create default country = tenant. `SiteTree`/`SitiPage` default Paese dal tenant. (Seeding non necessario: i set di campi per Paese sono righe di SISTEMA condivise.)
+- Doc proposta + standard **D-0-bis** aggiornati. 90/90 test, typecheck pulito.
+
 ## 2026-06-30 (2) — Ubicazioni colorate + AddressField pulito + campi indirizzo configurabili per Paese + proposta config per-contesto (chat 01.06)
 - **Ubicazioni** albero colorate per Tipo (nodeAppearance da stock_location_kind). 
 - **AddressField** modalità `bare` (header leggero, niente ObjectBox): fix sovrapposizione "Indirizzo"/"Via" nella scheda nodo + lista globale siti.

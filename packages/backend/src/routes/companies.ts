@@ -158,7 +158,7 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
       const input = createCompanySchema.parse(request.body);
       const ctx = request.ctx;
       const dto = await withRls(ctx, async (db) => {
-        const country = input.country ?? 'IT';
+        const country = input.country ?? ctx.country ?? 'IT';   // default = Paese del tenant (Asse A)
         const attrs = await validateAttributes(db, ctx.tenantId, 'company', input.attributes);
         const fiscal = await validateFiscalAttributes(db, ctx.tenantId, 'company', country, input.fiscalAttributes);
         const code = await nextNumber(db, 'company');

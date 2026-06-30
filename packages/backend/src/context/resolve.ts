@@ -34,9 +34,11 @@ export async function resolveContext(authUserId: string, email?: string | null):
   }
   if (rows.length === 0) return null;
   const r = rows[0];
+  const tc = await pool.query(`SELECT country FROM tenant WHERE id = $1`, [r.tenant_id]);
   return {
     userId: r.user_id,
     tenantId: r.tenant_id,
+    country: ((tc.rows[0]?.country as string) ?? 'IT').trim(),
     fullName: r.full_name,
     email: r.email,
     locale: (r.locale ?? 'it-IT') as Locale,

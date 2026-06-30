@@ -15,6 +15,7 @@ import { useToast } from '../../ui/Toast';
 import { useApi, mutate } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useLookups, lookupLabel } from '../../context/Lookups';
 
 const ENTITIES = [
   { key: 'engagement', label: 'Commessa' }, { key: 'work_order', label: 'Ordine di lavoro' },
@@ -26,6 +27,8 @@ const ENTITIES = [
 // entità i cui campi dipendono dal PAESE (ISO): mostra il selettore Paese.
 const COUNTRY_AWARE = new Set(['address', 'company']);
 const COUNTRIES = ['IT', 'AR'];
+// entità i cui campi possono dipendere dal TIPO del record → categoria lookup dei tipi.
+const VARIANT_AWARE: Record<string, string> = { work_order: 'work_order_type', asset: 'asset_kind' };
 const DT_LABEL: Record<FieldDataType, string> = {
   text: 'Testo', textarea: 'Testo lungo', number: 'Numero', integer: 'Intero', money: 'Valuta', date: 'Data',
   boolean: 'Sì/No', email: 'Email', phone: 'Telefono', url: 'URL', select: 'Scelta singola', multiselect: 'Scelta multipla',
@@ -36,17 +39,23 @@ export function CustomFieldsSettings() {
   const toast = useToast();
   const { user } = useAuth();
   const canManage = !!user?.permissions.includes('settings:manage' as never);
+  const lk = useLookups();
   const [entity, setEntity] = useState('engagement');
   const [country, setCountry] = useState('IT');
+  const [variant, setVariant] = useState('');   // '' = tutti i tipi (universali)
   const countryAware = COUNTRY_AWARE.has(entity);
+  const variantCat = VARIANT_AWARE[entity];
+  const variantTypes = variantCat ? lk.byCategory(variantCat) : [];
   const { data, loading, error, reload } = useApi<{ items: FieldDefinitionDto[] }>(`/field-definitions?entity=${entity}&manage=1`);
   const [editing, setEditing] = useState<FieldDefinitionDto | null | undefined>(undefined);
   const [confirm, setConfirm] = useState<FieldDefinitionDto | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // per le entità country-aware mostra solo i campi del Paese scelto (+ gli universali)
+  // per le entità country-aware mostra i campi del Paese scelto (+ universali); per le
+  // variant-aware quelli del Tipo scelto (+ universali, variant null).
   const rows = (data?.items ?? [])
     .filter((d) => !countryAware || d.country == null || d.country === country)
+    .filter((d) => !variantCat || !variant || d.variant == null || d.variant === variant)
     .slice().sort((a, b) => a.sequence - b.sequence);
 
   async function doDelete() {
@@ -63,16 +72,25 @@ export function CustomFieldsSettings() {
         <div className="ph">
           <h3>Campi di {ENTITIES.find((e) => e.key === entity)?.label.toLowerCase()}</h3>
           <div className="seg" style={{ flexWrap: 'wrap' }}>
-            {ENTITIES.map((e) => <button key={e.key} className={entity === e.key ? 'on' : ''} onClick={() => setEntity(e.key)}>{e.label}</button>)}
+            {ENTITIES.map((e) => <button key={e.key} className={entity === e.key ? 'on' : ''} onClick={() => { setEntity(e.key); setVariant(''); }}>{e.label}</button>)}
           </div>
           {countryAware && (
             <select className="txt" style={{ maxWidth: 150, marginLeft: 'auto' }} value={country} onChange={(e) => setCountry(e.target.value)}>
               {COUNTRIES.map((c) => <option key={c} value={c}>Paese: {c}</option>)}
             </select>
           )}
+          {variantCat && (
+            <select className="txt" style={{ maxWidth: 220, marginLeft: 'auto' }} value={variant} onChange={(e) => setVariant(e.target.value)}>
+              <option value="">Tutti i tipi (universali)</option>
+              {variantTypes.map((t) => <option key={t.code} value={t.code}>Tipo: {lookupLabel(t)}</option>)}
+            </select>
+          )}
         </div>
         {countryAware && <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', padding: '0 16px', margin: '8px 0 0' }}>
           I campi di <b>{ENTITIES.find((e) => e.key === entity)?.label}</b> dipendono dal <b>Paese</b> (es. l'Italia ha Via/Civico/CAP, l'Argentina Calle/Número/CPA…). Scegli il Paese e aggiungi/modifica i suoi campi.
+        </p>}
+        {variantCat && <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', padding: '0 16px', margin: '8px 0 0' }}>
+          I campi di <b>{ENTITIES.find((e) => e.key === entity)?.label}</b> possono dipendere dal <b>Tipo</b> del record. «Tutti i tipi» = campi sempre presenti; scegli un Tipo per i campi dedicati (es. un Ordine "FTTH" può avere Seriale ONT, Potenza ottica…). I Tipi si gestiscono in <b>Stati & etichette</b>.
         </p>}
         <div className="pb" style={{ padding: 0 }}>
           {loading ? <Loading /> : error ? <ErrorBox message={error} /> : rows.length === 0
@@ -116,7 +134,7 @@ export function CustomFieldsSettings() {
       </p>
 
       {editing !== undefined && (
-        <FieldModal entity={entity} country={countryAware ? country : null} editing={editing}
+        <FieldModal entity={entity} country={countryAware ? country : null} variant={variantCat ? (variant || null) : null} editing={editing}
           onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void reload(); }}
           onDelete={editing ? () => { const e = editing; setEditing(undefined); setConfirm(e); } : undefined} toast={toast} />
       )}
@@ -137,8 +155,8 @@ function parseOptions(text: string): FieldOption[] {
 }
 const optionsToText = (opts: FieldOption[] | null) => (opts ?? []).map((o) => `${o.value}=${o.label['it-IT'] ?? o.value}`).join('\n');
 
-function FieldModal({ entity, country, editing, onClose, onSaved, onDelete, toast }: {
-  entity: string; country: string | null; editing: FieldDefinitionDto | null;
+function FieldModal({ entity, country, variant, editing, onClose, onSaved, onDelete, toast }: {
+  entity: string; country: string | null; variant: string | null; editing: FieldDefinitionDto | null;
   onClose: () => void; onSaved: () => void; onDelete?: () => void; toast: (m: string, t?: 'error') => void;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => ({
@@ -200,7 +218,7 @@ function FieldModal({ entity, country, editing, onClose, onSaved, onDelete, toas
     };
     try {
       if (editing) await mutate('PATCH', `/field-definitions/${editing.id}`, common);
-      else await mutate('POST', '/field-definitions', { entity, key: v.key, country: country ?? null, ...common });
+      else await mutate('POST', '/field-definitions', { entity, key: v.key, country: country ?? null, variant: variant ?? null, ...common });
       toast(editing ? 'Campo aggiornato' : 'Campo creato');
       onSaved();
     } catch (e) {

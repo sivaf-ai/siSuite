@@ -31,10 +31,11 @@ export function AssetDetailPage() {
   const can = (a: string) => !!user?.permissions.includes(`asset:${a}` as never);
 
   const detail = useApi<AssetDto>(isNew ? null : `/assets/${id}`);
-  const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>('/field-definitions?entity=asset');
   const companies = useApi<{ items: { id: string; displayName: string }[] }>('/companies?limit=200');
 
   const [form, setForm] = useState({ label: '', kind: '', companyId: '', siteId: '', installedOn: '' });
+  // campi personalizzati PER TIPO (variant = asset.kind): mostra universali + del Tipo scelto
+  const fieldDefs = useApi<{ items: FieldDefinitionDto[] }>(`/field-definitions?entity=asset${form.kind ? `&variant=${encodeURIComponent(form.kind)}` : ''}`);
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState(false);

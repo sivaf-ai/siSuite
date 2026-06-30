@@ -92,7 +92,7 @@ export function SitiPage({ pickProps }: { pickProps?: SitePickProps } = {}) {
   function openNew(prefill?: SiteDto) {
     setForm(prefill
       ? { companyId: prefill.companyId ?? '', companyName: prefill.companyName ?? '', name: prefill.name, kind: prefill.kind, parentId: prefill.parentId, address: prefill.address ?? {}, country: String((prefill.address as Record<string, unknown>)?.country ?? 'IT') }
-      : { ...emptyForm, companyId: lockedCompanyId ?? '' });
+      : { ...emptyForm, companyId: lockedCompanyId ?? '', country: (user as { country?: string } | null)?.country ?? 'IT' });
     setEditing(null);
   }
   function openEdit(row: SiteDto) {

@@ -48,11 +48,13 @@ export function OrdinativoDetailPage() {
   const engagements = useApi<ListResp<ListItem>>('/engagements');
   const resources = useApi<ListResp<ResourceDto>>('/resources?limit=200');
   const materials = useApi<ListResp<MaterialDto>>('/materials?limit=200');
-  const fieldDefs = useApi<ListResp<FieldDefinitionDto>>('/field-definitions?entity=work_order');
   const statuses = lookups.byCategory('work_order_status');
   const types = lookups.byCategory('work_order_type');
 
   const [form, setForm] = useState<Record<string, string>>({});
+  // campi personalizzati PER TIPO (variant = codice del work_order_type): universali + del Tipo scelto
+  const woVariant = types.find((t) => t.id === form.typeId)?.code;
+  const fieldDefs = useApi<ListResp<FieldDefinitionDto>>(`/field-definitions?entity=work_order${woVariant ? `&variant=${encodeURIComponent(woVariant)}` : ''}`);
   const [subject, setSubject] = useState<Record<string, string>>({});
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [items, setItems] = useState<{ materialId: string; plannedQty: number; unit?: string | null }[]>([]);
