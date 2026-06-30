@@ -1,6 +1,6 @@
 # Proposta — Gestione Ubicazioni di magazzino PROFESSIONALE (WMS)
 
-- **Data:** 30/06/2026 · **Chat:** 01.06 · **Stato:** proposta (da approvare)
+- **Data:** 30/06/2026 · **Chat:** 01.06 · **Stato:** **Fase 1 FATTA** (migr 063) · **Fase 2 FATTA** (migr 065: capacità volume/peso/quantità + % riempimento + blocco/avviso + volume articolo; UDC rinviato). Fasi 3-4 da fare.
 - **Obiettivo del titolare:** vendere il magazzino anche standalone, con gestione ubicazioni di livello dei leader di mercato: creazione **massiva** di ubicazioni a coordinate (scaffale × ripiano × posizione), **capacità/spazio** per ubicazione, gestione professionale.
 
 ## 1. Come fanno i leader (sintesi)

@@ -32,10 +32,19 @@ const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: str
   adjustment: { key: 'stock_adjustment', fmt: 'RET-{YYYY}-{SEQ:4}' },
 };
 
-const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active, sequence`;
+const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active, sequence,
+  capacity_kind, capacity_max, capacity_enforce`;
+// WMS Fase 2: occupato del bin secondo il criterio (qty × metrica unitaria articolo). NULL se nessun limite.
+const OCCUPIED_EXPR = `CASE
+    WHEN sl.capacity_kind IS NULL OR sl.capacity_max IS NULL THEN NULL
+    WHEN sl.capacity_kind = 'quantity' THEN (SELECT COALESCE(SUM(b.qty_on_hand), 0) FROM stock_balance b WHERE b.location_id = sl.id)
+    WHEN sl.capacity_kind = 'volume'   THEN (SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.volume, 0)), 0) FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = sl.id)
+    WHEN sl.capacity_kind = 'weight'   THEN (SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.weight, 0)), 0) FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = sl.id)
+    ELSE NULL END`;
 // stessa lista con prefisso sl. + join app_user per il nome di chi ha archiviato (vista archiviati).
 const LOC_SELECT = `sl.id, sl.parent_id, sl.name, sl.kind, sl.resource_id, sl.code, sl.note, sl.manager_user_id,
-  sl.holds_stock, sl.is_default, sl.active, sl.sequence, sl.archived_at, au.full_name AS archived_by_name
+  sl.holds_stock, sl.is_default, sl.active, sl.sequence, sl.capacity_kind, sl.capacity_max, sl.capacity_enforce,
+  ${OCCUPIED_EXPR} AS occupied, sl.archived_at, au.full_name AS archived_by_name
   FROM stock_location sl LEFT JOIN app_user au ON au.id = sl.archived_by`;
 function locDto(r: Record<string, unknown>): StockLocationDto {
   return {
@@ -45,19 +54,56 @@ function locDto(r: Record<string, unknown>): StockLocationDto {
     isDefault: r.is_default as boolean, active: r.active as boolean,
     archivedAt: (r.archived_at as Date | null)?.toISOString() ?? null,
     archivedByName: (r.archived_by_name as string) ?? null,
+    // WMS Fase 2: capacità + occupato calcolato (presente solo quando la query lo seleziona)
+    capacityKind: (r.capacity_kind as StockLocationDto['capacityKind']) ?? null,
+    capacityMax: r.capacity_max == null ? null : Number(r.capacity_max),
+    capacityEnforce: (r.capacity_enforce as boolean) ?? false,
+    ...(r.occupied !== undefined ? { occupied: r.occupied == null ? null : Number(r.occupied) } : {}),
     // contratto EntityTree (passthrough)
     sequence: Number(r.sequence ?? 0), isSystem: false,
     ...(r.direct_count != null ? { directCount: Number(r.direct_count) } : {}),
   };
 }
 
-/** inserisce un movimento con il segno corretto; ritorna l'id. */
+/** WMS Fase 2: capacità superata in un'ubicazione (errore di dominio → 409 leggibile). */
+class CapacityError extends Error {}
+
+/** Se l'ubicazione ha un limite di capacità ATTIVO (capacity_enforce) e il carico di
+ *  `addQty` (>0) lo supera, lancia CapacityError con un messaggio chiaro. Altrimenti no-op. */
+async function assertCapacity(db: PoolClient, locationId: string, materialId: string, addQty: number): Promise<void> {
+  if (addQty <= 0) return;
+  const lr = await db.query(`SELECT name, capacity_kind, capacity_max, capacity_enforce FROM stock_location WHERE id = $1`, [locationId]);
+  const l = lr.rows[0];
+  if (!l || !l.capacity_enforce || !l.capacity_kind || l.capacity_max == null) return;
+  const kind = l.capacity_kind as 'volume' | 'weight' | 'quantity';
+  const metricCol = kind === 'volume' ? 'volume' : kind === 'weight' ? 'weight' : null;
+  // occupato attuale
+  const occupied = Number((metricCol
+    ? await db.query(`SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.${metricCol}, 0)), 0) AS s FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = $1`, [locationId])
+    : await db.query(`SELECT COALESCE(SUM(qty_on_hand), 0) AS s FROM stock_balance WHERE location_id = $1`, [locationId])
+  ).rows[0].s);
+  // metrica unitaria dell'articolo in carico (1 pezzo per il criterio 'quantity')
+  const unitMetric = metricCol
+    ? Number((await db.query(`SELECT COALESCE(${metricCol}, 0) AS v FROM material WHERE id = $1`, [materialId])).rows[0]?.v ?? 0)
+    : 1;
+  const projected = occupied + addQty * unitMetric;
+  const max = Number(l.capacity_max);
+  if (projected > max + 1e-9) {
+    const u = kind === 'volume' ? 'm³' : kind === 'weight' ? 'kg' : 'pz';
+    const f = (n: number) => Number(n.toFixed(3)).toLocaleString('it-IT');
+    throw new CapacityError(`Capacità superata in «${l.name}»: il carico porterebbe a ${f(projected)} ${u} sul massimo di ${f(max)} ${u} (già occupato ${f(occupied)} ${u}).`);
+  }
+}
+
+/** inserisce un movimento con il segno corretto; ritorna l'id.
+ *  enforceCapacity: per i carichi reali (in/transfer-in) verifica il limite del bin di destinazione. */
 async function insertMovement(db: PoolClient, tenantId: string, userId: string, m: {
   materialId: string; locationId: string; typeCode: 'in' | 'out' | 'adjust'; signedQty: number; unit: string;
   unitCost?: number | null; unitPrice?: number | null; currency?: string | null; occurredOn?: string;
   documentRef?: string | null; stockDocumentId?: string | null; engagementId?: string | null;
-  activityId?: string | null; transferGroupId?: string | null; note?: string | null;
+  activityId?: string | null; transferGroupId?: string | null; note?: string | null; enforceCapacity?: boolean;
 }): Promise<string> {
+  if (m.enforceCapacity && m.signedQty > 0) await assertCapacity(db, m.locationId, m.materialId, m.signedQty);
   const typeId = await lookupIdByCanonical(db, 'stock_movement_type', m.typeCode);
   const r = await db.query(
     `INSERT INTO stock_movement (tenant_id, material_id, location_id, type_id, quantity, unit_id, unit_cost, unit_price,
@@ -126,12 +172,13 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           seq = Number(m.rows[0].seq);
         }
         const r = await db.query(
-          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, sequence, created_by, updated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$12,$12)
+          `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, sequence, capacity_kind, capacity_max, capacity_enforce, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$12,$13,COALESCE($14,false),$15,$15)
            RETURNING ${LOC_COLS}`,
           [request.ctx.tenantId, input.parentId ?? null, input.name, input.kind, input.resourceId ?? null,
            input.code ?? null, input.note ?? null, input.managerUserId ?? null,
-           input.holdsStock ?? null, input.isDefault ?? null, seq, request.ctx.userId]);
+           input.holdsStock ?? null, input.isDefault ?? null, seq,
+           input.capacityKind ?? null, input.capacityMax ?? null, input.capacityEnforce ?? null, request.ctx.userId]);
         return locDto(r.rows[0]);
       });
       return reply.code(201).send(dto);
@@ -155,6 +202,9 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (input.isDefault !== undefined) put('is_default', input.isDefault);
         if (input.active !== undefined) put('active', input.active);
         if (input.sequence !== undefined) put('sequence', input.sequence);
+        if (input.capacityKind !== undefined) put('capacity_kind', input.capacityKind ?? null);
+        if (input.capacityMax !== undefined) put('capacity_max', input.capacityMax ?? null);
+        if (input.capacityEnforce !== undefined) put('capacity_enforce', input.capacityEnforce);
         if (!sets.length) return { ok: true };
         params.push(request.ctx.userId); sets.push(`updated_by = $${params.length}`);
         params.push(request.params.id);
@@ -439,12 +489,18 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       const input = createStockMovementSchema.parse(request.body);
       const signed = input.typeCode === 'in' ? Math.abs(input.quantity)
         : input.typeCode === 'out' ? -Math.abs(input.quantity) : input.quantity; // adjust = delta con segno
-      const id = await withRls(request.ctx, (db) => insertMovement(db, request.ctx.tenantId, request.ctx.userId, {
-        materialId: input.materialId, locationId: input.locationId, typeCode: input.typeCode, signedQty: signed,
-        unit: input.unit, unitCost: input.unitCost, unitPrice: input.unitPrice, currency: input.currency,
-        occurredOn: input.occurredOn, engagementId: input.engagementId, activityId: input.activityId, note: input.note,
-      }));
-      return reply.code(201).send({ id });
+      try {
+        const id = await withRls(request.ctx, (db) => insertMovement(db, request.ctx.tenantId, request.ctx.userId, {
+          materialId: input.materialId, locationId: input.locationId, typeCode: input.typeCode, signedQty: signed,
+          unit: input.unit, unitCost: input.unitCost, unitPrice: input.unitPrice, currency: input.currency,
+          occurredOn: input.occurredOn, engagementId: input.engagementId, activityId: input.activityId, note: input.note,
+          enforceCapacity: true,
+        }));
+        return reply.code(201).send({ id });
+      } catch (e) {
+        if (e instanceof CapacityError) return reply.code(409).send({ error: 'conflict', message: e.message, statusCode: 409 });
+        throw e;
+      }
     });
 
   // RETTIFICA / STORNA (PIANO §5.3): crea un movimento COMPENSATIVO (quantità opposta),
@@ -619,7 +675,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { id: string } }>('/stock/documents/:id/confirm',
     { preHandler: [app.authenticate, requirePermission('stock:manage')] },
     async (request, reply) => {
-      return withRls(request.ctx, async (db) => {
+      try {
+      return await withRls(request.ctx, async (db) => {
         const dq = await db.query(
           `SELECT d.id, d.status, d.external_ref, d.source_location_id, d.dest_location_id, d.note, lv.canonical AS type_code
            FROM stock_document d JOIN lookup_value lv ON lv.id = d.type_id WHERE d.id = $1 FOR UPDATE`, [request.params.id]);
@@ -647,14 +704,14 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           if (type === 'receipt') {
             await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.dest_location_id, typeCode: 'in',
               signedQty: qty, unit: ln.unit, unitCost: ln.unit_cost, unitPrice: ln.unit_price, currency: ln.currency,
-              documentRef: doc.external_ref, stockDocumentId: doc.id, note: ln.note });
+              documentRef: doc.external_ref, stockDocumentId: doc.id, note: ln.note, enforceCapacity: true });
           } else if (type === 'transfer') {
             const grp = (await db.query(`SELECT gen_random_uuid() AS g`)).rows[0].g as string;
             await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.source_location_id, typeCode: 'out',
               signedQty: -qty, unit: ln.unit, stockDocumentId: doc.id, transferGroupId: grp, note: ln.note });
             await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.dest_location_id, typeCode: 'in',
               signedQty: qty, unit: ln.unit, unitCost: ln.unit_cost, currency: ln.currency, stockDocumentId: doc.id,
-              transferGroupId: grp, note: ln.note });
+              transferGroupId: grp, note: ln.note, enforceCapacity: true });
           } else { // adjustment: delta = contato − giacenza corrente
             const cur = await db.query(
               `SELECT qty_on_hand FROM stock_balance WHERE material_id = $1 AND location_id = $2`, [ln.material_id, adjustLoc]);
@@ -677,5 +734,9 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           [doc.id, number, uid]);
         return { id: doc.id, number, status: 'confirmed' };
       });
+      } catch (e) {
+        if (e instanceof CapacityError) return reply.code(409).send({ error: 'conflict', message: e.message, statusCode: 409 });
+        throw e;
+      }
     });
 }

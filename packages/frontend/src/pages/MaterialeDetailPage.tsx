@@ -74,6 +74,8 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
   const categories = useApi<ListResp<MaterialCategoryDto>>('/material-categories');
 
   const [form, setForm] = useState<Record<string, string | boolean>>({});
+  // metriche fisiche unitarie (numeriche; il form base è solo string/bool) — WMS Fase 2
+  const [phys, setPhys] = useState<{ weight: number | null; volume: number | null }>({ weight: null, volume: null });
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
   const [tab, setTab] = useState('images');
   const [busy, setBusy] = useState(false);
@@ -104,6 +106,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
     }
     setForm({ name: d.name, code: d.code ?? '', unit: d.unit, sku: d.sku ?? '', categoryId: d.categoryId ?? '', trackStock: d.trackStock, trackedBySerial: d.trackedBySerial,
       trackedByLot: d.trackedByLot, costingMethod: d.costingMethod });
+    setPhys({ weight: d.weight, volume: d.volume });
     setAttrs(d.attributes ?? {});
   }, [d, isNew, prefill]);
 
@@ -140,6 +143,7 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
       trackStock: !!form.trackStock, trackedBySerial: !!form.trackedBySerial, trackedByLot: !!form.trackedByLot,
       costingMethod: form.costingMethod || 'avg',
       defaultCost: attrs.__default_cost != null ? Number(attrs.__default_cost) : (d?.defaultCost ?? null),
+      weight: phys.weight, volume: phys.volume,
       attributes: attrs,
     };
     try {
@@ -233,6 +237,9 @@ export function MaterialeDetailPage({ embed }: { embed?: MaterialeEmbed } = {}) 
               <div className="bf"><span className="bl">Costo medio</span><div className="bi mono" style={{ justifyContent: 'flex-end' }}>{d?.avgCost != null ? `€ ${d.avgCost.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</div></div>
               <div className="bf"><span className="bl">Scorta minima</span><NumInput align="right" value={(attrs.min_stock as number) ?? null} onChange={(n) => setAttrs((a) => ({ ...a, min_stock: n ?? undefined }))} /></div>
               <div className="bf"><span className="bl">Giacenza totale</span><div className="bi green" style={{ justifyContent: 'flex-end' }}>{d?.qtyOnHand?.toLocaleString('it-IT') ?? '0'}</div></div>
+              {/* WMS Fase 2: metriche fisiche unitarie → alimentano la % di riempimento delle ubicazioni (capacità per volume/peso). */}
+              <div className="bf"><span className="bl">Peso unitario (kg)</span><NumInput align="right" value={phys.weight} onChange={(n) => setPhys((p) => ({ ...p, weight: n }))} placeholder="kg" /></div>
+              <div className="bf"><span className="bl">Volume unitario (m³)</span><NumInput align="right" value={phys.volume} onChange={(n) => setPhys((p) => ({ ...p, volume: n }))} placeholder="m³" /></div>
             </div>
           </ObjectBox>
         )}

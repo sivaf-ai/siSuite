@@ -253,6 +253,7 @@ export const createMaterialSchema = z.object({
   preferredVendorId: uuid.nullable().optional(),
   weight: num,
   weightUnit: z.string().max(10).nullable().optional(),
+  volume: num,                                              // m³ per unità (WMS Fase 2: criterio capacità 'volume')
   dimensions: z.record(z.string(), z.unknown()).nullable().optional(),
   isReturnable: z.boolean().optional(),
   shelfLifeDays: z.coerce.number().int().nullable().optional(),
@@ -271,7 +272,7 @@ export interface MaterialDto {
   taxRateId: string | null;
   reorderPoint: number | null; safetyStock: number | null; minQty: number | null; maxQty: number | null;
   leadTimeDays: number | null; preferredVendorId: string | null;
-  weight: number | null; weightUnit: string | null; dimensions: Record<string, unknown> | null;
+  weight: number | null; weightUnit: string | null; volume: number | null; dimensions: Record<string, unknown> | null;
   isReturnable: boolean; shelfLifeDays: number | null; primaryImageUrl: string | null; note: string | null;
   /** calcolati: giacenza totale e costo medio (da stock_balance). */
   qtyOnHand: number; avgCost: number | null;
@@ -643,8 +644,20 @@ export const createStockLocationSchema = z.object({
   holdsStock: z.boolean().optional(),
   isDefault: z.boolean().optional(),
   sequence: z.coerce.number().int().optional(),            // ordine fratelli (EntityTree)
+  // WMS Fase 2: capacità/spazio del bin (criterio + massimo + blocco al superamento)
+  capacityKind: z.enum(['volume', 'weight', 'quantity']).nullable().optional(),
+  capacityMax: num,                                          // valore massimo nel criterio scelto
+  capacityEnforce: z.boolean().optional(),                  // true = blocca i carichi oltre il massimo
 });
 export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
+
+/** Criteri di capacità di un'ubicazione (WMS Fase 2). UDC/posti-pallet a seguire (serve il modello unità di carico). */
+export const CAPACITY_KINDS = [
+  { code: 'volume', label: 'Volume (m³)', unit: 'm³' },
+  { code: 'weight', label: 'Peso (kg)', unit: 'kg' },
+  { code: 'quantity', label: 'Quantità (pezzi)', unit: 'pz' },
+] as const;
+export type CapacityKind = (typeof CAPACITY_KINDS)[number]['code'];
 
 /* ── WMS Fase 1: generatore MASSIVO di ubicazioni (bin) a coordinate ──── */
 export const LOCATION_DIMS = ['aisle', 'rack', 'level', 'position'] as const;
@@ -667,6 +680,9 @@ export interface StockLocationDto {
   code: string | null; note: string | null; managerUserId: string | null;
   holdsStock: boolean; isDefault: boolean; active: boolean;
   archivedAt: string | null; archivedByName: string | null;
+  /** WMS Fase 2 — capacità del bin. `occupied` è calcolato (presente solo nelle liste/scheda). */
+  capacityKind: CapacityKind | null; capacityMax: number | null; capacityEnforce: boolean;
+  occupied?: number | null;
   /** contratto EntityTree (passthrough; opzionali per retro-compatibilità). */
   sequence?: number; isSystem?: boolean; directCount?: number;
 }

@@ -2,6 +2,14 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-06-30 (9) — WMS Fase 2: capacità/spazio per ubicazione + % riempimento + blocco (chat 01.06)
+- **Migr 065** `stock_location` + `capacity_kind` (volume/weight/quantity) / `capacity_max` / `capacity_enforce` (CHECK idempotente); `material` + `volume` (m³). Prossima libera **066**.
+- **Occupato calcolato in SQL** (`OCCUPIED_EXPR` in stock.ts): per quantità = Σ qty_on_hand; per volume/peso = Σ(qty × material.volume|weight). Restituito come `occupied` nel DTO ubicazione (liste + scheda). `fillPct` calcolato in UI.
+- **Enforcement centralizzato** in `insertMovement` (param `enforceCapacity`, classe `CapacityError`): attivo SOLO sui **carichi reali** (POST /stock/movements 'in'/'adjust'>0 e conferma documenti receipt-in/transfer-in). Se `capacity_enforce` e il carico supera il massimo → 409 leggibile («Capacità superata in «X»: porterebbe a N u su max M u, già occupato O u»). `withRls` è transazionale → il throw aborta l'intera conferma atomicamente. Le rettifiche-storno NON sono bloccate.
+- **UI**: extraCard ubicazione (MagazzinoPage) con sezione **Capacità** (criterio + max + toggle «Blocca al superamento») e **barra riempimento** colorata (verde/giallo≥90%/rosso>100%); `rowMeta` mostra «% pieno». Form **materiale**: campi **Peso unitario (kg)** + **Volume unitario (m³)** (stato `phys` separato perché il form base è solo string/bool).
+- Smoke: quantità max5 blocco ON → carico 3 ok, +4(→7) **409**, +2(→5 limite) ok, occupied=5; volume max10 metrica art.=2 m³, blocco OFF → carico 6(→12 m³) **passa** (solo avviso), occupied=12. Dati di test ripuliti. 90/90 test, typecheck pulito.
+- **UDC/posti-pallet**: rinviato (manca il modello "unità di carico"). Fase 3 = mappa occupazione (heatmap).
+
 ## 2026-06-30 (8) — Verticale del tenant selezionabile in Generale (chat 01.06)
 - **Backlog #2 FATTO.** Il `vertical` del tenant ora è **editabile** in Impostazioni › Generale (era sola lettura). PATCH `/settings/vertical` (settings:manage) con validazione enum. Nessuna migrazione (la colonna `tenant.vertical` esiste già da bootstrap).
 - Shared: `TENANT_VERTICALS` (software/fiber/pools + label) + `updateVerticalSchema`. Riga "Verticale" in GeneralSettings diventa `<select>` per chi gestisce (con fallback option se il valore corrente è fuori lista).

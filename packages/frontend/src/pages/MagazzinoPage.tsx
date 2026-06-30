@@ -13,6 +13,7 @@ import type {
   StockBalanceDto, StockMovementDto, StockDocumentDto, StockLocationDto, MaterialDto, EngagementDto, PermissionKey,
   StockLotDto, PurchaseOrderDto, PickListDto,
 } from '@sisuite/shared';
+import { CAPACITY_KINDS } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../ui/Modal';
@@ -396,11 +397,27 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
     createDefaults: { kind: def },
     nodeActions: [{ key: 'gen', label: 'Genera ubicazioni qui', icon: Layers, onClick: (n) => onGenerateHere(n.id) }],
     nodeAppearance: (n) => kindMeta[String(n.kind ?? def)] ?? {},
-    rowMeta: (n) => [kindLabel(String(n.kind ?? def)), n.code ? `cod. ${n.code}` : ''].filter(Boolean).join(' · ') || null,
+    rowMeta: (n) => {
+      const fi = fillInfo(n);
+      return [kindLabel(String(n.kind ?? def)), n.code ? `cod. ${n.code}` : '', fi ? fi.text : ''].filter(Boolean).join(' · ') || null;
+    },
     extraCard: {
-      init: (node) => ({ kind: (node?.kind as string) ?? def, code: (node?.code as string) ?? '', note: (node?.note as string) ?? '' }),
-      toBody: (vals) => ({ kind: vals.kind ?? def, code: (vals.code as string)?.trim() || null, note: (vals.note as string)?.trim() || null }),
-      render: (vals, set) => (
+      init: (node) => ({ kind: (node?.kind as string) ?? def, code: (node?.code as string) ?? '', note: (node?.note as string) ?? '',
+        capacityKind: (node?.capacityKind as string) ?? '', capacityMax: (node?.capacityMax as number) ?? null,
+        capacityEnforce: !!node?.capacityEnforce, occupied: node?.occupied ?? null }),
+      toBody: (vals) => ({ kind: vals.kind ?? def, code: (vals.code as string)?.trim() || null, note: (vals.note as string)?.trim() || null,
+        capacityKind: (vals.capacityKind as string) || null,
+        capacityMax: vals.capacityKind ? ((vals.capacityMax as number) ?? null) : null,
+        capacityEnforce: !!vals.capacityEnforce }),
+      render: (vals, set) => {
+        const ck = String(vals.capacityKind ?? '');
+        const unit = CAPACITY_KINDS.find((k) => k.code === ck)?.unit ?? '';
+        const max = vals.capacityMax as number | null;
+        const occ = vals.occupied as number | null;
+        const pct = ck && max && occ != null ? Math.round((occ / max) * 100) : null;
+        const over = pct != null && pct > 100;
+        const barColor = over ? 'var(--danger, #c0392b)' : pct != null && pct >= 90 ? 'var(--warning, #e08a00)' : 'var(--brand, #1f7a4d)';
+        return (
         <>
           <div className="tnc-field" style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 7px' }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2 }}>Tipo</label>
@@ -414,10 +431,47 @@ function ubicazioniConfig(parentId: string, kinds: { value: string; label: strin
             <input value={String(vals.code ?? '')} onChange={(e) => set({ code: e.target.value })} placeholder="es. A-02"
               style={{ width: '100%', border: 0, outline: 'none', background: 'none', font: 'inherit', fontSize: 14, color: 'var(--ink)' }} />
           </div>
+          {/* WMS Fase 2 — capacità del bin */}
+          <div className="tnc-field" style={{ gridColumn: '1 / -1', border: '1.5px solid var(--line)', borderRadius: 10, padding: '9px 11px 8px' }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 4 }}>Capacità</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select value={ck} onChange={(e) => set({ capacityKind: e.target.value })}
+                style={{ flex: '1 1 150px', border: '1px solid var(--line)', borderRadius: 8, height: 34, font: 'inherit', fontSize: 13.5, color: 'var(--ink)', background: 'var(--card)', padding: '0 8px' }}>
+                <option value="">Nessun limite</option>
+                {CAPACITY_KINDS.map((k) => <option key={k.code} value={k.code}>{k.label}</option>)}
+              </select>
+              {ck && <input type="number" inputMode="decimal" value={max ?? ''} placeholder={`max ${unit}`}
+                onChange={(e) => set({ capacityMax: e.target.value === '' ? null : Number(e.target.value) })}
+                style={{ flex: '0 1 120px', border: '1px solid var(--line)', borderRadius: 8, height: 34, font: 'inherit', fontSize: 13.5, color: 'var(--ink)', background: 'var(--card)', padding: '0 8px', textAlign: 'right' }} />}
+              {ck && <label style={{ display: 'inline-flex', gap: 5, alignItems: 'center', fontSize: 12.5, color: 'var(--ink-soft)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!vals.capacityEnforce} onChange={(e) => set({ capacityEnforce: e.target.checked })} /> Blocca al superamento
+              </label>}
+            </div>
+            {pct != null && (
+              <div style={{ marginTop: 7 }}>
+                <div style={{ height: 8, borderRadius: 5, background: 'var(--neutral-wash, #eee)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: barColor, transition: 'width .2s' }} />
+                </div>
+                <div style={{ marginTop: 3, fontSize: 11.5, color: over ? 'var(--danger, #c0392b)' : 'var(--ink-faint)' }}>
+                  {occ!.toLocaleString('it-IT')} / {max!.toLocaleString('it-IT')} {unit} · {pct}% pieno{over ? ' — oltre la capacità!' : ''}
+                </div>
+              </div>
+            )}
+          </div>
         </>
-      ),
+        );
+      },
     },
   };
+}
+
+/** % di riempimento di un'ubicazione per il rowMeta dell'albero (WMS Fase 2). */
+function fillInfo(n: Record<string, unknown>): { pct: number; text: string } | null {
+  const kind = n.capacityKind as string | null; const max = n.capacityMax as number | null; const occ = n.occupied as number | null;
+  if (!kind || !max || occ == null) return null;
+  const pct = Math.round((occ / max) * 100);
+  const unit = CAPACITY_KINDS.find((k) => k.code === kind)?.unit ?? '';
+  return { pct, text: `${pct}% pieno${pct > 100 ? ' ⚠' : ''} (${occ.toLocaleString('it-IT')}/${max.toLocaleString('it-IT')} ${unit})` };
 }
 function UbicazioniTab({ parentId, canManage }: { parentId: string; canManage: boolean }) {
   const { options, label, meta } = useLocationKinds(['sub_location', 'van']);   // dentro un magazzino: ubicazioni o furgoni, non altri magazzini
