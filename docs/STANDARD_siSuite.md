@@ -1,9 +1,13 @@
 # STANDARD siSuite — Regole tassative (enforcement cross-sessione)
 
+> **⛔⛔ QUESTI DOCUMENTI SONO LEGGE (REGOLA #0).** Ogni sessione siSuite DEVE: (1) **leggerli** prima di implementare — questo file + `docs/standards/` (standard tematici) + `sivaf-standards/` (temi cross-sistema già promossi); (2) **rispettarli** ovunque, correggendo le implementazioni che li violano; (3) **aggiornarli nello stesso lavoro** quando un comportamento cambia, si aggiunge un pattern o si decide una nuova regola (un documento obsoleto è un bug). Nuovo pattern trasversale → nuovo standard in `docs/standards/` (+ indice README). Promozione a `sivaf-standards/` solo su richiesta di Sivaf.
+>
 > **Scopo:** raccolta UNICA di tutte le regole di prodotto/UI/DB che OGNI sessione deve rispettare, su OGNI entità presente e futura. Se una regola qui contrasta con un'implementazione esistente, l'implementazione va corretta. Le maschere **specializzate** con mockup HTML dedicato (rapportino, filtro QBE, report designer, pianificazione) replicano il mockup 1:1 e fanno eccezione SOLO dove esplicitato.
 >
-> **Versione:** v1.0 · **Data:** 28/06/2026 · **Fonti:** memorie `feedback_*` + Carta integrità + sessioni audit 01.06.
-> Le regole sono numerate per poterle citare nelle review (es. «viola S-L3»).
+> **Standard tematici dettagliati:** `docs/standards/` (selezione riferimenti picker/lookup · hub AI · testata fissa). **Soft-delete** ed **entità ad albero** sono in `sivaf-standards/`.
+>
+> **Versione:** v1.1 · **Data:** 30/06/2026 · **Fonti:** memorie `feedback_*` + Carta integrità + standard tematici + sessioni 01.06.
+> Le regole sono numerate per poterle citare nelle review (es. «viola L-3»).
 
 ---
 
