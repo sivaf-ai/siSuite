@@ -680,6 +680,8 @@ export interface StockLocationDto {
   code: string | null; note: string | null; managerUserId: string | null;
   holdsStock: boolean; isDefault: boolean; active: boolean;
   archivedAt: string | null; archivedByName: string | null;
+  /** catena leggibile "Magazzino › Scaffale › Bin" (dove si preleva/versa). */
+  pathLabel: string;
   /** WMS Fase 2 — capacità del bin. `occupied` è calcolato (presente solo nelle liste/scheda). */
   capacityKind: CapacityKind | null; capacityMax: number | null; capacityEnforce: boolean;
   occupied?: number | null;
@@ -711,8 +713,12 @@ export interface StockMovementDto {
   note: string | null; createdAt: string;
 }
 export interface StockBalanceDto {
-  materialId: string; materialName: string | null; locationId: string; locationName: string | null;
+  materialId: string; materialName: string | null; sku?: string | null; locationId: string; locationName: string | null;
+  /** catena leggibile dell'ubicazione (Magazzino › Scaffale › Bin). */
+  locationPath?: string | null;
   qtyOnHand: number; avgCost: number | null; valueOnHand: number; unit: string | null;
+  /** consultazione: giacenza TOTALE dell'articolo (tutte le ubicazioni), punto di riordino, sotto-scorta. */
+  materialTotal?: number; reorderPoint?: number | null; lowStock?: boolean;
 }
 
 export const stockDocumentLineSchema = z.object({

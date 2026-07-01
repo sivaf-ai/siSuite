@@ -33,8 +33,17 @@
 ## 🤖 Hub AI
 - [ ] Nuove funzioni oltre "Filtro intelligente" e "Trova doppioni" (es. estrazione campi da testo/voce sui campi configurabili).
 
+## 🏬 WMS professionale (documenti/giacenze) — proposta `analisi/2026-07-01_PROPOSTA_WMS_documenti_giacenze_professionali.md`
+- [x] Codice ubicazione **univoco per padre** + **auto-codice** + **catena** (`pathLabel`) — FATTO (migr 066).
+- [x] Movimenti: selezione ubicazione + **prelievo intelligente** (solo dove l'articolo c'è) — FATTO.
+- [x] Consultazione giacenze **per bin** (subtreeOf) + riordino nel tab Articoli&Giacenze — FATTO.
+- [ ] **Fase A** — ubicazioni a livello di **riga** nei documenti (origine/destinazione per riga, default dal master); conferma usa la ubicazione di riga. Colonne DB pronte (migr 066).
+- [ ] **Fase B** — putaway/pick **guidati**: dest picker filtra per tipo bin + capacità disponibile; sorgente ordinata FEFO/FIFO/percorso.
+- [ ] **Fase C** — maschera **inquiry** globale (per articolo: dov'è; per ubicazione: cosa contiene; report riordino) `/stock/inquiry`.
+- [ ] **Fase D** — creazione documenti **assistita/AI** (NL → documento con articoli+ubicazioni).
+
 ## 🧰 Debiti minori / rifiniture
-- [ ] Picker "Articolo" nei movimenti di magazzino (oggi `<select>`) → MaterialPicker (D-0).
+- [x] Picker "Articolo" nei movimenti di magazzino → MaterialPicker (D-0) — FATTO.
 - [ ] Schede admin config (Numerazioni/Campi/Modelli) eventuale allineamento estetico fine.
 - [ ] Indirizzo Sito: editing avanzato (oggi country-driven via field_definition; ok).
 

@@ -271,26 +271,48 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
   </>;
 }
 
-/* ── Tab: Articoli & giacenze (sola lettura, derivata) ─────────────── */
+/* ── Tab: Articoli & giacenze — consultazione per UBICAZIONE (bin) ─────
+ *  subtreeOf: mostra la giacenza in TUTTE le ubicazioni del magazzino (non solo
+ *  la radice), con la catena dell'ubicazione, lo stato di riordino (sotto scorta
+ *  minima) e un filtro. Vista per articolo→ubicazioni, stile WMS. */
 function GiacenzeTab({ locationId }: { locationId: string }) {
-  const bal = useApi<{ items: StockBalanceDto[] }>(`/stock/balance?locationId=${locationId}`);
-  const rows = bal.data?.items ?? [];
+  const bal = useApi<{ items: StockBalanceDto[] }>(`/stock/balance?subtreeOf=${locationId}`);
+  const [q, setQ] = useState('');
+  const [lowOnly, setLowOnly] = useState(false);
+  const all = bal.data?.items ?? [];
   if (bal.loading) return <Loading />;
+  const ql = q.trim().toLowerCase();
+  const rows = all.filter((r) =>
+    (!ql || (r.materialName ?? '').toLowerCase().includes(ql) || (r.sku ?? '').toLowerCase().includes(ql) || (r.locationPath ?? '').toLowerCase().includes(ql))
+    && (!lowOnly || r.lowStock));
+  const totVal = rows.reduce((s, r) => s + r.valueOnHand, 0);
   return (
-    <table className="subt">
-      <thead><tr><th>Articolo</th><th className="num">Giacenza</th><th className="num">Costo medio</th><th className="num">Valore</th></tr></thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={`${r.materialId}_${r.locationId}`}>
-            <td className="cellname">{r.materialName ?? '—'}</td>
-            <td className="num mono" style={r.qtyOnHand <= 0 ? { color: 'var(--danger)', fontWeight: 700 } : undefined}>{num(r.qtyOnHand)} {r.unit ?? ''}</td>
-            <td className="num mono">{eur(r.avgCost)}</td>
-            <td className="num mono">{eur(r.valueOnHand)}</td>
-          </tr>
-        ))}
-        {rows.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessuna giacenza in questo magazzino.</div></td></tr>}
-      </tbody>
-    </table>
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+        <input className="txt" style={{ maxWidth: 280 }} placeholder="Cerca articolo / SKU / ubicazione…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label style={{ display: 'inline-flex', gap: 5, alignItems: 'center', fontSize: 12.5, color: 'var(--ink-soft)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Solo sotto scorta minima
+        </label>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ink-faint)' }}>{rows.length} righe · valore {eur(totVal)}</span>
+      </div>
+      <table className="subt">
+        <thead><tr><th>Articolo</th><th>Ubicazione</th><th className="num">Giacenza</th><th className="num">Tot. articolo</th><th className="num">Costo medio</th><th className="num">Valore</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={`${r.materialId}_${r.locationId}`}>
+              <td className="cellname">{r.materialName ?? '—'}{r.sku ? <span className="muted mono" style={{ fontSize: 11 }}> · {r.sku}</span> : null}
+                {r.lowStock && <span className="et-badge" style={{ marginLeft: 6, background: 'var(--danger)', color: '#fff' }} title={`Sotto scorta minima (${num(r.reorderPoint ?? null)})`}>riordino</span>}</td>
+              <td className="cellsub" title={r.locationPath ?? ''}>{r.locationPath ?? r.locationName ?? '—'}</td>
+              <td className="num mono" style={r.qtyOnHand <= 0 ? { color: 'var(--danger)', fontWeight: 700 } : undefined}>{num(r.qtyOnHand)} {r.unit ?? ''}</td>
+              <td className="num mono" style={r.lowStock ? { color: 'var(--danger)', fontWeight: 700 } : { color: 'var(--ink-faint)' }}>{num(r.materialTotal ?? null)}</td>
+              <td className="num mono">{eur(r.avgCost)}</td>
+              <td className="num mono">{eur(r.valueOnHand)}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessuna giacenza {ql || lowOnly ? 'con questi filtri' : 'in questo magazzino'}.</div></td></tr>}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -312,6 +334,7 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
   const [pickEng, setPickEng] = useState(false);
   const [pickMat, setPickMat] = useState(false);
   const [pickLoc, setPickLoc] = useState(false);
+  const [pickSrc, setPickSrc] = useState(false);
   const engName = (() => { const e = engs.data?.items.find((x) => x.id === d.engagementId); return e ? `${e.code ? e.code + ' · ' : ''}${e.title}` : (d.engagementId ? '…' : ''); })();
   const matById = useMemo(() => new Map((mats.data?.items ?? []).map((m) => [m.id, m])), [mats.data]);
   const rows = mv.data?.items ?? [];
@@ -361,18 +384,21 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
         </tbody>
       </table>
 
-      <Modal open={open} title="Nuovo movimento" size="md" onClose={() => setOpen(false)} footer={
+      <Modal open={open} title="Nuovo movimento" size="lg" onClose={() => setOpen(false)} footer={
         <><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Registra</button></>
       }>
         <div className="dsx">
           <div className="bgrid">
-            <div className="bf c2"><span className="bl">Tipo <span className="req">*</span></span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
-            <div className="bf c2"><span className="bl">Ubicazione <span className="req">*</span></span>
-              <PickerField value={d.locationName || null} placeholder="Scegli l'ubicazione…"
-                onOpen={() => setPickLoc(true)} onClear={() => setD({ ...d, locationId: '', locationName: '' })} /></div>
+            <div className="bf c2"><span className="bl">Tipo <span className="req">*</span></span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'], locationId: '', locationName: '' })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
             <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span>
               <PickerField value={d.materialName || null} placeholder="Scegli l'articolo…"
                 onOpen={() => setPickMat(true)} onClear={() => setD({ ...d, materialId: '', materialName: '', materialUnit: '' })} /></div>
+            <div className="bf c4"><span className="bl">{d.typeCode === 'in' ? 'Ubicazione — dove versare' : 'Ubicazione — da dove prelevare'} <span className="req">*</span></span>
+              <PickerField value={d.locationName || null} placeholder={d.typeCode === 'in' ? 'Scegli dove versare…' : 'Scegli da dove prelevare…'}
+                onOpen={() => {
+                  if (d.typeCode !== 'in') { if (!d.materialId) { toast('Scegli prima l\'articolo: ti mostro solo le ubicazioni dove è disponibile', 'error'); return; } setPickSrc(true); }
+                  else setPickLoc(true);
+                }} onClear={() => setD({ ...d, locationId: '', locationName: '' })} /></div>
             <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialUnit && <span style={{ color: 'var(--ink-faint)' }}> ({d.materialUnit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
             <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
             <div className="bf c2"><span className="bl">Commessa (opz.)</span>
@@ -391,6 +417,8 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
         onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit })); }} />
       <UbicazionePickerModal warehouseId={locationId} warehouseName={warehouseName} open={pickLoc} onClose={() => setPickLoc(false)}
         onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickLoc(false); }} />
+      <SourceLocationPicker warehouseId={locationId} materialId={d.materialId} open={pickSrc} onClose={() => setPickSrc(false)}
+        onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickSrc(false); }} />
     </>
   );
 }
@@ -500,7 +528,7 @@ function UbicazionePickerModal({ warehouseId, warehouseName, open, onClose, onPi
 }) {
   const { options, label, meta } = useLocationKinds(['sub_location', 'van']);
   if (!open) return null;
-  const cfg: EntityTreeConfig = { ...ubicazioniConfig(warehouseId, options, label, meta, () => {}), mode: 'pick', onPick: (n) => onPick({ id: n.id, name: n.name }) };
+  const cfg: EntityTreeConfig = { ...ubicazioniConfig(warehouseId, options, label, meta, () => {}), mode: 'pick', onPick: (n) => onPick({ id: n.id, name: (n as unknown as { pathLabel?: string }).pathLabel || n.name }) };
   return (
     <Modal open size="lg" title="Scegli l'ubicazione" onClose={onClose}>
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
@@ -508,6 +536,31 @@ function UbicazionePickerModal({ warehouseId, warehouseName, open, onClose, onPi
         <Warehouse size={15} /> Usa il magazzino stesso ({warehouseName})
       </button>
       <EntityTree config={cfg} />
+    </Modal>
+  );
+}
+
+/* ── Picker "Preleva da" INTELLIGENTE: solo le ubicazioni dove l'articolo HA giacenza ──
+ *  Come i WMS leader: per lo scarico/prelievo il sistema mostra solo dove l'articolo è
+ *  presente, con la quantità disponibile. Riusa /stock/balance?subtreeOf=&materialId=. */
+function SourceLocationPicker({ warehouseId, materialId, open, onClose, onPick }: {
+  warehouseId: string; materialId: string; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+}) {
+  const { data, loading } = useApi<{ items: StockBalanceDto[] }>(open && materialId ? `/stock/balance?subtreeOf=${warehouseId}&materialId=${materialId}` : null);
+  if (!open) return null;
+  const rows = (data?.items ?? []).filter((r) => r.qtyOnHand > 0);
+  return (
+    <Modal open size="md" title="Preleva da… (ubicazioni con giacenza)" onClose={onClose}>
+      {loading ? <Loading />
+        : rows.length === 0
+          ? <div className="dsx-empty" style={{ padding: 20 }}>Questo articolo non ha giacenza in nessuna ubicazione di questo magazzino.</div>
+          : <table className="subt"><thead><tr><th>Ubicazione</th><th className="num">Disponibile</th></tr></thead>
+              <tbody>{rows.map((r) => (
+                <tr key={r.locationId} style={{ cursor: 'pointer' }}
+                  onClick={() => { onPick({ id: r.locationId, name: r.locationPath ?? r.locationName ?? '' }); onClose(); }}>
+                  <td className="cellname">{r.locationPath ?? r.locationName}</td>
+                  <td className="num mono">{r.qtyOnHand.toLocaleString('it-IT')} {r.unit}</td>
+                </tr>))}</tbody></table>}
     </Modal>
   );
 }
@@ -527,7 +580,7 @@ export function LocationTreePickerDialog({ open, onClose, onPick }: {
     defaultIcon: 'warehouse', showAppearance: false, countNoun: 'articoli a giacenza',
     nodeAppearance: (n) => meta[String(n.kind ?? 'sub_location')] ?? {},
     rowMeta: (n) => [label(String(n.kind ?? 'sub_location')), n.code ? `cod. ${String(n.code)}` : ''].filter(Boolean).join(' · ') || null,
-    mode: 'pick', onPick: (n) => onPick({ id: n.id, name: n.name }),
+    mode: 'pick', onPick: (n) => onPick({ id: n.id, name: (n as unknown as { pathLabel?: string }).pathLabel || n.name }),
   };
   return <Modal open size="lg" title="Scegli magazzino / ubicazione" onClose={onClose}><EntityTree config={cfg} /></Modal>;
 }

@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (3) — WMS professionale: codice per-padre, catena ubicazione, prelievo guidato, consultazione giacenze (chat 01.06)
+- **Migr 066**: (1) unicità `code` **per padre** `(tenant, COALESCE(parent_id,tenant), code)` — 01-01-A si ripete in ogni scaffale (prima era globale → falso "già esistente"); (2) funzione **`stock_location_path(id)`** = catena «Magazzino › Scaffale › Bin»; (3) `stock_document_line.source/dest_location_id` (livello-riga, pronto per Fase A). Prossima libera **067**.
+- **Backend**: `pathLabel` sul DTO ubicazione (via funzione) → i picker mostrano la **catena completa**. **Auto-codice** su create quando vuoto (magazzini `MAG-###`, ubicazioni `UB-####`). `GET /stock/balance` esteso: **`subtreeOf`** (giacenze di tutto il magazzino, per bin) + `locationPath` + `materialTotal` + `reorderPoint` + `lowStock`.
+- **Frontend**: maschera «Nuovo movimento» **più larga** (size lg, campi non troncati); **prelievo intelligente** (scarico/rettifica → `SourceLocationPicker`: solo le ubicazioni **dove l'articolo ha giacenza**, con quantità); versamento → albero ubicazioni. Picker ritornano la catena. Tab **Articoli & giacenze** rifatto: giacenze **per bin** (subtreeOf) con catena, giacenza+totale articolo, **badge riordino** (sotto scorta minima), ricerca e filtro "solo sotto scorta".
+- **Proposta**: `docs/analisi/2026-07-01_PROPOSTA_WMS_documenti_giacenze_professionali.md` — analisi leader + fasi A (ubicazioni a livello di riga nei documenti), B (putaway/pick guidati FEFO/capacità), C (inquiry globale), D (creazione documenti AI).
+- Smoke: auto-codice UB-0001; path "Napoli › Scaffale › Bin"; 01-01-A sotto due scaffali → 201×2, stesso padre → 409; balance subtreeOf mostra il bin col path+totale+riordino. 90/90 test, typecheck pulito.
+
 ## 2026-07-01 (2) — Correzioni post-test: selezione UBICAZIONE nei movimenti/documenti + rifiniture albero (chat 01.06)
 - **BLOCCO CRITICO risolto**: i movimenti (e i documenti) non permettevano di scegliere l'**ubicazione** (solo il magazzino) → impossibile testare la capacità. Ora:
   - **Modale «Nuovo movimento»** rifatto: wrappato in `.dsx` (estetica standard, label nel bordo), **Ubicazione** con `UbicazionePickerModal` (albero VERO delle ubicazioni in pick mode, scoped al magazzino corrente + «usa il magazzino stesso»), **Articolo** con `MaterialPickerDialog` (lente, era `<select>`). Il movimento usa il `locationId` scelto.

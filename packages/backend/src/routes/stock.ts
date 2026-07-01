@@ -33,7 +33,7 @@ const NUM: Record<'receipt' | 'transfer' | 'adjustment', { key: string; fmt: str
 };
 
 const LOC_COLS = `id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, active, sequence,
-  capacity_kind, capacity_max, capacity_enforce`;
+  capacity_kind, capacity_max, capacity_enforce, public.stock_location_path(id) AS path_label`;
 // WMS Fase 2: occupato del bin secondo il criterio (qty × metrica unitaria articolo). NULL se nessun limite.
 const OCCUPIED_EXPR = `CASE
     WHEN sl.capacity_kind IS NULL OR sl.capacity_max IS NULL THEN NULL
@@ -44,7 +44,7 @@ const OCCUPIED_EXPR = `CASE
 // stessa lista con prefisso sl. + join app_user per il nome di chi ha archiviato (vista archiviati).
 const LOC_SELECT = `sl.id, sl.parent_id, sl.name, sl.kind, sl.resource_id, sl.code, sl.note, sl.manager_user_id,
   sl.holds_stock, sl.is_default, sl.active, sl.sequence, sl.capacity_kind, sl.capacity_max, sl.capacity_enforce,
-  ${OCCUPIED_EXPR} AS occupied, sl.archived_at, au.full_name AS archived_by_name
+  ${OCCUPIED_EXPR} AS occupied, public.stock_location_path(sl.id) AS path_label, sl.archived_at, au.full_name AS archived_by_name
   FROM stock_location sl LEFT JOIN app_user au ON au.id = sl.archived_by`;
 function locDto(r: Record<string, unknown>): StockLocationDto {
   return {
@@ -58,6 +58,7 @@ function locDto(r: Record<string, unknown>): StockLocationDto {
     capacityKind: (r.capacity_kind as StockLocationDto['capacityKind']) ?? null,
     capacityMax: r.capacity_max == null ? null : Number(r.capacity_max),
     capacityEnforce: (r.capacity_enforce as boolean) ?? false,
+    pathLabel: (r.path_label as string) ?? (r.name as string),
     ...(r.occupied !== undefined ? { occupied: r.occupied == null ? null : Number(r.occupied) } : {}),
     // contratto EntityTree (passthrough)
     sequence: Number(r.sequence ?? 0), isSystem: false,
@@ -171,12 +172,24 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
             [request.ctx.tenantId, input.parentId ?? null]);
           seq = Number(m.rows[0].seq);
         }
+        // AUTO-CODICE: se l'utente non lo mette, lo generiamo (mai vuoto). I magazzini
+        // (radice) → serie MAG-; le ubicazioni interne → serie UB-. Univoco per padre.
+        let code = input.code?.trim() || null;
+        if (!code) {
+          const isRoot = !input.parentId;
+          const key = isRoot ? 'stock_location' : 'stock_location_bin';
+          const fmt = isRoot ? 'MAG-{SEQ:3}' : 'UB-{SEQ:4}';
+          await db.query(
+            `INSERT INTO number_series (tenant_id, key, format, reset_period) VALUES ($1,$2,$3,'never')
+             ON CONFLICT (tenant_id, key) DO NOTHING`, [request.ctx.tenantId, key, fmt]);
+          code = await nextNumber(db, key);
+        }
         const r = await db.query(
           `INSERT INTO stock_location (tenant_id, parent_id, name, kind, resource_id, code, note, manager_user_id, holds_stock, is_default, sequence, capacity_kind, capacity_max, capacity_enforce, created_by, updated_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,true),COALESCE($10,false),$11,$12,$13,COALESCE($14,false),$15,$15)
            RETURNING ${LOC_COLS}`,
           [request.ctx.tenantId, input.parentId ?? null, input.name, input.kind, input.resourceId ?? null,
-           input.code ?? null, input.note ?? null, input.managerUserId ?? null,
+           code, input.note ?? null, input.managerUserId ?? null,
            input.holdsStock ?? null, input.isDefault ?? null, seq,
            input.capacityKind ?? null, input.capacityMax ?? null, input.capacityEnforce ?? null, request.ctx.userId]);
         return locDto(r.rows[0]);
@@ -430,24 +443,38 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
     }));
 
   // ── Giacenze ────────────────────────────────────────────────────────
-  app.get<{ Querystring: { locationId?: string; materialId?: string } }>('/stock/balance',
+  app.get<{ Querystring: { locationId?: string; materialId?: string; subtreeOf?: string; includeZero?: string } }>('/stock/balance',
     { preHandler: [app.authenticate, requirePermission('stock:read')] },
     async (request) => {
       const rows = await withRls(request.ctx, (db) => {
         const params: unknown[] = []; const conds: string[] = [];
         if (request.query.locationId) { params.push(request.query.locationId); conds.push(`b.location_id = $${params.length}`); }
+        // subtreeOf: giacenze in TUTTO il sotto-albero (magazzino + sue ubicazioni/bin) → consultazione per bin
+        if (request.query.subtreeOf) {
+          params.push(request.query.subtreeOf);
+          conds.push(`b.location_id IN (WITH RECURSIVE d AS (
+            SELECT id FROM stock_location WHERE id = $${params.length}
+            UNION ALL SELECT c.id FROM stock_location c JOIN d ON c.parent_id = d.id
+          ) SELECT id FROM d)`);
+        }
         if (request.query.materialId) { params.push(request.query.materialId); conds.push(`b.material_id = $${params.length}`); }
+        if (request.query.includeZero !== '1') conds.push(`b.qty_on_hand <> 0`);
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(
-          `SELECT b.material_id, m.name AS material_name, mu.code AS unit, b.location_id, l.name AS location_name,
-                  b.qty_on_hand, b.avg_cost, b.value_on_hand
+          `SELECT b.material_id, m.name AS material_name, m.sku, m.reorder_point, mu.code AS unit,
+                  b.location_id, l.name AS location_name, public.stock_location_path(l.id) AS location_path,
+                  b.qty_on_hand, b.avg_cost, b.value_on_hand,
+                  (SELECT COALESCE(SUM(b2.qty_on_hand),0) FROM stock_balance b2 WHERE b2.material_id = b.material_id) AS material_total
            FROM stock_balance b JOIN material m ON m.id = b.material_id JOIN stock_location l ON l.id = b.location_id
            LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
-           ${where} ORDER BY m.name, l.name LIMIT 1000`, params).then((r) => r.rows);
+           ${where} ORDER BY m.name, location_path LIMIT 2000`, params).then((r) => r.rows);
       });
       const items: StockBalanceDto[] = rows.map((r) => ({
-        materialId: r.material_id, materialName: r.material_name ?? null, locationId: r.location_id,
-        locationName: r.location_name ?? null, qtyOnHand: Number(r.qty_on_hand),
+        materialId: r.material_id, materialName: r.material_name ?? null, sku: r.sku ?? null, locationId: r.location_id,
+        locationName: r.location_name ?? null, locationPath: (r.location_path as string) ?? (r.location_name ?? null),
+        qtyOnHand: Number(r.qty_on_hand), materialTotal: Number(r.material_total ?? 0),
+        reorderPoint: r.reorder_point === null ? null : Number(r.reorder_point),
+        lowStock: r.reorder_point != null && Number(r.material_total ?? 0) < Number(r.reorder_point),
         avgCost: r.avg_cost === null ? null : Number(r.avg_cost), valueOnHand: Number(r.value_on_hand), unit: r.unit ?? null,
       }));
       return { items };
