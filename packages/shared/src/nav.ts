@@ -101,6 +101,7 @@ export const NAV: NavSection[] = [
     groups: [
       { caption: 'Giacenze', items: [
         { id: 'stock', label: 'Giacenze & disponibilità', route: '/stock', icon: 'layers', permission: 'stock:read' },
+        { id: 'stock-inquiry', label: 'Consultazione giacenze', route: '/stock/inquiry', icon: 'search', permission: 'stock:read' },
         { id: 'stock-counts', label: 'Conteggi inventariali', route: '/stock-counts', icon: 'clipboard-check', permission: 'stock:read' },
       ] },
       { caption: 'Approvvigionamento', items: [

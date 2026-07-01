@@ -50,6 +50,7 @@ import { OrdinativoDetailPage } from '../pages/OrdinativoDetailPage';
 import { TimeEntriesPage } from '../pages/TimeEntriesPage';
 import { TimeEntryDetailPage } from '../pages/TimeEntryDetailPage';
 import { MagazzinoPage, MagazzinoDetailPage } from '../pages/MagazzinoPage';
+import { StockInquiryPage } from '../pages/StockInquiryPage';
 import { PurchaseOrdersPage, PickListsPage, DdtPage, StockCountsPage, SkillsPage, TaxRatesPage } from '../pages/SpecListsPages';
 import { UnitsPage } from '../pages/UnitsPage';
 import { SitiPage } from '../pages/SitiPage';
@@ -110,6 +111,7 @@ const ROUTES: RouteDef[] = [
   { path: '/work-orders', render: () => <OrdinativiPage />, perm: 'work_order:read' },
   { path: '/work-orders/:id', render: () => <OrdinativoDetailPage />, perm: 'work_order:read' },
   { path: '/stock', render: () => <MagazzinoPage />, perm: 'stock:read' },
+  { path: '/stock/inquiry', render: () => <StockInquiryPage />, perm: 'stock:read' },
   { path: '/stock/documents', render: () => <DdtPage />, perm: 'stock:read' },
   { path: '/stock/documents/new', render: () => <DdtDetailPage />, perm: 'stock:read' },
   { path: '/stock/documents/:id', render: () => <DdtDetailPage />, perm: 'stock:read' },

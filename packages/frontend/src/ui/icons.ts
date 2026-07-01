@@ -32,7 +32,7 @@ const LUCIDE_BY_NAME: Record<string, LucideIcon> = {
   box: Box, 'user-round': UserRound, truck: Truck, 'radio-tower': RadioTower,
   'sliders-horizontal': SlidersHorizontal, 'user-cog': UserCog, 'key-round': KeyRound, star: Star, tags: Tags, wrench: Wrench,
   'shopping-cart': ShoppingCart, 'list-checks': ListChecks, 'graduation-cap': GraduationCap, percent: Percent,
-  ruler: Ruler, 'folder-tree': FolderTree, 'map-pin': MapPin,
+  ruler: Ruler, 'folder-tree': FolderTree, 'map-pin': MapPin, search: Search,
 };
 export function iconByName(name: string | undefined): LucideIcon {
   return (name && LUCIDE_BY_NAME[name]) || Circle;

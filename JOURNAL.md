@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (5) — WMS Fase C: maschera di consultazione giacenze (inquiry) (chat 01.06)
+- Nuova pagina **`/stock/inquiry`** («Consultazione giacenze», voce nav sotto Magazzino›Giacenze, icona search) con 3 viste:
+  - **Per articolo**: giacenze raggruppate per articolo (totale + valore + badge riordino), espandibili per **ubicazione** (catena + qty + valore); ricerca articolo/SKU/ubicazione.
+  - **Per ubicazione**: picker magazzino/ubicazione → cosa contiene tutto il sotto-albero (catena + articolo + qty + costo + valore).
+  - **Riordino**: articoli sotto la scorta minima (giacenza/punto di riordino/**deficit**), clic → scheda articolo.
+- **Solo frontend** (riusa `/stock/balance` con/ senza filtri + `/materials`); nessuna migrazione/endpoint nuovo. Aggiunta icona `search` alla mappa nav. Typecheck FE/shared pulito, app up, endpoint verificati (balance globale 14 righe con catena). Chiude la proposta Fase C; restano B (putaway/pick guidati) e D (AI).
+
 ## 2026-07-01 (4) — WMS Fase A: ubicazioni a livello di RIGA nei documenti (chat 01.06)
 - **Modello "documento professionale"** (come SAP EWM/Manhattan/Odoo): ogni riga di DDT/Trasferimento/Carico/Rettifica ha **origine/destinazione propria**, con **default dalla testata** (null riga = eredita).
 - **Shared**: `stockDocumentLineSchema` + `sourceLocationId`/`destLocationId`; `StockDocumentLineDto` + id/catena (`sourceLocationPath`/`destLocationPath`).
