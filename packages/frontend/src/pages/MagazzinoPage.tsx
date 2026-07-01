@@ -543,11 +543,12 @@ function UbicazionePickerModal({ warehouseId, warehouseName, open, onClose, onPi
 }
 
 /* ── Prelievo GUIDATO (Fase B): solo ubicazioni dove l'articolo HA giacenza, ordinate
- *  FIFO (prima entrata) con la prima "consigliata". Riusa /stock/balance. */
-function SourceLocationPicker({ warehouseId, materialId, open, onClose, onPick }: {
-  warehouseId: string; materialId: string; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+ *  FIFO (prima entrata) con la prima "consigliata". Riusa /stock/balance.
+ *  warehouseId opzionale: se assente cerca in TUTTI i magazzini (documenti). */
+export function SourceLocationPicker({ warehouseId, materialId, open, onClose, onPick }: {
+  warehouseId?: string; materialId: string; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
 }) {
-  const { data, loading } = useApi<{ items: StockBalanceDto[] }>(open && materialId ? `/stock/balance?subtreeOf=${warehouseId}&materialId=${materialId}` : null);
+  const { data, loading } = useApi<{ items: StockBalanceDto[] }>(open && materialId ? `/stock/balance?materialId=${materialId}${warehouseId ? `&subtreeOf=${warehouseId}` : ''}` : null);
   if (!open) return null;
   const rows = (data?.items ?? []).filter((r) => r.qtyOnHand > 0)
     .sort((a, b) => (a.firstInAt ?? '9999-12-31').localeCompare(b.firstInAt ?? '9999-12-31') || b.qtyOnHand - a.qtyOnHand);
@@ -571,33 +572,36 @@ function SourceLocationPicker({ warehouseId, materialId, open, onClose, onPick }
 
 /* ── Versamento GUIDATO / putaway (Fase B): elenca i bin con CAPACITÀ DISPONIBILE per la
  *  quantità da versare (criterio volume/peso/quantità), i più adatti in cima, con badge
- *  "consigliata". Include il magazzino stesso come opzione senza limite. */
-function PutawayLocationPicker({ warehouseId, warehouseName, material, quantity, open, onClose, onPick }: {
-  warehouseId: string; warehouseName: string; material: { weight: number | null; volume: number | null } | null;
-  quantity: number | null; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+ *  "consigliata". warehouseId opzionale (assente = tutti i magazzini, per i documenti);
+ *  materialId opzionale → carica peso/volume dell'articolo per volume/peso. */
+export function PutawayLocationPicker({ warehouseId, warehouseName, material, materialId, quantity, open, onClose, onPick }: {
+  warehouseId?: string; warehouseName?: string; material?: { weight: number | null; volume: number | null } | null;
+  materialId?: string; quantity: number | null; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
 }) {
-  const { data, loading } = useApi<{ items: StockLocationDto[] }>(open ? `/stock/locations?subtreeOf=${warehouseId}` : null);
+  const { data, loading } = useApi<{ items: StockLocationDto[] }>(open ? `/stock/locations${warehouseId ? `?subtreeOf=${warehouseId}` : ''}` : null);
+  const matApi = useApi<MaterialDto>(open && materialId && !material ? `/materials/${materialId}` : null);
   if (!open) return null;
+  const mat = material ?? (matApi.data ? { weight: matApi.data.weight, volume: matApi.data.volume } : null);
   const items = data?.items ?? [];
   const hasChild = new Set(items.map((i) => i.parentId).filter(Boolean) as string[]);
   const qty = quantity ?? 0;
   type Cand = { id: string; path: string; hasLimit: boolean; unit: string; remaining: number; fits: boolean; noStock: boolean };
   const cands: Cand[] = [
-    // il magazzino stesso (radice): sempre disponibile, nessun limite
-    { id: warehouseId, path: warehouseName, hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false },
+    // il magazzino stesso (radice): opzione senza limite, solo quando è scoped a un magazzino
+    ...(warehouseId ? [{ id: warehouseId, path: warehouseName ?? 'Magazzino', hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false }] : []),
     ...items.filter((n) => !hasChild.has(n.id) && n.holdsStock !== false).map((n) => {
       if (!n.capacityKind || n.capacityMax == null) return { id: n.id, path: n.pathLabel, hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false };
       const unit = CAPACITY_KINDS.find((k) => k.code === n.capacityKind)?.unit ?? '';
-      const needed = n.capacityKind === 'quantity' ? qty : qty * (n.capacityKind === 'volume' ? (material?.volume ?? 0) : (material?.weight ?? 0));
+      const needed = n.capacityKind === 'quantity' ? qty : qty * (n.capacityKind === 'volume' ? (mat?.volume ?? 0) : (mat?.weight ?? 0));
       const remaining = n.capacityMax - (n.occupied ?? 0);
-      const noStock = n.capacityKind !== 'quantity' && !(n.capacityKind === 'volume' ? material?.volume : material?.weight);
+      const noStock = n.capacityKind !== 'quantity' && !(n.capacityKind === 'volume' ? mat?.volume : mat?.weight);
       return { id: n.id, path: n.pathLabel, hasLimit: true, unit, remaining, fits: remaining + 1e-9 >= needed, noStock };
     }),
   ].sort((a, b) => Number(b.fits) - Number(a.fits) || b.remaining - a.remaining);
   const firstFit = cands.findIndex((c) => c.fits);
   return (
     <Modal open size="md" title="Versa in — ubicazioni con spazio disponibile" onClose={onClose}>
-      {loading ? <Loading />
+      {loading || matApi.loading ? <Loading />
         : <table className="subt"><thead><tr><th>Ubicazione</th><th className="num">Spazio disponibile</th><th /></tr></thead>
             <tbody>{cands.map((c, i) => (
               <tr key={c.id} style={{ cursor: 'pointer', opacity: c.fits ? 1 : 0.55 }}

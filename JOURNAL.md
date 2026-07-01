@@ -2,6 +2,10 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (8) — WMS follow-up: prelievo/putaway guidati anche nelle RIGHE dei documenti (chat 01.06)
+- I picker guidati di Fase B (`SourceLocationPicker`, `PutawayLocationPicker`) ora sono **esportati e generalizzati**: `warehouseId` opzionale (assente = tutti i magazzini), `PutawayLocationPicker` accetta `materialId` e carica da solo peso/volume dell'articolo (`/materials/:id`).
+- **DdtDetailPage**: la colonna riga **«Preleva da»** apre il **prelievo guidato** (solo ubicazioni dove l'articolo ha giacenza, ordine FIFO, «consigliata»), **«Versa in»** apre il **putaway guidato** (bin con spazio disponibile per la quantità della riga, «entra/pieno», «consigliata»). La testata mantiene il picker ad albero (scelta magazzino). Solo FE, nessun endpoint nuovo. Typecheck pulito, app up.
+
 ## 2026-07-01 (7) — WMS Fase D: assistente documenti AI (NL → bozza) (chat 01.06)
 - **`POST /ai/stock-document`** (`routes/stockAssist.ts`, stock:manage): l'utente scrive in linguaggio naturale → l'AI (`config.ai.extractionModel` = opus-4-8, pattern di `listFilter`) estrae l'INTENTO in JSON → un **resolver DETERMINISTICO sotto RLS** aggancia articoli (name/SKU ILIKE), ubicazioni (name/code/**path** ILIKE, via `stock_location_path`), fornitore (per il carico) → **bozza proposta** (`StockDocAiProposal`: type + testata + righe con id/catena) + **warnings** per ciò che non ha trovato. «L'AI propone, il deterministico conferma» (G-4). 503 se `ANTHROPIC_API_KEY` assente.
 - **UI**: pulsante **Assistente AI** (stella) nella lista Documenti → `StockAssistModal` (textarea + esempi + Genera bozza → anteprima tipo/righe/warnings) → «Apri bozza» naviga a `/stock/documents/new` con la proposta in router state; **DdtDetailPage** si precompila (tipo, testata, righe con ubicazioni). L'utente rivede e conferma.

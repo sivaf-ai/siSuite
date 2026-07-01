@@ -12,7 +12,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
-import { LocationTreePickerDialog } from './MagazzinoPage';
+import { LocationTreePickerDialog, SourceLocationPicker, PutawayLocationPicker } from './MagazzinoPage';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
 import { UnitSelect } from '../ui/UnitSelect';
@@ -295,13 +295,16 @@ export function DdtDetailPage() {
         onPick={(l) => { set('destLocationId', l.id); setDestName(l.name); setErrs((e) => ({ ...e, dest: false })); setDestPick(false); }} />
       <CompanyPickerDialog open={companyPick} role="supplier" onClose={() => setCompanyPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); setCompanyName(c.displayName); } }} />
-      <LocationTreePickerDialog open={!!linePick} onClose={() => setLinePick(null)}
-        onPick={(l) => {
-          if (linePick) setRows((arr) => arr.map((x, j) => j === linePick.i
-            ? (linePick.field === 'source' ? { ...x, sourceLocationId: l.id, sourceLocationPath: l.name } : { ...x, destLocationId: l.id, destLocationPath: l.name })
-            : x));
-          setLinePick(null);
-        }} />
+      {/* prelievo guidato (FIFO, solo dove l'articolo c'è) per l'origine di riga */}
+      {linePick && linePick.field === 'source' && (
+        <SourceLocationPicker open materialId={rows[linePick.i]?.materialId ?? ''} onClose={() => setLinePick(null)}
+          onPick={(l) => { const i = linePick.i; setRows((arr) => arr.map((x, j) => j === i ? { ...x, sourceLocationId: l.id, sourceLocationPath: l.name } : x)); setLinePick(null); }} />
+      )}
+      {/* putaway guidato (capacità disponibile) per la destinazione di riga */}
+      {linePick && linePick.field === 'dest' && (
+        <PutawayLocationPicker open materialId={rows[linePick.i]?.materialId} quantity={rows[linePick.i]?.quantity ?? null} onClose={() => setLinePick(null)}
+          onPick={(l) => { const i = linePick.i; setRows((arr) => arr.map((x, j) => j === i ? { ...x, destLocationId: l.id, destLocationPath: l.name } : x)); setLinePick(null); }} />
+      )}
     </Page>
   );
 }
