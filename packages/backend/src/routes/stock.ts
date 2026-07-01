@@ -464,7 +464,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           `SELECT b.material_id, m.name AS material_name, m.sku, m.reorder_point, mu.code AS unit,
                   b.location_id, l.name AS location_name, public.stock_location_path(l.id) AS location_path,
                   b.qty_on_hand, b.avg_cost, b.value_on_hand,
-                  (SELECT COALESCE(SUM(b2.qty_on_hand),0) FROM stock_balance b2 WHERE b2.material_id = b.material_id) AS material_total
+                  (SELECT COALESCE(SUM(b2.qty_on_hand),0) FROM stock_balance b2 WHERE b2.material_id = b.material_id) AS material_total,
+                  (SELECT MIN(sm.occurred_on) FROM stock_movement sm WHERE sm.material_id = b.material_id AND sm.location_id = b.location_id AND sm.quantity > 0) AS first_in
            FROM stock_balance b JOIN material m ON m.id = b.material_id JOIN stock_location l ON l.id = b.location_id
            LEFT JOIN unit_of_measure mu ON mu.id = m.unit_id
            ${where} ORDER BY m.name, location_path LIMIT 2000`, params).then((r) => r.rows);
@@ -475,6 +476,7 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         qtyOnHand: Number(r.qty_on_hand), materialTotal: Number(r.material_total ?? 0),
         reorderPoint: r.reorder_point === null ? null : Number(r.reorder_point),
         lowStock: r.reorder_point != null && Number(r.material_total ?? 0) < Number(r.reorder_point),
+        firstInAt: r.first_in ? (r.first_in instanceof Date ? r.first_in.toISOString().slice(0, 10) : String(r.first_in).slice(0, 10)) : null,
         avgCost: r.avg_cost === null ? null : Number(r.avg_cost), valueOnHand: Number(r.value_on_hand), unit: r.unit ?? null,
       }));
       return { items };

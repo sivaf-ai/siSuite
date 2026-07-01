@@ -719,6 +719,8 @@ export interface StockBalanceDto {
   qtyOnHand: number; avgCost: number | null; valueOnHand: number; unit: string | null;
   /** consultazione: giacenza TOTALE dell'articolo (tutte le ubicazioni), punto di riordino, sotto-scorta. */
   materialTotal?: number; reorderPoint?: number | null; lowStock?: boolean;
+  /** WMS Fase B: data della PRIMA entrata in questa ubicazione (per il prelievo FIFO). */
+  firstInAt?: string | null;
 }
 
 export const stockDocumentLineSchema = z.object({

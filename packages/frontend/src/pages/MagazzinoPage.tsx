@@ -317,8 +317,8 @@ function GiacenzeTab({ locationId }: { locationId: string }) {
 }
 
 /* ── Tab: Movimenti (immutabile: Nuovo movimento + Rettifica) ──────── */
-interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; materialName: string; materialUnit: string; locationId: string; locationName: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
-const emptyMov = (locationId: string, locationName: string): MovDraft => ({ typeCode: 'in', materialId: '', materialName: '', materialUnit: '', locationId, locationName, quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
+interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; materialName: string; materialUnit: string; materialWeight: number | null; materialVolume: number | null; locationId: string; locationName: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
+const emptyMov = (locationId: string, locationName: string): MovDraft => ({ typeCode: 'in', materialId: '', materialName: '', materialUnit: '', materialWeight: null, materialVolume: null, locationId, locationName, quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
 
 function MovimentiTab({ locationId, warehouseName }: { locationId: string; warehouseName: string }) {
   const toast = useToast();
@@ -333,8 +333,8 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
   const [d, setD] = useState<MovDraft>(emptyMov(locationId, warehouseName));
   const [pickEng, setPickEng] = useState(false);
   const [pickMat, setPickMat] = useState(false);
-  const [pickLoc, setPickLoc] = useState(false);
   const [pickSrc, setPickSrc] = useState(false);
+  const [pickPut, setPickPut] = useState(false);
   const engName = (() => { const e = engs.data?.items.find((x) => x.id === d.engagementId); return e ? `${e.code ? e.code + ' · ' : ''}${e.title}` : (d.engagementId ? '…' : ''); })();
   const matById = useMemo(() => new Map((mats.data?.items ?? []).map((m) => [m.id, m])), [mats.data]);
   const rows = mv.data?.items ?? [];
@@ -397,7 +397,7 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
               <PickerField value={d.locationName || null} placeholder={d.typeCode === 'in' ? 'Scegli dove versare…' : 'Scegli da dove prelevare…'}
                 onOpen={() => {
                   if (d.typeCode !== 'in') { if (!d.materialId) { toast('Scegli prima l\'articolo: ti mostro solo le ubicazioni dove è disponibile', 'error'); return; } setPickSrc(true); }
-                  else setPickLoc(true);
+                  else setPickPut(true);
                 }} onClear={() => setD({ ...d, locationId: '', locationName: '' })} /></div>
             <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialUnit && <span style={{ color: 'var(--ink-faint)' }}> ({d.materialUnit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
             <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
@@ -414,11 +414,13 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
       <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
         onPick={(es) => { const e = es[0]; if (e) setD((s) => ({ ...s, engagementId: e.id })); }} />
       <MaterialPickerDialog open={pickMat} onClose={() => setPickMat(false)}
-        onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit })); }} />
-      <UbicazionePickerModal warehouseId={locationId} warehouseName={warehouseName} open={pickLoc} onClose={() => setPickLoc(false)}
-        onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickLoc(false); }} />
+        onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit, materialWeight: m.weight ?? null, materialVolume: m.volume ?? null })); }} />
       <SourceLocationPicker warehouseId={locationId} materialId={d.materialId} open={pickSrc} onClose={() => setPickSrc(false)}
         onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickSrc(false); }} />
+      <PutawayLocationPicker warehouseId={locationId} warehouseName={warehouseName} quantity={d.quantity}
+        material={d.materialId ? { weight: d.materialWeight, volume: d.materialVolume } : null}
+        open={pickPut} onClose={() => setPickPut(false)}
+        onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickPut(false); }} />
     </>
   );
 }
@@ -540,27 +542,75 @@ function UbicazionePickerModal({ warehouseId, warehouseName, open, onClose, onPi
   );
 }
 
-/* ── Picker "Preleva da" INTELLIGENTE: solo le ubicazioni dove l'articolo HA giacenza ──
- *  Come i WMS leader: per lo scarico/prelievo il sistema mostra solo dove l'articolo è
- *  presente, con la quantità disponibile. Riusa /stock/balance?subtreeOf=&materialId=. */
+/* ── Prelievo GUIDATO (Fase B): solo ubicazioni dove l'articolo HA giacenza, ordinate
+ *  FIFO (prima entrata) con la prima "consigliata". Riusa /stock/balance. */
 function SourceLocationPicker({ warehouseId, materialId, open, onClose, onPick }: {
   warehouseId: string; materialId: string; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
 }) {
   const { data, loading } = useApi<{ items: StockBalanceDto[] }>(open && materialId ? `/stock/balance?subtreeOf=${warehouseId}&materialId=${materialId}` : null);
   if (!open) return null;
-  const rows = (data?.items ?? []).filter((r) => r.qtyOnHand > 0);
+  const rows = (data?.items ?? []).filter((r) => r.qtyOnHand > 0)
+    .sort((a, b) => (a.firstInAt ?? '9999-12-31').localeCompare(b.firstInAt ?? '9999-12-31') || b.qtyOnHand - a.qtyOnHand);
   return (
-    <Modal open size="md" title="Preleva da… (ubicazioni con giacenza)" onClose={onClose}>
+    <Modal open size="md" title="Preleva da — ubicazioni con giacenza (ordine FIFO)" onClose={onClose}>
       {loading ? <Loading />
         : rows.length === 0
           ? <div className="dsx-empty" style={{ padding: 20 }}>Questo articolo non ha giacenza in nessuna ubicazione di questo magazzino.</div>
-          : <table className="subt"><thead><tr><th>Ubicazione</th><th className="num">Disponibile</th></tr></thead>
-              <tbody>{rows.map((r) => (
+          : <table className="subt"><thead><tr><th>Ubicazione</th><th className="num">Disponibile</th><th className="num">Prima entrata</th></tr></thead>
+              <tbody>{rows.map((r, i) => (
                 <tr key={r.locationId} style={{ cursor: 'pointer' }}
                   onClick={() => { onPick({ id: r.locationId, name: r.locationPath ?? r.locationName ?? '' }); onClose(); }}>
-                  <td className="cellname">{r.locationPath ?? r.locationName}</td>
+                  <td className="cellname">{r.locationPath ?? r.locationName}
+                    {i === 0 && <span className="et-badge" style={{ marginLeft: 6, background: 'var(--brand)', color: '#fff' }}>consigliata</span>}</td>
                   <td className="num mono">{r.qtyOnHand.toLocaleString('it-IT')} {r.unit}</td>
+                  <td className="num mono" style={{ color: 'var(--ink-faint)', fontSize: 12 }}>{r.firstInAt ? r.firstInAt.split('-').reverse().join('/') : '—'}</td>
                 </tr>))}</tbody></table>}
+    </Modal>
+  );
+}
+
+/* ── Versamento GUIDATO / putaway (Fase B): elenca i bin con CAPACITÀ DISPONIBILE per la
+ *  quantità da versare (criterio volume/peso/quantità), i più adatti in cima, con badge
+ *  "consigliata". Include il magazzino stesso come opzione senza limite. */
+function PutawayLocationPicker({ warehouseId, warehouseName, material, quantity, open, onClose, onPick }: {
+  warehouseId: string; warehouseName: string; material: { weight: number | null; volume: number | null } | null;
+  quantity: number | null; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+}) {
+  const { data, loading } = useApi<{ items: StockLocationDto[] }>(open ? `/stock/locations?subtreeOf=${warehouseId}` : null);
+  if (!open) return null;
+  const items = data?.items ?? [];
+  const hasChild = new Set(items.map((i) => i.parentId).filter(Boolean) as string[]);
+  const qty = quantity ?? 0;
+  type Cand = { id: string; path: string; hasLimit: boolean; unit: string; remaining: number; fits: boolean; noStock: boolean };
+  const cands: Cand[] = [
+    // il magazzino stesso (radice): sempre disponibile, nessun limite
+    { id: warehouseId, path: warehouseName, hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false },
+    ...items.filter((n) => !hasChild.has(n.id) && n.holdsStock !== false).map((n) => {
+      if (!n.capacityKind || n.capacityMax == null) return { id: n.id, path: n.pathLabel, hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false };
+      const unit = CAPACITY_KINDS.find((k) => k.code === n.capacityKind)?.unit ?? '';
+      const needed = n.capacityKind === 'quantity' ? qty : qty * (n.capacityKind === 'volume' ? (material?.volume ?? 0) : (material?.weight ?? 0));
+      const remaining = n.capacityMax - (n.occupied ?? 0);
+      const noStock = n.capacityKind !== 'quantity' && !(n.capacityKind === 'volume' ? material?.volume : material?.weight);
+      return { id: n.id, path: n.pathLabel, hasLimit: true, unit, remaining, fits: remaining + 1e-9 >= needed, noStock };
+    }),
+  ].sort((a, b) => Number(b.fits) - Number(a.fits) || b.remaining - a.remaining);
+  const firstFit = cands.findIndex((c) => c.fits);
+  return (
+    <Modal open size="md" title="Versa in — ubicazioni con spazio disponibile" onClose={onClose}>
+      {loading ? <Loading />
+        : <table className="subt"><thead><tr><th>Ubicazione</th><th className="num">Spazio disponibile</th><th /></tr></thead>
+            <tbody>{cands.map((c, i) => (
+              <tr key={c.id} style={{ cursor: 'pointer', opacity: c.fits ? 1 : 0.55 }}
+                onClick={() => { onPick({ id: c.id, name: c.path }); onClose(); }}>
+                <td className="cellname">{c.path}
+                  {i === firstFit && <span className="et-badge" style={{ marginLeft: 6, background: 'var(--brand)', color: '#fff' }}>consigliata</span>}</td>
+                <td className="num mono">{!c.hasLimit ? <span style={{ color: 'var(--ink-faint)' }}>nessun limite</span>
+                  : c.noStock ? <span style={{ color: 'var(--warning, #e08a00)' }}>manca peso/volume art.</span>
+                  : `${c.remaining.toLocaleString('it-IT')} ${c.unit}`}</td>
+                <td className="num">{c.hasLimit && !c.noStock && (c.fits
+                  ? <span style={{ color: 'var(--brand, #1f7a4d)', fontSize: 12, fontWeight: 700 }}>entra</span>
+                  : <span style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 700 }}>pieno</span>)}</td>
+              </tr>))}</tbody></table>}
     </Modal>
   );
 }

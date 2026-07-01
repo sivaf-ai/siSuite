@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (6) — WMS Fase B: movimenti guidati (prelievo FIFO + putaway per capacità) (chat 01.06)
+- **Backend**: `/stock/balance` ritorna `firstInAt` (min `occurred_on` dei carichi per material+location) → base del prelievo FIFO. `StockBalanceDto.firstInAt`.
+- **Prelievo guidato** (`SourceLocationPicker`, scarico/rettifica): ordina le ubicazioni con giacenza per **FIFO** (prima entrata), mostra la data, badge **«consigliata»** sulla prima.
+- **Versamento guidato / putaway** (`PutawayLocationPicker`, carico): elenca i **bin con spazio disponibile** per la quantità da versare (criterio volume/peso/quantità: `remaining = max−occupied`, `needed = qty × metrica art.`), «entra/pieno», ordinati (adatti prima, più spazio prima), badge **«consigliata»** sul primo che entra; include il magazzino stesso (nessun limite). Segnala «manca peso/volume art.» se il criterio non è calcolabile.
+- Maschera movimento: draft porta peso/volume dell'articolo (dal picker); la lente Ubicazione apre il **putaway** per i carichi, il **prelievo FIFO** per scarichi/rettifiche.
+- Smoke: firstInAt corretto (B-OLD 01/06 precede B-NEW 01/07); putaway legge capacità/occupato (max10/occ3→7 liberi). 90/90 test, typecheck pulito. **Chiude Fase B.** Resta Fase D (creazione documenti AI). Estendere pick/putaway guidati alle righe documento = follow-up.
+
 ## 2026-07-01 (5) — WMS Fase C: maschera di consultazione giacenze (inquiry) (chat 01.06)
 - Nuova pagina **`/stock/inquiry`** («Consultazione giacenze», voce nav sotto Magazzino›Giacenze, icona search) con 3 viste:
   - **Per articolo**: giacenze raggruppate per articolo (totale + valore + badge riordino), espandibili per **ubicazione** (catena + qty + valore); ricerca articolo/SKU/ubicazione.

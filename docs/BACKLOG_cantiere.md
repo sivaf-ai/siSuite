@@ -38,7 +38,7 @@
 - [x] Movimenti: selezione ubicazione + **prelievo intelligente** (solo dove l'articolo c'è) — FATTO.
 - [x] Consultazione giacenze **per bin** (subtreeOf) + riordino nel tab Articoli&Giacenze — FATTO.
 - [x] **Fase A** — ubicazioni a livello di **riga** nei documenti (origine/destinazione per riga, default dalla testata; conferma con pre-pass di validazione per riga, atomica) — FATTO (DDT/Carico/Trasferimento/Rettifica). Pick list line-level = follow-up.
-- [ ] **Fase B** — putaway/pick **guidati**: dest picker filtra per tipo bin + capacità disponibile; sorgente ordinata FEFO/FIFO/percorso.
+- [x] **Fase B** — putaway/pick **guidati** — FATTO (movimenti): prelievo ordinato **FIFO** (firstInAt) con «consigliata»; putaway verso bin con **capacità disponibile** (entra/pieno, «consigliata»). Estendere alle righe documento = follow-up.
 - [x] **Fase C** — maschera **inquiry** globale `/stock/inquiry` (per articolo: dov'è + espandi ubicazioni; per ubicazione: cosa contiene; report riordino con deficit) — FATTO (solo FE).
 - [ ] **Fase D** — creazione documenti **assistita/AI** (NL → documento con articoli+ubicazioni).
 
