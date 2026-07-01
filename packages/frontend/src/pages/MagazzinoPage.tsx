@@ -298,8 +298,8 @@ function GiacenzeTab({ locationId }: { locationId: string }) {
       <table className="subt">
         <thead><tr><th>Articolo</th><th>Ubicazione</th><th className="num">Giacenza</th><th className="num">Tot. articolo</th><th className="num">Costo medio</th><th className="num">Valore</th></tr></thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={`${r.materialId}_${r.locationId}`}>
+          {rows.map((r, ri) => (
+            <tr key={`${r.materialId}_${r.locationId}_${ri}`}>
               <td className="cellname">{r.materialName ?? '—'}{r.sku ? <span className="muted mono" style={{ fontSize: 11 }}> · {r.sku}</span> : null}
                 {r.lowStock && <span className="et-badge" style={{ marginLeft: 6, background: 'var(--danger)', color: '#fff' }} title={`Sotto scorta minima (${num(r.reorderPoint ?? null)})`}>riordino</span>}</td>
               <td className="cellsub" title={r.locationPath ?? ''}>{r.locationPath ?? r.locationName ?? '—'}</td>

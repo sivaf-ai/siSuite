@@ -464,6 +464,10 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         }
         if (request.query.materialId) { params.push(request.query.materialId); conds.push(`b.material_id = $${params.length}`); }
         if (request.query.includeZero !== '1') conds.push(`b.qty_on_hand <> 0`);
+        // integrità: la giacenza deve appartenere allo STESSO tenant della sua ubicazione e
+        // del suo articolo. Evita che un platform-admin (che vede tutti i tenant) mischi righe
+        // cross-tenant → niente giacenze doppie/incoerenti.
+        conds.push(`b.tenant_id = l.tenant_id`, `b.tenant_id = m.tenant_id`);
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         return db.query(
           `SELECT b.material_id, m.name AS material_name, m.sku, m.reorder_point, mu.code AS unit,

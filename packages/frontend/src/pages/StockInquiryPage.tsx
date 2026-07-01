@@ -79,8 +79,8 @@ function ByMaterial() {
                 <td className="num mono">{g.rows.length}</td>
                 <td className="num mono">{eur(g.value)}</td>
               </tr>
-              {open.has(g.id) && g.rows.slice().sort((a, b) => (a.locationPath ?? '').localeCompare(b.locationPath ?? '', 'it')).map((r) => (
-                <tr key={`${g.id}_${r.locationId}`} style={{ background: 'var(--paper)' }}>
+              {open.has(g.id) && g.rows.slice().sort((a, b) => (a.locationPath ?? '').localeCompare(b.locationPath ?? '', 'it')).map((r, ri) => (
+                <tr key={`${g.id}_${r.locationId}_${ri}`} style={{ background: 'var(--paper)' }}>
                   <td />
                   <td className="cellsub" style={{ paddingLeft: 18 }}><MapPin size={12} style={{ marginRight: 5, color: 'var(--ink-faint)' }} />{r.locationPath ?? r.locationName ?? '—'}</td>
                   <td className="num mono">{qn(r.qtyOnHand)} {r.unit ?? ''}</td>
@@ -117,8 +117,8 @@ function ByLocation() {
             <table className="subt">
               <thead><tr><th>Ubicazione</th><th>Articolo</th><th className="num">Giacenza</th><th className="num">Costo medio</th><th className="num">Valore</th></tr></thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={`${r.locationId}_${r.materialId}`}>
+                {rows.map((r, ri) => (
+                  <tr key={`${r.locationId}_${r.materialId}_${ri}`}>
                     <td className="cellsub" title={r.locationPath ?? ''}>{r.locationPath ?? r.locationName ?? '—'}</td>
                     <td className="cellname">{r.materialName ?? '—'}{r.sku ? <span className="muted mono" style={{ fontSize: 11 }}> · {r.sku}</span> : null}</td>
                     <td className="num mono" style={r.qtyOnHand <= 0 ? { color: 'var(--danger)', fontWeight: 700 } : undefined}>{qn(r.qtyOnHand)} {r.unit ?? ''}</td>
@@ -137,7 +137,7 @@ function ByLocation() {
 
 /* ── Riordino: articoli sotto la scorta minima ── */
 function Reorder() {
-  const { data, loading, error } = useApi<{ items: MaterialDto[] }>('/materials?limit=1000');
+  const { data, loading, error } = useApi<{ items: MaterialDto[] }>('/materials?limit=200');
   const history = useHistory();
   if (loading) return <Loading />;
   if (error) return <ErrorBox message={error} />;

@@ -2,6 +2,11 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (12) — Fix post-test: giacenze cross-tenant duplicate + Riordino 400 (chat 01.06)
+- **BUG giacenze doppie (chiavi React duplicate)**: l'owner è **platform admin** → RLS gli mostra TUTTI i tenant; il demo ha righe `stock_balance` **cross-tenant** (giacenza in un tenant che referenzia articolo/ubicazione di un altro) → `/stock/balance` restituiva la stessa (articolo,ubicazione) da 2 tenant. Fix: la query aggiunge `b.tenant_id = l.tenant_id AND b.tenant_id = m.tenant_id` (invariante d'integrità) → righe incoerenti escluse, niente doppioni (14→9 righe pulite). Chiavi React rese robuste con indice (GiacenzeTab/StockInquiryPage).
+- **BUG Riordino 400**: `StockInquiryPage` chiamava `/materials?limit=1000` ma il cap di `listQuerySchema` è **200** → 400. Portato a `limit=200`.
+- Typecheck pulito, 90/90 test. Verificato: balance 0 doppioni, /materials?limit=200 → 200.
+
 ## 2026-07-01 (11) — WMS follow-up #2: assistente documenti VOCALE (chat 01.06)
 - **Solo frontend**: `StockAssistModal` ora ha un **pulsante microfono** che riusa `voice/useVoiceCapture` (Web Speech API on-device, it-IT): la **dettatura live** riempie il riquadro di testo; premi ■ per fermare → «Genera bozza» chiama lo stesso `/ai/stock-document`. Indicatore «In ascolto…»; avviso se il browser non supporta la trascrizione (audio comunque registrabile). Nessun endpoint nuovo. Typecheck pulito, app up. **Chiude i 3 follow-up WMS.**
 
