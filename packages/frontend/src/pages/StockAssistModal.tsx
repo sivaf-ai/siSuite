@@ -2,13 +2,14 @@
  *  L'utente scrive in linguaggio naturale → l'AI + il resolver deterministico
  *  propongono una bozza (tipo, articoli, quantità, ubicazioni) che l'utente
  *  APRE in modifica sulla scheda documento (rivede e conferma). */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useHistory } from 'react-router';
-import { Sparkles, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Sparkles, AlertTriangle, ArrowRight, Mic, Square } from 'lucide-react';
 import type { StockDocAiProposal } from '@sisuite/shared';
 import { Modal } from '../ui/Modal';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
+import { useVoiceCapture } from '../voice/useVoiceCapture';
 
 const TYPE_LABEL: Record<string, string> = { receipt: 'Carico', transfer: 'Trasferimento', adjustment: 'Rettifica' };
 const EXAMPLES = [
@@ -23,9 +24,16 @@ export function StockAssistModal({ open, onClose }: { open: boolean; onClose: ()
   const [prop, setProp] = useState<StockDocAiProposal | null>(null);
   const toast = useToast();
   const history = useHistory();
+  const voice = useVoiceCapture();
+  // dettatura live: mentre registra, la trascrizione riempie il riquadro
+  useEffect(() => { if (voice.recording) setText(voice.transcript); }, [voice.recording, voice.transcript]);
   if (!open) return null;
 
   const close = () => { setText(''); setProp(null); onClose(); };
+  async function toggleMic() {
+    if (voice.recording) { const r = await voice.stop(); if (r.transcript) setText(r.transcript); }
+    else { setProp(null); try { await voice.start(); } catch { toast('Microfono non disponibile', 'error'); } }
+  }
 
   async function generate() {
     if (!text.trim()) return;
@@ -55,9 +63,20 @@ export function StockAssistModal({ open, onClose }: { open: boolean; onClose: ()
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 0 }}>
           Descrivi il movimento a parole: l'assistente riconosce <b>tipo</b>, <b>articoli</b>, <b>quantità</b> e <b>ubicazioni</b> del tuo magazzino e prepara la bozza. Poi la rivedi e la confermi tu.
         </p>
-        <textarea className="txt" style={{ width: '100%', minHeight: 84, resize: 'vertical', fontSize: 14 }} value={text}
-          placeholder="es. Trasferisci 10 ONT Huawei da Scaffale A al Furgone Ahmed"
-          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void generate(); }} />
+        <div style={{ position: 'relative' }}>
+          <textarea className="txt" style={{ width: '100%', minHeight: 84, resize: 'vertical', fontSize: 14, paddingRight: 46 }} value={text}
+            placeholder="es. Trasferisci 10 ONT Huawei da Scaffale A al Furgone Ahmed"
+            onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void generate(); }} />
+          {voice.audioSupported && (
+            <button type="button" onClick={() => void toggleMic()} title={voice.recording ? 'Ferma dettatura' : 'Detta a voce'}
+              style={{ position: 'absolute', top: 8, right: 8, width: 34, height: 34, borderRadius: 8, border: 0, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: voice.recording ? 'var(--danger)' : 'var(--brand)', color: '#fff' }}>
+              {voice.recording ? <Square size={15} /> : <Mic size={16} />}
+            </button>
+          )}
+        </div>
+        {voice.recording && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Mic size={12} /> In ascolto… parla, poi premi ■ per fermare.{!voice.sttSupported && ' (trascrizione non supportata da questo browser)'}</div>}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
           {EXAMPLES.map((ex) => (
             <button key={ex} className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => setText(ex)}>{ex}</button>

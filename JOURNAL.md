@@ -2,6 +2,9 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (11) — WMS follow-up #2: assistente documenti VOCALE (chat 01.06)
+- **Solo frontend**: `StockAssistModal` ora ha un **pulsante microfono** che riusa `voice/useVoiceCapture` (Web Speech API on-device, it-IT): la **dettatura live** riempie il riquadro di testo; premi ■ per fermare → «Genera bozza» chiama lo stesso `/ai/stock-document`. Indicatore «In ascolto…»; avviso se il browser non supporta la trascrizione (audio comunque registrabile). Nessun endpoint nuovo. Typecheck pulito, app up. **Chiude i 3 follow-up WMS.**
+
 ## 2026-07-01 (10) — WMS follow-up #3: capacità UDC / posti-pallet (chat 01.06)
 - **Migr 068**: `material.units_per_udc` (pezzi per pallet/UDC) + CHECK `capacity_kind` esteso a **'udc'**. Prossima libera **069**.
 - Nuovo criterio capacità **UDC** (`CAPACITY_KINDS`): occupato = **Σ(qty / units_per_udc)** (pallet frazionari), massimo = n° posti-pallet. `OCCUPIED_EXPR` + `assertCapacity` generalizzati (volume/peso/quantità/udc); enforcement bloccante. Senza `units_per_udc` l'articolo non enforcea (metrica 0).
