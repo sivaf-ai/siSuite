@@ -1101,6 +1101,8 @@ export const pickLineSchema = z.object({
   qtyRequested: z.coerce.number().positive(),
   unit: z.string().min(1).max(40),
   lotId: uuid.nullable().optional(),
+  // WMS: ubicazione di prelievo della riga (default = source della testata)
+  sourceLocationId: uuid.nullable().optional(),
 });
 export const createPickListSchema = z.object({
   sourceLocationId: uuid,
@@ -1119,6 +1121,8 @@ export const updatePickListSchema = z.object({
 export interface PickListLineDto {
   id: string; materialId: string; materialName: string | null;
   qtyRequested: number; qtyPicked: number; unit: string; lotId: string | null;
+  /** WMS: ubicazione di prelievo della riga (+ catena). */
+  sourceLocationId: string | null; sourceLocationPath: string | null;
 }
 export interface PickListDto {
   id: string; number: string | null; sourceLocationId: string; sourceLocationName: string | null;

@@ -2,6 +2,11 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (9) — WMS follow-up #1: pick list a livello RIGA (chat 01.06)
+- **Migr 067**: `pick_list_line.source_location_id` (nullable → default source della testata). Prossima libera **068**.
+- Shared: `pickLineSchema`+`sourceLocationId`, `PickListLineDto`+id/catena. Backend warehouse.ts: INSERT righe (create+patch) + GET dettaglio (path) + **conferma** usa `riga.source ?? testata.source` per il movimento 'out'. Frontend PickListDetailPage: colonna **«Preleva da»** per riga (prelievo guidato `SourceLocationPicker`: solo dove l'articolo ha giacenza, FIFO), badge «= testata», ✕ per ereditare.
+- Smoke: pick con testata=magazzino e riga source=Bin PICK qty4 → conferma OK, Bin PICK 10→6. 90/90 test, typecheck pulito.
+
 ## 2026-07-01 (8) — WMS follow-up: prelievo/putaway guidati anche nelle RIGHE dei documenti (chat 01.06)
 - I picker guidati di Fase B (`SourceLocationPicker`, `PutawayLocationPicker`) ora sono **esportati e generalizzati**: `warehouseId` opzionale (assente = tutti i magazzini), `PutawayLocationPicker` accetta `materialId` e carica da solo peso/volume dell'articolo (`/materials/:id`).
 - **DdtDetailPage**: la colonna riga **«Preleva da»** apre il **prelievo guidato** (solo ubicazioni dove l'articolo ha giacenza, ordine FIFO, «consigliata»), **«Versa in»** apre il **putaway guidato** (bin con spazio disponibile per la quantità della riga, «entra/pieno», «consigliata»). La testata mantiene il picker ad albero (scelta magazzino). Solo FE, nessun endpoint nuovo. Typecheck pulito, app up.

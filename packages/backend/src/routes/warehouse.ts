@@ -110,6 +110,7 @@ function pickLineDto(r: Record<string, unknown>): PickListLineDto {
     id: r.id as string, materialId: r.material_id as string, materialName: (r.material_name as string) ?? null,
     qtyRequested: Number(r.qty_requested), qtyPicked: Number(r.qty_picked), unit: r.unit as string,
     lotId: (r.lot_id as string) ?? null,
+    sourceLocationId: (r.source_location_id as string) ?? null, sourceLocationPath: (r.source_path as string) ?? null,
   };
 }
 function pickDto(r: Record<string, unknown>, lines?: PickListLineDto[]): PickListDto {
@@ -159,7 +160,8 @@ async function loadPick(db: PoolClient, id: string): Promise<PickListDto | null>
        LEFT JOIN resource r ON r.id = pl.assigned_resource_id WHERE pl.id = $1`, [id]);
   if (!h.rows[0]) return null;
   const ln = await db.query(
-    `SELECT pll.id, pll.material_id, m.name AS material_name, pll.qty_requested, pll.qty_picked, pllu.code AS unit, pll.lot_id
+    `SELECT pll.id, pll.material_id, m.name AS material_name, pll.qty_requested, pll.qty_picked, pllu.code AS unit, pll.lot_id,
+            pll.source_location_id, public.stock_location_path(pll.source_location_id) AS source_path
      FROM pick_list_line pll LEFT JOIN material m ON m.id = pll.material_id
      LEFT JOIN unit_of_measure pllu ON pllu.id = pll.unit_id
      WHERE pll.pick_list_id = $1 ORDER BY m.name`, [id]);
@@ -531,9 +533,9 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         const pickId = h.rows[0].id as string;
         for (const ln of input.lines ?? []) {
           await db.query(
-            `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id)
-             VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
-            [request.ctx.tenantId, pickId, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null]);
+            `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id, source_location_id)
+             VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7)`,
+            [request.ctx.tenantId, pickId, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null, ln.sourceLocationId ?? null]);
         }
         return loadPick(db, pickId);
       });
@@ -559,9 +561,9 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM pick_list_line WHERE pick_list_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id)
-               VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6)`,
-              [request.ctx.tenantId, request.params.id, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null]);
+              `INSERT INTO pick_list_line (tenant_id, pick_list_id, material_id, qty_requested, qty_picked, unit_id, lot_id, source_location_id)
+               VALUES ($1,$2,$3,$4,0,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7)`,
+              [request.ctx.tenantId, request.params.id, ln.materialId, ln.qtyRequested, ln.unit, ln.lotId ?? null, ln.sourceLocationId ?? null]);
           }
         }
         return { code: 200 as const, dto: await loadPick(db, request.params.id) };
@@ -601,7 +603,7 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
         if (!['assigned', 'picking', 'draft'].includes(h.status as string))
           return reply.code(409).send({ error: 'conflict', message: 'Lista non confermabile nello stato attuale', statusCode: 409 });
         const lines = (await db.query(
-          `SELECT pll.material_id, pll.qty_requested, pll.qty_picked, u.code AS unit, pll.lot_id
+          `SELECT pll.material_id, pll.qty_requested, pll.qty_picked, u.code AS unit, pll.lot_id, pll.source_location_id
            FROM pick_list_line pll LEFT JOIN unit_of_measure u ON u.id = pll.unit_id WHERE pll.pick_list_id = $1`, [h.id])).rows;
         const tid = request.ctx.tenantId, uid = request.ctx.userId;
         let movements = 0;
@@ -609,8 +611,9 @@ export async function warehouseRoutes(app: FastifyInstance): Promise<void> {
           const picked = Number(ln.qty_picked);
           const qty = picked > 0 ? picked : Number(ln.qty_requested);
           if (qty <= 0) continue;
+          // WMS: preleva dall'ubicazione della RIGA se impostata, altrimenti dalla source della testata
           await insertMovement(db, tid, uid, {
-            materialId: ln.material_id, locationId: h.source_location_id, typeCode: 'out', signedQty: -qty, unit: ln.unit,
+            materialId: ln.material_id, locationId: (ln.source_location_id as string) ?? h.source_location_id, typeCode: 'out', signedQty: -qty, unit: ln.unit,
             workOrderId: (h.work_order_id as string) ?? null, engagementId: (h.engagement_id as string) ?? null,
             note: `Pick ${h.number}`,
           });

@@ -11,7 +11,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
-import { LocationTreePickerDialog } from './MagazzinoPage';
+import { LocationTreePickerDialog, SourceLocationPicker } from './MagazzinoPage';
 import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { WorkOrderPickerDialog } from '../ui/WorkOrderPickerDialog';
@@ -24,7 +24,7 @@ import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 
 interface ListResp<T> { items: T[] }
-interface Row { materialId: string; materialName: string; qtyRequested: number; qtyPicked: number; unit: string }
+interface Row { materialId: string; materialName: string; qtyRequested: number; qtyPicked: number; unit: string; sourceLocationId: string | null; sourceLocationPath: string | null }
 
 const PICK_STATUS: Record<string, { label: string; token: string }> = {
   draft: { label: 'Bozza', token: 'neutral' },
@@ -59,6 +59,7 @@ export function PickListDetailPage() {
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
   const [sourcePick, setSourcePick] = useState(false);
+  const [linePick, setLinePick] = useState<number | null>(null);
   const [resPick, setResPick] = useState(false);
   const [engPick, setEngPick] = useState(false);
   const [woPick, setWoPick] = useState(false);
@@ -73,6 +74,7 @@ export function PickListDetailPage() {
     setRows((d.lines ?? []).map((l) => ({
       materialId: l.materialId, materialName: l.materialName ?? '—',
       qtyRequested: l.qtyRequested, qtyPicked: l.qtyPicked, unit: l.unit,
+      sourceLocationId: l.sourceLocationId ?? null, sourceLocationPath: l.sourceLocationPath ?? null,
     })));
   }, [d]);
 
@@ -106,7 +108,7 @@ export function PickListDetailPage() {
 
   function addMaterials(mats: MaterialDto[]) {
     setRows((arr) => [...arr, ...mats.map((m) => ({
-      materialId: m.id, materialName: m.name, qtyRequested: 1, qtyPicked: 0, unit: m.unit,
+      materialId: m.id, materialName: m.name, qtyRequested: 1, qtyPicked: 0, unit: m.unit, sourceLocationId: null, sourceLocationPath: null,
     }))]);
   }
 
@@ -114,7 +116,7 @@ export function PickListDetailPage() {
     if (!form.sourceLocationId) { toast('Seleziona il magazzino di origine', 'error'); return; }
     if (rows.length === 0) { toast('Aggiungi almeno una riga', 'error'); return; }
     setBusy(true);
-    const lines = rows.map((r) => ({ materialId: r.materialId, qtyRequested: r.qtyRequested, unit: r.unit }));
+    const lines = rows.map((r) => ({ materialId: r.materialId, qtyRequested: r.qtyRequested, unit: r.unit, sourceLocationId: r.sourceLocationId ?? null }));
     try {
       if (isNew) {
         const created = await apiFetch<PickListDto>('/pick-lists', { method: 'POST', body: JSON.stringify({
@@ -194,12 +196,13 @@ export function PickListDetailPage() {
           <table className="subt">
             <colgroup>
               <col />
-              <col style={{ width: 130 }} />
               <col style={{ width: 120 }} />
-              {!isNew && <col style={{ width: 110 }} />}
-              {!readOnly && <col style={{ width: 50 }} />}
+              <col style={{ width: 110 }} />
+              <col style={{ width: 210 }} />
+              {!isNew && <col style={{ width: 100 }} />}
+              {!readOnly && <col style={{ width: 44 }} />}
             </colgroup>
-            <thead><tr><th>Articolo</th><th className="num">Qtà richiesta</th><th>Unità</th>{!isNew && <th className="num">Prelevata</th>}{!readOnly && <th />}</tr></thead>
+            <thead><tr><th>Articolo</th><th className="num">Qtà richiesta</th><th>Unità</th><th>Preleva da</th>{!isNew && <th className="num">Prelevata</th>}{!readOnly && <th />}</tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
@@ -208,11 +211,23 @@ export function PickListDetailPage() {
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, qtyRequested: n ?? 0 } : x))} /></td>
                   <td><UnitSelect value={r.unit} disabled={readOnly} units={units.data?.items ?? []}
                     onChange={(u) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unit: u } : x))} /></td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={readOnly || !r.materialId}
+                        style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', justifyContent: 'flex-start', flex: 1 }}
+                        title={r.sourceLocationPath || (sourceName ? `Eredita dalla testata: ${sourceName}` : 'Scegli')}
+                        onClick={() => setLinePick(i)}>
+                        {r.sourceLocationPath || <span className="muted">{sourceName ? '= testata' : 'scegli…'}</span>}
+                      </button>
+                      {r.sourceLocationPath && !readOnly && <button type="button" title="Segui la testata" style={{ background: 'none', border: 0, color: 'var(--ink-faint)', cursor: 'pointer', fontSize: 15 }}
+                        onClick={() => setRows((arr) => arr.map((x, j) => j === i ? { ...x, sourceLocationId: null, sourceLocationPath: null } : x))}>×</button>}
+                    </div>
+                  </td>
                   {!isNew && <td className="num mono">{r.qtyPicked.toLocaleString('it-IT')}</td>}
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5}><div className="dsx-empty">Nessuna riga. Aggiungi un articolo.</div></td></tr>}
+              {rows.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessuna riga. Aggiungi un articolo.</div></td></tr>}
             </tbody>
           </table>
           {!readOnly && <div className="addline" onClick={() => setPickOpen(true)}><Boxes size={15} /> + Aggiungi articolo</div>}
@@ -220,6 +235,10 @@ export function PickListDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
+      {linePick !== null && (
+        <SourceLocationPicker open materialId={rows[linePick]?.materialId ?? ''} onClose={() => setLinePick(null)}
+          onPick={(l) => { const i = linePick; setRows((arr) => arr.map((x, j) => j === i ? { ...x, sourceLocationId: l.id, sourceLocationPath: l.name } : x)); setLinePick(null); }} />
+      )}
       <LocationTreePickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
         onPick={(l) => { set('sourceLocationId', l.id); setSourceName(l.name); setSourcePick(false); }} />
       <ResourcePickerDialog open={resPick} onClose={() => setResPick(false)}
