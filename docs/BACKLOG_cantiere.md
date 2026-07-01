@@ -37,7 +37,7 @@
 - [x] Codice ubicazione **univoco per padre** + **auto-codice** + **catena** (`pathLabel`) — FATTO (migr 066).
 - [x] Movimenti: selezione ubicazione + **prelievo intelligente** (solo dove l'articolo c'è) — FATTO.
 - [x] Consultazione giacenze **per bin** (subtreeOf) + riordino nel tab Articoli&Giacenze — FATTO.
-- [ ] **Fase A** — ubicazioni a livello di **riga** nei documenti (origine/destinazione per riga, default dal master); conferma usa la ubicazione di riga. Colonne DB pronte (migr 066).
+- [x] **Fase A** — ubicazioni a livello di **riga** nei documenti (origine/destinazione per riga, default dalla testata; conferma con pre-pass di validazione per riga, atomica) — FATTO (DDT/Carico/Trasferimento/Rettifica). Pick list line-level = follow-up.
 - [ ] **Fase B** — putaway/pick **guidati**: dest picker filtra per tipo bin + capacità disponibile; sorgente ordinata FEFO/FIFO/percorso.
 - [ ] **Fase C** — maschera **inquiry** globale (per articolo: dov'è; per ubicazione: cosa contiene; report riordino) `/stock/inquiry`.
 - [ ] **Fase D** — creazione documenti **assistita/AI** (NL → documento con articoli+ubicazioni).

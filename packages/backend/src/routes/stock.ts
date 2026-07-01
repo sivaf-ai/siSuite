@@ -606,7 +606,9 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       const r = await db.query(`${DOC_SELECT} WHERE d.id = $1`, [request.params.id]);
       if (!r.rows.length) return reply.code(404).send({ error: 'not_found', message: 'Documento non trovato', statusCode: 404 });
       const lines = await db.query(
-        `SELECT dl.id, dl.material_id, m.name AS material_name, dl.quantity, dlu.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
+        `SELECT dl.id, dl.material_id, m.name AS material_name, dl.quantity, dlu.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note,
+                dl.source_location_id, public.stock_location_path(dl.source_location_id) AS source_path,
+                dl.dest_location_id,   public.stock_location_path(dl.dest_location_id)   AS dest_path
          FROM stock_document_line dl LEFT JOIN material m ON m.id = dl.material_id
          LEFT JOIN unit_of_measure dlu ON dlu.id = dl.unit_id
          WHERE dl.document_id = $1 ORDER BY dl.created_at`, [request.params.id]);
@@ -617,6 +619,8 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           quantity: Number(l.quantity), unit: l.unit as string,
           unitCost: l.unit_cost === null ? null : Number(l.unit_cost), unitPrice: l.unit_price === null ? null : Number(l.unit_price),
           currency: (l.currency as string) ?? null, note: (l.note as string) ?? null,
+          sourceLocationId: (l.source_location_id as string) ?? null, sourceLocationPath: (l.source_path as string) ?? null,
+          destLocationId: (l.dest_location_id as string) ?? null, destLocationPath: (l.dest_path as string) ?? null,
         })),
       };
     }));
@@ -644,10 +648,10 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
           await db.query(`DELETE FROM stock_document_line WHERE document_id = $1`, [request.params.id]);
           for (const ln of input.lines) {
             await db.query(
-              `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note)
-               VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9)`,
+              `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note, source_location_id, dest_location_id)
+               VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9,$10,$11)`,
               [request.ctx.tenantId, request.params.id, ln.materialId, ln.quantity, ln.unit, ln.unitCost ?? null,
-               ln.unitPrice ?? null, ln.currency ?? null, ln.note ?? null]);
+               ln.unitPrice ?? null, ln.currency ?? null, ln.note ?? null, ln.sourceLocationId ?? null, ln.destLocationId ?? null]);
           }
         }
         return 'ok' as const;
@@ -688,10 +692,10 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         const docId = doc.rows[0].id as string;
         for (const ln of input.lines) {
           await db.query(
-            `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note)
-             VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9)`,
+            `INSERT INTO stock_document_line (tenant_id, document_id, material_id, quantity, unit_id, unit_cost, unit_price, currency, note, source_location_id, dest_location_id)
+             VALUES ($1,$2,$3,$4,public.app_resolve_unit(public.app_current_tenant(),$5),$6,$7,$8,$9,$10,$11)`,
             [request.ctx.tenantId, docId, ln.materialId, ln.quantity, ln.unit, ln.unitCost ?? null, ln.unitPrice ?? null,
-             ln.currency ?? null, ln.note ?? null]);
+             ln.currency ?? null, ln.note ?? null, ln.sourceLocationId ?? null, ln.destLocationId ?? null]);
         }
         return docId;
       });
@@ -712,42 +716,58 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
         if (doc.status !== 'draft') return reply.code(409).send({ error: 'conflict', message: 'Documento già confermato/annullato', statusCode: 409 });
         const type = doc.type_code as 'receipt' | 'transfer' | 'adjustment';
         const lines = (await db.query(
-          `SELECT dl.material_id, dl.quantity, u.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note
+          `SELECT dl.material_id, dl.quantity, u.code AS unit, dl.unit_cost, dl.unit_price, dl.currency, dl.note,
+                  dl.source_location_id, dl.dest_location_id
            FROM stock_document_line dl LEFT JOIN unit_of_measure u ON u.id = dl.unit_id WHERE dl.document_id = $1`,
           [doc.id])).rows;
         if (!lines.length) return reply.code(400).send({ error: 'bad_request', message: 'Documento senza righe', statusCode: 400 });
 
-        if (type === 'receipt' && !doc.dest_location_id)
-          return reply.code(400).send({ error: 'bad_request', message: 'Carico: manca il magazzino di destinazione', statusCode: 400 });
-        if (type === 'transfer' && (!doc.source_location_id || !doc.dest_location_id || doc.source_location_id === doc.dest_location_id))
-          return reply.code(400).send({ error: 'bad_request', message: 'Trasferimento: origine e destinazione distinte obbligatorie', statusCode: 400 });
-        const adjustLoc = doc.dest_location_id ?? doc.source_location_id;
-        if (type === 'adjustment' && !adjustLoc)
-          return reply.code(400).send({ error: 'bad_request', message: 'Rettifica: manca l\'ubicazione', statusCode: 400 });
+        // WMS Fase A: ubicazione PER RIGA con fallback alla testata. Pre-pass di validazione
+        // di TUTTE le righe PRIMA di inserire movimenti → atomico (nessun commit parziale).
+        interface Resolved { ln: Record<string, unknown>; src?: string; dest?: string; loc?: string }
+        const resolved: Resolved[] = [];
+        for (const ln of lines) {
+          const lsrc = (ln.source_location_id as string) ?? null;
+          const ldest = (ln.dest_location_id as string) ?? null;
+          if (type === 'receipt') {
+            const dest = ldest ?? doc.dest_location_id;
+            if (!dest) return reply.code(400).send({ error: 'bad_request', message: 'Carico: manca la destinazione (né sulla riga né sulla testata)', statusCode: 400 });
+            resolved.push({ ln, dest });
+          } else if (type === 'transfer') {
+            const src = lsrc ?? doc.source_location_id;
+            const dest = ldest ?? doc.dest_location_id;
+            if (!src || !dest || src === dest) return reply.code(400).send({ error: 'bad_request', message: 'Trasferimento: ogni riga deve avere origine e destinazione distinte (riga o testata)', statusCode: 400 });
+            resolved.push({ ln, src, dest });
+          } else {
+            const loc = ldest ?? lsrc ?? doc.dest_location_id ?? doc.source_location_id;
+            if (!loc) return reply.code(400).send({ error: 'bad_request', message: 'Rettifica: manca l\'ubicazione (né sulla riga né sulla testata)', statusCode: 400 });
+            resolved.push({ ln, loc });
+          }
+        }
 
         const tid = request.ctx.tenantId, uid = request.ctx.userId;
-        for (const ln of lines) {
+        for (const { ln, src, dest, loc } of resolved) {
           const qty = Number(ln.quantity);
           if (type === 'receipt') {
-            await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.dest_location_id, typeCode: 'in',
-              signedQty: qty, unit: ln.unit, unitCost: ln.unit_cost, unitPrice: ln.unit_price, currency: ln.currency,
-              documentRef: doc.external_ref, stockDocumentId: doc.id, note: ln.note, enforceCapacity: true });
+            await insertMovement(db, tid, uid, { materialId: ln.material_id as string, locationId: dest!, typeCode: 'in',
+              signedQty: qty, unit: ln.unit as string, unitCost: ln.unit_cost as number, unitPrice: ln.unit_price as number, currency: ln.currency as string,
+              documentRef: doc.external_ref, stockDocumentId: doc.id, note: ln.note as string, enforceCapacity: true });
           } else if (type === 'transfer') {
             const grp = (await db.query(`SELECT gen_random_uuid() AS g`)).rows[0].g as string;
-            await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.source_location_id, typeCode: 'out',
-              signedQty: -qty, unit: ln.unit, stockDocumentId: doc.id, transferGroupId: grp, note: ln.note });
-            await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: doc.dest_location_id, typeCode: 'in',
-              signedQty: qty, unit: ln.unit, unitCost: ln.unit_cost, currency: ln.currency, stockDocumentId: doc.id,
-              transferGroupId: grp, note: ln.note, enforceCapacity: true });
+            await insertMovement(db, tid, uid, { materialId: ln.material_id as string, locationId: src!, typeCode: 'out',
+              signedQty: -qty, unit: ln.unit as string, stockDocumentId: doc.id, transferGroupId: grp, note: ln.note as string });
+            await insertMovement(db, tid, uid, { materialId: ln.material_id as string, locationId: dest!, typeCode: 'in',
+              signedQty: qty, unit: ln.unit as string, unitCost: ln.unit_cost as number, currency: ln.currency as string, stockDocumentId: doc.id,
+              transferGroupId: grp, note: ln.note as string, enforceCapacity: true });
           } else { // adjustment: delta = contato − giacenza corrente
             const cur = await db.query(
-              `SELECT qty_on_hand FROM stock_balance WHERE material_id = $1 AND location_id = $2`, [ln.material_id, adjustLoc]);
+              `SELECT qty_on_hand FROM stock_balance WHERE material_id = $1 AND location_id = $2`, [ln.material_id, loc!]);
             const onHand = cur.rows[0] ? Number(cur.rows[0].qty_on_hand) : 0;
             const delta = qty - onHand;
             if (delta !== 0) {
-              await insertMovement(db, tid, uid, { materialId: ln.material_id, locationId: adjustLoc, typeCode: 'adjust',
-                signedQty: delta, unit: ln.unit, unitCost: ln.unit_cost, stockDocumentId: doc.id,
-                note: ln.note ?? doc.note ?? 'rettifica inventario' });
+              await insertMovement(db, tid, uid, { materialId: ln.material_id as string, locationId: loc!, typeCode: 'adjust',
+                signedQty: delta, unit: ln.unit as string, unitCost: ln.unit_cost as number, stockDocumentId: doc.id,
+                note: (ln.note as string) ?? doc.note ?? 'rettifica inventario' });
             }
           }
         }

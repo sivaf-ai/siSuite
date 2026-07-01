@@ -729,6 +729,9 @@ export const stockDocumentLineSchema = z.object({
   unitPrice: z.number().optional(),
   currency: z.string().max(8).optional(),
   note: z.string().max(500).optional(),
+  // WMS Fase A: ubicazione di prelievo/versamento a livello di RIGA (default dalla testata).
+  sourceLocationId: uuid.nullable().optional(),
+  destLocationId: uuid.nullable().optional(),
 });
 export const createStockDocumentSchema = z.object({
   typeCode: z.enum(['receipt', 'transfer', 'adjustment']),
@@ -754,6 +757,9 @@ export interface StockDocumentLineDto {
   id: string; materialId: string; materialName: string | null;
   quantity: number; unit: string; unitCost: number | null; unitPrice: number | null;
   currency: string | null; note: string | null;
+  /** WMS Fase A: ubicazione di prelievo/versamento della riga (+ catena leggibile). */
+  sourceLocationId: string | null; sourceLocationPath: string | null;
+  destLocationId: string | null; destLocationPath: string | null;
 }
 export interface StockDocumentDto {
   id: string; typeId: string; typeCanonical: string | null; number: string | null; docDate: string; status: string;

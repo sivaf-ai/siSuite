@@ -22,7 +22,12 @@ import { useToast } from '../ui/Toast';
 import { useAuth } from '../auth/AuthContext';
 
 interface ListResp<T> { items: T[] }
-interface Row { materialId: string; materialName: string; quantity: number; unit: string; unitCost: number | null; note: string | null }
+interface Row {
+  materialId: string; materialName: string; quantity: number; unit: string; unitCost: number | null; note: string | null;
+  // WMS Fase A: ubicazione della RIGA (null = eredita dalla testata)
+  sourceLocationId: string | null; sourceLocationPath: string | null;
+  destLocationId: string | null; destLocationPath: string | null;
+}
 type DocType = 'receipt' | 'transfer' | 'adjustment';
 
 const TYPE_LABEL: Record<DocType, string> = { receipt: 'Carico', transfer: 'Trasferimento', adjustment: 'Rettifica' };
@@ -58,6 +63,7 @@ export function DdtDetailPage() {
   const [sourcePick, setSourcePick] = useState(false);
   const [destPick, setDestPick] = useState(false);
   const [companyPick, setCompanyPick] = useState(false);
+  const [linePick, setLinePick] = useState<{ i: number; field: 'source' | 'dest' } | null>(null);
 
   const d = detail.data;
   useEffect(() => {
@@ -70,6 +76,8 @@ export function DdtDetailPage() {
     setRows((d.lines ?? []).map((l) => ({
       materialId: l.materialId, materialName: l.materialName ?? '—',
       quantity: l.quantity, unit: l.unit, unitCost: l.unitCost, note: l.note,
+      sourceLocationId: l.sourceLocationId ?? null, sourceLocationPath: l.sourceLocationPath ?? null,
+      destLocationId: l.destLocationId ?? null, destLocationPath: l.destLocationPath ?? null,
     })));
   }, [d]);
 
@@ -94,6 +102,7 @@ export function DdtDetailPage() {
   function addMaterials(mats: MaterialDto[]) {
     setRows((arr) => [...arr, ...mats.map((m) => ({
       materialId: m.id, materialName: m.name, quantity: 1, unit: m.unit, unitCost: null, note: null,
+      sourceLocationId: null, sourceLocationPath: null, destLocationId: null, destLocationPath: null,
     }))]);
     setErrs((e) => ({ ...e, lines: false }));
   }
@@ -115,7 +124,9 @@ export function DdtDetailPage() {
       return;
     }
     setBusy(true);
-    const lines = rows.map((r) => ({ materialId: r.materialId, quantity: r.quantity, unit: r.unit, unitCost: r.unitCost ?? undefined, note: r.note ?? undefined }));
+    const lines = rows.map((r) => ({ materialId: r.materialId, quantity: r.quantity, unit: r.unit, unitCost: r.unitCost ?? undefined, note: r.note ?? undefined,
+      sourceLocationId: needsSource ? (r.sourceLocationId ?? null) : null,
+      destLocationId: needsDest ? (r.destLocationId ?? null) : null }));
     const body = {
       docDate: form.docDate || undefined,
       sourceLocationId: needsSource ? (form.sourceLocationId || null) : null,
@@ -149,6 +160,27 @@ export function DdtDetailPage() {
   if (!isNew && detail.error) return <Page title="Documento di magazzino"><ErrorBox message={detail.error} /></Page>;
 
   const canConfirm = canManage && !isNew && status === 'draft';
+
+  // cella "ubicazione di riga": mostra la catena, oppure "= testata" (eredita); ✕ per tornare alla testata
+  const locCell = (r: Row, i: number, field: 'source' | 'dest') => {
+    const path = field === 'source' ? r.sourceLocationPath : r.destLocationPath;
+    const headerName = field === 'source' ? sourceName : destName;
+    return (
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={readOnly}
+            style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', justifyContent: 'flex-start', flex: 1 }}
+            title={path || (headerName ? `Eredita dalla testata: ${headerName}` : 'Scegli l\'ubicazione')}
+            onClick={() => setLinePick({ i, field })}>
+            {path || <span className="muted">{headerName ? '= testata' : 'scegli…'}</span>}
+          </button>
+          {path && !readOnly && <button type="button" title="Segui la testata" style={{ background: 'none', border: 0, color: 'var(--ink-faint)', cursor: 'pointer', fontSize: 15 }}
+            onClick={() => setRows((arr) => arr.map((x, j) => j === i ? (field === 'source' ? { ...x, sourceLocationId: null, sourceLocationPath: null } : { ...x, destLocationId: null, destLocationPath: null }) : x))}>×</button>}
+        </div>
+      </td>
+    );
+  };
+  const lineColSpan = 4 + (needsSource ? 1 : 0) + (needsDest ? 1 : 0) + (!readOnly ? 1 : 0);
 
   return (
     <Page title={isNew ? 'Documento di magazzino — nuovo' : 'Documento di magazzino'} bleed>
@@ -199,12 +231,17 @@ export function DdtDetailPage() {
           <table className="subt">
             <colgroup>
               <col />
-              <col style={{ width: 130 }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 130 }} />
-              {!readOnly && <col style={{ width: 50 }} />}
+              <col style={{ width: 110 }} />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 110 }} />
+              {needsSource && <col style={{ width: 210 }} />}
+              {needsDest && <col style={{ width: 210 }} />}
+              {!readOnly && <col style={{ width: 44 }} />}
             </colgroup>
-            <thead><tr><th>Articolo</th><th className="num">Quantità</th><th>Unità</th><th className="num">Costo unit.</th>{!readOnly && <th />}</tr></thead>
+            <thead><tr><th>Articolo</th><th className="num">Quantità</th><th>Unità</th><th className="num">Costo unit.</th>
+              {needsSource && <th>{type === 'adjustment' ? 'Ubicazione' : 'Preleva da'}</th>}
+              {needsDest && <th>Versa in</th>}
+              {!readOnly && <th />}</tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
@@ -215,12 +252,17 @@ export function DdtDetailPage() {
                     onChange={(u) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unit: u } : x))} /></td>
                   <td className="num"><NumInput align="right" value={r.unitCost} disabled={readOnly} placeholder="€"
                     onChange={(n) => setRows((arr) => arr.map((x, j) => j === i ? { ...x, unitCost: n } : x))} /></td>
+                  {needsSource && locCell(r, i, 'source')}
+                  {needsDest && locCell(r, i, 'dest')}
                   {!readOnly && <td><button className="reveal locked" style={{ background: 'none', color: 'var(--ink-faint)' }} onClick={() => setRows((arr) => arr.filter((_, j) => j !== i))}><Trash2 /></button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5}><div className="dsx-empty" style={errs.lines ? { color: 'var(--danger)' } : undefined}>Nessuna riga. Aggiungi un articolo.</div></td></tr>}
+              {rows.length === 0 && <tr><td colSpan={lineColSpan}><div className="dsx-empty" style={errs.lines ? { color: 'var(--danger)' } : undefined}>Nessuna riga. Aggiungi un articolo.</div></td></tr>}
             </tbody>
           </table>
+          {(needsSource || needsDest) && <p className="faint" style={{ fontSize: 12, color: 'var(--ink-faint)', margin: '6px 2px 0' }}>
+            «= testata» significa che la riga usa l'ubicazione della testata. Imposta un'ubicazione per riga per prelevare/versare articoli in posti diversi nello stesso documento.
+          </p>}
           {!readOnly && <div className="addline" onClick={() => setPickOpen(true)}><Boxes size={15} /> + Aggiungi articolo</div>}
         </ObjectBox>
       </ObjectPage>
@@ -232,6 +274,13 @@ export function DdtDetailPage() {
         onPick={(l) => { set('destLocationId', l.id); setDestName(l.name); setErrs((e) => ({ ...e, dest: false })); setDestPick(false); }} />
       <CompanyPickerDialog open={companyPick} role="supplier" onClose={() => setCompanyPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); setCompanyName(c.displayName); } }} />
+      <LocationTreePickerDialog open={!!linePick} onClose={() => setLinePick(null)}
+        onPick={(l) => {
+          if (linePick) setRows((arr) => arr.map((x, j) => j === linePick.i
+            ? (linePick.field === 'source' ? { ...x, sourceLocationId: l.id, sourceLocationPath: l.name } : { ...x, destLocationId: l.id, destLocationPath: l.name })
+            : x));
+          setLinePick(null);
+        }} />
     </Page>
   );
 }

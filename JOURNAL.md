@@ -2,6 +2,13 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (4) — WMS Fase A: ubicazioni a livello di RIGA nei documenti (chat 01.06)
+- **Modello "documento professionale"** (come SAP EWM/Manhattan/Odoo): ogni riga di DDT/Trasferimento/Carico/Rettifica ha **origine/destinazione propria**, con **default dalla testata** (null riga = eredita).
+- **Shared**: `stockDocumentLineSchema` + `sourceLocationId`/`destLocationId`; `StockDocumentLineDto` + id/catena (`sourceLocationPath`/`destLocationPath`).
+- **Backend** (stock.ts): INSERT righe (create+patch) salvano le ubicazioni riga; GET dettaglio ritorna id+catena; **conferma riscritta** con **pre-pass di validazione per riga** (risolve `riga ?? testata`, valida TUTTE le righe PRIMA di inserire → atomico, niente commit parziali). receipt=dest, transfer=source+dest distinte, adjustment=dest∥source. Enforcement capacità sul versamento resta attivo.
+- **Frontend** (DdtDetailPage): colonne riga **«Preleva da»/«Versa in»** (condizionali per tipo) con picker ad albero completo; badge «= testata» quando la riga eredita, ✕ per tornare alla testata; nota esplicativa. Salvataggio invia le ubicazioni riga.
+- Smoke: trasferimento con testata VUOTA e riga source=BinA/dest=BinB qty2 → conferma OK (DDT-2026-0002), giacenze BinA 5→3, BinB 0→2, catene corrette. 90/90 test, typecheck pulito. **Prossimo (proposta)**: Fase C (inquiry globale) o Fase B (putaway/pick guidati). Pick list line-level = follow-up.
+
 ## 2026-07-01 (3) — WMS professionale: codice per-padre, catena ubicazione, prelievo guidato, consultazione giacenze (chat 01.06)
 - **Migr 066**: (1) unicità `code` **per padre** `(tenant, COALESCE(parent_id,tenant), code)` — 01-01-A si ripete in ogni scaffale (prima era globale → falso "già esistente"); (2) funzione **`stock_location_path(id)`** = catena «Magazzino › Scaffale › Bin»; (3) `stock_document_line.source/dest_location_id` (livello-riga, pronto per Fase A). Prossima libera **067**.
 - **Backend**: `pathLabel` sul DTO ubicazione (via funzione) → i picker mostrano la **catena completa**. **Auto-codice** su create quando vuoto (magazzini `MAG-###`, ubicazioni `UB-####`). `GET /stock/balance` esteso: **`subtreeOf`** (giacenze di tutto il magazzino, per bin) + `locationPath` + `materialTotal` + `reorderPoint` + `lowStock`.
