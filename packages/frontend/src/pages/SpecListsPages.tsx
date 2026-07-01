@@ -13,7 +13,8 @@ import { EntityList, type ListColumn, type ListAction } from '../ui/EntityList';
 import { useEntityActions } from '../ui/useEntityActions';
 import { Modal } from '../ui/Modal';
 import { NumInput } from '../ui/NumInput';
-import { Plus } from '../ui/icons';
+import { Plus, Sparkles } from '../ui/icons';
+import { StockAssistModal } from './StockAssistModal';
 import { useApi, useReloadOnEnter, useArchivedView, mutate } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from '../ui/Toast';
@@ -163,9 +164,14 @@ export function DdtPage() {
     { key: 'flow', header: 'Origine → Destinazione', value: (r) => `${r.sourceLocationName ?? ''} ${r.destLocationName ?? ''}`, render: (r) => <span className="cellsub">{(r.sourceLocationName ?? '—')} → {(r.destLocationName ?? '—')}</span> },
     { key: 'date', header: 'Data', num: true, value: (r) => dfmt(r.docDate), render: (r) => <span className="cellsub">{dfmt(r.docDate)}</span> },
   ];
-  const rightActions: ListAction[] = canManage ? [{ key: 'new', icon: Plus, tip: 'Nuovo documento', variant: 'primary', onClick: () => history.push('/stock/documents/new') }] : [];
+  const [assist, setAssist] = useState(false);
+  const rightActions: ListAction[] = canManage ? [
+    { key: 'ai', icon: Sparkles, tip: 'Assistente AI: crea un documento da testo', onClick: () => setAssist(true) },
+    { key: 'new', icon: Plus, tip: 'Nuovo documento', variant: 'primary', onClick: () => history.push('/stock/documents/new') },
+  ] : [];
   return (
     <Page>
+      <StockAssistModal open={assist} onClose={() => setAssist(false)} />
       <EntityList<StockDocumentDto> title="Documenti di magazzino" subtitle="DDT · Carichi · Trasferimenti · Rettifiche · solo le bozze sono eliminabili"
         search={q} onSearch={setQ} searchPlaceholder="Cerca numero, magazzino…"
         rightActions={rightActions} onRowClick={(r) => history.push(`/stock/documents/${r.id}`)}

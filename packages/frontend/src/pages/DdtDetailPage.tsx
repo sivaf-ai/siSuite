@@ -4,9 +4,9 @@
  * Righe SOLO via MaterialPickerDialog. Azione "Conferma" → genera movimenti, numera.
  */
 import { useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router';
+import { useHistory, useParams, useLocation } from 'react-router';
 import { FileOutput, Boxes, Trash2, Check } from 'lucide-react';
-import type { StockDocumentDto, StockLocationDto, CompanyDto, MaterialDto, UnitDto } from '@sisuite/shared';
+import type { StockDocumentDto, StockLocationDto, CompanyDto, MaterialDto, UnitDto, StockDocAiProposal } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
@@ -80,6 +80,27 @@ export function DdtDetailPage() {
       destLocationId: l.destLocationId ?? null, destLocationPath: l.destLocationPath ?? null,
     })));
   }, [d]);
+
+  // WMS Fase D: bozza precompilata dall'assistente AI (passata via router state)
+  const location = useLocation<{ aiProposal?: StockDocAiProposal } | undefined>();
+  const aiProposal = isNew ? location.state?.aiProposal : undefined;
+  useEffect(() => {
+    if (!aiProposal) return;
+    setType(aiProposal.typeCode);
+    setForm({
+      docDate: '', sourceLocationId: aiProposal.sourceLocationId ?? '', destLocationId: aiProposal.destLocationId ?? '',
+      companyId: aiProposal.supplierId ?? '', externalRef: '', note: '',
+    });
+    if (aiProposal.sourceLocationName) setSourceName(aiProposal.sourceLocationName);
+    if (aiProposal.destLocationName) setDestName(aiProposal.destLocationName);
+    if (aiProposal.supplierName) setCompanyName(aiProposal.supplierName);
+    setRows(aiProposal.lines.map((l) => ({
+      materialId: l.materialId, materialName: l.materialName, quantity: l.quantity, unit: l.unit, unitCost: null, note: null,
+      sourceLocationId: l.sourceLocationId, sourceLocationPath: l.sourceLocationPath,
+      destLocationId: l.destLocationId, destLocationPath: l.destLocationPath,
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiProposal]);
 
   // risolvi i nomi (origine / destinazione / fornitore) dalle liste già caricate
   useEffect(() => {

@@ -51,6 +51,7 @@ import { workLineRoutes } from './routes/workLines.js';
 import { financeRoutes } from './routes/finance.js';
 import { exportPresetRoutes } from './routes/exportPresets.js';
 import { listFilterRoutes } from './routes/listFilter.js';
+import { stockAssistRoutes } from './routes/stockAssist.js';
 import { savedViewRoutes } from './routes/savedViews.js';
 import { listPresetRoutes } from './routes/listPresets.js';
 import { savedReportRoutes } from './routes/savedReports.js';
@@ -195,6 +196,7 @@ async function build() {
   await app.register(financeRoutes);
   await app.register(exportPresetRoutes);
   await app.register(listFilterRoutes);
+  await app.register(stockAssistRoutes);
   await app.register(savedViewRoutes);
   await app.register(listPresetRoutes);
   await app.register(savedReportRoutes);

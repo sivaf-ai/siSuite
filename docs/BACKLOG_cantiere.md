@@ -40,7 +40,7 @@
 - [x] **Fase A** — ubicazioni a livello di **riga** nei documenti (origine/destinazione per riga, default dalla testata; conferma con pre-pass di validazione per riga, atomica) — FATTO (DDT/Carico/Trasferimento/Rettifica). Pick list line-level = follow-up.
 - [x] **Fase B** — putaway/pick **guidati** — FATTO (movimenti): prelievo ordinato **FIFO** (firstInAt) con «consigliata»; putaway verso bin con **capacità disponibile** (entra/pieno, «consigliata»). Estendere alle righe documento = follow-up.
 - [x] **Fase C** — maschera **inquiry** globale `/stock/inquiry` (per articolo: dov'è + espandi ubicazioni; per ubicazione: cosa contiene; report riordino con deficit) — FATTO (solo FE).
-- [ ] **Fase D** — creazione documenti **assistita/AI** (NL → documento con articoli+ubicazioni).
+- [x] **Fase D** — creazione documenti **assistita/AI** — FATTO. `POST /ai/stock-document` (AI estrae intento → resolver deterministico articoli/ubicazioni/fornitore sotto RLS → bozza + warnings); pulsante «Assistente AI» nella lista Documenti → modale → apre la bozza precompilata da rivedere/confermare. Richiede `ANTHROPIC_API_KEY`.
 
 ## 🧰 Debiti minori / rifiniture
 - [x] Picker "Articolo" nei movimenti di magazzino → MaterialPicker (D-0) — FATTO.

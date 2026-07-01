@@ -2,6 +2,11 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (7) — WMS Fase D: assistente documenti AI (NL → bozza) (chat 01.06)
+- **`POST /ai/stock-document`** (`routes/stockAssist.ts`, stock:manage): l'utente scrive in linguaggio naturale → l'AI (`config.ai.extractionModel` = opus-4-8, pattern di `listFilter`) estrae l'INTENTO in JSON → un **resolver DETERMINISTICO sotto RLS** aggancia articoli (name/SKU ILIKE), ubicazioni (name/code/**path** ILIKE, via `stock_location_path`), fornitore (per il carico) → **bozza proposta** (`StockDocAiProposal`: type + testata + righe con id/catena) + **warnings** per ciò che non ha trovato. «L'AI propone, il deterministico conferma» (G-4). 503 se `ANTHROPIC_API_KEY` assente.
+- **UI**: pulsante **Assistente AI** (stella) nella lista Documenti → `StockAssistModal` (textarea + esempi + Genera bozza → anteprima tipo/righe/warnings) → «Apri bozza» naviga a `/stock/documents/new` con la proposta in router state; **DdtDetailPage** si precompila (tipo, testata, righe con ubicazioni). L'utente rivede e conferma.
+- Smoke REALE (chiave attiva): «Trasferisci 5 Bretella ottica dal Magazzino centrale Napoli allo Scaffale AI-TEST» → type=transfer, origine=Magazzino centrale, dest=«…› Scaffale AI-TEST», riga Bretella ottica qty5, 0 warning. 90/90 test, typecheck pulito. **Chiude Fase D → proposta WMS A/B/C/D COMPLETA.**
+
 ## 2026-07-01 (6) — WMS Fase B: movimenti guidati (prelievo FIFO + putaway per capacità) (chat 01.06)
 - **Backend**: `/stock/balance` ritorna `firstInAt` (min `occurred_on` dei carichi per material+location) → base del prelievo FIFO. `StockBalanceDto.firstInAt`.
 - **Prelievo guidato** (`SourceLocationPicker`, scarico/rettifica): ordina le ubicazioni con giacenza per **FIFO** (prima entrata), mostra la data, badge **«consigliata»** sulla prima.

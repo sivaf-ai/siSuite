@@ -763,6 +763,20 @@ export interface StockDocumentLineDto {
   sourceLocationId: string | null; sourceLocationPath: string | null;
   destLocationId: string | null; destLocationPath: string | null;
 }
+/** WMS Fase D: bozza documento proposta dall'assistente AL (NL → intento → resolver). */
+export interface StockDocAiLine {
+  materialId: string; materialName: string; quantity: number; unit: string;
+  sourceLocationId: string | null; sourceLocationPath: string | null;
+  destLocationId: string | null; destLocationPath: string | null;
+}
+export interface StockDocAiProposal {
+  typeCode: 'receipt' | 'transfer' | 'adjustment';
+  supplierId: string | null; supplierName: string | null;
+  sourceLocationId: string | null; sourceLocationName: string | null;
+  destLocationId: string | null; destLocationName: string | null;
+  lines: StockDocAiLine[]; warnings: string[];
+}
+
 export interface StockDocumentDto {
   id: string; typeId: string; typeCanonical: string | null; number: string | null; docDate: string; status: string;
   sourceLocationId: string | null; sourceLocationName: string | null;
