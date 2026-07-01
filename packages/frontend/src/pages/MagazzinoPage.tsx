@@ -317,8 +317,8 @@ function GiacenzeTab({ locationId }: { locationId: string }) {
 }
 
 /* ── Tab: Movimenti (immutabile: Nuovo movimento + Rettifica) ──────── */
-interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; materialName: string; materialUnit: string; materialWeight: number | null; materialVolume: number | null; locationId: string; locationName: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
-const emptyMov = (locationId: string, locationName: string): MovDraft => ({ typeCode: 'in', materialId: '', materialName: '', materialUnit: '', materialWeight: null, materialVolume: null, locationId, locationName, quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
+interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; materialName: string; materialUnit: string; materialWeight: number | null; materialVolume: number | null; materialUdc: number | null; locationId: string; locationName: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
+const emptyMov = (locationId: string, locationName: string): MovDraft => ({ typeCode: 'in', materialId: '', materialName: '', materialUnit: '', materialWeight: null, materialVolume: null, materialUdc: null, locationId, locationName, quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
 
 function MovimentiTab({ locationId, warehouseName }: { locationId: string; warehouseName: string }) {
   const toast = useToast();
@@ -414,11 +414,11 @@ function MovimentiTab({ locationId, warehouseName }: { locationId: string; wareh
       <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
         onPick={(es) => { const e = es[0]; if (e) setD((s) => ({ ...s, engagementId: e.id })); }} />
       <MaterialPickerDialog open={pickMat} onClose={() => setPickMat(false)}
-        onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit, materialWeight: m.weight ?? null, materialVolume: m.volume ?? null })); }} />
+        onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit, materialWeight: m.weight ?? null, materialVolume: m.volume ?? null, materialUdc: m.unitsPerUdc ?? null })); }} />
       <SourceLocationPicker warehouseId={locationId} materialId={d.materialId} open={pickSrc} onClose={() => setPickSrc(false)}
         onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickSrc(false); }} />
       <PutawayLocationPicker warehouseId={locationId} warehouseName={warehouseName} quantity={d.quantity}
-        material={d.materialId ? { weight: d.materialWeight, volume: d.materialVolume } : null}
+        material={d.materialId ? { weight: d.materialWeight, volume: d.materialVolume, unitsPerUdc: d.materialUdc } : null}
         open={pickPut} onClose={() => setPickPut(false)}
         onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickPut(false); }} />
     </>
@@ -575,13 +575,13 @@ export function SourceLocationPicker({ warehouseId, materialId, open, onClose, o
  *  "consigliata". warehouseId opzionale (assente = tutti i magazzini, per i documenti);
  *  materialId opzionale → carica peso/volume dell'articolo per volume/peso. */
 export function PutawayLocationPicker({ warehouseId, warehouseName, material, materialId, quantity, open, onClose, onPick }: {
-  warehouseId?: string; warehouseName?: string; material?: { weight: number | null; volume: number | null } | null;
+  warehouseId?: string; warehouseName?: string; material?: { weight: number | null; volume: number | null; unitsPerUdc: number | null } | null;
   materialId?: string; quantity: number | null; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
 }) {
   const { data, loading } = useApi<{ items: StockLocationDto[] }>(open ? `/stock/locations${warehouseId ? `?subtreeOf=${warehouseId}` : ''}` : null);
   const matApi = useApi<MaterialDto>(open && materialId && !material ? `/materials/${materialId}` : null);
   if (!open) return null;
-  const mat = material ?? (matApi.data ? { weight: matApi.data.weight, volume: matApi.data.volume } : null);
+  const mat = material ?? (matApi.data ? { weight: matApi.data.weight, volume: matApi.data.volume, unitsPerUdc: matApi.data.unitsPerUdc } : null);
   const items = data?.items ?? [];
   const hasChild = new Set(items.map((i) => i.parentId).filter(Boolean) as string[]);
   const qty = quantity ?? 0;
@@ -592,9 +592,13 @@ export function PutawayLocationPicker({ warehouseId, warehouseName, material, ma
     ...items.filter((n) => !hasChild.has(n.id) && n.holdsStock !== false).map((n) => {
       if (!n.capacityKind || n.capacityMax == null) return { id: n.id, path: n.pathLabel, hasLimit: false, unit: '', remaining: Infinity, fits: true, noStock: false };
       const unit = CAPACITY_KINDS.find((k) => k.code === n.capacityKind)?.unit ?? '';
-      const needed = n.capacityKind === 'quantity' ? qty : qty * (n.capacityKind === 'volume' ? (mat?.volume ?? 0) : (mat?.weight ?? 0));
+      const perPiece = n.capacityKind === 'volume' ? (mat?.volume ?? 0)
+        : n.capacityKind === 'weight' ? (mat?.weight ?? 0)
+        : n.capacityKind === 'udc' ? (mat?.unitsPerUdc && mat.unitsPerUdc > 0 ? 1 / mat.unitsPerUdc : 0)
+        : 1; // quantity
+      const needed = qty * perPiece;
       const remaining = n.capacityMax - (n.occupied ?? 0);
-      const noStock = n.capacityKind !== 'quantity' && !(n.capacityKind === 'volume' ? mat?.volume : mat?.weight);
+      const noStock = n.capacityKind !== 'quantity' && !perPiece;
       return { id: n.id, path: n.pathLabel, hasLimit: true, unit, remaining, fits: remaining + 1e-9 >= needed, noStock };
     }),
   ].sort((a, b) => Number(b.fits) - Number(a.fits) || b.remaining - a.remaining);

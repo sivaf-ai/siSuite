@@ -254,6 +254,7 @@ export const createMaterialSchema = z.object({
   weight: num,
   weightUnit: z.string().max(10).nullable().optional(),
   volume: num,                                              // m³ per unità (WMS Fase 2: criterio capacità 'volume')
+  unitsPerUdc: num,                                         // pezzi per pallet/UDC (criterio capacità 'udc')
   dimensions: z.record(z.string(), z.unknown()).nullable().optional(),
   isReturnable: z.boolean().optional(),
   shelfLifeDays: z.coerce.number().int().nullable().optional(),
@@ -272,7 +273,7 @@ export interface MaterialDto {
   taxRateId: string | null;
   reorderPoint: number | null; safetyStock: number | null; minQty: number | null; maxQty: number | null;
   leadTimeDays: number | null; preferredVendorId: string | null;
-  weight: number | null; weightUnit: string | null; volume: number | null; dimensions: Record<string, unknown> | null;
+  weight: number | null; weightUnit: string | null; volume: number | null; unitsPerUdc: number | null; dimensions: Record<string, unknown> | null;
   isReturnable: boolean; shelfLifeDays: number | null; primaryImageUrl: string | null; note: string | null;
   /** calcolati: giacenza totale e costo medio (da stock_balance). */
   qtyOnHand: number; avgCost: number | null;
@@ -645,17 +646,18 @@ export const createStockLocationSchema = z.object({
   isDefault: z.boolean().optional(),
   sequence: z.coerce.number().int().optional(),            // ordine fratelli (EntityTree)
   // WMS Fase 2: capacità/spazio del bin (criterio + massimo + blocco al superamento)
-  capacityKind: z.enum(['volume', 'weight', 'quantity']).nullable().optional(),
+  capacityKind: z.enum(['volume', 'weight', 'quantity', 'udc']).nullable().optional(),
   capacityMax: num,                                          // valore massimo nel criterio scelto
   capacityEnforce: z.boolean().optional(),                  // true = blocca i carichi oltre il massimo
 });
 export const updateStockLocationSchema = createStockLocationSchema.partial().extend({ active: z.boolean().optional() });
 
-/** Criteri di capacità di un'ubicazione (WMS Fase 2). UDC/posti-pallet a seguire (serve il modello unità di carico). */
+/** Criteri di capacità di un'ubicazione (WMS Fase 2 + UDC). */
 export const CAPACITY_KINDS = [
   { code: 'volume', label: 'Volume (m³)', unit: 'm³' },
   { code: 'weight', label: 'Peso (kg)', unit: 'kg' },
   { code: 'quantity', label: 'Quantità (pezzi)', unit: 'pz' },
+  { code: 'udc', label: 'Posti pallet (UDC)', unit: 'UDC' },
 ] as const;
 export type CapacityKind = (typeof CAPACITY_KINDS)[number]['code'];
 

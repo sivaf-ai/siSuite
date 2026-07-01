@@ -2,6 +2,12 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (10) — WMS follow-up #3: capacità UDC / posti-pallet (chat 01.06)
+- **Migr 068**: `material.units_per_udc` (pezzi per pallet/UDC) + CHECK `capacity_kind` esteso a **'udc'**. Prossima libera **069**.
+- Nuovo criterio capacità **UDC** (`CAPACITY_KINDS`): occupato = **Σ(qty / units_per_udc)** (pallet frazionari), massimo = n° posti-pallet. `OCCUPIED_EXPR` + `assertCapacity` generalizzati (volume/peso/quantità/udc); enforcement bloccante. Senza `units_per_udc` l'articolo non enforcea (metrica 0).
+- Backend materials: `units_per_udc` in select/dto/create/update. Frontend: campo **«Pezzi per pallet (UDC)»** nel form articolo; `PutawayLocationPicker` gestisce udc (needed = qty/units_per_udc) e carica la metrica dall'articolo.
+- Smoke: units_per_udc=10, bin udc max2 blocco → 15pz=1.5 UDC ok, +6 (21pz=2.1 UDC)→ **409** «porterebbe a 2,1 UDC sul massimo di 2», occupied=1.5. 90/90 test, typecheck pulito.
+
 ## 2026-07-01 (9) — WMS follow-up #1: pick list a livello RIGA (chat 01.06)
 - **Migr 067**: `pick_list_line.source_location_id` (nullable → default source della testata). Prossima libera **068**.
 - Shared: `pickLineSchema`+`sourceLocationId`, `PickListLineDto`+id/catena. Backend warehouse.ts: INSERT righe (create+patch) + GET dettaglio (path) + **conferma** usa `riga.source ?? testata.source` per il movimento 'out'. Frontend PickListDetailPage: colonna **«Preleva da»** per riga (prelievo guidato `SourceLocationPicker`: solo dove l'articolo ha giacenza, FIFO), badge «= testata», ✕ per ereditare.

@@ -34,7 +34,7 @@ const SELECT = `
          m.track_stock, m.tracked_by_serial, m.tracked_by_lot,
          m.costing_method, m.default_cost, m.default_sale_price, m.tax_rate_id,
          m.reorder_point, m.safety_stock, m.min_qty, m.max_qty, m.lead_time_days, m.preferred_vendor_id,
-         m.weight, wu.code AS weight_unit, m.volume, m.dimensions, m.is_returnable, m.shelf_life_days, m.note,
+         m.weight, wu.code AS weight_unit, m.volume, m.units_per_udc, m.dimensions, m.is_returnable, m.shelf_life_days, m.note,
          pi.object_key AS primary_image_key,
          m.attributes,
          COALESCE(bal.qty, 0) AS qty_on_hand,
@@ -66,7 +66,7 @@ function toDto(r: Record<string, unknown>): MaterialDto {
     defaultCost: num(r.default_cost), defaultSalePrice: num(r.default_sale_price), taxRateId: (r.tax_rate_id as string) ?? null,
     reorderPoint: num(r.reorder_point), safetyStock: num(r.safety_stock), minQty: num(r.min_qty), maxQty: num(r.max_qty),
     leadTimeDays: num(r.lead_time_days), preferredVendorId: (r.preferred_vendor_id as string) ?? null,
-    weight: num(r.weight), weightUnit: (r.weight_unit as string) ?? null, volume: num(r.volume),
+    weight: num(r.weight), weightUnit: (r.weight_unit as string) ?? null, volume: num(r.volume), unitsPerUdc: num(r.units_per_udc),
     dimensions: (r.dimensions as Record<string, unknown>) ?? null,
     isReturnable: (r.is_returnable as boolean) ?? true, shelfLifeDays: num(r.shelf_life_days),
     primaryImageUrl: null, note: (r.note as string) ?? null,
@@ -90,7 +90,7 @@ const MAT_COLS: Record<string, string> = {
   brand: 'brand', manufacturer: 'manufacturer', mpn: 'mpn', defaultSalePrice: 'default_sale_price',
   taxRateId: 'tax_rate_id', reorderPoint: 'reorder_point', safetyStock: 'safety_stock', minQty: 'min_qty',
   maxQty: 'max_qty', leadTimeDays: 'lead_time_days', preferredVendorId: 'preferred_vendor_id',
-  weight: 'weight', volume: 'volume', dimensions: 'dimensions', isReturnable: 'is_returnable',
+  weight: 'weight', volume: 'volume', unitsPerUdc: 'units_per_udc', dimensions: 'dimensions', isReturnable: 'is_returnable',
   shelfLifeDays: 'shelf_life_days', note: 'note',
 };
 
@@ -195,8 +195,8 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
            brand, manufacturer, mpn, track_stock, tracked_by_serial, tracked_by_lot, costing_method,
            default_cost, default_sale_price, tax_rate_id, reorder_point, safety_stock, min_qty, max_qty,
            lead_time_days, preferred_vendor_id, weight, weight_unit_id, dimensions, is_returnable, shelf_life_days,
-           note, attributes, volume, created_by, updated_by)
-         VALUES ($1,$2,$3,public.app_resolve_unit(public.app_current_tenant(),$4),$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,public.app_resolve_unit(public.app_current_tenant(),$27),$28,$29,$30,$31,$32,$33,$34,$34) RETURNING id`,
+           note, attributes, volume, units_per_udc, created_by, updated_by)
+         VALUES ($1,$2,$3,public.app_resolve_unit(public.app_current_tenant(),$4),$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,public.app_resolve_unit(public.app_current_tenant(),$27),$28,$29,$30,$31,$32,$33,$34,$35,$35) RETURNING id`,
         [ctx.tenantId, code, input.name, input.unit, input.itemType ?? 'article', input.sku ?? null, input.barcode ?? null,
          input.categoryId ?? null, input.description ?? null, input.brand ?? null, input.manufacturer ?? null, input.mpn ?? null,
          input.trackStock ?? true, input.trackedBySerial ?? false, input.trackedByLot ?? false, input.costingMethod ?? 'avg',
@@ -204,7 +204,7 @@ export async function materialRoutes(app: FastifyInstance): Promise<void> {
          input.safetyStock ?? null, input.minQty ?? null, input.maxQty ?? null, input.leadTimeDays ?? null,
          input.preferredVendorId ?? null, input.weight ?? null, input.weightUnit ?? null,
          input.dimensions ? JSON.stringify(input.dimensions) : null, input.isReturnable ?? true, input.shelfLifeDays ?? null,
-         input.note ?? null, attrs, input.volume ?? null, ctx.userId]);
+         input.note ?? null, attrs, input.volume ?? null, input.unitsPerUdc ?? null, ctx.userId]);
       const r = await db.query(`${SELECT} WHERE m.id = $1`, [ins.rows[0].id]);
       return withPrimaryUrl(toDto(r.rows[0]), r.rows[0].primary_image_key);
     });

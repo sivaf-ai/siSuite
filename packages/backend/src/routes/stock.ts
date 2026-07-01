@@ -40,6 +40,7 @@ const OCCUPIED_EXPR = `CASE
     WHEN sl.capacity_kind = 'quantity' THEN (SELECT COALESCE(SUM(b.qty_on_hand), 0) FROM stock_balance b WHERE b.location_id = sl.id)
     WHEN sl.capacity_kind = 'volume'   THEN (SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.volume, 0)), 0) FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = sl.id)
     WHEN sl.capacity_kind = 'weight'   THEN (SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.weight, 0)), 0) FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = sl.id)
+    WHEN sl.capacity_kind = 'udc'      THEN (SELECT COALESCE(SUM(b.qty_on_hand / NULLIF(m.units_per_udc, 0)), 0) FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = sl.id)
     ELSE NULL END`;
 // stessa lista con prefisso sl. + join app_user per il nome di chi ha archiviato (vista archiviati).
 const LOC_SELECT = `sl.id, sl.parent_id, sl.name, sl.kind, sl.resource_id, sl.code, sl.note, sl.manager_user_id,
@@ -76,21 +77,25 @@ async function assertCapacity(db: PoolClient, locationId: string, materialId: st
   const lr = await db.query(`SELECT name, capacity_kind, capacity_max, capacity_enforce FROM stock_location WHERE id = $1`, [locationId]);
   const l = lr.rows[0];
   if (!l || !l.capacity_enforce || !l.capacity_kind || l.capacity_max == null) return;
-  const kind = l.capacity_kind as 'volume' | 'weight' | 'quantity';
-  const metricCol = kind === 'volume' ? 'volume' : kind === 'weight' ? 'weight' : null;
-  // occupato attuale
-  const occupied = Number((metricCol
-    ? await db.query(`SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.${metricCol}, 0)), 0) AS s FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = $1`, [locationId])
-    : await db.query(`SELECT COALESCE(SUM(qty_on_hand), 0) AS s FROM stock_balance WHERE location_id = $1`, [locationId])
-  ).rows[0].s);
-  // metrica unitaria dell'articolo in carico (1 pezzo per il criterio 'quantity')
-  const unitMetric = metricCol
-    ? Number((await db.query(`SELECT COALESCE(${metricCol}, 0) AS v FROM material WHERE id = $1`, [materialId])).rows[0]?.v ?? 0)
-    : 1;
+  const kind = l.capacity_kind as 'volume' | 'weight' | 'quantity' | 'udc';
+  // occupato attuale + metrica unitaria dell'articolo, per criterio
+  let occupied: number; let unitMetric: number;
+  if (kind === 'quantity') {
+    occupied = Number((await db.query(`SELECT COALESCE(SUM(qty_on_hand), 0) AS s FROM stock_balance WHERE location_id = $1`, [locationId])).rows[0].s);
+    unitMetric = 1;
+  } else if (kind === 'udc') {
+    occupied = Number((await db.query(`SELECT COALESCE(SUM(b.qty_on_hand / NULLIF(m.units_per_udc, 0)), 0) AS s FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = $1`, [locationId])).rows[0].s);
+    const upu = Number((await db.query(`SELECT COALESCE(units_per_udc, 0) AS v FROM material WHERE id = $1`, [materialId])).rows[0]?.v ?? 0);
+    unitMetric = upu > 0 ? 1 / upu : 0;   // senza pezzi-per-UDC non possiamo enforceare → non blocca
+  } else {
+    const metricCol = kind === 'volume' ? 'volume' : 'weight';
+    occupied = Number((await db.query(`SELECT COALESCE(SUM(b.qty_on_hand * COALESCE(m.${metricCol}, 0)), 0) AS s FROM stock_balance b JOIN material m ON m.id = b.material_id WHERE b.location_id = $1`, [locationId])).rows[0].s);
+    unitMetric = Number((await db.query(`SELECT COALESCE(${metricCol}, 0) AS v FROM material WHERE id = $1`, [materialId])).rows[0]?.v ?? 0);
+  }
   const projected = occupied + addQty * unitMetric;
   const max = Number(l.capacity_max);
   if (projected > max + 1e-9) {
-    const u = kind === 'volume' ? 'm³' : kind === 'weight' ? 'kg' : 'pz';
+    const u = kind === 'volume' ? 'm³' : kind === 'weight' ? 'kg' : kind === 'udc' ? 'UDC' : 'pz';
     const f = (n: number) => Number(n.toFixed(3)).toLocaleString('it-IT');
     throw new CapacityError(`Capacità superata in «${l.name}»: il carico porterebbe a ${f(projected)} ${u} sul massimo di ${f(max)} ${u} (già occupato ${f(occupied)} ${u}).`);
   }
