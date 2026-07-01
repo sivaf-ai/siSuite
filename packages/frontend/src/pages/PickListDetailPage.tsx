@@ -11,7 +11,7 @@ import { Page, Loading, ErrorBox } from '../components/Page';
 import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
-import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { LocationTreePickerDialog } from './MagazzinoPage';
 import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
 import { WorkOrderPickerDialog } from '../ui/WorkOrderPickerDialog';
@@ -220,8 +220,8 @@ export function PickListDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
-      <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); } }} />
+      <LocationTreePickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
+        onPick={(l) => { set('sourceLocationId', l.id); setSourceName(l.name); setSourcePick(false); }} />
       <ResourcePickerDialog open={resPick} onClose={() => setResPick(false)}
         onPick={(rs) => { const r = rs[0]; if (r) { set('assignedResourceId', r.id); setResourceName(r.label); } }} />
       <EngagementPickerDialog open={engPick} onClose={() => setEngPick(false)}

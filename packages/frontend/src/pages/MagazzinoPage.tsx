@@ -20,6 +20,7 @@ import { Modal } from '../ui/Modal';
 import { PickerField } from '../ui/PickerField';
 import { ResourcePickerDialog } from '../ui/ResourcePickerDialog';
 import { EngagementPickerDialog } from '../ui/EngagementPickerDialog';
+import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { EntityList, type ListColumn, type ExportField, type ListAction } from '../ui/EntityList';
 import { EntityTree, type EntityTreeConfig } from '../ui/EntityTree';
 import { BusyOverlay } from '../ui/BusyOverlay';
@@ -234,7 +235,7 @@ export function MagazzinoDetailPage({ embed }: { embed?: LocationEmbed } = {}) {
 
   const tabs: RelTab[] = [
     { key: 'balances', label: 'Articoli & giacenze', icon: Boxes, content: <GiacenzeTab locationId={id} /> },
-    { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MovimentiTab locationId={id} /> },
+    { key: 'movements', label: 'Movimenti', icon: ArrowLeftRight, content: <MovimentiTab locationId={id} warehouseName={form.name || 'Magazzino'} /> },
     { key: 'children', label: 'Ubicazioni', icon: CornerDownRight, content: <UbicazioniTab parentId={id} canManage={canManage} /> },
     { key: 'occupancy', label: 'Mappa occupazione', icon: LayoutGrid, content: <OccupancyMap warehouseId={id} warehouseName={form.name || 'Magazzino'} /> },
     { key: 'serials', label: 'Seriali', icon: Cpu, content: <SerialiTab locationId={id} /> },
@@ -294,10 +295,10 @@ function GiacenzeTab({ locationId }: { locationId: string }) {
 }
 
 /* ── Tab: Movimenti (immutabile: Nuovo movimento + Rettifica) ──────── */
-interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
-const emptyMov = (): MovDraft => ({ typeCode: 'in', materialId: '', quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
+interface MovDraft { typeCode: 'in' | 'out' | 'adjust'; materialId: string; materialName: string; materialUnit: string; locationId: string; locationName: string; quantity: number | null; unitCost: number | null; engagementId: string; occurredOn: string; note: string }
+const emptyMov = (locationId: string, locationName: string): MovDraft => ({ typeCode: 'in', materialId: '', materialName: '', materialUnit: '', locationId, locationName, quantity: null, unitCost: null, engagementId: '', occurredOn: '', note: '' });
 
-function MovimentiTab({ locationId }: { locationId: string }) {
+function MovimentiTab({ locationId, warehouseName }: { locationId: string; warehouseName: string }) {
   const toast = useToast();
   const lk = useLookups();
   const { canMove } = usePerms();
@@ -307,22 +308,26 @@ function MovimentiTab({ locationId }: { locationId: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [revId, setRevId] = useState<string | null>(null);
-  const [d, setD] = useState<MovDraft>(emptyMov());
+  const [d, setD] = useState<MovDraft>(emptyMov(locationId, warehouseName));
   const [pickEng, setPickEng] = useState(false);
+  const [pickMat, setPickMat] = useState(false);
+  const [pickLoc, setPickLoc] = useState(false);
   const engName = (() => { const e = engs.data?.items.find((x) => x.id === d.engagementId); return e ? `${e.code ? e.code + ' · ' : ''}${e.title}` : (d.engagementId ? '…' : ''); })();
   const matById = useMemo(() => new Map((mats.data?.items ?? []).map((m) => [m.id, m])), [mats.data]);
   const rows = mv.data?.items ?? [];
+  const openNew = () => { setD(emptyMov(locationId, warehouseName)); setOpen(true); };
 
   async function save() {
     if (!d.materialId || !d.quantity) { toast('Articolo e quantità obbligatori', 'error'); return; }
+    if (!d.locationId) { toast('Scegli l\'ubicazione', 'error'); return; }
     setBusy(true);
     try {
       await mutate('POST', '/stock/movements', {
-        typeCode: d.typeCode, materialId: d.materialId, locationId, quantity: d.quantity,
-        unit: matById.get(d.materialId)?.unit ?? 'pz', unitCost: d.unitCost ?? undefined,
+        typeCode: d.typeCode, materialId: d.materialId, locationId: d.locationId, quantity: d.quantity,
+        unit: d.materialUnit || matById.get(d.materialId)?.unit || 'pz', unitCost: d.unitCost ?? undefined,
         engagementId: d.engagementId || undefined, occurredOn: d.occurredOn || undefined, note: d.note || undefined,
       });
-      toast('Movimento registrato', 'success'); setOpen(false); setD(emptyMov()); await mv.reload();
+      toast('Movimento registrato', 'success'); setOpen(false); await mv.reload();
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
   async function reverse(mid: string) {
@@ -337,7 +342,7 @@ function MovimentiTab({ locationId }: { locationId: string }) {
       <div className="toolbar" style={{ margin: '8px 0', gap: 8 }}>
         <span className="chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--ink-soft)' }}><Lock size={13} /> Registro immutabile — si corregge con una rettifica</span>
         <span className="spacer" style={{ flex: 1 }} />
-        {canMove && <button className="btn btn-primary btn-sm" onClick={() => { setD(emptyMov()); setOpen(true); }}><Plus size={15} /> Nuovo movimento</button>}
+        {canMove && <button className="btn btn-primary btn-sm" onClick={openNew}><Plus size={15} /> Nuovo movimento</button>}
       </div>
       <table className="subt">
         <thead><tr><th>Data</th><th>Tipo</th><th>Articolo</th><th className="num">Qtà</th><th className="num">Costo</th><th /></tr></thead>
@@ -359,22 +364,33 @@ function MovimentiTab({ locationId }: { locationId: string }) {
       <Modal open={open} title="Nuovo movimento" size="md" onClose={() => setOpen(false)} footer={
         <><button className="btn btn-ghost" onClick={() => setOpen(false)}>Annulla</button><button className="btn btn-primary" disabled={busy} onClick={save}>Registra</button></>
       }>
-        <div className="bgrid">
-          <div className="bf c2"><span className="bl">Tipo</span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
-          <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span><select className="bi" value={d.materialId} onChange={(e) => setD({ ...d, materialId: e.target.value })}><option value="">Articolo…</option>{(mats.data?.items ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-          <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialId && <span style={{ color: 'var(--ink-faint)' }}> ({matById.get(d.materialId)?.unit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
-          <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
-          <div className="bf c2"><span className="bl">Commessa (opz.)</span>
-            <PickerField value={engName || null} placeholder="Scegli la commessa…"
-              onOpen={() => setPickEng(true)} onClear={() => setD({ ...d, engagementId: '' })} /></div>
-          <div className="bf c2"><span className="bl">Data (opz.)</span><input className="bi mono" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
-          <div className="bf c4"><span className="bl">Note (opz.)</span><input className="bi" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>
+        <div className="dsx">
+          <div className="bgrid">
+            <div className="bf c2"><span className="bl">Tipo <span className="req">*</span></span><select className="bi" value={d.typeCode} onChange={(e) => setD({ ...d, typeCode: e.target.value as MovDraft['typeCode'] })}><option value="in">Carico (+)</option><option value="out">Scarico (−)</option><option value="adjust">Rettifica (delta)</option></select></div>
+            <div className="bf c2"><span className="bl">Ubicazione <span className="req">*</span></span>
+              <PickerField value={d.locationName || null} placeholder="Scegli l'ubicazione…"
+                onOpen={() => setPickLoc(true)} onClear={() => setD({ ...d, locationId: '', locationName: '' })} /></div>
+            <div className="bf c2"><span className="bl">Articolo <span className="req">*</span></span>
+              <PickerField value={d.materialName || null} placeholder="Scegli l'articolo…"
+                onOpen={() => setPickMat(true)} onClear={() => setD({ ...d, materialId: '', materialName: '', materialUnit: '' })} /></div>
+            <div className="bf c2"><span className="bl">Quantità <span className="req">*</span>{d.materialUnit && <span style={{ color: 'var(--ink-faint)' }}> ({d.materialUnit})</span>}</span><NumInput align="right" value={d.quantity} onChange={(n) => setD({ ...d, quantity: n })} /></div>
+            <div className="bf c2"><span className="bl">Costo unitario (opz.)</span><NumInput align="right" value={d.unitCost} onChange={(n) => setD({ ...d, unitCost: n })} placeholder="€" /></div>
+            <div className="bf c2"><span className="bl">Commessa (opz.)</span>
+              <PickerField value={engName || null} placeholder="Scegli la commessa…"
+                onOpen={() => setPickEng(true)} onClear={() => setD({ ...d, engagementId: '' })} /></div>
+            <div className="bf c2"><span className="bl">Data (opz.)</span><input className="bi mono" type="date" value={d.occurredOn} onChange={(e) => setD({ ...d, occurredOn: e.target.value })} /></div>
+            <div className="bf c4"><span className="bl">Note (opz.)</span><input className="bi" value={d.note} onChange={(e) => setD({ ...d, note: e.target.value })} /></div>
+          </div>
         </div>
       </Modal>
       <ConfirmDialog open={!!revId} title="Rettifica / storna movimento" message="Crea un movimento compensativo (quantità opposta). L'originale resta (registro immutabile)."
         confirmLabel="Crea rettifica" busy={busy} onConfirm={() => revId && void reverse(revId)} onCancel={() => setRevId(null)} />
       <EngagementPickerDialog open={pickEng} onClose={() => setPickEng(false)}
         onPick={(es) => { const e = es[0]; if (e) setD((s) => ({ ...s, engagementId: e.id })); }} />
+      <MaterialPickerDialog open={pickMat} onClose={() => setPickMat(false)}
+        onPick={(ms) => { const m = ms[0]; if (m) setD((s) => ({ ...s, materialId: m.id, materialName: m.name, materialUnit: m.unit })); }} />
+      <UbicazionePickerModal warehouseId={locationId} warehouseName={warehouseName} open={pickLoc} onClose={() => setPickLoc(false)}
+        onPick={(l) => { setD((s) => ({ ...s, locationId: l.id, locationName: l.name })); setPickLoc(false); }} />
     </>
   );
 }
@@ -475,6 +491,47 @@ function fillInfo(n: Record<string, unknown>): { pct: number; text: string } | n
   return { pct, text: `${pct}% pieno${pct > 100 ? ' ⚠' : ''} (${occ.toLocaleString('it-IT')}/${max.toLocaleString('it-IT')} ${unit})` };
 }
 
+/* ── Picker Ubicazione (albero scoped al magazzino) per i movimenti/documenti ──
+ *  Riusa l'albero VERO delle ubicazioni in modalità pick (radio + onPick), scoped
+ *  al magazzino corrente. In cima l'opzione "il magazzino stesso" (la radice non è
+ *  nel sotto-albero). Standard D-1: scegliere un'entità = riuso della sua lista vera. */
+function UbicazionePickerModal({ warehouseId, warehouseName, open, onClose, onPick }: {
+  warehouseId: string; warehouseName: string; open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+}) {
+  const { options, label, meta } = useLocationKinds(['sub_location', 'van']);
+  if (!open) return null;
+  const cfg: EntityTreeConfig = { ...ubicazioniConfig(warehouseId, options, label, meta, () => {}), mode: 'pick', onPick: (n) => onPick({ id: n.id, name: n.name }) };
+  return (
+    <Modal open size="lg" title="Scegli l'ubicazione" onClose={onClose}>
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
+        onClick={() => onPick({ id: warehouseId, name: warehouseName })}>
+        <Warehouse size={15} /> Usa il magazzino stesso ({warehouseName})
+      </button>
+      <EntityTree config={cfg} />
+    </Modal>
+  );
+}
+
+/* ── Picker Ubicazione ad ALBERO COMPLETO (tutti i magazzini + loro ubicazioni) ──
+ *  Per i documenti (DDT/pick list): origine/destinazione possono essere un magazzino
+ *  O una specifica ubicazione (bin). Riusa l'albero vero in pick mode (§D-1). */
+export function LocationTreePickerDialog({ open, onClose, onPick }: {
+  open: boolean; onClose: () => void; onPick: (l: { id: string; name: string }) => void;
+}) {
+  const { label, meta } = useLocationKinds(['warehouse', 'sub_location', 'van']);
+  if (!open) return null;
+  const cfg: EntityTreeConfig = {
+    entity: 'stock_location', endpoint: '/stock/locations',
+    labels: { singular: 'Ubicazione', plural: 'Ubicazioni', subtitle: 'Magazzini e relative ubicazioni', newLabel: 'Nuova ubicazione' },
+    permissions: { read: 'stock:read', write: 'stock:manage' },
+    defaultIcon: 'warehouse', showAppearance: false, countNoun: 'articoli a giacenza',
+    nodeAppearance: (n) => meta[String(n.kind ?? 'sub_location')] ?? {},
+    rowMeta: (n) => [label(String(n.kind ?? 'sub_location')), n.code ? `cod. ${String(n.code)}` : ''].filter(Boolean).join(' · ') || null,
+    mode: 'pick', onPick: (n) => onPick({ id: n.id, name: n.name }),
+  };
+  return <Modal open size="lg" title="Scegli magazzino / ubicazione" onClose={onClose}><EntityTree config={cfg} /></Modal>;
+}
+
 /* ── Tab: Mappa occupazione (WMS Fase 3) — heatmap % riempimento per zona/scaffale ──
  *  Riusa /stock/locations?subtreeOf=<magazzino> (ogni nodo porta già occupied+capacity).
  *  Raggruppa le foglie (bin) per genitore (scaffale/zona): tiles colorati per % pieno
@@ -498,14 +555,17 @@ function OccupancyMap({ warehouseId, warehouseName }: { warehouseId: string; war
   const items = data?.items ?? [];
   const fillOf = (n: StockLocationDto): number | null =>
     n.capacityKind && n.capacityMax && n.occupied != null ? Math.round((n.occupied / n.capacityMax) * 100) : null;
+  const hasCap = (n: StockLocationDto): boolean => !!(n.capacityKind && n.capacityMax);
   const hasChild = new Set(items.map((i) => i.parentId).filter(Boolean) as string[]);
-  const leaves = items.filter((i) => !hasChild.has(i.id));
-  if (!leaves.length) return <div className="dsx-empty" style={{ padding: 24 }}>Nessuna ubicazione interna. Crea o genera ubicazioni nella tab «Ubicazioni».</div>;
+  // tile = OGNI nodo con un limite di capacità + le foglie (bin) senza figli. Così un'ubicazione
+  // con capacità compare SEMPRE, anche se ha sotto-ubicazioni (container).
+  const tiles = items.filter((i) => hasCap(i) || !hasChild.has(i.id));
+  if (!tiles.length) return <div className="dsx-empty" style={{ padding: 24 }}>Nessuna ubicazione interna. Crea o genera ubicazioni nella tab «Ubicazioni».</div>;
   const nameById = new Map(items.map((i) => [i.id, i.name] as const));
 
-  // raggruppa le foglie (bin) per genitore (scaffale/zona)
+  // raggruppa i tile per genitore (scaffale/zona)
   const groupsMap = new Map<string, StockLocationDto[]>();
-  for (const lf of leaves) {
+  for (const lf of tiles) {
     const k = lf.parentId ?? warehouseId;
     if (!groupsMap.has(k)) groupsMap.set(k, []);
     groupsMap.get(k)!.push(lf);
@@ -514,10 +574,10 @@ function OccupancyMap({ warehouseId, warehouseName }: { warehouseId: string; war
     pid, name: pid === warehouseId ? warehouseName : (nameById.get(pid) ?? '—'),
     bins: bins.slice().sort((a, b) => (a.code ?? a.name).localeCompare(b.code ?? b.name, 'it')),
   })).sort((a, b) => a.name.localeCompare(b.name, 'it'));
-  if (onlyLimited) groups = groups.map((g) => ({ ...g, bins: g.bins.filter((b) => b.capacityKind && b.capacityMax) })).filter((g) => g.bins.length);
+  if (onlyLimited) groups = groups.map((g) => ({ ...g, bins: g.bins.filter(hasCap) })).filter((g) => g.bins.length);
 
-  // KPI sui bin con limite
-  const limited = leaves.filter((b) => b.capacityKind && b.capacityMax);
+  // KPI su tutti i nodi con limite
+  const limited = items.filter(hasCap);
   const pcts = limited.map(fillOf).filter((p): p is number => p != null);
   const avg = pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : null;
   const over = pcts.filter((p) => p > 100).length;

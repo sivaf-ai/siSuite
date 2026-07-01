@@ -10,7 +10,7 @@
  * a doppia conferma e 3 modi (§7). Modalità «pick» (§6.10): checkbox→radio + onPick(node),
  * con TUTTA la toolbar e la creazione al volo. Reattività via reload + bus cache (regola E).
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronRight, ChevronDown, Plus, MoreVertical, Pencil, Copy, FolderInput, Trash2,
@@ -24,7 +24,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { PromptDialog } from './PromptDialog';
 import { Modal } from './Modal';
 import { BusyOverlay } from './BusyOverlay';
-import { useApi, useReloadOnEnter, useStickyState, useArchivedView, mutate } from '../api/hooks';
+import { useApi, useReloadOnEnter, useStickyState, useArchivedView, mutate, mutateSilent } from '../api/hooks';
 import { apiFetch, ApiError } from '../api/client';
 import { useToast } from './Toast';
 import { useAuth } from '../auth/AuthContext';
@@ -148,6 +148,8 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
   const [cardBusy, setCardBusy] = useState(false);
   const [quick, setQuick] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const lpTimer = useRef<number | null>(null);   // long-press (mobile) → apre il menu di riga
+  const clearLp = () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; } };
   const [del, setDel] = useState<{ node: Node; step: 'choose' | 'confirmReassign' } | null>(null);
   const [cascade, setCascade] = useState<Node | null>(null);
   const [moveOf, setMoveOf] = useState<Node | null>(null);
@@ -231,13 +233,14 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
     let ok = 0, fail = 0;
     setBulkBusy({ done: 0, total: ids.length });   // overlay bloccante: niente sfarfallio, un solo refresh a fine
     for (let i = 0; i < ids.length; i++) {
-      try { await mutate('DELETE', `${config.endpoint}/${ids[i]}?mode=block`); ok++; }
+      // mutateSilent: NON invalida la cache a ogni giro → niente ricarica intermedia (sfarfallio).
+      try { await mutateSilent('DELETE', `${config.endpoint}/${ids[i]}?mode=block`); ok++; }
       catch { fail++; }
       setBulkBusy({ done: i + 1, total: ids.length });
     }
     setBulkBusy(null);
     toast(`${ok} eliminate${fail ? ` · ${fail} non eliminabili (con contenuto/figli)` : ''}`);
-    setSelected(new Set()); reload();
+    setSelected(new Set()); reload();   // UNA sola ricarica, a fine ciclo
   }
 
   // ── eliminazione (§7): step 1 = block (prova diretta), poi scelta modi ──
@@ -299,9 +302,14 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
     const zone = over?.id === n.id ? over.zone : null;
     return (
       <div key={n.id}>
-        <div className={`et-row${dragging ? ' et-dragging' : ''}${zone === 'inside' ? ' et-inside' : ''}`}
+        <div className={`et-row${dragging ? ' et-dragging' : ''}${zone === 'inside' ? ' et-inside' : ''}${!pick && menuFor === n.id ? ' et-menuopen' : ''}`}
           style={{ paddingLeft: 6 + n.depth * 20 }}
           draggable={canWrite && !pick}
+          // desktop: tasto destro apre il menu di riga · mobile: pressione prolungata (long-press)
+          onContextMenu={(e) => { if (pick || !canWrite || showArchived) return; e.preventDefault(); setMenuFor(n.id); }}
+          onTouchStart={() => { if (pick || !canWrite || showArchived) return; clearLp(); lpTimer.current = window.setTimeout(() => setMenuFor(n.id), 500); }}
+          onTouchEnd={clearLp}
+          onTouchMove={clearLp}
           onDragStart={() => setDrag(n.id)}
           onDragEnd={() => { setDrag(null); setOver(null); }}
           onDragOver={(e) => { if (!drag || drag === n.id) return; e.preventDefault();
@@ -350,7 +358,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
                   <div onClick={(e) => { e.stopPropagation(); setMenuFor(null); }} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
                   <div className="et-menu" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => openEdit(n)}><Pencil size={14} /> Modifica</button>
-                    <button onClick={() => openCreate(n.id)}><Plus size={14} /> Aggiungi sotto-voce</button>
+                    <button onClick={() => openCreate(n.id)}><Plus size={14} /> Aggiungi sotto-{config.labels.singular.toLowerCase()}</button>
                     <button onClick={() => duplicate(n)}><Copy size={14} /> Duplica</button>
                     <button onClick={() => { setMoveOf(n); setMenuFor(null); }}><FolderInput size={14} /> Sposta in…</button>
                     {hasKids && <button onClick={() => selectBranch(n.id)}><CheckSquare size={14} /> Seleziona ramo</button>}
@@ -396,6 +404,7 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
         .et-quick input{border:0;outline:none;background:none;font:inherit;font-size:13px;flex:1;color:var(--ink)}
         .et-row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;font-size:13.5px;position:relative;cursor:pointer}
         .et-row:hover{background:var(--paper)}
+        .et-row.et-menuopen{background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--brand)}
         .et-row.et-inside{box-shadow:inset 0 0 0 2px var(--brand)}
         .et-dragging{opacity:.45}
         .et-line{position:absolute;left:8px;right:8px;height:2px;background:var(--brand)}
@@ -410,8 +419,8 @@ export function EntityTree({ config }: { config: EntityTreeConfig }) {
         .et-badge{font-size:10px;padding:1px 6px;border-radius:999px;font-weight:600}
         .et-off{background:var(--neutral-wash);color:var(--ink-soft)}
         .et-arch{background:var(--warning-wash);color:var(--warning)}
-        .et-acts{margin-left:auto;display:flex;gap:2px;opacity:0;position:relative}
-        .et-row:hover .et-acts{opacity:1}
+        .et-acts{margin-left:auto;display:flex;gap:2px;opacity:.4;position:relative}
+        .et-row:hover .et-acts,.et-row.et-menuopen .et-acts{opacity:1}
         .et-menu{position:absolute;top:26px;right:0;z-index:21;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:5px;min-width:190px;display:flex;flex-direction:column}
         .et-menu button{display:flex;align-items:center;gap:9px;padding:8px 10px;border:0;background:none;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;border-radius:7px;text-align:left}
         .et-menu button:hover{background:var(--paper)}

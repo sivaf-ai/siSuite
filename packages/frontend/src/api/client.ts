@@ -18,7 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, init: RequestInit = {}, opts?: { silent?: boolean }): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
   // content-type JSON solo se c'è un body: Fastify rifiuta una richiesta con
@@ -30,9 +30,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, body);
-  // mutazione andata a buon fine → invalida la risorsa: liste/maschere che la usano si ricaricano
+  // mutazione andata a buon fine → invalida la risorsa: liste/maschere che la usano si ricaricano.
+  // `silent` salta l'invalidazione (es. operazioni massive in loop → una sola invalidazione a fine).
   const method = (init.method ?? 'GET').toUpperCase();
-  if (method !== 'GET') invalidatePath(path);
+  if (method !== 'GET' && !opts?.silent) invalidatePath(path);
   return body as T;
 }
 

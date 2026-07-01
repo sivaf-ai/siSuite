@@ -12,7 +12,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
-import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { LocationTreePickerDialog } from './MagazzinoPage';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
 import { UnitSelect } from '../ui/UnitSelect';
@@ -226,10 +226,10 @@ export function DdtDetailPage() {
       </ObjectPage>
 
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
-      <LocationPickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('sourceLocationId', l.id); setSourceName(l.name); setErrs((e) => ({ ...e, source: false })); } }} />
-      <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); setErrs((e) => ({ ...e, dest: false })); } }} />
+      <LocationTreePickerDialog open={sourcePick} onClose={() => setSourcePick(false)}
+        onPick={(l) => { set('sourceLocationId', l.id); setSourceName(l.name); setErrs((e) => ({ ...e, source: false })); setSourcePick(false); }} />
+      <LocationTreePickerDialog open={destPick} onClose={() => setDestPick(false)}
+        onPick={(l) => { set('destLocationId', l.id); setDestName(l.name); setErrs((e) => ({ ...e, dest: false })); setDestPick(false); }} />
       <CompanyPickerDialog open={companyPick} role="supplier" onClose={() => setCompanyPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('companyId', c.id); setCompanyName(c.displayName); } }} />
     </Page>

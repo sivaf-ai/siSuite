@@ -2,6 +2,17 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-01 (2) — Correzioni post-test: selezione UBICAZIONE nei movimenti/documenti + rifiniture albero (chat 01.06)
+- **BLOCCO CRITICO risolto**: i movimenti (e i documenti) non permettevano di scegliere l'**ubicazione** (solo il magazzino) → impossibile testare la capacità. Ora:
+  - **Modale «Nuovo movimento»** rifatto: wrappato in `.dsx` (estetica standard, label nel bordo), **Ubicazione** con `UbicazionePickerModal` (albero VERO delle ubicazioni in pick mode, scoped al magazzino corrente + «usa il magazzino stesso»), **Articolo** con `MaterialPickerDialog` (lente, era `<select>`). Il movimento usa il `locationId` scelto.
+  - **Documenti** (DdtDetailPage, PickListDetailPage, PurchaseOrderDetailPage + ReceiveModal): origine/destinazione ora usano `LocationTreePickerDialog` (albero completo di tutti i magazzini+ubicazioni in pick) invece della lista solo-magazzini → si può indicare il **bin** preciso.
+- **Mappa occupazione**: ora mostra come tile **ogni nodo con capacità** (non solo le foglie) → un'ubicazione con limite compare SEMPRE anche se ha sotto-ubicazioni. KPI su tutti i nodi con limite.
+- **Albero (EntityTree) — rifiniture da feedback**:
+  - **Sfarfallio bulk-delete eliminato**: `mutateSilent` (nuovo, `apiFetch(..,{silent}))` non invalida la cache a ogni giro → una sola ricarica a fine ciclo.
+  - **Affordance menu di riga**: `.et-acts` da opacity 0→**0.4** (⋯ sempre lievemente visibile), riga **evidenziata** quando il suo menu è aperto (`.et-menuopen`), **tasto destro** (desktop) e **long-press 500ms** (mobile) aprono il menu di riga.
+  - Voce menu «Aggiungi sotto-voce» → **«Aggiungi sotto-{entità}»** (es. «Aggiungi sotto-ubicazione», «Aggiungi sotto-categoria»).
+- Typecheck FE pulito. DEMO-MAP archiviato (nascosto). **Aperti/next**: creazione documento **assistita/AI** (l'utente la vuole: "dico cosa voglio, il sistema predispone il documento"); rivedere il **cascade su rami con giacenza** (oggi archivia comunque; il purge è bloccato dai movimenti immutabili).
+
 ## 2026-07-01 (1) — WMS Fase 3: mappa occupazione (heatmap) come tab del magazzino (chat 01.06)
 - **Solo frontend** (nessuna migrazione/endpoint nuovo): riusa `GET /stock/locations?subtreeOf=<magazzino>` che già porta `occupied`+`capacity*` per nodo.
 - Nuovo tab **«Mappa occupazione»** (`OccupancyMap` in MagazzinoPage): raggruppa le **foglie (bin) per genitore** (scaffale/zona); ogni bin è un **tile colorato** per % pieno (`heatColor`: vuoto #dcebdc → verde → lime → giallo → arancio≥90% → rosso>100%, grigio=senza limite), con tooltip occ/max/%. **Roll-up** per gruppo (somma se i bin condividono lo stesso criterio, altrimenti «criteri misti»). **KPI** in testa (bin con limite · riempimento medio · quasi pieni ≥90% · in eccesso >100%), **legenda**, toggle **«solo con limite»**.

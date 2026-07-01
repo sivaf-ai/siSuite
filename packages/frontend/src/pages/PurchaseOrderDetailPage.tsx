@@ -13,7 +13,7 @@ import { ObjectPage, ObjectBox } from '../ui/ObjectPage';
 import { Modal } from '../ui/Modal';
 import { MaterialPickerDialog } from '../ui/MaterialPickerDialog';
 import { CompanyPickerDialog } from '../ui/CompanyPickerDialog';
-import { LocationPickerDialog } from '../ui/LocationPickerDialog';
+import { LocationTreePickerDialog } from './MagazzinoPage';
 import { PickerField } from '../ui/PickerField';
 import { NumInput } from '../ui/NumInput';
 import { UnitSelect } from '../ui/UnitSelect';
@@ -200,8 +200,8 @@ export function PurchaseOrderDetailPage() {
       <MaterialPickerDialog open={pickOpen} multi onClose={() => setPickOpen(false)} onPick={addMaterials} />
       <CompanyPickerDialog open={supplierPick} role="supplier" onClose={() => setSupplierPick(false)}
         onPick={(cs) => { const c = cs[0]; if (c) { set('supplierId', c.id); setSupplierName(c.displayName); } }} />
-      <LocationPickerDialog open={destPick} onClose={() => setDestPick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { set('destLocationId', l.id); setDestName(l.name); } }} />
+      <LocationTreePickerDialog open={destPick} onClose={() => setDestPick(false)}
+        onPick={(l) => { set('destLocationId', l.id); setDestName(l.name); setDestPick(false); }} />
       {receiveOpen && d && (
         <ReceiveModal po={d} defaultLocationId={form.destLocationId || null} locations={locOpts}
           onClose={() => setReceiveOpen(false)} onDone={() => { setReceiveOpen(false); void detail.reload(); }} />
@@ -249,8 +249,8 @@ function ReceiveModal({ po, defaultLocationId, locations, onClose, onDone }: {
             onOpen={() => setLocPick(true)}
             onClear={() => { setLocId(''); setLocName(''); }} /></div>
       </div>
-      <LocationPickerDialog open={locPick} onClose={() => setLocPick(false)}
-        onPick={(ls) => { const l = ls[0]; if (l) { setLocId(l.id); setLocName(l.name); } }} />
+      <LocationTreePickerDialog open={locPick} onClose={() => setLocPick(false)}
+        onPick={(l) => { setLocId(l.id); setLocName(l.name); setLocPick(false); }} />
       <table className="subt" style={{ marginTop: 14 }}>
         <colgroup>
           <col />

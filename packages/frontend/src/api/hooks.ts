@@ -65,3 +65,9 @@ export function useApi<T>(path: string | null) {
 export async function mutate<T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
   return apiFetch<T>(path, { method, body: body ? JSON.stringify(body) : undefined });
 }
+
+/** come mutate, ma SENZA invalidare la cache (per operazioni massive in loop:
+ *  si invalida/ricarica UNA sola volta a fine → niente sfarfallio intermedio). */
+export async function mutateSilent<T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
+  return apiFetch<T>(path, { method, body: body ? JSON.stringify(body) : undefined }, { silent: true });
+}
