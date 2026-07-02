@@ -8,7 +8,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useHistory } from 'react-router';
 import { Search, Package, MapPin, AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
-import type { StockBalanceDto, MaterialDto } from '@sisuite/shared';
+import type { StockBalanceDto, ReorderReportDto } from '@sisuite/shared';
 import { Page, Loading, ErrorBox } from '../components/Page';
 import { PickerField } from '../ui/PickerField';
 import { useApi } from '../api/hooks';
@@ -135,35 +135,47 @@ function ByLocation() {
   );
 }
 
-/* ── Riordino: articoli sotto la scorta minima ── */
+/* ── Riordino: report SERVER-SIDE (sotto scorta, deficit, qtà suggerita) ── */
 function Reorder() {
-  const { data, loading, error } = useApi<{ items: MaterialDto[] }>('/materials?limit=200');
+  const [limit, setLimit] = useState(100);
+  const { data, loading, error } = useApi<ReorderReportDto>(`/stock/reorder?limit=${limit}`);
   const history = useHistory();
-  if (loading) return <Loading />;
+  if (loading && !data) return <Loading />;
   if (error) return <ErrorBox message={error} />;
-  const rows = (data?.items ?? []).filter((m) => m.lowStock).sort((a, b) => a.name.localeCompare(b.name, 'it'));
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
   return (
     <>
-      <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', margin: '0 2px 8px' }}>
-        Articoli con giacenza totale sotto il <b>punto di riordino</b>. Il deficit è la quantità da riportare almeno alla scorta minima.
-      </p>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 2px 8px', flexWrap: 'wrap' }}>
+        <p className="faint" style={{ fontSize: 12.5, color: 'var(--ink-faint)', margin: 0, flex: 1 }}>
+          Articoli con giacenza totale sotto il <b>punto di riordino</b>, ordinati per <b>gravità</b> (deficit). «Da ordinare» è la quantità suggerita per riportarsi al livello obiettivo (max / scorta di sicurezza).
+        </p>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: total ? 'var(--danger)' : 'var(--ink-faint)' }}>{total} sotto scorta</span>
+      </div>
       <table className="subt">
-        <thead><tr><th>Articolo</th><th className="num">Giacenza</th><th className="num">Punto di riordino</th><th className="num">Deficit</th></tr></thead>
+        <thead><tr><th>Articolo</th><th>Fornitore abituale</th><th className="num">Giacenza</th><th className="num">Riordino</th><th className="num">Deficit</th><th className="num">Da ordinare</th></tr></thead>
         <tbody>
-          {rows.map((m) => {
-            const deficit = (m.reorderPoint ?? 0) - m.qtyOnHand;
-            return (
-              <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => history.push(`/materials/${m.id}`)}>
-                <td className="cellname">{m.name}{m.sku ? <span className="muted mono" style={{ fontSize: 11 }}> · {m.sku}</span> : null}</td>
-                <td className="num mono" style={{ color: 'var(--danger)', fontWeight: 700 }}>{qn(m.qtyOnHand)} {m.unit}</td>
-                <td className="num mono">{qn(m.reorderPoint)}</td>
-                <td className="num mono" style={{ fontWeight: 700 }}>{deficit > 0 ? `${qn(deficit)} ${m.unit}` : '—'}</td>
-              </tr>
-            );
-          })}
-          {rows.length === 0 && <tr><td colSpan={4}><div className="dsx-empty">Nessun articolo sotto la scorta minima. 👍</div></td></tr>}
+          {items.map((m) => (
+            <tr key={m.materialId} style={{ cursor: 'pointer' }} onClick={() => history.push(`/materials/${m.materialId}`)}>
+              <td className="cellname">{m.name}{m.sku ? <span className="muted mono" style={{ fontSize: 11 }}> · {m.sku}</span> : null}</td>
+              <td className="cellsub">{m.preferredVendorName ?? '—'}</td>
+              <td className="num mono" style={{ color: 'var(--danger)', fontWeight: 700 }}>{qn(m.onHand)} {m.unit ?? ''}</td>
+              <td className="num mono">{qn(m.reorderPoint)}</td>
+              <td className="num mono" style={{ fontWeight: 700 }}>{qn(m.deficit)} {m.unit ?? ''}</td>
+              <td className="num mono" style={{ fontWeight: 700, color: 'var(--brand)' }}>{qn(m.suggestedQty)} {m.unit ?? ''}</td>
+            </tr>
+          ))}
+          {items.length === 0 && <tr><td colSpan={6}><div className="dsx-empty">Nessun articolo sotto la scorta minima. 👍</div></td></tr>}
         </tbody>
       </table>
+      {total > items.length && (
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setLimit((l) => Math.min(l + 100, 500))}>
+            Carica altri — mostrati {items.length} di {total}
+          </button>
+          {total > 500 && items.length >= 500 && <p className="faint" style={{ fontSize: 11.5, color: 'var(--ink-faint)', marginTop: 6 }}>Report limitato ai 500 più gravi; usa i filtri o riduci i sotto-scorta.</p>}
+        </div>
+      )}
     </>
   );
 }

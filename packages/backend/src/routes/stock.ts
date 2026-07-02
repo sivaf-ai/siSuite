@@ -491,6 +491,43 @@ export async function stockRoutes(app: FastifyInstance): Promise<void> {
       return { items };
     });
 
+  // ── Report RIORDINO (server-side): sotto scorta, deficit, qtà suggerita ─────
+  //  Filtro e calcoli in SQL (mai fetch-all + filtro client). Ordinato per gravità,
+  //  con TOTALE reale + paginazione → niente troncamento silenzioso.
+  app.get<{ Querystring: { limit?: string; offset?: string } }>('/stock/reorder',
+    { preHandler: [app.authenticate, requirePermission('stock:read')] },
+    async (request) => {
+      const limit = Math.min(Math.max(Number(request.query.limit) || 100, 1), 500);
+      const offset = Math.max(Number(request.query.offset) || 0, 0);
+      return withRls(request.ctx, async (db) => {
+        // giacenza per articolo (tenant-safe: la giacenza deve essere dello stesso tenant dell'articolo)
+        const base = `FROM material m
+          LEFT JOIN unit_of_measure u ON u.id = m.unit_id
+          LEFT JOIN company pv ON pv.id = m.preferred_vendor_id
+          LEFT JOIN LATERAL (SELECT COALESCE(SUM(b.qty_on_hand), 0) AS qty FROM stock_balance b
+             WHERE b.material_id = m.id AND b.tenant_id = m.tenant_id) bal ON true
+          WHERE m.archived_at IS NULL AND m.track_stock AND m.reorder_point IS NOT NULL AND bal.qty < m.reorder_point`;
+        const total = Number((await db.query(`SELECT count(*)::int AS n ${base}`)).rows[0].n);
+        const rows = (await db.query(
+          `SELECT m.id, m.code, m.name, m.sku, u.code AS unit, bal.qty AS on_hand,
+                  m.reorder_point, m.safety_stock, m.max_qty, pv.display_name AS vendor,
+                  (m.reorder_point - bal.qty) AS deficit,
+                  GREATEST(COALESCE(NULLIF(m.max_qty, 0), NULLIF(m.safety_stock, 0), m.reorder_point) - bal.qty, m.reorder_point - bal.qty) AS suggested
+           ${base}
+           ORDER BY (m.reorder_point - bal.qty) DESC, m.name
+           LIMIT $1 OFFSET $2`, [limit, offset])).rows;
+        return {
+          total,
+          items: rows.map((r: Record<string, unknown>) => ({
+            materialId: r.id as string, code: (r.code as string) ?? null, name: r.name as string, sku: (r.sku as string) ?? null,
+            unit: (r.unit as string) ?? null, onHand: Number(r.on_hand), reorderPoint: Number(r.reorder_point),
+            safetyStock: r.safety_stock === null ? null : Number(r.safety_stock), maxQty: r.max_qty === null ? null : Number(r.max_qty),
+            deficit: Number(r.deficit), suggestedQty: Number(r.suggested), preferredVendorName: (r.vendor as string) ?? null,
+          })),
+        };
+      });
+    });
+
   // ── Movimenti (storico + registrazione singola) ─────────────────────
   app.get<{ Querystring: { materialId?: string; locationId?: string; engagementId?: string; activityId?: string; workOrderId?: string } }>(
     '/stock/movements', { preHandler: [app.authenticate, requirePermission('stock:read')] },

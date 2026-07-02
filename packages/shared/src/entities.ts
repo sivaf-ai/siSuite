@@ -725,6 +725,15 @@ export interface StockBalanceDto {
   firstInAt?: string | null;
 }
 
+/** Report RIORDINO (server-side): articoli sotto la scorta minima, con deficit e
+ *  quantità suggerita da riordinare. Calcolato in SQL (nessun filtro client). */
+export interface ReorderItemDto {
+  materialId: string; code: string | null; name: string; sku: string | null; unit: string | null;
+  onHand: number; reorderPoint: number; safetyStock: number | null; maxQty: number | null;
+  deficit: number; suggestedQty: number; preferredVendorName: string | null;
+}
+export interface ReorderReportDto { items: ReorderItemDto[]; total: number }
+
 export const stockDocumentLineSchema = z.object({
   materialId: uuid,
   quantity: z.number().positive(),

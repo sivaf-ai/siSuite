@@ -2,6 +2,11 @@
 
 > Annotare qui migrazioni/moduli toccati per evitare collisioni tra chat.
 
+## 2026-07-02 (1) — Riordino come report SERVER-SIDE (no fetch-all/filtro-client) (chat 01.06)
+- Riscritta la vista Riordino "da leader": nuovo endpoint **`GET /stock/reorder`** (`ReorderReportDto`) che **filtra e calcola in SQL** (track_stock + reorder_point + Σgiacenza tenant-safe < reorder_point), ordina per **gravità** (deficit desc), calcola **deficit** e **quantità suggerita** (target = max ∥ scorta sicurezza ∥ reorder), espone il **fornitore abituale**, con **totale reale** + **paginazione** (limit≤500, offset) → niente più fetch-all `/materials?limit=1000` né filtro client né **troncamento silenzioso**.
+- Frontend StockInquiryPage: vista Riordino usa `/stock/reorder`, mostra «N sotto scorta», colonne Fornitore/Giacenza/Riordino/Deficit/**Da ordinare**, «Carica altri (mostrati X di N)». Motivazione tecnica (parere richiesto): i report/filtri stanno sul server, non nel browser.
+- Smoke: reorder_point=99999 su un articolo → total 1, deficit 99999, daOrdinare 100000; reset. 90/90 test, typecheck pulito. (Nota ambientale: Docker Desktop era caduto durante i test, riavviato.)
+
 ## 2026-07-01 (12) — Fix post-test: giacenze cross-tenant duplicate + Riordino 400 (chat 01.06)
 - **BUG giacenze doppie (chiavi React duplicate)**: l'owner è **platform admin** → RLS gli mostra TUTTI i tenant; il demo ha righe `stock_balance` **cross-tenant** (giacenza in un tenant che referenzia articolo/ubicazione di un altro) → `/stock/balance` restituiva la stessa (articolo,ubicazione) da 2 tenant. Fix: la query aggiunge `b.tenant_id = l.tenant_id AND b.tenant_id = m.tenant_id` (invariante d'integrità) → righe incoerenti escluse, niente doppioni (14→9 righe pulite). Chiavi React rese robuste con indice (GiacenzeTab/StockInquiryPage).
 - **BUG Riordino 400**: `StockInquiryPage` chiamava `/materials?limit=1000` ma il cap di `listQuerySchema` è **200** → 400. Portato a `limit=200`.
